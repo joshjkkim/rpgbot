@@ -1,0 +1,33 @@
+import * as daily from "./user/daily.js";
+import * as profile from "./user/profile.js";
+import * as configXp from "./admin/configXp.js";
+import * as configLevels from "./admin/configLevels.js";
+import * as levels from "./user/leveling.js";
+import * as set from "./admin/set.js";
+import * as configStyle from "./admin/configStyles.js";
+import * as configStreak from "./admin/configStreak.js";
+import * as config from "./admin/configGeneral.js";
+
+export const commandList = [
+    daily.data,
+    profile.data,
+    configXp.data,
+    configLevels.data,
+    levels.data,
+    set.data,
+    configStyle.data,
+    configStreak.data,
+    config.data,
+]
+
+export const commands = new Map([
+    [daily.data.name, daily],
+    [profile.data.name, profile],
+    [configXp.data.name, configXp],
+    [configLevels.data.name, configLevels],
+    [levels.data.name, levels],
+    [set.data.name, set],
+    [configStyle.data.name, configStyle],
+    [configStreak.data.name, configStreak],
+    [config.data.name, config],
+])
