@@ -13,13 +13,16 @@ export interface DbUserGuildProfile extends QueryResultRow {
     streak_count: number;
     last_daily_at: string | null;
     last_message_at: string | null;
+    titles: string[];   // array of title IDs
 }
 
 type XpArgs = {
     userId: number;
     guildId: number;
+    channelId?: string;
     config: GuildConfig;
     roleIds?: string[];
+    amount?: number;
 }
 
 type UpsertArgs = {
@@ -62,7 +65,7 @@ export async function getUserGuildProfile(userId: number, guildId: number): Prom
 }
 
 export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildProfile, gave: boolean, levelUp: boolean}> {
-    const { userId, guildId, config } = args;
+    const { userId, guildId, channelId, config } = args;
 
     const res = await query<DbUserGuildProfile>(
         `
@@ -77,34 +80,41 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
     if (!profile) {
         throw new Error("User guild profile not found");
     }
+    let xpAmount = 0;
 
-    let xpAmount = config.xp.basePerMessage;
-    let cooldownSeconds = config.xp.xpMessageCooldown;
+    if(args.amount == undefined) {
+        xpAmount = config.xp.basePerMessage;
+        xpAmount += config.xp.xpChannelIds[channelId ?? ""]?.flatBonus ?? 0;
+        let cooldownSeconds = config.xp.xpChannelIds[channelId ?? ""]?.cooldownOverride ?? config.xp.xpMessageCooldown;
+        xpAmount = Math.floor(xpAmount * (config.xp.xpChannelIds[channelId ?? ""]?.multiplier ?? 1));
 
-    for (const roleId of args.roleIds || []) {
-        const roleConfig = config.xp.roleXp[roleId];
-        if (roleConfig) {
-            if (roleConfig.extraXp) {
-                xpAmount += roleConfig.extraXp;
-            }
-            if (roleConfig.multiplier) {
-                xpAmount = Math.floor(xpAmount * roleConfig.multiplier);
-            }
-            if (roleConfig.cooldownSeconds) {
-                cooldownSeconds = Math.min(cooldownSeconds, roleConfig.cooldownSeconds);
+        for (const roleId of args.roleIds || []) {
+            const roleConfig = config.xp.roleXp[roleId];
+            if (roleConfig) {
+                if (roleConfig.extraXp) {
+                    xpAmount += roleConfig.extraXp;
+                }
+                if (roleConfig.multiplier) {
+                    xpAmount = Math.floor(xpAmount * roleConfig.multiplier);
+                }
+                if (roleConfig.cooldownSeconds) {
+                    cooldownSeconds = Math.min(cooldownSeconds, roleConfig.cooldownSeconds);
+                }
             }
         }
-    }
 
-    const lastMessageAt = profile?.last_message_at;
-    if (lastMessageAt && cooldownSeconds > 0) {
-        const now = new Date();
-        const diffTime = now.getTime() - new Date(lastMessageAt).getTime();
-        const diffSeconds = diffTime / 1000;
+        const lastMessageAt = profile?.last_message_at;
+        if (lastMessageAt && cooldownSeconds > 0) {
+            const now = new Date();
+            const diffTime = now.getTime() - new Date(lastMessageAt).getTime();
+            const diffSeconds = diffTime / 1000;
 
-        if (diffSeconds < cooldownSeconds) {
-            return { profile, gave: false, levelUp: false};
+            if (diffSeconds < cooldownSeconds) {
+                return { profile, gave: false, levelUp: false};
+            }
         }
+    } else {
+        xpAmount = args.amount!;
     }
 
     const result = await query<DbUserGuildProfile>(

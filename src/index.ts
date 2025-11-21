@@ -7,6 +7,7 @@ import {
 import { registerMessageCreate } from "./events/messageCreate.js";
 import { registerGuildCreate } from "./events/guildCreate.js";
 import { registerInteractionCreate } from "./events/interactionCreate.js";
+import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
 
 const client = new Client({
   intents: [
@@ -14,6 +15,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates,
   ],
 });
 
@@ -25,6 +27,7 @@ client.once(Events.ClientReady, () => {
 registerMessageCreate(client);
 registerGuildCreate(client);
 registerInteractionCreate(client);
+registerVoiceStateUpdate(client);
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {

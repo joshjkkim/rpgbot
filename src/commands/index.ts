@@ -7,6 +7,7 @@ import * as set from "./admin/set.js";
 import * as configStyle from "./admin/configStyles.js";
 import * as configStreak from "./admin/configStreak.js";
 import * as config from "./admin/configGeneral.js";
+import * as leaderboard from "./user/leaderboard.js";
 
 export const commandList = [
     daily.data,
@@ -18,9 +19,10 @@ export const commandList = [
     configStyle.data,
     configStreak.data,
     config.data,
+    leaderboard.data,
 ]
 
-export const commands = new Map([
+export const commands = new Map<string, any>([
     [daily.data.name, daily],
     [profile.data.name, profile],
     [configXp.data.name, configXp],
@@ -30,4 +32,5 @@ export const commands = new Map([
     [configStyle.data.name, configStyle],
     [configStreak.data.name, configStreak],
     [config.data.name, config],
+    [leaderboard.data.name, leaderboard],
 ])

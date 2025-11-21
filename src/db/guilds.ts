@@ -33,6 +33,14 @@ export interface StreakReward {
     channelId: string | null;
 }
 
+export interface xpChannelConfig {
+    enabled: boolean;
+    channelId: string;
+    multiplier: number;
+    flatBonus: number;
+    cooldownOverride?: number;
+}
+
 export interface GuildConfig {
     style: {
         mainThemeColor: string;
@@ -40,8 +48,17 @@ export interface GuildConfig {
     xp: {
         basePerMessage: number;
         xpMessageCooldown: number;
+        xpChannelIds: Record<string, xpChannelConfig>; // channelId -> xp multiplier
         dailyXp: number;
         dailyGold: number;
+
+        vc: {
+            enabled: boolean;
+            basePerMinute: number;
+            minMinutesForXp: number;
+            channelIds: Record<string, xpChannelConfig>;
+            roleXpBonus: Record<string, RoleXpConfig>;
+        };
 
         streakMultiplier: number;
         streakAnnounceChannelId: string | null;
@@ -75,8 +92,18 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
     xp: {
         basePerMessage: 5,
         xpMessageCooldown: 60,
+        xpChannelIds: {},
+
         dailyXp: 50,
         dailyGold: 20,
+
+        vc: {
+            enabled: false,
+            basePerMinute: 2,
+            minMinutesForXp: 0,
+            channelIds: {},
+            roleXpBonus: {},
+        },
 
         streakMultiplier: 0.1,
         streakAnnounceChannelId: null,
@@ -159,6 +186,26 @@ export function mergeConfig(raw: GuildConfig | null): GuildConfig {
             xp: {
                 ...DEFAULT_GUILD_CONFIG.xp,
                 ...(raw?.xp ?? {}),
+                vc: {
+                    ...DEFAULT_GUILD_CONFIG.xp.vc,
+                    ...(raw?.xp?.vc ?? {}),
+                    channelIds: {
+                        ...DEFAULT_GUILD_CONFIG.xp.vc.channelIds,
+                        ...(raw?.xp?.vc?.channelIds ?? {}),
+                    },
+                    roleXpBonus: {
+                        ...DEFAULT_GUILD_CONFIG.xp.vc.roleXpBonus,
+                        ...(raw?.xp?.vc?.roleXpBonus ?? {}),
+                    }
+                },
+                xpChannelIds: {
+                    ...DEFAULT_GUILD_CONFIG.xp.xpChannelIds,
+                    ...(raw?.xp?.xpChannelIds ?? {}),
+                },
+                streakRewards: {
+                    ...DEFAULT_GUILD_CONFIG.xp.streakRewards,
+                    ...(raw?.xp?.streakRewards ?? {}),
+                },
                 roleXp: {
                     ...DEFAULT_GUILD_CONFIG.xp.roleXp,
                     ...(raw?.xp?.roleXp ?? {}),

@@ -147,7 +147,80 @@ export const data = new SlashCommandBuilder()
             .setDescription("Extra daily streak multiplier bonus for this role (e.g., 1 for 100%)")
             .setRequired(false)
         )
-    );
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("list-channel-xp-config").setDescription("List all channel-specific XP configurations")
+            .addStringOption(opt =>
+                opt.setName("type")
+                .setDescription("Type of channels to list (text/voice/all)")
+                .setRequired(false)
+                .addChoices(
+                    { name: "Text Channels", value: "text" },
+                    { name: "Voice Channels", value: "voice" },
+                    { name: "All Channels", value: "all" },
+                )
+            )
+    )
+
+    .addSubcommand((sub) => // set announce daily message
+        sub.setName("add-channel-xp-config").setDescription("Add or update XP configuration for a specific channel")
+        .addChannelOption((opt) =>
+            opt.setName("channel")
+            .setDescription("Channel to configure XP settings for")
+            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+            .setRequired(true)
+        )
+        .addBooleanOption((opt) =>
+            opt.setName("enabled")
+            .setDescription("Enable or disable XP for this channel")
+            .setRequired(true)
+        )
+        .addNumberOption((opt) =>
+            opt.setName("multiplier")
+            .setDescription("XP multiplier for this channel (e.g., 1.5 for 150%)")
+            .setRequired(false)
+        )
+        .addIntegerOption((opt) =>
+            opt.setName("flat-bonus")
+            .setDescription("Flat XP bonus for this channel")
+            .setRequired(false)
+        )
+        .addIntegerOption((opt) =>
+            opt.setName("cooldown-override")
+            .setDescription("Cooldown override in seconds for this channel leave blank for no override")
+            .setRequired(false)
+        )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("remove-channel-xp-config").setDescription("Remove XP configuration for a specific channel")
+        .addChannelOption((opt) =>
+            opt.setName("channel")
+            .setDescription("Channel to remove XP configuration for")
+            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+            .setRequired(true)
+        )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("vc-xp").setDescription("Configure voice channel XP settings")
+        .addBooleanOption(opt =>
+            opt.setName("enabled")
+            .setDescription("Enable or disable voice channel XP")
+            .setRequired(false)
+        )
+        .addIntegerOption(opt =>
+            opt.setName("base-per-minute")
+            .setDescription("Base XP per minute spent in voice channels")
+            .setRequired(false)
+        )
+        .addIntegerOption(opt =>
+            opt.setName("min-minutes-for-xp")
+            .setDescription("Minimum minutes required in a voice channel to earn XP")
+            .setRequired(false)
+        )
+    )
 
 export async function execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.inGuild() || !interaction.guildId) {
@@ -164,7 +237,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const sub = interaction.options.getSubcommand();
     const { config } = await getGuildConfig(interaction.guildId);
-    let newConfig = { ...config, xp: { ...config.xp, roleXp: { ...config.xp.roleXp } } };
+    let newConfig = { ...config, xp: { ...config.xp, roleXp: { ...config.xp.roleXp }, xpChannelIds: { ...config.xp.xpChannelIds } } };
 
     switch(sub) {
         case "show": {
@@ -328,5 +401,111 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             await setGuildConfig(interaction.guildId, newConfig);
             break;
         }
+
+        case "list-channel-xp-config": {
+            const type = interaction.options.getString("type", false) || "all";
+
+            let channelConfigs;
+
+            if(type === "text") {
+                channelConfigs = newConfig.xp.xpChannelIds;
+            } else if (type === "voice") {
+                channelConfigs = newConfig.xp.vc.channelIds;
+            } else {
+                channelConfigs = { ...newConfig.xp.xpChannelIds, ...newConfig.xp.vc.channelIds };
+            }
+
+            if(Object.keys(channelConfigs).length === 0) {
+                await interaction.editReply("No channel-specific XP configurations found.");
+                return;
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle("Channel-specific XP Configurations")
+                .setColor(0x00AE86)
+                .addFields(
+                    Object.entries(channelConfigs).map(([channelId, cfg]) => ({
+                        name: `<#${channelId}>`,
+                        value: `Enabled: ${cfg.enabled}\nMultiplier: ${cfg.multiplier}\nFlat Bonus: ${cfg.flatBonus}\nCooldown Override: ${cfg.cooldownOverride ?? "None"}`,
+                        inline: false,
+                    }))
+                );
+
+            await interaction.editReply({ embeds: [embed] });
+            break;
+        }
+
+        case "add-channel-xp-config": {
+            const channel = interaction.options.getChannel("channel", true);
+            const enabled = interaction.options.getBoolean("enabled", true);
+            const multiplier = interaction.options.getNumber("multiplier", false) ?? 1;
+            const flatBonus = interaction.options.getInteger("flat-bonus", false) ?? 0;
+            const cooldownOverride = interaction.options.getInteger("cooldown-override", false);
+
+            const channelType = channel.type;
+            if(channelType == ChannelType.GuildText || channelType == ChannelType.GuildAnnouncement) {
+
+                newConfig.xp.xpChannelIds[channel.id] = {
+                        channelId: channel.id,
+                        enabled,
+                        multiplier,
+                        flatBonus,
+                        ...(cooldownOverride !== null && { cooldownOverride }),
+                    };
+            } else if (channelType == ChannelType.GuildVoice || channelType == ChannelType.GuildStageVoice) {
+                newConfig.xp.vc.channelIds[channel.id] = {
+                    channelId: channel.id,
+                    enabled,
+                    multiplier,
+                    flatBonus,
+                };
+            }
+
+            await interaction.editReply(`XP configuration for <#${channel.id}> has been added/updated.`);
+            await setGuildConfig(interaction.guildId, newConfig);
+            break;
+        }
+
+        case "remove-channel-xp-config": {
+            const channel = interaction.options.getChannel("channel", true);
+            const channelType = channel.type;
+
+            if(channelType == ChannelType.GuildText || channelType == ChannelType.GuildAnnouncement) {
+                if(newConfig.xp.xpChannelIds[channel.id]) {
+                    delete newConfig.xp.xpChannelIds[channel.id];
+                    await interaction.editReply(`XP configuration for <#${channel.id}> has been removed.`);
+                    await setGuildConfig(interaction.guildId, newConfig);
+                } else {
+                    await interaction.editReply(`No XP configuration found for <#${channel.id}>.`);
+                }
+            } else {
+                if(newConfig.xp.vc.channelIds[channel.id]) {
+                    delete newConfig.xp.vc.channelIds[channel.id];
+                    await interaction.editReply(`XP configuration for <#${channel.id}> has been removed.`);
+                    await setGuildConfig(interaction.guildId, newConfig);
+                } else {
+                    await interaction.editReply(`No XP configuration found for <#${channel.id}>.`);
+                }
+            }
+            break;
+        }
+
+        case "vc-xp": {
+            const enabled = interaction.options.getBoolean("enabled", false) ?? newConfig.xp.vc.enabled;
+            const basePerMinute = interaction.options.getInteger("base-per-minute", false) ?? newConfig.xp.vc.basePerMinute;
+            const minMinutesForXp = interaction.options.getInteger("min-minutes-for-xp", false) ?? newConfig.xp.vc.minMinutesForXp;
+
+            newConfig.xp.vc.enabled = enabled;
+            newConfig.xp.vc.basePerMinute = basePerMinute;
+            newConfig.xp.vc.minMinutesForXp = minMinutesForXp;
+
+            await interaction.editReply(`Voice channel XP configuration updated. Enabled: ${enabled}, Base Per Minute: ${basePerMinute}, Min Minutes For XP: ${minMinutesForXp}.`);
+            await setGuildConfig(interaction.guildId, newConfig);
+            break;
+        }
+
+        default:
+            await interaction.editReply("Unknown subcommand.");
+            break;
     }
 }
