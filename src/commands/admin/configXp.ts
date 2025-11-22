@@ -384,13 +384,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const dailyXpBonus = interaction.options.getInteger("daily-xp-bonus", false);
             const dailyGoldBonus = interaction.options.getInteger("daily-gold-bonus", false);
             const dailyStreakMultiplier = interaction.options.getNumber("daily-streak-multiplier", false);
-            const roleConfig = newConfig.xp.roleXp[role.id] || {};
+            const roleConfig = newConfig.xp.roleDailyBonus[role.id] || {};
             
             if (dailyXpBonus !== null) {
-                roleConfig.dailyXpBonus = dailyXpBonus;
+                roleConfig.xpBonus = dailyXpBonus;
             }
             if (dailyGoldBonus !== null) {
-                roleConfig.dailyGoldBonus = dailyGoldBonus;
+                roleConfig.goldBonus = dailyGoldBonus;
             }
             if (dailyStreakMultiplier !== null) {
                 roleConfig.multiplier = dailyStreakMultiplier;

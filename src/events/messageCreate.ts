@@ -117,7 +117,8 @@ export function registerMessageCreate(client: Client) {
             const dailyMessage = config.xp.announceDailyMessage
               .replace('{user}', `<@${message.author.id}>`)
               .replace('{xp}', rewardXp?.toString() ?? '0')
-              .replace('{gold}', rewardGold?.toString() ?? '0');
+              .replace('{gold}', rewardGold?.toString() ?? '0')
+              .replace('{streak}', profile.streak_count.toString());
             await channel.send(dailyMessage);
           }
         }

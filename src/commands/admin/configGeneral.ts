@@ -1,5 +1,6 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
+import { sendConfigPanel } from "../../ui/configPanel.js";
 import { getGuildConfig, mergeConfig, setGuildConfig } from "../../db/guilds.js";
 
 export const data = new SlashCommandBuilder()
@@ -14,6 +15,10 @@ export const data = new SlashCommandBuilder()
 
     .addSubcommand(sub =>
         sub.setName("merge").setDescription("DEV ONLY: Merge default config into existing config")
+    )
+
+    .addSubcommand(sub=>
+        sub.setName("panel").setDescription ("Configure the bot's control panel settings")
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -45,6 +50,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             newConfig = mergeConfig(config);
             await setGuildConfig(interaction.guildId, newConfig);
             await interaction.editReply("Configuration merged with default settings.");
+            break;
+        }
+
+        case "panel": {
+            await sendConfigPanel(interaction);
             break;
         }
     }

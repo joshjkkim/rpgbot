@@ -3,7 +3,8 @@ import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { upsertUserGuildProfile } from "../../db/userGuildProfiles.js";
 import { upsertUser } from "../../db/users.js";
 import { getGuildConfig } from "../../db/guilds.js";
-import { calculateLevelFromXp, calculateTotalXpForLevel } from "../../leveling/levels.js";
+import { calculateTotalXpForLevel } from "../../leveling/levels.js";
+import type { StreakReward } from "../../db/guilds.js";
 
 function createProgressBar(current: number, max: number, length: number = 10): string {
     const progress = Math.min(current / max, 1);
@@ -50,6 +51,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const progressBar = createProgressBar(xpInCurrentLevel, xpNeededForNext, 15);
     const percentage = Math.floor((xpInCurrentLevel / xpNeededForNext) * 100);
 
+    const streakRewards = dbGuild.config.xp.streakRewards;
+
+    const nextStreakReward = Object.entries(streakRewards)
+        .map(([days, reward]) => ({ days: Number(days), reward: reward as StreakReward }))
+        .find(reward => reward.days > profile.streak_count);
+
     const embed = new EmbedBuilder()
         .setTitle(`✨ ${interaction.user.username}'s Profile`)
         .setThumbnail(interaction.user.displayAvatarURL())
@@ -75,6 +82,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 value: `\`${profile.streak_count}\` days`, 
                 inline: true 
             }
+        );
+
+        if (nextStreakReward) {
+            embed.addFields({
+                name: "🎁 Next Streak Reward",
+                value: `Reach a ${nextStreakReward.days}-day streak to earn **${nextStreakReward.reward.xpBonus} XP** and **${nextStreakReward.reward?.goldBonus} Gold**!`,
+                inline: false
+            });
+        }
+
+        embed.setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() }
         )
         .setColor(color as ColorResolvable)
         .setFooter({ text: `Keep up the great work!` })

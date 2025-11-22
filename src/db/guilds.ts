@@ -13,8 +13,12 @@ export interface RoleXpConfig {
     extraXp?: number;
     multiplier?: number;
     cooldownSeconds?: number;
-    dailyXpBonus?: number;
-    dailyGoldBonus?: number;
+}
+
+export interface RoleDailyBonusConfig {
+    xpBonus?: number;
+    goldBonus?: number;
+    multiplier?: number;
 }
 
 export interface LevelAction {
@@ -66,6 +70,7 @@ export interface GuildConfig {
         streakRewards: Record<number, StreakReward>;
 
         roleXp: Record<string, RoleXpConfig>;
+        roleDailyBonus: Record<string, RoleDailyBonusConfig>;
 
         autoDailyEnabled: boolean;
         replyToDailyInChannel: boolean;
@@ -111,6 +116,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         streakRewards: {},
 
         roleXp: {},
+        roleDailyBonus: {},
 
         autoDailyEnabled: true,
         replyToDailyInChannel: true,

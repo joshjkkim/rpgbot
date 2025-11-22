@@ -214,11 +214,11 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
     let streakMult = (config.xp.streakMultiplier ?? 0);
 
     for (const roleId of roleIds ?? []) {
-        const r = config.xp.roleXp[roleId];
+        const r = config.xp.roleDailyBonus[roleId];
         if (!r) continue;
-        extraXp += r.dailyXpBonus ?? 0;
+        extraXp += r.xpBonus ?? 0;
         streakMult += r.multiplier ? r.multiplier : 0;
-        extraGold += r.dailyGoldBonus ?? 0;
+        extraGold += r.goldBonus ?? 0;
      }
     
     const bonusFactor = 1 + streakMult * (newStreak - 1);

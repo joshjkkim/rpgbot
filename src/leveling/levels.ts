@@ -87,7 +87,6 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
   }
 
   const levelActions = config.levels.levelActions[newLevel];
-  console.log("Level up actions:", JSON.stringify(levelActions));
 
   if (!levelActions) return;
 
