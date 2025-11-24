@@ -35,7 +35,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         avatarUrl: interaction.user.displayAvatarURL(),
     });
 
-    const { guild: dbGuild } = await getGuildConfig(interaction.guildId);
+    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
 
     const profile = await upsertUserGuildProfile({
         userId: dbUser.id,
@@ -68,12 +68,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 inline: false 
             },
             { 
-                name: "💰 Gold", 
+                name: `${config.style.gold.icon || "💰"} ${config.style.gold.name || "Gold"}`, 
                 value: `\`${profile.gold.toLocaleString()}\``, 
                 inline: true 
             },
             { 
-                name: "⭐ Total XP", 
+                name: `${config.style.xp.icon || "⭐"} ${config.style.xp.name || "XP"}`, 
                 value: `\`${profile.xp.toLocaleString()}\``, 
                 inline: true 
             },
@@ -87,7 +87,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if (nextStreakReward) {
             embed.addFields({
                 name: "🎁 Next Streak Reward",
-                value: `Reach a ${nextStreakReward.days}-day streak to earn **${nextStreakReward.reward.xpBonus} XP** and **${nextStreakReward.reward?.goldBonus} Gold**!`,
+                value: `Reach a ${nextStreakReward.days}-day streak to earn **${nextStreakReward.reward.xpBonus} ${config.style.xp.name || "XP"}** and **${nextStreakReward.reward?.goldBonus} ${config.style.gold.name || "Gold"}**!`,
                 inline: false
             });
         }

@@ -12,6 +12,26 @@ export const data = new SlashCommandBuilder()
             .addStringOption(opt =>
                 opt.setName("color").setDescription("The main theme color in hex format (e.g. #3498db)").setRequired(true)
             )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("set-xp").setDescription("Set name and icon for XP (any leveling thing)")
+        .addStringOption(opt =>
+            opt.setName("name").setDescription("The name for XP (e.g. 'Experience, Mana, Life')").setRequired(false)
+        )
+        .addStringOption(opt =>
+            opt.setName("icon").setDescription("The icon for XP (e.g. ⭐)").setRequired(false)
+        )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("set-gold").setDescription("Set name and icon for gold (any currency thing)")
+        .addStringOption(opt =>
+            opt.setName("name").setDescription("The name for gold (e.g. 'Gold, Coins, Money')").setRequired(false)
+        )
+        .addStringOption(opt =>
+            opt.setName("icon").setDescription("The icon for gold (e.g. 💰)").setRequired(false)
+        )
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -46,6 +66,40 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             await setGuildConfig(interaction.guildId, newConfig);
 
             await interaction.editReply(`Main theme color set to ${newConfig.style.mainThemeColor}.`);
+            break;
+        }
+    
+    case "set-xp": {
+            const name = interaction.options.getString("name");
+            const icon = interaction.options.getString("icon");
+
+            if (name) {
+                newConfig.style.xp.name = name;
+            }
+            if (icon) {
+                newConfig.style.xp.icon = icon;
+            }
+
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply(`XP style updated.${name ? ` Name set to "${name}".` : ""}${icon ? ` Icon set to "${icon}".` : ""}`);
+            break;
+        }
+
+    case "set-gold": {
+            const name = interaction.options.getString("name");
+            const icon = interaction.options.getString("icon");
+
+            if (name) {
+                newConfig.style.gold.name = name;
+            }
+            if (icon) {
+                newConfig.style.gold.icon = icon;
+            }
+
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply(`Gold style updated.${name ? ` Name set to "${name}".` : ""}${icon ? ` Icon set to "${icon}".` : ""}`);
             break;
         }
 

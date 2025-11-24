@@ -8,6 +8,9 @@ import * as configStyle from "./admin/configStyles.js";
 import * as configStreak from "./admin/configStreak.js";
 import * as config from "./admin/configGeneral.js";
 import * as leaderboard from "./user/leaderboard.js";
+import * as configShop from "./admin/configShop.js";
+import * as shop from "./user/shop.js";
+import * as inventory from "./user/inventory.js";
 
 export const commandList = [
     daily.data,
@@ -20,6 +23,9 @@ export const commandList = [
     configStreak.data,
     config.data,
     leaderboard.data,
+    configShop.data,
+    shop.data,
+    inventory.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -33,4 +39,8 @@ export const commands = new Map<string, any>([
     [configStreak.data.name, configStreak],
     [config.data.name, config],
     [leaderboard.data.name, leaderboard],
+    [configShop.data.name, configShop],
+    [shop.data.name, shop],
+    [inventory.data.name, inventory],
+    
 ])

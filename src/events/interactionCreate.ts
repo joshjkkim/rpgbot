@@ -2,7 +2,10 @@ import type { Client } from "discord.js";
 import { Events } from "discord.js";
 import { commands } from "../commands/index.js";
 import { MessageFlags } from "discord.js";
-import { handleConfigPanelButton, handleConfigPanelModalSubmit, handleConfigPanelSelect } from "../ui/configPanel.js";
+import { handleConfigPanelSelect } from "../ui/panel/panelSelection.js";
+import { handleConfigPanelButton } from "../ui/panel/panelButton.js";
+import { handleConfigPanelModalSubmit } from "../ui/panel/panelModal.js";
+import { handleBuyItemButton, handleMainShopButton, handlePurchaseItemModal } from "../commands/user/shop.js";
 
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -27,6 +30,10 @@ export function registerInteractionCreate(client: Client) {
             if (interaction.isButton()) {
                 if (interaction.customId.startsWith("config-panel:")) {
                     await handleConfigPanelButton(interaction);
+                }else if (interaction.customId.startsWith("shop:buy")) {
+                    await handleBuyItemButton(interaction);
+                } else if (interaction.customId.startsWith("shop:")) {
+                    await handleMainShopButton(interaction);
                 }
 
                 return;
@@ -35,6 +42,8 @@ export function registerInteractionCreate(client: Client) {
             if (interaction.isModalSubmit()) {
                 if (interaction.customId.startsWith("config-panel:")) {
                     await handleConfigPanelModalSubmit(interaction);
+                } else if (interaction.customId.startsWith("shop:")) {
+                    await handlePurchaseItemModal(interaction);
                 }
                 return;
             }

@@ -45,9 +45,56 @@ export interface xpChannelConfig {
     cooldownOverride?: number;
 }
 
+export interface shopCategoryConfig {
+    id: string;
+    name: string;
+    icon?: string;
+    description?: string;
+    sortOrder?: number;
+
+    hidden?: boolean;
+    roleRequiredIds?: string[];
+}
+
+export interface shopItemAction {
+    type: "assignRole" | "removeRole" | "sendMessage" | "runCommand" | "giveStat";
+    roleId?: string;
+    message?: string;
+    channelId?: string;
+    command?: string;
+    statId?: string;
+    amount?: number;
+}
+
+export interface shopItemConfig {
+    id: string;
+    name: string;
+    emoji?: string;
+    description?: string;
+
+    categoryId: string;
+
+    price: number;
+
+    minLevel?: number;
+    requiresRoleIds?: string[];
+    maxPerUser?: number;
+    stock?: number | null;
+    hidden?: boolean;
+
+    actions?: Record<number, shopItemAction>;
+}
 export interface GuildConfig {
     style: {
         mainThemeColor: string;
+        gold: {
+            icon?: string;
+            name?: string;
+        };
+        xp: {
+            icon?: string;
+            name?: string;
+        };
     },
     xp: {
         basePerMessage: number;
@@ -87,12 +134,25 @@ export interface GuildConfig {
         curveParams: Record<string, number>; // depends on curve type
         xpOverrides: Record<number, number>; // level -> total xp required
         levelActions: Record<number, LevelAction[]>; // level -> actions to perform
+    },
+    shop: {
+        enabled?: boolean;
+        categories?: Record<string, shopCategoryConfig>;
+        items?: Record<string, shopItemConfig>;
     }
 }
 
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {
     style: {
         mainThemeColor: "#00AE86",
+        gold: {
+            icon: "💰",
+            name: "Gold"
+        },
+        xp: {
+            icon: "⭐",
+            name: "XP"
+        }
     },
     xp: {
         basePerMessage: 5,
@@ -121,9 +181,9 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         autoDailyEnabled: true,
         replyToDailyInChannel: true,
         replyToDailyEphemeral: true,
-        replyToDailyMessage: "You have claimed your daily reward of {xp} XP and {gold} gold! Your current streak is {streak} days.",
+        replyToDailyMessage: "You have claimed your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}! Your current streak is {streak} days.",
         announceDailyInChannelId: null,
-        announceDailyMessage: "🎉 {user}, you have received your daily reward of {xp} XP and {gold} gold!"
+        announceDailyMessage: "🎉 {user}, you have received your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}!"
     },
     levels: {
         maxLevel: 100,
@@ -133,6 +193,11 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         curveParams: { rate: 100},
         xpOverrides: {},
         levelActions: {}
+    },
+    shop: {
+        enabled: false,
+        categories: {},
+        items: {}
     }
 };
 
@@ -227,6 +292,18 @@ export function mergeConfig(raw: GuildConfig | null): GuildConfig {
                 levelActions: {
                     ...DEFAULT_GUILD_CONFIG.levels.levelActions,
                     ...(raw?.levels?.levelActions ?? {}),
+                }
+            },
+            shop: {
+                ...DEFAULT_GUILD_CONFIG.shop,
+                ...(raw?.shop ?? {}),
+                categories: {
+                    ...DEFAULT_GUILD_CONFIG.shop.categories,
+                    ...(raw?.shop?.categories ?? {}),
+                },
+                items: {
+                    ...DEFAULT_GUILD_CONFIG.shop.items,
+                    ...(raw?.shop?.items ?? {}),
                 }
             }
     }

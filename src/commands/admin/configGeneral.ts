@@ -1,6 +1,6 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
-import { sendConfigPanel } from "../../ui/configPanel.js";
+import { sendConfigPanel } from "../../ui/panel/mainPanel.js";
 import { getGuildConfig, mergeConfig, setGuildConfig } from "../../db/guilds.js";
 
 export const data = new SlashCommandBuilder()
@@ -19,6 +19,10 @@ export const data = new SlashCommandBuilder()
 
     .addSubcommand(sub=>
         sub.setName("panel").setDescription ("Configure the bot's control panel settings")
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("export").setDescription("Export the current configuration as JSON")
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -55,6 +59,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
         case "panel": {
             await sendConfigPanel(interaction);
+            break;
+        }
+
+        case "export": {
+            const configJson = JSON.stringify(config, null, 2);
+            const buffer = Buffer.from(configJson, 'utf-8');
+            
+            await interaction.editReply({
+            content: "Here's your current configuration:",
+            files: [{
+                attachment: buffer,
+                name: `config-${interaction.guildId}.json`
+            }]
+            });
             break;
         }
     }

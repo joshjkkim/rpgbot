@@ -75,7 +75,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             if (channel && channel.isTextBased() && channel.isSendable()) {
                 const streakMessage = config.xp.streakAnnounceMessage
                     .replace('{user}', `<@${interaction.user.id}>`)
-                    .replace('{streak}', profile.streak_count.toString());
+                    .replace('{streak}', profile.streak_count.toString())
+                    .replace('{xp}', rewardXp?.toString() ?? '0')
+                    .replace('{gold}', rewardGold?.toString() ?? '0')
+                    .replace(`{xpName}`, config.style.xp.name || "XP")
+                    .replace(`{xpIcon}`, config.style.xp.icon || "⭐")
+                    .replace(`{goldName}`, config.style.gold.name || "Gold")
+                    .replace(`{goldIcon}`, config.style.gold.icon || "💰");
 
                 await channel.send(streakMessage);
             }
@@ -90,8 +96,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                             .replace('{user}', `<@${interaction.user.id}>`)
                             .replace('{streak}', profile.streak_count.toString())
                             .replace('{xp}', streakReward.xpBonus.toString())
+                            .replace(`{xpName}`, config.style.xp.name || "XP")
+                            .replace(`{goldName}`, config.style.gold.name || "Gold")
+                            .replace(`{xpIcon}`, config.style.xp.icon || "⭐")
+                            .replace(`{goldIcon}`, config.style.gold.icon || "💰")
                             .replace('{gold}', streakReward.goldBonus.toString())
-                        : `<@${interaction.user.id}> has reached a ${profile.streak_count}-day streak and earned ${streakReward.xpBonus} XP and ${streakReward.goldBonus} Gold!`;
+                        : `<@${interaction.user.id}> has reached a ${profile.streak_count}-day streak and earned ${streakReward.xpBonus} ${config.style.xp.name || "XP"} ${config.style.xp.icon || "⭐"} and ${streakReward.goldBonus} ${config.style.gold.name || "Gold"} ${config.style.gold.icon || "💰"}!`;
 
                     await channel.send(streakMessage);
                 }

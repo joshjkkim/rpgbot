@@ -1,8 +1,17 @@
 import { query } from "./index.js";
 import type { QueryResultRow } from "pg";
-import type { GuildConfig } from "./guilds.js";
+import type { GuildConfig, shopItemAction } from "./guilds.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 
+export interface item {
+    id: string;
+    name: string;
+    emoji?: string;
+    description?: string;
+    quantity: number;
+    maxPerUser?: number;
+    actions?: Record<number, shopItemAction>;
+}
 export interface DbUserGuildProfile extends QueryResultRow {
     id: number;
     user_id: number;
@@ -13,7 +22,7 @@ export interface DbUserGuildProfile extends QueryResultRow {
     streak_count: number;
     last_daily_at: string | null;
     last_message_at: string | null;
-    titles: string[];   // array of title IDs
+    inventory: Record<string, item>;
 }
 
 type XpArgs = {
