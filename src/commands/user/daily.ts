@@ -1,10 +1,10 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder } from "discord.js";
 import { grantDailyXp } from "../../db/userGuildProfiles.js";
-import { upsertUser } from "../../db/users.js";
-import { getGuildConfig, upsertGuild } from "../../db/guilds.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
 import { MessageFlags } from "discord.js";
 import { handleLevelUp } from "../../leveling/levels.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 
 export const data = new SlashCommandBuilder()
     .setName("daily")
@@ -18,14 +18,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const user = await upsertUser({
+    const { user } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
-
-    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
-
+    
+    
+    const { guild: dbGuild, config} = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+ 
     const { profile, granted, rewardXp, rewardGold, levelUp, streakReward, increasedStreak } = await grantDailyXp({
         userId: user.id,
         guildId: dbGuild.id,

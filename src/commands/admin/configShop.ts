@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import { getGuildConfig, setGuildConfig } from "../../db/guilds.js";
+import { setGuildConfig } from "../../db/guilds.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import type { shopCategoryConfig, shopItemAction, shopItemConfig } from "../../db/guilds.js";
 
 export const data = new SlashCommandBuilder()
@@ -169,6 +170,7 @@ export const data = new SlashCommandBuilder()
                     { name: "Remove Role", value: "removeRole" },
                     { name: "Send Message", value: "sendMessage" },
                     { name: "Run Command", value: "runCommand" },
+                    { name: "Give Stat", value: "giveStat" },
                 )
             )
             .addStringOption(opt =>
@@ -182,6 +184,12 @@ export const data = new SlashCommandBuilder()
             )
             .addStringOption(opt =>
                 opt.setName("command").setDescription("The command to run for run command actions").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("stat").setDescription("The stat to give for give stat actions").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("amount").setDescription("The amount of the stat to give for give stat actions").setRequired(false)
             )
     )
 
@@ -211,7 +219,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const sub = interaction.options.getSubcommand();
 
-    const { guild, config } = await getGuildConfig(interaction.guildId);
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
     let newConfig = structuredClone(config);
 
     switch (sub) {
@@ -502,6 +510,20 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     return;
                 }
                 action.command = command;
+            } else if (actionType === "giveStat") {
+                const stat = interaction.options.getString("stat", false);
+                const amountStr = interaction.options.getString("amount", false);
+                if (!stat || !amountStr) {
+                    await interaction.editReply("Stat and amount are required for give stat actions.");
+                    return;
+                }
+                const amount = parseInt(amountStr, 10);
+                if (isNaN(amount)) {
+                    await interaction.editReply("Amount must be a valid number for give stat actions.");
+                    return;
+                }
+                action.statId = stat;
+                action.amount = amount;
             }
 
             item.actions = item.actions || [];

@@ -1023,47 +1023,31 @@ export async function handleConfigPanelButton(interaction: ButtonInteraction) {
 
                 const actionType = new TextInputBuilder()
                     .setCustomId("shop-item--action-type-input")
-                    .setLabel("assignRole, removeRole, sendMessage, runCommand")
-                    .setPlaceholder("e.g. give-role:123456789012345678")
+                    .setLabel("assignRole, removeRole, sendMessage, runCommand, giveStat")
+                    .setPlaceholder("e.g. assignRole")
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
-                const roleId = new TextInputBuilder()
-                    .setCustomId("shop-item-action-role-id-input")
-                    .setLabel("Role Id for assignRole/removeRole actions")
-                    .setPlaceholder("e.g. 123456789012345678 for role ID")
+                const field1 = new TextInputBuilder()
+                    .setCustomId("shop-item-action-field1-input")
+                    .setLabel("Role ID, Channel ID, Command, Stat Name")
+                    .setPlaceholder("e.g. 123456789012345678, xp")
                     .setStyle(TextInputStyle.Short)
                     .setRequired(false);
 
-                const channelId = new TextInputBuilder()
-                    .setCustomId("shop-item-action-channel-id-input")
-                    .setLabel("Channel Id for sendMessage action")
-                    .setPlaceholder("e.g. 123456789012345678 for channel ID")
+                const field2 = new TextInputBuilder()
+                    .setCustomId("shop-item-action-field2-input")
+                    .setLabel("Message Content, Stat Amount")
+                    .setPlaceholder("e.g. \"Congratulations!\", 100, -20")
                     .setStyle(TextInputStyle.Short)
-                    .setRequired(false);
+                    .setRequired(false)
 
-                const messageContent = new TextInputBuilder()
-                    .setCustomId("shop-item-action-message-content-input")
-                    .setLabel("Message Content for sendMessage action")
-                    .setPlaceholder("e.g. Congratulations on your purchase!")
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setRequired(false);
-
-                const commandContent = new TextInputBuilder()
-                    .setCustomId("shop-item-action-command-content-input")
-                    .setLabel("Command Content for runCommand action")
-                    .setPlaceholder("e.g. give {user} VIP")
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setRequired(false);
-
-                const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(actionType);
                 const itemIdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(itemIdInput);
-                const roleIdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(roleId);
-                const channelIdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(channelId);
-                const messageContentRow = new ActionRowBuilder<TextInputBuilder>().addComponents(messageContent);
-                const commandContentRow = new ActionRowBuilder<TextInputBuilder>().addComponents(commandContent);
+                const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(actionType);
+                const field1Row = new ActionRowBuilder<TextInputBuilder>().addComponents(field1);
+                const field2Row = new ActionRowBuilder<TextInputBuilder>().addComponents(field2);
 
-                modal.addComponents(itemIdRow, actionRow, roleIdRow, channelIdRow, messageContentRow, commandContentRow );
+                modal.addComponents(itemIdRow, actionRow, field1Row, field2Row);
 
                 await interaction.showModal(modal);
             } else if (action === "remove-item-action") {

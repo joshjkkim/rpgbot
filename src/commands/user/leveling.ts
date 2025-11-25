@@ -1,8 +1,8 @@
 import type { ChatInputCommandInteraction, ColorResolvable } from "discord.js";
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { upsertUserGuildProfile } from "../../db/userGuildProfiles.js";
-import { upsertUser } from "../../db/users.js";
-import { getGuildConfig, upsertGuild } from "../../db/guilds.js";
+import { getOrCreateProfile } from "../../cache/profileService.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { calculateTotalXpForLevel } from "../../leveling/levels.js";
 
 
@@ -32,15 +32,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    const dbUser = await upsertUser({
+    const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
     
-    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
-    const profile = await upsertUserGuildProfile({
+    const { profile } = await getOrCreateProfile({
         userId: dbUser.id,
         guildId: dbGuild.id,
     });
@@ -51,14 +51,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     switch (subcommand) {
         case "info": {
-            const themeColor = dbGuild.config.style.mainThemeColor || 0x00AE86;
+            const themeColor = config.style.mainThemeColor || 0x00AE86;
 
             const embed = new EmbedBuilder()
                 .setTitle(`Level and XP Info for ${interaction.guild?.name ?? "this server"}`)
                 .addFields(
-                    { name: "Max Level", value: `${dbGuild.config.levels.maxLevel}`, inline: true },
-                    { name: "Curve Type", value: `${dbGuild.config.levels.curveType}`, inline: true },
-                    { name: "Curve Params", value: `\`${JSON.stringify(dbGuild.config.levels.curveParams)}\``, inline: false },
+                    { name: "Max Level", value: `${config.levels.maxLevel}`, inline: true },
+                    { name: "Curve Type", value: `${config.levels.curveType}`, inline: true },
+                    { name: "Curve Params", value: `\`${JSON.stringify(config.levels.curveParams)}\``, inline: false },
                 )
                 .setColor(themeColor as ColorResolvable);
 
@@ -72,7 +72,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const xpForLevel = calculateTotalXpForLevel(level, config);
             const currentXp = Number(profile.xp);
 
-            const themeColor = dbGuild.config.style.mainThemeColor || 0x00AE86;
+            const themeColor = config.style.mainThemeColor || 0x00AE86;
 
             const embed = new EmbedBuilder()
                 .setTitle(`XP Calculation for Level ${level}`)

@@ -11,6 +11,7 @@ import * as leaderboard from "./user/leaderboard.js";
 import * as configShop from "./admin/configShop.js";
 import * as shop from "./user/shop.js";
 import * as inventory from "./user/inventory.js";
+import * as adminInventory from "./admin/adminInventory.js";
 
 export const commandList = [
     daily.data,
@@ -26,6 +27,7 @@ export const commandList = [
     configShop.data,
     shop.data,
     inventory.data,
+    adminInventory.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -42,5 +44,6 @@ export const commands = new Map<string, any>([
     [configShop.data.name, configShop],
     [shop.data.name, shop],
     [inventory.data.name, inventory],
+    [adminInventory.data.name, adminInventory],
     
 ])

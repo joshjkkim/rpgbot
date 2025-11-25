@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction, ColorResolvable } from "discord.js";
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { query } from "../../db/index.js";
-import { getGuildConfig } from "../../db/guilds.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 
 export const data = new SlashCommandBuilder()
     .setName("leaderboard")
@@ -26,7 +26,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply();
 
-    const { guild, config } = await getGuildConfig(interaction.guildId);
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
     const leaderboardType = interaction.options.getString("type") ?? "xp";
 

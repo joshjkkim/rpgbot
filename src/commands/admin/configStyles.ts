@@ -1,6 +1,7 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
-import { getGuildConfig, setGuildConfig } from "../../db/guilds.js";
+import { setGuildConfig } from "../../db/guilds.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 
 export const data = new SlashCommandBuilder()
     .setName("config-styles")
@@ -49,7 +50,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const sub = interaction.options.getSubcommand();
 
-    const { guild, config } = await getGuildConfig(interaction.guildId);
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
 
     let newConfig = { ...config, style: { ...(config.style ?? {})}}
 

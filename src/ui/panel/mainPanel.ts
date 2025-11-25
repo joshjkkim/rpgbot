@@ -1,10 +1,10 @@
 import { ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { getGuildConfig } from "../../db/guilds.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 
 const PANEL_SELECT_ID = "config-panel:main";
 
 export async function sendConfigPanel(interaction: ChatInputCommandInteraction) {
-    const { guild, config } = await getGuildConfig(interaction.guildId!);
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
     const themeColor = config.style.mainThemeColor || "#00AE86";
 
     const embed = new EmbedBuilder()

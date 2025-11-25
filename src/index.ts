@@ -8,6 +8,7 @@ import { registerMessageCreate } from "./events/messageCreate.js";
 import { registerGuildCreate } from "./events/guildCreate.js";
 import { registerInteractionCreate } from "./events/interactionCreate.js";
 import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
+import { pruneCaches } from "./cache/caches.js";
 
 const client = new Client({
   intents: [
@@ -20,14 +21,17 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, () => {
-  console.log(`Logged in as ${client.user?.tag}!`);
+    console.log(`Logged in as ${client.user?.tag}!`);
 });
 
-// register all your event handlers here
 registerMessageCreate(client);
 registerGuildCreate(client);
 registerInteractionCreate(client);
 registerVoiceStateUpdate(client);
+
+setInterval(() => {
+    pruneCaches();
+}, 5 * 60 * 1000);
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {

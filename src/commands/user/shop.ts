@@ -1,10 +1,12 @@
 import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable } from "discord.js";
 import { EmbedBuilder, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction } from "discord.js";
-import { upsertUserGuildProfile } from "../../db/userGuildProfiles.js";
-import { upsertUser } from "../../db/users.js";
-import { getGuildConfig, setGuildConfig } from "../../db/guilds.js";
+import { setGuildConfig } from "../../db/guilds.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { getOrCreateProfile } from "../../cache/profileService.js";
 import { updateInventory } from "../../inventory/inventory.js";
 import type { item } from "../../db/userGuildProfiles.js";
+import { get } from "http";
 
 function chunkButtons(buttons: ButtonBuilder[], size = 5) {
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
@@ -30,15 +32,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const dbUser = await upsertUser({
+    const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
 
-    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
-    const profile = await upsertUserGuildProfile({
+    const { profile } = await getOrCreateProfile({
         userId: dbUser.id,
         guildId: dbGuild.id,
     });
@@ -103,7 +105,7 @@ export async function handleMainShopButton(interaction: ButtonInteraction) {
         return;
     }
 
-    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
     const category = config.shop?.categories?.[categoryId];
     if (!category) {
@@ -130,7 +132,7 @@ export async function handleMainShopButton(interaction: ButtonInteraction) {
     } else {
         for (const item of categoryItems) {
             embed.addFields({
-                name: `${item.emoji || ""} ${item.name} (ID: \`${item.id}\`) - ${item.price} ${config.style.gold.icon || "💰"}`,
+                name: `${item.stock !== undefined ? item.stock : "Inf"}x ${item.emoji || ""} ${item.name} (ID: \`${item.id}\`) - ${item.price} ${config.style.gold.icon || "💰"}`,
                 value: item.description || "No description.",
             });
         }
@@ -206,15 +208,15 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
         return;
     }
 
-    const dbUser = await upsertUser({
+    const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
 
-    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
-    const profile = await upsertUserGuildProfile({
+    const { profile } = await getOrCreateProfile({
         userId: dbUser.id,
         guildId: dbGuild.id,
     });

@@ -1,5 +1,5 @@
 import { StringSelectMenuInteraction, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from "discord.js";
-import { getGuildConfig } from "../../db/guilds.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 
 const PANEL_SELECT_ID = "config-panel:main";
 
@@ -26,7 +26,7 @@ export async function handleConfigPanelSelect(interaction: StringSelectMenuInter
     }
 
     const choice = interaction.values[0]; // "xp", "vc", etc.
-    const { guild, config } = await getGuildConfig(interaction.guildId);
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
     const themeColor = config.style.mainThemeColor || "#00AE86";
     const embed = new EmbedBuilder().setColor(themeColor as any);
     let buttons: ButtonBuilder[] = [];

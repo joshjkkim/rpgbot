@@ -1,8 +1,8 @@
 import { Client, Events } from "discord.js";
-import { upsertUser } from "../db/users.js";
-import { getGuildConfig } from "../db/guilds.js";
-import { addMessageXp, grantDailyXp, upsertUserGuildProfile } from "../db/userGuildProfiles.js";
+import { getOrCreateGuildConfig } from "../cache/guildService.js";
+import { addMessageXp, grantDailyXp } from "../db/userGuildProfiles.js";
 import { handleLevelUp } from "../leveling/levels.js";
+import { getOrCreateDbUser } from "../cache/userService.js";
 
 export function registerMessageCreate(client: Client) {
   client.on(Events.MessageCreate, async (message) => {
@@ -10,18 +10,13 @@ export function registerMessageCreate(client: Client) {
     if (!message.inGuild()) return;
 
     try {
-      const user = await upsertUser({
+      const { user } = await getOrCreateDbUser({
         discordUserId: message.author.id,
         username: message.author.username,
         avatarUrl: message.author.displayAvatarURL(),
       });
 
-      const { guild, config } = await getGuildConfig(message.guild.id);
-
-      await upsertUserGuildProfile({
-        userId: user.id,
-        guildId: guild.id,
-      });
+      const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: message.guild.id });
 
       if (config.xp.xpChannelIds[message.channel.id]?.enabled === false) {
         return;

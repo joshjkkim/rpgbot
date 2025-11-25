@@ -1,5 +1,6 @@
 import { ModalSubmitInteraction, MessageFlags } from "discord.js";
-import { getGuildConfig, setGuildConfig } from "../../db/guilds.js";
+import { setGuildConfig } from "../../db/guilds.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";   
 
 export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInteraction) {
     if (!interaction.customId.startsWith("config-panel:")) return;
@@ -14,7 +15,7 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
 
     const [ ,section, action] = interaction.customId.split(":");
 
-    const { guild, config } = await getGuildConfig(interaction.guildId);
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
     const newConfig = structuredClone(config);
 
     switch (section) {
@@ -781,14 +782,31 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
             } else if (action === "add-item-action-modal") {
                 const itemId = interaction.fields.getTextInputValue("shop-item-action-item-id-input");
                 const actionType = interaction.fields.getTextInputValue("shop-item-action-type-input");
-                const roleId = interaction.fields.getTextInputValue("shop-item-action-role-id-input");
-                const channelId = interaction.fields.getTextInputValue("shop-item-action-channel-id-input");
-                const messageContent = interaction.fields.getTextInputValue("shop-item-action-message-content-input");
-                const commandContent = interaction.fields.getTextInputValue("shop-item-action-command-content-input");
+                const field1 = interaction.fields.getTextInputValue("shop-item-action-field1-input");
+                const field2 = interaction.fields.getTextInputValue("shop-item-action-field2-input");
+
+                let roleId: string | undefined;
+                let channelId: string | undefined;
+                let messageContent: string | undefined;
+                let commandContent: string | undefined;
+                let statType: string | undefined;
+                let statAmount: number | undefined;
+
+                if (actionType === "assignRole" || actionType === "removeRole") {
+                    roleId = field1;
+                } else if (actionType === "sendMessage") {
+                    channelId = field1;
+                    messageContent = field2;
+                }  else if (actionType === "command") {
+                    commandContent = field1;
+                } else if (actionType === "giveStat") {
+                    statType = field1;
+                    statAmount = Number(field2);
+                }
 
                 if (!newConfig.shop?.items || !newConfig.shop.items[itemId]) {
                     await interaction.reply({
-                        content: `No Shop Item found with ID \`${itemId}\`.`,
+                        content: `No Shop Item found with ID \`${itemId}\`,`,
                         flags: MessageFlags.Ephemeral,
                     });
                     return;
@@ -800,17 +818,19 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
 
                 const actionObj: any = { type: actionType };
 
-                if (actionType === "role") {
+                if (actionType === "assignRole" || actionType === "removeRole") {
                     actionObj.roleId = roleId;
-                } else if (actionType === "channel") {
+                } else if (actionType === "sendMessage") {
                     actionObj.channelId = channelId;
-                } else if (actionType === "message") {
                     actionObj.content = messageContent;
                 } else if (actionType === "command") {
                     actionObj.command = commandContent;
+                } else if (actionType === "giveStat") {
+                    actionObj.statId = statType;
+                    actionObj.amount = statAmount;
                 } else {
                     await interaction.reply({
-                        content: `Invalid action type \`${actionType}\`. Valid types are: role, channel, message, command.`,
+                        content: `Invalid action type \`${actionType}\`. Valid types are: assignRole, removeRole, sendMessage, command, giveStat.`,
                         flags: MessageFlags.Ephemeral,
                     });
                     return;

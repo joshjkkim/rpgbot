@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder, type ColorResolvable } from "discord.js";
-import { getGuildConfig } from "../../db/guilds.js";
-import { upsertUser } from "../../db/users.js";
-import { upsertUserGuildProfile } from "../../db/userGuildProfiles.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { getOrCreateProfile } from "../../cache/profileService.js";
 import { getInventory } from "../../inventory/inventory.js";
 
 export const data = new SlashCommandBuilder()
@@ -16,15 +16,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const dbUser = await upsertUser({
+    const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
 
-    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
-    const profile = await upsertUserGuildProfile({
+    const {profile} = await getOrCreateProfile({
         userId: dbUser.id,
         guildId: dbGuild.id,
     });

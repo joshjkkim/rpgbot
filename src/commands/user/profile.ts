@@ -1,8 +1,8 @@
 import type { ChatInputCommandInteraction, ColorResolvable } from "discord.js";
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { upsertUserGuildProfile } from "../../db/userGuildProfiles.js";
-import { upsertUser } from "../../db/users.js";
-import { getGuildConfig } from "../../db/guilds.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { getOrCreateProfile } from "../../cache/profileService.js";
 import { calculateTotalXpForLevel } from "../../leveling/levels.js";
 import type { StreakReward } from "../../db/guilds.js";
 
@@ -29,29 +29,29 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply();
 
-    const dbUser = await upsertUser({
+    const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
 
-    const { guild: dbGuild, config } = await getGuildConfig(interaction.guildId);
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
-    const profile = await upsertUserGuildProfile({
+    const { profile } = await getOrCreateProfile({
         userId: dbUser.id,
         guildId: dbGuild.id,
     });
 
-    const color = dbGuild.config.style.mainThemeColor || 0x00AE86;
+    const color = config.style.mainThemeColor || 0x00AE86;
     
-    const currentLevelXp = calculateTotalXpForLevel(profile.level, dbGuild.config);
-    const nextLevelXp = calculateTotalXpForLevel(profile.level + 1, dbGuild.config);
+    const currentLevelXp = calculateTotalXpForLevel(profile.level, config);
+    const nextLevelXp = calculateTotalXpForLevel(profile.level + 1, config);
     const xpInCurrentLevel = Number(profile.xp) - currentLevelXp;
     const xpNeededForNext = nextLevelXp - currentLevelXp;
     const progressBar = createProgressBar(xpInCurrentLevel, xpNeededForNext, 15);
     const percentage = Math.floor((xpInCurrentLevel / xpNeededForNext) * 100);
 
-    const streakRewards = dbGuild.config.xp.streakRewards;
+    const streakRewards = config.xp.streakRewards;
 
     const nextStreakReward = Object.entries(streakRewards)
         .map(([days, reward]) => ({ days: Number(days), reward: reward as StreakReward }))

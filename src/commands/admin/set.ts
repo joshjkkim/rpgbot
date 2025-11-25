@@ -1,8 +1,8 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, Embed, EmbedBuilder } from "discord.js";
-import { getGuildConfig, setGuildConfig, upsertGuild } from "../../db/guilds.js";
-import { upsertUser } from "../../db/users.js";
-import { upsertUserGuildProfile } from "../../db/userGuildProfiles.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { getOrCreateProfile } from "../../cache/profileService.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { query } from "../../db/index.js";
 
@@ -84,24 +84,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const subcommand = interaction.options.getSubcommand();
 
-    const dbUser = await upsertUser({
+    const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
 
-    const dbGuild = await upsertGuild({
-        discordGuildId: interaction.guildId,
-        name: interaction.guild?.name ?? "Unknown",
-        iconUrl: interaction.guild?.iconURL() ?? null,
-    });
-
-    const { config } = await getGuildConfig(interaction.guildId);
-
-    await upsertUserGuildProfile({
-        userId: dbUser.id,
-        guildId: dbGuild.id,
-    });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
 
     switch (subcommand) {
         case "xp": {

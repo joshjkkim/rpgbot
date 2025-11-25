@@ -1,4 +1,5 @@
 import { query } from "./index.js";
+import { guildConfigCache } from "../cache/caches.js";
 
 export interface DbGuild {
     id: number;
@@ -6,7 +7,7 @@ export interface DbGuild {
     name: string | null;
     icon_url: string | null;
     created_at: string;
-    config: any; // you can type this later
+    config: GuildConfig | null;
 }
 
 export interface RoleXpConfig {
@@ -322,6 +323,8 @@ export async function setGuildConfig(guildId: string, config: GuildConfig): Prom
     if (res.rowCount === 0) {
         throw new Error("Failed to set guild config");
     }
+
+    guildConfigCache.delete(guildId);
 }
 
 export async function getGuildConfig(guildId: string): Promise<{guild: DbGuild, config: GuildConfig}> {

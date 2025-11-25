@@ -1,6 +1,7 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, Embed, EmbedBuilder } from "discord.js";
-import { getGuildConfig, setGuildConfig, type LevelAction } from "../../db/guilds.js";
+import { setGuildConfig, type LevelAction } from "../../db/guilds.js";
+import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 
 export const data = new SlashCommandBuilder()
     .setName("config-levels")
@@ -196,7 +197,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const sub = interaction.options.getSubcommand();
-    const { config } = await getGuildConfig(interaction.guildId);
+    const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
     let newConfig = {
     ...config,
     xp: { ...config.xp, roleXp: { ...config.xp.roleXp },},
