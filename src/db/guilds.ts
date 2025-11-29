@@ -1,5 +1,6 @@
 import { query } from "./index.js";
 import { guildConfigCache } from "../cache/caches.js";
+import type { EventCategory } from "./events.js";
 
 export interface DbGuild {
     id: number;
@@ -20,6 +21,11 @@ export interface RoleDailyBonusConfig {
     xpBonus?: number;
     goldBonus?: number;
     multiplier?: number;
+}
+
+export interface RoleTempConfig {
+    defaultDurationMinutes?: number | null;
+    hardExpiryat?: string | null;
 }
 
 export interface LevelAction {
@@ -76,12 +82,15 @@ export interface shopItemConfig {
     categoryId: string;
 
     price: number;
+    sellPrice?: number | null;
 
     minLevel?: number;
     requiresRoleIds?: string[];
     maxPerUser?: number;
     stock?: number | null;
     hidden?: boolean;
+    permanent?: boolean;
+    tradeable?: boolean;
 
     actions?: Record<number, shopItemAction>;
 }
@@ -119,6 +128,7 @@ export interface GuildConfig {
 
         roleXp: Record<string, RoleXpConfig>;
         roleDailyBonus: Record<string, RoleDailyBonusConfig>;
+        roleTemp: Record<string, RoleTempConfig>; 
 
         autoDailyEnabled: boolean;
         replyToDailyInChannel: boolean;
@@ -140,6 +150,11 @@ export interface GuildConfig {
         enabled?: boolean;
         categories?: Record<string, shopCategoryConfig>;
         items?: Record<string, shopItemConfig>;
+    },
+    logging: {
+        enabled?: boolean;
+        mainChannelId?: string | null;
+        allowedCategories?: Record<EventCategory, string | null | false>; // category -> channelId to override log if so needed
     }
 }
 
@@ -178,6 +193,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
 
         roleXp: {},
         roleDailyBonus: {},
+        roleTemp: {},
 
         autoDailyEnabled: true,
         replyToDailyInChannel: true,
@@ -199,6 +215,20 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         enabled: false,
         categories: {},
         items: {}
+    },
+    logging: {
+        enabled: false,
+        mainChannelId: null,
+        allowedCategories: {
+            economy: null,
+            xp: null,
+            daily: null,
+            streak: null,
+            level: null,
+            config: null,
+            inventory: null,
+            admin: null
+        }
     }
 };
 
@@ -281,6 +311,14 @@ export function mergeConfig(raw: GuildConfig | null): GuildConfig {
                 roleXp: {
                     ...DEFAULT_GUILD_CONFIG.xp.roleXp,
                     ...(raw?.xp?.roleXp ?? {}),
+                },
+                roleDailyBonus: {
+                    ...DEFAULT_GUILD_CONFIG.xp.roleDailyBonus,
+                    ...(raw?.xp?.roleDailyBonus ?? {}),
+                },
+                roleTemp: {
+                    ...DEFAULT_GUILD_CONFIG.xp.roleTemp,
+                    ...(raw?.xp?.roleTemp ?? {}),
                 }
             },
             levels: {
@@ -306,7 +344,15 @@ export function mergeConfig(raw: GuildConfig | null): GuildConfig {
                     ...DEFAULT_GUILD_CONFIG.shop.items,
                     ...(raw?.shop?.items ?? {}),
                 }
-            }
+            },
+        logging: {
+            ...DEFAULT_GUILD_CONFIG.logging,
+            ...(raw?.logging ?? {}),
+            allowedCategories: {
+                ...DEFAULT_GUILD_CONFIG.logging.allowedCategories,
+                ...(raw?.logging?.allowedCategories ?? {}),
+            } as Record<EventCategory, string | null>
+        }
     }
 }
 

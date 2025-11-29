@@ -46,11 +46,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     let newConfig = { ...config };
 
     switch (sub) {
-        case "show": {
-            await interaction.editReply(`Current general configuration:\n\`\`\`json\n${JSON.stringify(config, null, 2)}\n\`\`\``);
-            break;
-        }
-
         case "merge": {
             newConfig = mergeConfig(config);
             await setGuildConfig(interaction.guildId, newConfig);

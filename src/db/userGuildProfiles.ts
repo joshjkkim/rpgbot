@@ -2,15 +2,24 @@ import { query } from "./index.js";
 import type { QueryResultRow } from "pg";
 import type { GuildConfig, shopItemAction } from "./guilds.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
-
+import { logAndBroadcastEvent } from "./events.js";
+import { getOrCreateProfile } from "../cache/profileService.js";
+import type { Client, GuildMember } from "discord.js";
+import { profileKey } from "../cache/caches.js";
+import { userGuildProfileCache } from "../cache/caches.js";
+import { refreshTempRolesForMember } from "../player/roles.js";
 export interface item {
     id: string;
     name: string;
     emoji?: string;
     description?: string;
     quantity: number;
-    maxPerUser?: number;
-    actions?: Record<number, shopItemAction>;
+}
+
+export interface TempRoleState {
+    expiresAt: string; // ISO date string
+    source?: "item" | "command";
+    sourceId?: string;
 }
 export interface DbUserGuildProfile extends QueryResultRow {
     id: number;
@@ -23,11 +32,16 @@ export interface DbUserGuildProfile extends QueryResultRow {
     last_daily_at: string | null;
     last_message_at: string | null;
     inventory: Record<string, item>;
+    temp_roles: Record<string, TempRoleState>;
 }
 
 type XpArgs = {
+    client?: Client;
+    member?: GuildMember;
     userId: number;
     guildId: number;
+    discordUserId?: string;
+    discordGuildId?: string;
     channelId?: string;
     config: GuildConfig;
     roleIds?: string[];
@@ -76,15 +90,13 @@ export async function getUserGuildProfile(userId: number, guildId: number): Prom
 export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildProfile, gave: boolean, levelUp: boolean}> {
     const { userId, guildId, channelId, config } = args;
 
-    const res = await query<DbUserGuildProfile>(
-        `
-        SELECT * FROM user_guild_profiles
-        WHERE user_id = $1 AND guild_id = $2;
-        `,
-        [userId, guildId]
-    );
 
-    const profile = res.rows[0]
+    let { profile } = await getOrCreateProfile({userId, guildId});
+
+    if(args.member) {
+        profile = await refreshTempRolesForMember(args.member, profile);
+    }
+    
 
     if (!profile) {
         throw new Error("User guild profile not found");
@@ -138,7 +150,7 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
         [userId, guildId, xpAmount]
     );
 
-    const updatedProfile = result.rows[0];
+    let updatedProfile = result.rows[0];
 
     if (!updatedProfile) {
         throw new Error("Failed to add message XP");
@@ -146,6 +158,7 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
 
     const xpNumber = Number(updatedProfile.xp);
     const newLevel = calculateLevelFromXp(xpNumber, config);
+    let levelUp = false;
 
     if (newLevel > updatedProfile.level) {
         const lvlRes = await query<DbUserGuildProfile>(
@@ -163,27 +176,43 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
             throw new Error("Failed to update user level");
         }
 
-        return { profile: lvlRes.rows[0], gave: true, levelUp: true };
+        updatedProfile = lvlRes.rows[0];
+        levelUp = true;
     }
 
-    return { profile: updatedProfile, gave: true, levelUp: false };
+    const key = profileKey(guildId, userId);
+    userGuildProfileCache.set(key, {
+        profile: updatedProfile,
+        lastLoaded: Date.now(),
+    });
+
+    if (args.client && config.logging.enabled) {
+        const guild = args.client.guilds.cache.get(String(args.discordGuildId)) ?? null;
+        if (guild) {
+            await logAndBroadcastEvent(guild, {
+                guildId,
+                userId,
+                category: "xp",
+                eventType: "messageXp",
+                xpDelta: xpAmount,
+                source: `Message (${channelId ?? "unknown channel"})`,
+                metaData: { actorDiscordId: args.discordUserId ?? null },
+                timestamp: new Date(),
+            }, config);
+        }
+    }
+
+    return { profile: updatedProfile, gave: true, levelUp };
 }
 
 export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildProfile, granted: boolean, rewardXp?: number, rewardGold?: number, levelUp: boolean, 
                                                             streakReward?: {streak: number; xpBonus: number; goldBonus: number; channelId?: string; message?: string;}, increasedStreak?: boolean }> {
     const { userId, guildId, config, roleIds } = args;
 
-    const existing = await query<DbUserGuildProfile>(
-        `
-        SELECT * FROM user_guild_profiles
-        WHERE user_id = $1 AND guild_id = $2;
-        `,
-        [userId, guildId]
-    );
+    let { profile } = await getOrCreateProfile({userId, guildId});
 
-    const profile = existing.rows[0];
-    if (!profile) {
-        throw new Error("User guild profile not found");
+    if (args.member) {
+        profile = await refreshTempRolesForMember(args.member, profile);
     }
 
     const now = new Date();
@@ -257,10 +286,6 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
                 ...(reward.message && { message: reward.message }),
             };
         }
-
-        if (newStreak > profile.streak_count) {
-            increasedStreak = true;
-        }
     }
 
     let rewardXp = Math.floor((baseXp + extraXp) * bonusFactor);
@@ -280,13 +305,14 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         [userId, guildId, rewardXp, rewardGold, newStreak]
     );
 
-    const updated = result.rows[0];
+    let updated = result.rows[0];
 
 
     if (!updated) {
         throw new Error("Failed to grant daily XP");
     }
 
+    let levelUp = false;
     const xpNumber = Number(updated.xp);
     const newLevel = calculateLevelFromXp(xpNumber, config);
     if (newLevel > updated.level) {
@@ -305,9 +331,64 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
             throw new Error("Failed to update user level after daily XP");
         }
 
-        return { profile: lvlRes.rows[0], granted: true, rewardXp, rewardGold, levelUp: true, ...(streakRewardInfo && { streakReward: streakRewardInfo }), increasedStreak } ;
+        levelUp = true;
+        updated = lvlRes.rows[0];
     }   
 
+    const key = profileKey(guildId, userId);
+    userGuildProfileCache.set(key, {
+        profile: updated,
+        lastLoaded: Date.now(),
+    });
 
-    return { profile: updated, granted: true, rewardXp, rewardGold, levelUp: false, ...(streakRewardInfo && { streakReward: streakRewardInfo }), increasedStreak };
+    if (newStreak > profile.streak_count) {
+            increasedStreak = true;
+            const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
+            await logAndBroadcastEvent(
+                guild
+                , {
+                    guildId,
+                    userId,
+                    category: "xp",
+                    eventType: "streakIncrement",
+                    xpDelta: 0,
+                    goldDelta: 0,
+                    source: `Streak increased to ${newStreak}`,
+                    metaData: { actorDiscordId: args.discordUserId ?? null },
+                    timestamp: new Date(),
+                }, config);
+        } else if (newStreak == 1 && profile.streak_count > 1) {
+            const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
+            await logAndBroadcastEvent(
+                guild
+                , {
+                    guildId,
+                    userId,
+                    category: "xp",
+                    eventType: "streakReset",
+                    xpDelta: 0,
+                    goldDelta: 0,
+                    source: `Streak reset from ${profile.streak_count} to 1`,
+                    metaData: { actorDiscordId: args.discordUserId ?? null },
+                    timestamp: new Date(),
+                }, config);
+        }
+
+    if (config.logging.enabled) {
+        const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
+        await logAndBroadcastEvent(guild, {
+            guildId,
+            userId,
+            category: "xp",
+            eventType: "grantDaily",
+            xpDelta: rewardXp,
+            goldDelta: rewardGold,
+            source: `autoMessageDaily`,
+            metaData: { actorDiscordId: args.discordUserId ?? null },
+            timestamp: new Date(),
+        }, config);
+    }
+    
+
+    return { profile: updated, granted: true, rewardXp, rewardGold, levelUp, ...(streakRewardInfo && { streakReward: streakRewardInfo }), increasedStreak };
 }

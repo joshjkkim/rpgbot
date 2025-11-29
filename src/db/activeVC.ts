@@ -1,7 +1,10 @@
 import { getGuildConfig } from "./guilds.js";
-import { query } from "./index.js";
+import { logAndBroadcastEvent } from "./events.js";
 import { addMessageXp } from "./userGuildProfiles.js";
 import { upsertUser } from "./users.js";
+import type { VoiceState } from "discord.js";
+import { refreshTempRolesForMember } from "../player/roles.js";
+import { getOrCreateProfile } from "../cache/profileService.js";
 
 export interface ActiveVCSessions {
     guildId: string;
@@ -21,7 +24,7 @@ export function parseActiveVCSessionKey(key: string): { guildId: string; userId:
     return { guildId: guildId!, userId: userId! };
 }
 
-export async function onLeaveVoiceChannel(guildId: string, userId: string, roleIds: string[]): Promise<ActiveVCSessions | null> {
+export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: string, userId: string, roleIds: string[]): Promise<ActiveVCSessions | null> {
     const key = getActiveVCSessionKey(guildId, userId);
     const session = activeVCSessions.get(key) ?? null;
     if (!session) return null;
@@ -33,6 +36,12 @@ export async function onLeaveVoiceChannel(guildId: string, userId: string, roleI
     });
 
     const { guild, config } = await getGuildConfig(guildId);
+
+    let { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
+
+    if (voiceState.member) {
+        profile = await refreshTempRolesForMember(voiceState.member, profile);
+    }
 
     if (config.xp.vc.channelIds[session.channelId]?.enabled === false) return null;
 
@@ -57,7 +66,7 @@ export async function onLeaveVoiceChannel(guildId: string, userId: string, roleI
             }
         }
 
-        await addMessageXp({
+        const { gave } = await addMessageXp({
             userId: user.id,
             guildId: guild.id,
             channelId: session.channelId,
@@ -65,6 +74,19 @@ export async function onLeaveVoiceChannel(guildId: string, userId: string, roleI
             roleIds,
             amount: xpAmount,
         });
+
+        if (gave) {
+            await logAndBroadcastEvent(voiceState.guild, {
+                guildId: guild.id,
+                userId: user.id,
+                category: "xp",
+                eventType: "vcXp",
+                xpDelta: xpAmount,
+                source: `Voice Channel (${session.channelId})`,
+                metaData: { actorDiscordId: userId, channelId: session.channelId, durationMinutes },
+                timestamp: new Date(),
+            }, config);
+        }
     }
 
     return session;

@@ -12,6 +12,8 @@ import * as configShop from "./admin/configShop.js";
 import * as shop from "./user/shop.js";
 import * as inventory from "./user/inventory.js";
 import * as adminInventory from "./admin/adminInventory.js";
+import * as use from "./user/use.js";
+import * as configLogging from "./admin/configLogging.js";
 
 export const commandList = [
     daily.data,
@@ -28,6 +30,8 @@ export const commandList = [
     shop.data,
     inventory.data,
     adminInventory.data,
+    use.data,
+    configLogging.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -45,5 +49,6 @@ export const commands = new Map<string, any>([
     [shop.data.name, shop],
     [inventory.data.name, inventory],
     [adminInventory.data.name, adminInventory],
-    
+    [use.data.name, use],
+    [configLogging.data.name, configLogging],
 ])

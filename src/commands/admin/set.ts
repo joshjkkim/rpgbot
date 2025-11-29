@@ -1,9 +1,9 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, Embed, EmbedBuilder } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
-import { getOrCreateProfile } from "../../cache/profileService.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
+import { logAndBroadcastEvent, type EventType } from "../../db/events.js";
 import { query } from "../../db/index.js";
 
 export const data = new SlashCommandBuilder()
@@ -188,7 +188,42 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         default:
             await interaction.reply({ content: "Unknown subcommand.", flags: MessageFlags.Ephemeral });
-    }   
+    }
+    
+    if(config.logging.enabled) {
+        const { user: admin } = await getOrCreateDbUser({
+            discordUserId: interaction.user.id,
+            username: interaction.user.username,
+            avatarUrl: interaction.user.displayAvatarURL(),
+        });
+
+        let eventType: EventType;
+        switch(subcommand) {
+            case "xp":
+                eventType = "setxp";
+                break;
+            case "level":
+                eventType = "setlevel";
+                break;
+            case "gold":
+                eventType = "setgold";
+                break;
+            case "streak":
+                eventType = "setstreak";
+                break;
+        }
+
+        await logAndBroadcastEvent(interaction, {
+                guildId: dbGuild.id,
+                userId: admin.id,
+                targetUserId: dbUser.id,
+                category: "admin",
+                eventType: eventType!,
+                source: "setAdmin",
+                metaData: { actorDiscordId: interaction.user.id, targetDiscordId: dbUser.discord_user_id, subcommand },
+                timestamp: new Date(), 
+            }, config);
+    }
 }
 
     

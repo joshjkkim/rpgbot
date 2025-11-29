@@ -34,11 +34,11 @@ export function registerVoiceStateUpdate(client: Client) {
             });
         } else if (oldChannelId && !newChannelId) {
             const key = getActiveVCSessionKey(guild.id, userId);
-            await onLeaveVoiceChannel(guild.id, userId, member.roles.cache.map(role => role.id));
+            await onLeaveVoiceChannel(oldState, guild.id, userId, member.roles.cache.map(role => role.id));
             activeVCSessions.delete(key);
         } else if (oldChannelId && newChannelId) {
             const oldKey = getActiveVCSessionKey(guild.id, userId);
-            await onLeaveVoiceChannel(guild.id, userId, member.roles.cache.map(role => role.id));
+            await onLeaveVoiceChannel(oldState, guild.id, userId, member.roles.cache.map(role => role.id));
             activeVCSessions.delete(oldKey);
 
             const newKey = getActiveVCSessionKey(guild.id, userId);

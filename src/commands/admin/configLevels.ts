@@ -2,6 +2,8 @@ import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, Embed, EmbedBuilder } from "discord.js";
 import { setGuildConfig, type LevelAction } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { logAndBroadcastEvent } from "../../db/events.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
 
 export const data = new SlashCommandBuilder()
     .setName("config-levels")
@@ -197,7 +199,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const sub = interaction.options.getSubcommand();
-    const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
     let newConfig = {
     ...config,
     xp: { ...config.xp, roleXp: { ...config.xp.roleXp },},
@@ -401,5 +403,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         default:
             await interaction.editReply("Unknown subcommand.");
             break;
+    }
+
+    if (sub !== "show" && sub !== "list-level-actions" && config.logging.enabled) {
+        const { user } = await getOrCreateDbUser({
+            discordUserId: interaction.user.id,
+            username: interaction.user.username,
+            avatarUrl: interaction.user.displayAvatarURL(),
+        });
+
+        await logAndBroadcastEvent(interaction, {
+            guildId: guild.id,
+            userId: user.id,
+            category: "config",
+            eventType: "configChange",
+            source: "levels",
+            metaData: { actorDiscordId: interaction.user.id, subcommand: sub },
+            timestamp: new Date(),
+        }, newConfig);
     }
 }

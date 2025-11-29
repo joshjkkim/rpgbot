@@ -1,7 +1,9 @@
-import { ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, subtext } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import type { shopCategoryConfig, shopItemAction, shopItemConfig } from "../../db/guilds.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { logAndBroadcastEvent } from "../../db/events.js";
 
 export const data = new SlashCommandBuilder()
     .setName("config-shop")
@@ -87,6 +89,9 @@ export const data = new SlashCommandBuilder()
             .addIntegerOption(opt =>
                 opt.setName("price").setDescription("The price of the item in gold").setRequired(true)
             )
+            .addIntegerOption(opt =>
+                opt.setName("sell-price").setDescription("The sell price for the item (leave blank/0 or do not enter for unsellable)").setRequired(false)
+            )
             .addStringOption(opt =>
                 opt.setName("emoji").setDescription("The emoji for the item").setRequired(false)
             )
@@ -107,6 +112,12 @@ export const data = new SlashCommandBuilder()
             )
             .addBooleanOption(opt =>
                 opt.setName("hidden").setDescription("Whether the item is hidden").setRequired(false)
+            )
+            .addBooleanOption(opt =>
+                opt.setName("permanent").setDescription("Whether the item is permanent (not consumed on use)").setRequired(false)
+            )
+            .addBooleanOption(opt =>
+                opt.setName("tradeable").setDescription("Whether the item is tradeable between users").setRequired(false)
             )
     )
 
@@ -147,7 +158,7 @@ export const data = new SlashCommandBuilder()
                 opt.setName("max-per-user").setDescription("The new maximum number of this item a user can own").setRequired(false)
             )
             .addIntegerOption(opt =>
-                opt.setName("stock").setDescription("The new stock quantity of this item (leave empty for unlimited)").setRequired(false)
+                opt.setName("stock").setDescription("The new stock quantity of this item (put negative for unlimited)").setRequired(false)
             )
             .addBooleanOption(opt =>
                 opt.setName("hidden").setDescription("Whether the item is hidden").setRequired(false)
@@ -173,7 +184,7 @@ export const data = new SlashCommandBuilder()
                     { name: "Give Stat", value: "giveStat" },
                 )
             )
-            .addStringOption(opt =>
+            .addRoleOption(opt =>
                 opt.setName("role-id").setDescription("The role ID for assign/remove role actions").setRequired(false)
             )
             .addStringOption(opt =>
@@ -201,7 +212,14 @@ export const data = new SlashCommandBuilder()
             .addIntegerOption(opt =>
                 opt.setName("action-index").setDescription("The index of the action to remove (starting from 0)").setRequired(true)
             )
-    );  
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("list-item-actions").setDescription("List all actions for a shop item")
+            .addStringOption(opt =>
+                opt.setName("item-id").setDescription("The ID of the item to list actions for").setRequired(true)
+            )
+    );
 
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -353,6 +371,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const maxPerUser = interaction.options.getInteger("max-per-user", false) || undefined;
             const stock = interaction.options.getInteger("stock", false) || undefined;
             const hidden = interaction.options.getBoolean("hidden", false) || false
+            const permanent = interaction.options.getBoolean("permanent", false) || false
+            const tradeable = interaction.options.getBoolean("tradeable", false) || false
+            const sellPrice = interaction.options.getInteger("sell-price", false) || null;
 
             newConfig.shop = newConfig.shop || {};
             newConfig.shop.items = newConfig.shop.items || {};
@@ -377,6 +398,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             if (requiresRoleIds !== undefined) item.requiresRoleIds = requiresRoleIds;
             if (maxPerUser !== undefined) item.maxPerUser = maxPerUser;
             if (stock !== undefined) item.stock = stock;
+            if (permanent !== undefined) item.permanent = permanent;
+            if (tradeable !== undefined) item.tradeable = tradeable;
+            if (sellPrice !== null) item.sellPrice = sellPrice;
             
             newConfig.shop.items[id] = item;
 
@@ -441,7 +465,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 }
             }
             if (maxPerUser !== null) item.maxPerUser = maxPerUser;
-            if (stock !== null) item.stock = stock;
+            if (stock !== null) item.stock = stock < 0 ? null : stock;
             if (hidden !== null) item.hidden = hidden;
 
             await setGuildConfig(interaction.guildId, newConfig);
@@ -471,7 +495,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         case "add-item-action": {
             const itemId = interaction.options.getString("item-id", true);
             const actionType = interaction.options.getString("action-type", true) as shopItemAction["type"];
-            const roleId = interaction.options.getString("role-id", false) || undefined;
+            const roleId = interaction.options.getRole("role-id", false)?.id || undefined;
             const message = interaction.options.getString("message", false) || undefined;
             const channelId = interaction.options.getString("channel-id", false) || undefined;
             const command = interaction.options.getString("command", false) || undefined;
@@ -561,10 +585,57 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             await setGuildConfig(interaction.guildId, newConfig);
             await interaction.editReply(`Action at index ${actionIndex} removed from item with ID \`${itemId}\`.`);
             break;
-        }  
+        }
+
+        case "list-item-actions": {
+            const itemId = interaction.options.getString("item-id", true);
+
+            newConfig.shop = newConfig.shop || {};
+            newConfig.shop.items = newConfig.shop.items || {};
+
+            const item = newConfig.shop.items[itemId];
+            if (!item) {
+                await interaction.editReply(`No item found with ID \`${itemId}\`.`);
+                return;
+            }
+
+            item.actions = item.actions || [];
+
+            const actionEntries = Object.entries(item.actions);
+            if (actionEntries.length === 0) {
+                await interaction.editReply(`No actions configured for item with ID \`${itemId}\`.`);
+                return;
+            }
+
+            let reply = `Actions for Item ID \`${itemId}\`:\n`;
+            for (const [index, action] of actionEntries) {
+                reply += `• Index: ${index}, Type: **${action.type}**\n`;
+            }
+
+            await interaction.editReply(reply);
+            break;
+        }
 
         default:
             await interaction.editReply("Unknown subcommand.");
             break;
+    }
+
+     if (sub !== "list-items" && sub !== "list-categories" && sub !== "list-item-actions" && config.logging.enabled) {
+        const { user } = await getOrCreateDbUser({
+            discordUserId: interaction.user.id,
+            username: interaction.user.username,
+            avatarUrl: interaction.user.displayAvatarURL(),
+        });
+
+        await logAndBroadcastEvent(interaction, {
+            guildId: guild.id,
+            userId: user.id,
+            category: "config",
+            eventType: "configChange",
+            source: "shop",
+            metaData: { actorDiscordId: interaction.user.id, subcommand: sub },
+            timestamp: new Date(),
+        }, newConfig);
     }
 }

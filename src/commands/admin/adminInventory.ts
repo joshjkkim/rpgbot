@@ -1,5 +1,5 @@
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import { handleViewInventory, handleClearInventory, handleRemoveItem, handleGiveItem } from "../../inventory/inventory.js";
+import { handleViewInventory, handleClearInventory, handleRemoveItem, handleGiveItem } from "../../player/inventory.js";
 
 export const data = new SlashCommandBuilder()
     .setName("admin-inv")

@@ -10,6 +10,7 @@ import { handleBuyItemButton, handleMainShopButton, handlePurchaseItemModal } fr
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
         try {
+
             if (interaction.isChatInputCommand()) {
 
                 const command = commands.get(interaction.commandName);

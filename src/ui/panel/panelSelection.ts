@@ -42,6 +42,7 @@ export async function handleConfigPanelSelect(interaction: StringSelectMenuInter
         { label: "Streaks", value: "streaks", description: "Daily streak behavior" },
         { label: "Shop", value: "shop", description: "Shop settings" },
         { label: "Styles", value: "styles", description: "Theme color & messages" },
+        { label: "Logging", value: "logging", description: "Event logging settings" },
         );
 
     switch (choice) {
@@ -408,6 +409,48 @@ export async function handleConfigPanelSelect(interaction: StringSelectMenuInter
             embed
                 .setTitle("Config Panel")
                 .setDescription("Unknown section. Please pick another option.");
+            break;
+        }
+
+        case "logging": {
+            const allowedCategories = Object.entries(config.logging.allowedCategories ?? {})
+            .filter(([_, value]) => value !== false)
+            .map(([key]) => key);
+
+
+            embed
+                .setTitle(`Logging Settings — ${guild.name}`)
+                .setDescription(
+                [
+                    `**Enabled:** \`${config.logging.enabled}\``,
+                    `**Categories logged: \`${allowedCategories.length}\` (${allowedCategories.join(", ")})`,
+                    `**Main channel Id:** \`${config.logging.mainChannelId ?? "Not set"}\``,
+                    "",
+                    "Use `/config-logging` and related commands to adjust.",
+                ].join("\n")
+                );
+
+            buttons = [
+                new ButtonBuilder()
+                    .setCustomId("config-panel:logging:toggle")
+                    .setLabel("Toggle Logging")
+                    .setStyle(ButtonStyle.Secondary),
+
+                new ButtonBuilder()
+                    .setCustomId("config-panel:logging:set-main-channel")
+                    .setLabel("Set Main Channel")
+                    .setStyle(ButtonStyle.Secondary),
+
+                new ButtonBuilder()
+                    .setCustomId("config-panel:logging:add-category")
+                    .setLabel("Add Category")
+                    .setStyle(ButtonStyle.Secondary),
+
+                new ButtonBuilder()
+                    .setCustomId("config-panel:logging:remove-category")
+                    .setLabel("Remove Category")
+                    .setStyle(ButtonStyle.Danger),
+            ]
             break;
         }
     }

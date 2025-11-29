@@ -1,6 +1,8 @@
 import { ModalSubmitInteraction, MessageFlags } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";   
+import { logAndBroadcastEvent } from "../../db/events.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
 
 export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInteraction) {
     if (!interaction.customId.startsWith("config-panel:")) return;
@@ -750,8 +752,8 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
                         newConfig.shop.items[itemId][field] = newValue;
                     } else if (field === "price" || field === "minLevel" || field === "stock" || field === "maxPerUser") {
                         newConfig.shop.items[itemId][field] = Number(newValue);
-                    } else if (field === "hidden") {
-                        newConfig.shop.items[itemId].hidden = newValue.toLowerCase() === "true";
+                    } else if (field === "hidden" || field === "tradeable" || field === "permanent") {
+                        newConfig.shop.items[itemId][field] = newValue.toLowerCase() === "true";
                     } else if (field === "roles") {
                         if (newValue.trim() === "") {
                             delete newConfig.shop.items[itemId].requiresRoleIds;
@@ -925,5 +927,87 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
             }
             break;
         }
+
+        case "logging": {
+            if (action === "toggle-logging-modal") {
+                const input = interaction.fields.getTextInputValue("logging-toggle-input");
+                const value = input.toLowerCase() === "true";
+
+                newConfig.logging.enabled = value;
+
+                await setGuildConfig(interaction.guildId, newConfig);
+
+                await interaction.reply({
+                    content: `Event Logging has been ${value ? "enabled" : "disabled"}.`,
+                    flags: MessageFlags.Ephemeral,
+                });
+            } else if (action === "set-main-channel-modal") {
+                const input = interaction.fields.getTextInputValue("logging-main-channel-input");
+
+                if (input === "none" || input === "" || input.toLowerCase() === "null") {
+                    newConfig.logging.mainChannelId = null;
+                } else {
+                    newConfig.logging.mainChannelId = input;
+                }
+                
+                await setGuildConfig(interaction.guildId, newConfig);
+
+                await interaction.reply({
+                    content: `Main Event Logging Channel ID updated to \`${input}\`.`,
+                    flags: MessageFlags.Ephemeral,
+                });
+            }   else if (action === "add-category-modal") {
+                const categoryInput = interaction.fields.getTextInputValue("logging-add-category-input");
+                const channelIdInput = interaction.fields.getTextInputValue("logging-add-category-channel-input");
+                const channelId = channelIdInput || null;
+
+                const category = categoryInput as keyof typeof newConfig.logging.allowedCategories;
+
+                (newConfig.logging.allowedCategories as Record<string, string | null>)[category] = channelId;
+
+                await setGuildConfig(interaction.guildId, newConfig);
+
+                await interaction.reply({
+                    content: `Logging for category **${categoryInput}** has been added${channelId ? ` with channel ID \`${channelId}\`` : ""}.`,
+                    flags: MessageFlags.Ephemeral,
+                });
+            } else if (action === "remove-category-modal") {
+                const categoryInput = interaction.fields.getTextInputValue("logging-remove-category-input");
+                const category = categoryInput as keyof typeof newConfig.logging.allowedCategories;
+
+                if (newConfig.logging.allowedCategories) {
+                    (newConfig.logging.allowedCategories as Record<string, string | null>)[category] = null;
+
+                    await setGuildConfig(interaction.guildId, newConfig);
+
+                    await interaction.reply({
+                        content: `Logging for category **${categoryInput}** has been removed.`,
+                        flags: MessageFlags.Ephemeral,
+                    });
+                } else {
+                    await interaction.reply({
+                        content: `Logging for category **${categoryInput}** is not currently configured.`,
+                        flags: MessageFlags.Ephemeral,
+                    });
+                }
+            }
+            break;  
+        }
+    }
+
+    if (newConfig.logging.enabled) {
+        const { user } = await getOrCreateDbUser({
+            discordUserId: interaction.user.id,
+        });
+
+        await logAndBroadcastEvent(interaction, {
+            guildId: guild.id,
+            userId: user.id,
+            category: "config",
+            eventType: "configChange",
+            source: "panel",
+            metaData: { actorDiscordId: interaction.user.id, section, action },
+            timestamp: new Date(),
+        }, newConfig)
     }
 }

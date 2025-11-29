@@ -5,6 +5,7 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { MessageFlags } from "discord.js";
 import { handleLevelUp } from "../../leveling/levels.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { logAndBroadcastEvent } from "../../db/events.js";
 
 export const data = new SlashCommandBuilder()
     .setName("daily")
@@ -107,6 +108,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     await channel.send(streakMessage);
                 }
             }
+        }
+
+        if(config.logging.enabled) {
+            await logAndBroadcastEvent(interaction, {
+                guildId: dbGuild.id,
+                userId: user.id,
+                category: "daily",
+                eventType: "grantDaily",
+                source: "commandDaily",
+                metaData: { actorDiscordId: interaction.user.id, rewardXp, rewardGold, streakIncreased: increasedStreak },
+                timestamp: new Date(), 
+            }, config);
         }
         
     } else {

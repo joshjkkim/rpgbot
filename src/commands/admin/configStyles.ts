@@ -2,6 +2,8 @@ import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { logAndBroadcastEvent } from "../../db/events.js"; 
 
 export const data = new SlashCommandBuilder()
     .setName("config-styles")
@@ -108,4 +110,22 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             await interaction.editReply("Unknown subcommand.");
         }
     }
+
+     if (config.logging.enabled) {
+            const { user } = await getOrCreateDbUser({
+                discordUserId: interaction.user.id,
+                username: interaction.user.username,
+                avatarUrl: interaction.user.displayAvatarURL(),
+            });
+    
+            await logAndBroadcastEvent(interaction, {
+                guildId: guild.id,
+                userId: user.id,
+                category: "config",
+                eventType: "configChange",
+                source: "styles",
+                metaData: { actorDiscordId: interaction.user.id, subcommand: sub },
+                timestamp: new Date(),
+            }, newConfig);
+        }
 }

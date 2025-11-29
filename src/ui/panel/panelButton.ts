@@ -1149,5 +1149,86 @@ export async function handleConfigPanelButton(interaction: ButtonInteraction) {
             }
             break;
         }
+
+        case "logging": {
+            if (action === "set-main-channel") {
+                const modal = new ModalBuilder()
+                    .setCustomId("config-panel:logging:set-main-channel-modal")
+                    .setTitle("Set Logging Main Channel");
+
+                const input = new TextInputBuilder()
+                    .setCustomId("logging-main-channel-input")
+                    .setLabel("Discord Channel ID or \"none\", blank, \"null\" to disable")
+                    .setPlaceholder("e.g. 123456789012345678")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const row = new ActionRowBuilder<TextInputBuilder>().addComponents(input);
+
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            } else if (action === "toggle") {
+                const modal = new ModalBuilder()
+                    .setCustomId("config-panel:logging:set-toggle-modal")
+                    .setTitle("Enable/Disable Logging");
+
+                const input = new TextInputBuilder()
+                    .setCustomId("logging-toggle-input")
+                    .setLabel("Enable Logging (true/false)")
+                    .setPlaceholder("e.g. true or false")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const row = new ActionRowBuilder<TextInputBuilder>().addComponents(input);
+
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            } else if (action === "add-category") {
+                const modal = new ModalBuilder()
+                    .setCustomId("config-panel:logging:add-category-modal")
+                    .setTitle("Add Logging Category");
+
+                const categoryInput = new TextInputBuilder()
+                    .setCustomId("logging-add-category-input")
+                    .setLabel("Event Category to Log")
+                    .setPlaceholder("e.g. economy, xp, daily, streak, level, config, inventory, admin")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const channelInput = new TextInputBuilder()
+                    .setCustomId("logging-add-category-channel-input")
+                    .setLabel("ChannelID for cat, blank for main")
+                    .setPlaceholder("e.g. 123456789012345678")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(false);
+
+                const categoryRow = new ActionRowBuilder<TextInputBuilder>().addComponents(categoryInput);
+                const channelRow = new ActionRowBuilder<TextInputBuilder>().addComponents(channelInput);
+
+                modal.addComponents(categoryRow, channelRow);
+
+                await interaction.showModal(modal);
+            } else if (action === "remove-category") {
+                const modal = new ModalBuilder()
+                    .setCustomId("config-panel:logging:remove-category-modal")
+                    .setTitle("Remove Logging Category");
+
+                const input = new TextInputBuilder()
+                    .setCustomId("logging-remove-category-input")
+                    .setLabel("Event Category to Stop Logging")
+                    .setPlaceholder("e.g. economy, xp, daily, streak, level, config, inventory, admin")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const row = new ActionRowBuilder<TextInputBuilder>().addComponents(input);
+
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            }
+            break;
+        }
     }
 }

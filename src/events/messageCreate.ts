@@ -23,11 +23,16 @@ export function registerMessageCreate(client: Client) {
       }
 
       const member = message.member;
+      if (!member) return;
       const roleIds = member?.roles.cache.map(role => role.id) ?? [];
 
       let {profile, gave, levelUp} = await addMessageXp({
+        client: message.client,
+        member,
         userId: user.id,
         guildId: guild.id,
+        discordUserId: message.author.id,
+        discordGuildId: message.guild.id,
         channelId: message.channel.id,
         config,
         roleIds,
@@ -50,8 +55,12 @@ export function registerMessageCreate(client: Client) {
       let dailyLevelUp = false;
       if (config.xp.autoDailyEnabled) {
         const dailyResult = await grantDailyXp({
+          client: message.client,
+          member: message.member,
           userId: user.id,
           guildId: guild.id,
+          discordUserId: message.author.id,
+          discordGuildId: message.guild.id,
           config,
           roleIds,
         });

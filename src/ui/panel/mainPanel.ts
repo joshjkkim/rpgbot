@@ -7,6 +7,10 @@ export async function sendConfigPanel(interaction: ChatInputCommandInteraction) 
     const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
     const themeColor = config.style.mainThemeColor || "#00AE86";
 
+    const allowedCategories = Object.entries(config.logging.allowedCategories ?? {})
+        .filter(([_, value]) => value !== false)
+        .map(([key]) => key);
+
     const embed = new EmbedBuilder()
         .setTitle(`Config Panel for ${guild.name}`)
         .setDescription(
@@ -62,6 +66,11 @@ export async function sendConfigPanel(interaction: ChatInputCommandInteraction) 
             `• Gold name: \`${config.style.gold.name}\``,
             `• XP icon: \`${config.style.xp.icon}\``,
             `• XP name: \`${config.style.xp.name}\``,
+            "",
+            `**Logging:**`,
+            `• Enabled: \`${config.logging.enabled}\``,
+            `• Categories logged: \`${allowedCategories.length}\` (${allowedCategories.join(", ")})`,
+            `• Main channel Id: \`${config.logging.mainChannelId ?? "Not set"}\``,
         ].join("\n")
         )
         .setColor(themeColor as any);
@@ -77,6 +86,7 @@ export async function sendConfigPanel(interaction: ChatInputCommandInteraction) 
         { label: "Streaks", value: "streaks", description: "Daily streak behavior" },
         { label: "Shop", value: "shop", description: "Shop settings" },
         { label: "Styles", value: "styles", description: "Theme color & messages" },
+        { label: "Logging", value: "logging", description: "Event logging settings" },
         );
 
     const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);

@@ -2,6 +2,8 @@ import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, Embed, EmbedBuilder, subtext } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { getOrCreateDbUser } from "../../cache/userService.js";
+import { logAndBroadcastEvent } from "../../db/events.js";
 
 export const data = new SlashCommandBuilder()
     .setName("config-xp")
@@ -151,6 +153,33 @@ export const data = new SlashCommandBuilder()
     )
 
     .addSubcommand(sub =>
+        sub.setName("add-role-temp").setDescription("Configure temporary role settings for a specific role")
+        .addRoleOption((opt) =>
+            opt.setName("role")
+            .setDescription("Role to configure temporary role settings for")
+            .setRequired(true)
+        )
+        .addNumberOption((opt) =>
+            opt.setName("default-duration-minutes")
+            .setDescription("Default duration in minutes for temporary roles assigned to users)")
+            .setRequired(false)
+        )
+        .addStringOption((opt) =>
+            opt.setName("hard-expiryat")
+            .setDescription("Optional hard expiry in ISO format, e.g. 2025-12-31T23:59:59Z")
+            .setRequired(false)
+    ))
+
+    .addSubcommand(sub =>
+        sub.setName("remove-role-temp").setDescription("Remove temporary role settings for a specific role")
+        .addRoleOption((opt) =>
+            opt.setName("role")
+            .setDescription("Role to remove temporary role settings for")
+            .setRequired(true)
+        )
+    )
+
+    .addSubcommand(sub =>
         sub.setName("list-channel-xp-config").setDescription("List all channel-specific XP configurations")
             .addStringOption(opt =>
                 opt.setName("type")
@@ -237,7 +266,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const sub = interaction.options.getSubcommand();
-    const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
     let newConfig = { ...config, xp: { ...config.xp, roleXp: { ...config.xp.roleXp }, xpChannelIds: { ...config.xp.xpChannelIds } } };
 
     switch(sub) {
@@ -403,6 +432,38 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             break;
         }
 
+        case "add-role-temp": {
+            const role = interaction.options.getRole("role", true);
+            const defaultDurationMinutes = interaction.options.getNumber("default-duration-minutes", false);
+            const hardExpiryAt = interaction.options.getString("hard-expiryat", false);
+            const roleConfig: any = {};
+
+            if (defaultDurationMinutes !== null) {
+                roleConfig.defaultDurationMinutes = defaultDurationMinutes;
+            }
+            if (hardExpiryAt !== null) {
+                roleConfig.hardExpiryAt = hardExpiryAt;
+            }
+
+            newConfig.xp.roleTemp[role.id] = roleConfig;
+            await interaction.editReply(`Temporary role configuration added/updated for ${role.name}.`);
+            await setGuildConfig(interaction.guildId, newConfig);
+            break;
+        }
+
+        case "remove-role-temp": {
+            const role = interaction.options.getRole("role", true);
+
+            if(newConfig.xp.roleTemp[role.id]) {
+                delete newConfig.xp.roleTemp[role.id];
+                await interaction.editReply(`Temporary role configuration removed for ${role.name}.`);
+                await setGuildConfig(interaction.guildId, newConfig);
+            } else {
+                await interaction.editReply(`No temporary role configuration found for ${role.name}.`);
+            }
+            break;
+        }
+
         case "list-channel-xp-config": {
             const type = interaction.options.getString("type", false) || "all";
 
@@ -509,4 +570,22 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             await interaction.editReply("Unknown subcommand.");
             break;
     }
+
+     if (sub !== "show" && sub !== "list-channel-xp-config" && config.logging.enabled) {
+            const { user } = await getOrCreateDbUser({
+                discordUserId: interaction.user.id,
+                username: interaction.user.username,
+                avatarUrl: interaction.user.displayAvatarURL(),
+            });
+    
+            await logAndBroadcastEvent(interaction, {
+                guildId: guild.id,
+                userId: user.id,
+                category: "config",
+                eventType: "configChange",
+                source: "logging",
+                metaData: { actorDiscordId: interaction.user.id, subcommand: sub },
+                timestamp: new Date(),
+            }, newConfig);
+        }
 }
