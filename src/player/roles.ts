@@ -2,78 +2,87 @@ import type { GuildMember } from "discord.js";
 import type { GuildConfig } from "../db/guilds.js";
 import type { DbUserGuildProfile, TempRoleState } from "../db/userGuildProfiles.js";
 import { query } from "../db/index.js";
-import { profileKey, userGuildProfileCache } from "../cache/caches.js";
+import { profileKey, userGuildProfileCache, type PendingProfileChanges } from "../cache/caches.js";
 import { getOrCreateProfile } from "../cache/profileService.js";
+import { getOrCreateDbUser } from "../cache/userService.js";
+import { getOrCreateGuildConfig } from "../cache/guildService.js";
 
 interface ApplyRoleWithTempArgs {
     member: GuildMember;
     roleId: string;
-    config: GuildConfig;
-    profile: DbUserGuildProfile;
     source: "item" | "command";
     sourceId?: string; // e.g. item.id or command name
 }
 
 export async function applyRoleWithTemp(args: ApplyRoleWithTempArgs): Promise<DbUserGuildProfile> {
-    const { member, roleId, config, profile, source, sourceId } = args;
+    const { member, roleId, source, sourceId } = args;
 
     if (!member.roles.cache.has(roleId)) {
         await member.roles.add(roleId).catch(() => {});
     }
 
+    const { user: dbUser } = await getOrCreateDbUser({
+        discordUserId: member.id,
+        username: member.user.username,
+        avatarUrl: member.user.displayAvatarURL(),
+    });
+
+    const { guild, config} = await getOrCreateGuildConfig({ discordGuildId: member.guild.id });
+
     const tempCfg = config.xp.roleTemp?.[roleId];
+    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: guild.id });
+
     if (!tempCfg) {
         return profile;
     }
 
     const now = Date.now();
-
     const durationMs = (tempCfg.defaultDurationMinutes ?? 60) * 60 * 1000;
     const relativeExpiry = new Date(now + durationMs);
 
     let finalExpiry = relativeExpiry;
-
     if (tempCfg.hardExpiryat) {
         const hard = new Date(tempCfg.hardExpiryat);
-        if (hard.getTime() <= now) return profile;
         if (!Number.isNaN(hard.getTime()) && hard.getTime() < finalExpiry.getTime()) {
-        finalExpiry = hard;
+            finalExpiry = hard;
         }
     }
 
     const expiresAtIso = finalExpiry.toISOString();
 
     const tempRoles: Record<string, TempRoleState> = {
-        ...(profile.temp_roles ?? {}),
+        ...(profile.tempRoles ?? {}),
         [roleId]: {
-        expiresAt: expiresAtIso,
-        source,
-        ...(sourceId && { sourceId }),
+            expiresAt: expiresAtIso,
+            source,
+            ...(sourceId && { sourceId }),
         },
     };
 
-    const result = await query<DbUserGuildProfile>(
-        `
-        UPDATE user_guild_profiles
-        SET temp_roles = $3,
-            updated_at = NOW()
-        WHERE user_id = $1 AND guild_id = $2
-        RETURNING *;
-        `,
-        [profile.user_id, profile.guild_id, JSON.stringify(tempRoles)]
-    );
-
-    const updatedProfile = result.rows[0] ?? profile;
-
-    // 4) Sync cache
     const key = profileKey(profile.guild_id, profile.user_id);
+    const cached = userGuildProfileCache.get(key);
+
+    const updatedProfile: DbUserGuildProfile = {
+        ...(cached?.profile ?? profile),
+        tempRoles,
+    };
+
+    const pending: PendingProfileChanges = {
+        ...(cached?.pendingChanges ?? {}),
+        temp_roles: tempRoles,
+    };
+
     userGuildProfileCache.set(key, {
         profile: updatedProfile,
+        pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
+        dirty: true,
+        lastWroteToDb: cached?.lastWroteToDb,
         lastLoaded: Date.now(),
     });
 
     return updatedProfile;
 }
+
 
 export async function removeTempRole(member: GuildMember, roleId: string, guildId: number, userId: number): Promise<DbUserGuildProfile | null> {
     if (!member.roles.cache.has(roleId)) {
@@ -83,37 +92,41 @@ export async function removeTempRole(member: GuildMember, roleId: string, guildI
     const now = Date.now();
 
     const key = profileKey(guildId, userId);
+    const cached = userGuildProfileCache.get(key);
     
     const { profile } = await getOrCreateProfile({ userId, guildId });
 
-    const tempRoles = profile.temp_roles ?? {};
+    const tempRoles = { ...(profile.tempRoles ?? {}) };
+
     if (!tempRoles[roleId]) {
         return null;
     }
+
+    console.log("Checking expiry for temp role:", roleId, tempRoles[roleId]);
 
     if (new Date(tempRoles[roleId].expiresAt).getTime() > now) {
         return null;
     }
 
-    member.roles.remove(roleId).catch(() => {});
+    await member.roles.remove(roleId).catch(() => {});
 
     delete tempRoles[roleId];
 
-    const result = await query<DbUserGuildProfile>(
-        `
-        UPDATE user_guild_profiles
-        SET temp_roles = $3,
-            updated_at = NOW()
-        WHERE user_id = $1 AND guild_id = $2
-        RETURNING *;
-        `,
-        [userId, guildId, JSON.stringify(tempRoles)]
-    );
+    const updatedProfile: DbUserGuildProfile = {
+        ...(cached?.profile ?? profile),
+        tempRoles,
+    };
 
-    const updatedProfile = result.rows[0] ?? profile;
+    const pending: PendingProfileChanges = {
+        ...(cached?.pendingChanges ?? {}),
+        temp_roles: tempRoles,
+    };
 
     userGuildProfileCache.set(key, {
         profile: updatedProfile,
+        pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
+        dirty: true,
+        lastWroteToDb: cached?.lastWroteToDb,
         lastLoaded: Date.now(),
     });
 

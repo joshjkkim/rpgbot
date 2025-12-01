@@ -6,6 +6,8 @@ import { handleConfigPanelSelect } from "../ui/panel/panelSelection.js";
 import { handleConfigPanelButton } from "../ui/panel/panelButton.js";
 import { handleConfigPanelModalSubmit } from "../ui/panel/panelModal.js";
 import { handleBuyItemButton, handleMainShopButton, handlePurchaseItemModal } from "../commands/user/shop.js";
+import { updateUserStats } from "../db/userGuildProfiles.js";
+import { handleProfileButton } from "../commands/user/profile.js";
 
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -35,6 +37,8 @@ export function registerInteractionCreate(client: Client) {
                     await handleBuyItemButton(interaction);
                 } else if (interaction.customId.startsWith("shop:")) {
                     await handleMainShopButton(interaction);
+                } else if (interaction.customId.startsWith("profile:")) {
+                    await handleProfileButton(interaction);
                 }
 
                 return;

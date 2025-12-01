@@ -16,7 +16,7 @@ export async function getOrCreateDbUser(opts: { discordUserId: string; username?
         return toReturn;
     }
 
-    const dbUser = await upsertUser({
+    const dbUser = await upsertUser ({
         discordUserId: opts.discordUserId,
 
     });
@@ -28,4 +28,3 @@ export async function getOrCreateDbUser(opts: { discordUserId: string; username?
 
     return { user: dbUser, lastRefreshed: now };
 }
-

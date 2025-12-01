@@ -1,6 +1,9 @@
 import type { DbGuild, GuildConfig } from "../db/guilds.js";
 import type { DbUser } from "../db/users.js";
-import type { DbUserGuildProfile } from "../db/userGuildProfiles.js";
+import type { DbUserGuildProfile, item, TempRoleState } from "../db/userGuildProfiles.js";
+import type { UserStats } from "../db/userGuildProfiles.js";
+import type {  } from "../player/roles.js";
+import { flushProfileCacheToDb } from "./profileService.js";
 
 const USER_CACHE_TTL_MS = 10 * 60 * 1000;
 const GUILD_CONFIG_TTL_MS = 60 * 1000;
@@ -17,8 +20,22 @@ export interface CachedGuildConfig {
     lastLoaded: number;
 }
 
+export interface PendingProfileChanges {
+    xp?: string;              // bigint comes back as string
+    level?: number;
+    gold?: string;
+    streak_count?: number;
+    last_daily_at?: string | null;
+    last_message_at?: string | null;
+    inventory?: Record<string, item>;
+    temp_roles?: Record<string, TempRoleState>;
+    user_stats?: UserStats;
+}
 export interface CachedUserGuildProfile {
     profile: DbUserGuildProfile;
+    pendingChanges?: PendingProfileChanges | undefined;
+    dirty?: boolean;
+    lastWroteToDb?: number | undefined;
     lastLoaded: number;
 }
 
@@ -51,7 +68,29 @@ export function pruneCaches() {
 
     for (const [id, value] of userGuildProfileCache) {
         if (now - value.lastLoaded > PROFILE_CONFIG_TTL_MS * 10) {
-        userGuildProfileCache.delete(id);
+            const [guildIdStr, userIdStr] = id.split(":");
+            const guildId = Number(guildIdStr);
+            const userId = Number(userIdStr);
+
+            if (value.dirty && value.pendingChanges) {
+                void flushProfileCacheToDb({ guildId, userId });
+            }
+            userGuildProfileCache.delete(id);
         }
+    }
+}
+
+export async function flushDirtyProfiles(): Promise<void> {
+    const entries = Array.from(userGuildProfileCache.entries());
+
+    for (const [key, cached] of entries) {
+        if (!cached.dirty || !cached.pendingChanges) continue;
+
+        const [guildIdStr, userIdStr] = key.split(":");
+        const guildId = Number(guildIdStr);
+        const userId = Number(userIdStr);
+        if (Number.isNaN(guildId) || Number.isNaN(userId)) continue;
+
+        await flushProfileCacheToDb({ guildId, userId });
     }
 }

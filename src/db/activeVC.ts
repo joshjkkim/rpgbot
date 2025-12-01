@@ -1,6 +1,6 @@
 import { getGuildConfig } from "./guilds.js";
 import { logAndBroadcastEvent } from "./events.js";
-import { addMessageXp } from "./userGuildProfiles.js";
+import { addMessageXp, updateUserStats } from "./userGuildProfiles.js";
 import { upsertUser } from "./users.js";
 import type { VoiceState } from "discord.js";
 import { refreshTempRolesForMember } from "../player/roles.js";
@@ -48,6 +48,7 @@ export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: strin
     const now = new Date();
     const durationMs = now.getTime() - session.joinedAt.getTime();
     const durationMinutes = Math.floor(durationMs / 60000);
+    
 
     if (durationMinutes >= config.xp.vc.minMinutesForXp) {
         let xpAmount = config.xp.vc.basePerMinute * durationMinutes;
@@ -74,6 +75,11 @@ export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: strin
             roleIds,
             amount: xpAmount,
         });
+
+        await updateUserStats(user.id, guild.id, {
+            xpFromVC: (profile.user_stats?.xpFromVC ?? 0) + xpAmount,
+            timeSpentInVC: (profile.user_stats?.timeSpentInVC ?? 0) + durationMinutes * 60,
+        }); 
 
         if (gave) {
             await logAndBroadcastEvent(voiceState.guild, {

@@ -198,7 +198,85 @@ export async function sendServerLogEvent(ctx: LogContext, event: LogEvent, confi
   await (channel as GuildTextBasedChannel).send({ embeds: [embed] });
 }
 
+const LOG_BUFFER: LogEvent[] = [];
+const MAX_SIZE = 100;
+let isFlushing = false;
+
+export function enqueueLogEvent(event: LogEvent): void {
+    LOG_BUFFER.push(event);
+}
+
 export async function logAndBroadcastEvent(ctx: LogContext, event: LogEvent, config: GuildConfig): Promise<void> {
-    await logEvent(event);
+    
     await sendServerLogEvent(ctx, event, config);
+
+    enqueueLogEvent(event);
+
+    if (LOG_BUFFER.length >= MAX_SIZE) {
+        void flushLogBuffer();
+    }
+}
+
+export async function flushLogBuffer(): Promise<void> {
+    if(isFlushing) return;
+    if(LOG_BUFFER.length === 0) return;
+
+    isFlushing = true;
+
+    try {
+        const batch = LOG_BUFFER.splice(0, LOG_BUFFER.length);
+        if (batch.length === 0) return;
+
+        const values: any[] = [];
+        const valuePlaceholders: string[] = [];
+
+        let idx = 1;
+
+        for (const event of batch) {
+            valuePlaceholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++},
+                                    $${idx++}, $${idx++}, $${idx++}, $${idx++},
+                                    $${idx++}, $${idx++},
+                                    $${idx++}, $${idx++},
+                                    $${idx++}, $${idx++},
+                                    $${idx++}, $${idx++})`);
+            values.push(
+                event.guildId,
+                event.userId,
+                event.targetUserId ?? null,
+                event.category,
+                event.eventType,
+                event.source ?? null,
+                event.xpDelta ?? null,
+                event.goldDelta ?? null,
+                event.streakDelta ?? null,
+                event.levelDelta ?? null,
+                event.itemId ?? null,
+                event.itemQuantity ?? null,
+                event.oldLevel ?? null,
+                event.newLevel ?? null,
+                event.oldStreak ?? null,
+                event.newStreak ?? null,
+                event.metaData ? JSON.stringify(event.metaData) : null,
+                event.timestamp ?? new Date()
+            );
+        }
+
+        const sql = `
+            INSERT INTO events
+            (guild_id, user_id, target_user_id, category, event_type, source,
+             xp_delta, gold_delta, streak_delta, level_delta,
+             item_id, quantity,
+             old_level, new_level,
+             old_streak, new_streak,
+             metadata, timestamp)
+            VALUES
+            ${valuePlaceholders.join(", ")}
+        `;
+
+        await query(sql, values);
+    } catch (err) {
+        console.error("Error flushing log buffer:", err);
+    } finally {
+        isFlushing = false;
+    }
 }

@@ -5,7 +5,7 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { updateInventory } from "../../player/inventory.js";
-import type { item } from "../../db/userGuildProfiles.js";
+import { updateUserStats, type item } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 
 function chunkButtons(buttons: ButtonBuilder[], size = 5) {
@@ -355,6 +355,10 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
 
     await interaction.editReply({ content: `You have purchased **${quantity} x ${item.name}** for **${item.price * quantity} ${config.style.gold.icon || "💰"}**!` });
 
+    await updateUserStats(dbUser.id, dbGuild.id, {
+        itemsPurchased: (profile.user_stats?.itemsPurchased ?? 0) + quantity,
+        goldSpent: (profile.user_stats?.goldSpent ?? 0) + price,
+    });
 
     await logAndBroadcastEvent(interaction, {
         guildId: dbGuild.id,

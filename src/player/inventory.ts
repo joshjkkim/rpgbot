@@ -1,21 +1,37 @@
 import { query } from "../db/index.js";
-import { addMessageXp, type item } from "../db/userGuildProfiles.js";
+import { addMessageXp, updateUserStats, type item } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { getOrCreateProfile } from "../cache/profileService.js";
 import type { ChatInputCommandInteraction } from "discord.js";
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
+import { profileKey, userGuildProfileCache, type PendingProfileChanges } from "../cache/caches.js";
 
 export async function updateInventory(userId: number, guildId: number, inventory: Record<string, item>, newGoldBalance: number): Promise<void> {
-    await query(
-        `
-        UPDATE user_guild_profiles
-        SET inventory = $3, gold = $4, updated_at = NOW()
-        WHERE user_id = $1 AND guild_id = $2;
-        `,
-        [userId, guildId, JSON.stringify(inventory), newGoldBalance]
-    );
+    const cached = await getOrCreateProfile({ userId, guildId });
+    let profile = cached.profile;
+    let pendingChanges: Record<string, any> = cached.pendingChanges ?? {};
+
+    profile.inventory = inventory;
+    pendingChanges = {
+        ...pendingChanges,
+        inventory,
+    }
+
+    if (!isNaN(newGoldBalance)) {
+        profile.gold = newGoldBalance.toString();
+        pendingChanges.gold = newGoldBalance;
+    }
+
+    const key = profileKey(guildId, userId);
+    userGuildProfileCache.set(key, {
+        profile,
+        pendingChanges,
+        dirty: true,
+        lastWroteToDb: cached.lastWroteToDb,
+        lastLoaded: Date.now(),
+    });
 }
 
 export async function getInventory(userId: number, guildId: number): Promise<Record<string, item>> {
@@ -231,6 +247,9 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
         }
     }
 
+    let xpGained = 0;
+    let goldGained = 0;
+
     for (let i = 0; i < quantity; i++) {
         for (const actionKey in items[itemId].actions) {
             const action = items[itemId].actions[parseInt(actionKey)];
@@ -253,8 +272,6 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                     await applyRoleWithTemp({
                         member: member!,
                         roleId: action.roleId,
-                        config,
-                        profile,
                         source: "item",
                         sourceId: itemId,
                     });
@@ -273,20 +290,34 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
             if (action.type === "giveStat" && action.statId && action.amount) {
                 switch (action.statId) {
                     case "gold": {
-                        const newGoldBalance = (profile.gold ? parseInt(profile.gold) : 0) + action.amount;
-                        profile.gold = newGoldBalance.toString();
-                        await query(
-                            `
-                            UPDATE user_guild_profiles
-                            SET gold = $2, updated_at = NOW()
-                            WHERE user_id = $1 AND guild_id = $3;
-                            `,
-                            [profile.user_id, newGoldBalance, profile.guild_id]
-                        );
+                        const cached = await getOrCreateProfile({ userId: profile.user_id, guildId: profile.guild_id });
+                        let p = cached.profile;
+                        let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+
+                        const currentGold = p.gold ? BigInt(p.gold) : 0n;
+                        const newGoldBig = currentGold + BigInt(action.amount);
+                        p.gold = newGoldBig.toString();
+                        goldGained += action.amount;
+
+                        pending = {
+                            ...pending,
+                            gold: p.gold,
+                        };
+
+                        const key = profileKey(p.guild_id, p.user_id);
+                        userGuildProfileCache.set(key, {
+                            profile: p,
+                            pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
+                            dirty: true,
+                            lastWroteToDb: cached.lastWroteToDb,
+                            lastLoaded: Date.now(),
+                        });
+
                         break;
                     }
 
                     case "xp": {
+                        xpGained += action.amount;
                         await addMessageXp({
                             userId: profile.user_id,
                             guildId: profile.guild_id,
@@ -301,6 +332,14 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                 }
             }
         }
+    }
+
+    await updateUserStats(profile.user_id, profile.guild_id, {
+        goldEarned: (profile.user_stats?.goldEarned ?? 0) + goldGained,
+        goldFromItems: (profile.user_stats?.goldFromItems ?? 0) + goldGained,
+        xpFromItems: (profile.user_stats?.xpFromItems ?? 0) + xpGained,
+        itemsUsed: (profile.user_stats?.itemsUsed ?? 0) + quantity,
+    });
 
     await logAndBroadcastEvent(interaction, {
         guildId: dbGuild.id,
@@ -314,7 +353,6 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
         timestamp: new Date(),
         }, config
     );
-    }
 
     inventory[itemId].quantity -= quantity;
     if (inventory[itemId].quantity <= 0) {

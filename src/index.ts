@@ -8,7 +8,8 @@ import { registerMessageCreate } from "./events/messageCreate.js";
 import { registerGuildCreate } from "./events/guildCreate.js";
 import { registerInteractionCreate } from "./events/interactionCreate.js";
 import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
-import { pruneCaches } from "./cache/caches.js";
+import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
+import { flushLogBuffer } from "./db/events.js";
 
 const client = new Client({
   intents: [
@@ -33,9 +34,19 @@ setInterval(() => {
     pruneCaches();
 }, 5 * 60 * 1000);
 
+setInterval(() => {
+    void flushDirtyProfiles();
+    void flushLogBuffer();
+  }, 30 * 1000);
+
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
   throw new Error("DISCORD_TOKEN is not set in environment");
 }
+
+process.on("exit", () => {
+  void flushDirtyProfiles();
+  void flushLogBuffer();
+});
 
 client.login(token);

@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction, ColorResolvable } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, type ChatInputCommandInteraction, type ColorResolvable, type MessageActionRowComponentBuilder } from "discord.js";
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -6,6 +6,7 @@ import { getOrCreateProfile } from "../../cache/profileService.js";
 import { calculateTotalXpForLevel } from "../../leveling/levels.js";
 import type { StreakReward } from "../../db/guilds.js";
 import { refreshTempRolesForMember } from "../../player/roles.js";
+import type { UserStats } from "../../db/userGuildProfiles.js";
 
 function createProgressBar(current: number, max: number, length: number = 10): string {
     const progress = Math.min(current / max, 1);
@@ -161,11 +162,78 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             });
         }
 
+        let buttons: ButtonBuilder[] = [
+            new ButtonBuilder()
+                .setCustomId("profile:stats")
+                .setLabel("Stats")
+                .setStyle(ButtonStyle.Primary),
+        ];
+
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
+
         embed.setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() }
         )
         .setColor(color as ColorResolvable)
         .setFooter({ text: `Keep up the great work!` })
         .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed], components: [row] });
+}
+
+export async function handleProfileButton(interaction: ButtonInteraction) {
+    if(!interaction.customId.startsWith("profile:")) return;
+
+    if (!interaction.inGuild() || !interaction.guildId) {
+        await interaction.reply("This command can only be used in a server.");
+        return;
+    }
+
+    await interaction.deferReply();
+
+    const { user: dbUser } = await getOrCreateDbUser({
+        discordUserId: interaction.user.id,
+        username: interaction.user.username,
+        avatarUrl: interaction.user.displayAvatarURL(),
+    });
+
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+
+    const { profile } = await getOrCreateProfile({
+        userId: dbUser.id,
+        guildId: dbGuild.id,
+    });
+
+    const stats: UserStats = profile.user_stats || {};
+    
+    const themeColor = config.style.mainThemeColor || 0x00AE86;
+
+    const choice = interaction.customId.split(":")[1];
+
+    const embed = new EmbedBuilder()
+        .setColor(themeColor as any);
+
+    switch (choice) {
+        case "stats": {
+            embed.setTitle("Profile Stats for " + interaction.user.username)
+            .setDescription([
+                `**Total Messages Sent:** \`${stats.messagesSent ?? 0}\``,
+                `**Total Voice Minutes:** \`${stats.timeSpentInVC ?? 0}\``,
+                `**Items Purchased:** \`${stats.itemsPurchased ?? 0}\``,
+                `**Items Used:** \`${stats.itemsUsed ?? 0}\``,
+                `**Gold from Dailies:** \`${stats.goldFromDailies ?? 0}\``,
+                `**Gold from Items:** \`${stats.goldFromItems ?? 0}\``,
+                `**Total Gold Earned:** \`${stats.goldEarned ?? 0}\``,
+                `**Total Gold Spent:** \`${stats.goldSpent ?? 0}\``,
+                `**XP from Messages:** \`${stats.xpFromMessages ?? 0}\``,
+                `**XP from Dailies:** \`${stats.xpFromDaily ?? 0}\``,
+                `**XP from Voice Chat:** \`${stats.xpFromVC ?? 0}\``,
+                `**XP from Items:** \`${stats.xpFromItems ?? 0}\``,
+                `**Dailies Claimed:** \`${stats.dailiesClaimed ?? 0}\``,
+                `**Max Streak:** \`${stats.maxStreak ?? 0}\``,
+            ].join("\n"));
+            break;
+        }
+    }
 
     await interaction.editReply({ embeds: [embed] });
 }
