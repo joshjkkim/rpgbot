@@ -1,9 +1,10 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, Embed, EmbedBuilder } from "discord.js";
-import { setGuildConfig, type LevelAction } from "../../db/guilds.js";
+import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
+import type { LevelAction } from "../../types/guild.js";
 
 export const data = new SlashCommandBuilder()
     .setName("config-levels")

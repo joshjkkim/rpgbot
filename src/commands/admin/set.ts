@@ -3,7 +3,8 @@ import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
-import { logAndBroadcastEvent, type EventType } from "../../db/events.js";
+import { logAndBroadcastEvent } from "../../db/events.js";
+import type { EventType } from "../../types/logging.js";
 import { query } from "../../db/index.js";
 
 export const data = new SlashCommandBuilder()

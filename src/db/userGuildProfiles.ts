@@ -1,57 +1,15 @@
 import { query } from "./index.js";
-import type { QueryResultRow } from "pg";
-import type { GuildConfig } from "./guilds.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { logAndBroadcastEvent } from "./events.js";
 import { getOrCreateProfile } from "../cache/profileService.js";
 import type { Client, GuildMember, User } from "discord.js";
-import { profileKey, type CachedUserGuildProfile, type PendingProfileChanges } from "../cache/caches.js";
+import { profileKey } from "../cache/caches.js";
+import type { CachedUserGuildProfile, PendingProfileChanges } from "../types/cache.js";
 import { userGuildProfileCache } from "../cache/caches.js";
 import { refreshTempRolesForMember } from "../player/roles.js";
-
-export interface UserStats {
-    messagesSent: number;
-    itemsPurchased: number;
-    itemsUsed: number;
-    goldFromDailies: number;
-    goldFromItems: number;
-    goldEarned: number;
-    goldSpent: number;
-    xpFromMessages: number;
-    xpFromDaily: number;
-    xpFromVC: number;
-    xpFromItems: number;
-    dailiesClaimed: number;
-    maxStreak: number;
-    timeSpentInVC: number; // in seconds
-}
-export interface item {
-    id: string;
-    name: string;
-    emoji?: string;
-    description?: string;
-    quantity: number;
-}
-
-export interface TempRoleState {
-    expiresAt: string; // ISO date string
-    source?: "item" | "command";
-    sourceId?: string;
-}
-export interface DbUserGuildProfile extends QueryResultRow {
-    id: number;
-    user_id: number;
-    guild_id: number;
-    xp: string;              // bigint comes back as string
-    level: number;
-    gold: string;
-    streak_count: number;
-    last_daily_at: string | null;
-    last_message_at: string | null;
-    inventory: Record<string, item>;
-    temp_roles: Record<string, TempRoleState>;
-    user_stats: UserStats;
-}
+import { runAchievementPipeline } from "../player/achievements.js";
+import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
+import type { GuildConfig } from "../types/guild.js";
 
 type XpArgs = {
     client?: Client;
@@ -107,7 +65,6 @@ export async function getUserGuildProfile(userId: number, guildId: number): Prom
 
 export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildProfile, gave: boolean, levelUp: boolean}> {
     const { userId, guildId, channelId, config } = args;
-
 
     let cached = await getOrCreateProfile({userId, guildId});
 
@@ -184,6 +141,19 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
     };
 
     if (levelUp) {
+        pendingChanges.level = profile.level;
+    }
+
+    const achievementResults = await runAchievementPipeline({profile, pending: pendingChanges, config});
+    profile = achievementResults.profile;
+    pendingChanges = achievementResults.pending;
+
+    const xpAfter = Number(profile.xp);
+    const levelAfter = calculateLevelFromXp(xpAfter, config);
+
+    if (levelAfter > profile.level) {
+        profile.level = levelAfter;
+        levelUp = true;
         pendingChanges.level = profile.level;
     }
 
@@ -406,7 +376,6 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
             timestamp: new Date(),
         }, config);
     }
-    
 
     return { profile, granted: true, rewardXp, rewardGold, levelUp, ...(streakRewardInfo && { streakReward: streakRewardInfo }), increasedStreak };
 }

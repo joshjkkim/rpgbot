@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, subtext } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
-import type { shopCategoryConfig, shopItemAction, shopItemConfig } from "../../db/guilds.js";
+import type { shopCategoryConfig, shopItemAction, shopItemConfig } from "../../types/economy.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 

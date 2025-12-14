@@ -1,5 +1,5 @@
 import { upsertGuild, mergeConfig } from "../db/guilds.js";
-import type { CachedGuildConfig } from "./caches.js";
+import type { CachedGuildConfig } from "../types/cache.js";
 import { guildConfigCache, isStale } from "./caches.js";
 
 const GUILD_CONFIG_TTL_MS = 60 * 1000;

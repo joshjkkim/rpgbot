@@ -4,9 +4,9 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { calculateTotalXpForLevel } from "../../leveling/levels.js";
-import type { StreakReward } from "../../db/guilds.js";
 import { refreshTempRolesForMember } from "../../player/roles.js";
-import type { UserStats } from "../../db/userGuildProfiles.js";
+import type { StreakReward } from "../../types/guild.js";
+import type { UserStats } from "../../types/userprofile.js";
 
 function createProgressBar(current: number, max: number, length: number = 10): string {
     const progress = Math.min(current / max, 1);

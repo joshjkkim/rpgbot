@@ -5,7 +5,8 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { updateInventory } from "../../player/inventory.js";
-import { updateUserStats, type item } from "../../db/userGuildProfiles.js";
+import { updateUserStats } from "../../db/userGuildProfiles.js";
+import type { item } from "../../types/userprofile.js"
 import { logAndBroadcastEvent } from "../../db/events.js";
 
 function chunkButtons(buttons: ButtonBuilder[], size = 5) {

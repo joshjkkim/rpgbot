@@ -1,43 +1,9 @@
-import type { DbGuild, GuildConfig } from "../db/guilds.js";
-import type { DbUser } from "../db/users.js";
-import type { DbUserGuildProfile, item, TempRoleState } from "../db/userGuildProfiles.js";
-import type { UserStats } from "../db/userGuildProfiles.js";
-import type {  } from "../player/roles.js";
+import type { CachedUserId, CachedGuildConfig, CachedUserGuildProfile } from "../types/cache.js";
 import { flushProfileCacheToDb } from "./profileService.js";
 
 const USER_CACHE_TTL_MS = 10 * 60 * 1000;
 const GUILD_CONFIG_TTL_MS = 60 * 1000;
 const PROFILE_CONFIG_TTL_MS = 30 * 1000;
-
-export interface CachedUserId {
-    user: DbUser;
-    lastRefreshed: number;
-}
-
-export interface CachedGuildConfig {
-    guild: DbGuild;
-    config: GuildConfig 
-    lastLoaded: number;
-}
-
-export interface PendingProfileChanges {
-    xp?: string;              // bigint comes back as string
-    level?: number;
-    gold?: string;
-    streak_count?: number;
-    last_daily_at?: string | null;
-    last_message_at?: string | null;
-    inventory?: Record<string, item>;
-    temp_roles?: Record<string, TempRoleState>;
-    user_stats?: UserStats;
-}
-export interface CachedUserGuildProfile {
-    profile: DbUserGuildProfile;
-    pendingChanges?: PendingProfileChanges | undefined;
-    dirty?: boolean;
-    lastWroteToDb?: number | undefined;
-    lastLoaded: number;
-}
 
 export const userIdCache = new Map<string, CachedUserId>();
 export const guildConfigCache = new Map<string, CachedGuildConfig>();

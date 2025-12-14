@@ -1,6 +1,8 @@
 import { query } from "../db/index.js";
-import { upsertUserGuildProfile, type DbUserGuildProfile } from "../db/userGuildProfiles.js";
-import { isStale, userGuildProfileCache, profileKey, type CachedUserGuildProfile } from "./caches.js";
+import { upsertUserGuildProfile } from "../db/userGuildProfiles.js";
+import { isStale, userGuildProfileCache, profileKey } from "./caches.js";
+import type { CachedUserGuildProfile } from "../types/cache.js";
+import type { DbUserGuildProfile } from "../types/userprofile.js";
 
 const PROFILE_CONFIG_TTL_MS = 30 * 1000;
 

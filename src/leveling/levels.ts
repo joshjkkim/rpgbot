@@ -1,4 +1,4 @@
-import type { GuildConfig } from "../db/guilds.js";
+import type { GuildConfig } from "../types/guild.js";
 import { Client, GuildMember } from "discord.js";
 
 interface HandleLevelUpArgs {

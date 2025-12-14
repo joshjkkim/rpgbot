@@ -1,8 +1,7 @@
 import type { Client, Guild } from "discord.js";
 import { Events } from "discord.js";
 import { setGuildConfig, upsertGuild } from "../db/guilds.js";
-import { DEFAULT_GUILD_CONFIG } from "../db/guilds.js";
-import { query } from "../db/index.js";
+import { DEFAULT_GUILD_CONFIG } from "../types/guild.js";
 
 export function registerGuildCreate(client: Client) {
   console.log(`Registering guildCreate event handler`);

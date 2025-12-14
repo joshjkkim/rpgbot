@@ -1,5 +1,6 @@
-import { upsertUser, type DbUser } from "../db/users.js";
-import { userIdCache, isStale, type CachedUserId } from "./caches.js";
+import { upsertUser } from "../db/users.js";
+import { userIdCache, isStale } from "./caches.js";
+import type { CachedUserId } from "../types/cache.js";
 
 const USER_CACHE_TTL_MS = 10 * 60 * 1000;
 

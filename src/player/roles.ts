@@ -1,8 +1,8 @@
 import type { GuildMember } from "discord.js";
-import type { GuildConfig } from "../db/guilds.js";
-import type { DbUserGuildProfile, TempRoleState } from "../db/userGuildProfiles.js";
-import { query } from "../db/index.js";
-import { profileKey, userGuildProfileCache, type PendingProfileChanges } from "../cache/caches.js";
+import type { GuildConfig } from "../types/guild.js";
+import type { DbUserGuildProfile, TempRoleState } from "../types/userprofile.js";
+import { profileKey, userGuildProfileCache } from "../cache/caches.js";
+import type { PendingProfileChanges } from "../types/cache.js";
 import { getOrCreateProfile } from "../cache/profileService.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";

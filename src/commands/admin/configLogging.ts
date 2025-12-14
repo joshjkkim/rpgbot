@@ -1,7 +1,8 @@
 import { ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { setGuildConfig } from "../../db/guilds.js";
-import { logAndBroadcastEvent, type EventCategory } from "../../db/events.js";
+import { logAndBroadcastEvent } from "../../db/events.js";
+import type { EventCategory } from "../../types/logging.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 
 export const data = new SlashCommandBuilder()

@@ -1,12 +1,14 @@
 import { query } from "../db/index.js";
-import { addMessageXp, updateUserStats, type item } from "../db/userGuildProfiles.js";
+import { addMessageXp, updateUserStats } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { getOrCreateProfile } from "../cache/profileService.js";
 import type { ChatInputCommandInteraction } from "discord.js";
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
-import { profileKey, userGuildProfileCache, type PendingProfileChanges } from "../cache/caches.js";
+import { profileKey, userGuildProfileCache } from "../cache/caches.js";
+import type { item } from "../types/userprofile.js";
+import type { PendingProfileChanges } from "../types/cache.js";
 
 export async function updateInventory(userId: number, guildId: number, inventory: Record<string, item>, newGoldBalance: number): Promise<void> {
     const cached = await getOrCreateProfile({ userId, guildId });
