@@ -1,25 +1,10 @@
 {
-  "name": "rpgbot",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "dist/index.js",
+  "private": true,
+  "workspaces": ["rpgbot", "web"],
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "build": "tsc",
-    "deploy-test-commands": "tsx src/deploy-commands.ts"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "@types/pg": "^8.15.6",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "discord.js": "^14.24.2",
-    "dotenv": "^17.2.3",
-    "pg": "^8.16.3"
+    "dev:bot": "npm --workspace rpgbot run dev",
+    "deploy-test-commands": "npm --workspace rpgbot run deploy-test-commands",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm -ws run build"
   }
 }
