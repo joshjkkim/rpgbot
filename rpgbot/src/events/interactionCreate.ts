@@ -7,6 +7,7 @@ import { handleConfigPanelButton } from "../ui/panel/panelButton.js";
 import { handleConfigPanelModalSubmit } from "../ui/panel/panelModal.js";
 import { handleBuyItemButton, handleMainShopButton, handlePurchaseItemModal } from "../commands/user/shop.js";
 import { handleProfileButton } from "../commands/user/profile.js";
+import { handleQuestsButton, handleQuestsClaimModal, handleQuestsStartModal } from "../commands/user/quests.js";
 
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -38,6 +39,8 @@ export function registerInteractionCreate(client: Client) {
                     await handleMainShopButton(interaction);
                 } else if (interaction.customId.startsWith("profile:")) {
                     await handleProfileButton(interaction);
+                } else if (interaction.customId.startsWith("quests:")) {
+                    await handleQuestsButton(interaction);
                 }
 
                 return;
@@ -48,6 +51,12 @@ export function registerInteractionCreate(client: Client) {
                     await handleConfigPanelModalSubmit(interaction);
                 } else if (interaction.customId.startsWith("shop:")) {
                     await handlePurchaseItemModal(interaction);
+                } else if (interaction.customId.startsWith("quests:")) {
+                    if(interaction.customId.startsWith("quests:modal:start")) {
+                        await handleQuestsStartModal(interaction);
+                    } else if (interaction.customId.startsWith("quests:modal:claim")) {
+                        await handleQuestsClaimModal(interaction);
+                    }
                 }
                 return;
             }

@@ -15,6 +15,8 @@ import * as adminInventory from "./admin/adminInventory.js";
 import * as use from "./user/use.js";
 import * as configLogging from "./admin/configLogging.js";
 import * as configAchievements from "./admin/configAchievements.js";
+import * as configQuests from "./admin/configQuests.js"
+import * as quests from "./user/quests.js"
 
 export const commandList = [
     daily.data,
@@ -34,6 +36,8 @@ export const commandList = [
     use.data,
     configLogging.data,
     configAchievements.data,
+    configQuests.data,
+    quests.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -54,4 +58,6 @@ export const commands = new Map<string, any>([
     [use.data.name, use],
     [configLogging.data.name, configLogging],
     [configAchievements.data.name, configAchievements],
+    [configQuests.data.name, configQuests],
+    [quests.data.name, quests],
 ])

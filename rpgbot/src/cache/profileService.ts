@@ -95,6 +95,11 @@ export async function flushProfileCacheToDb(opts: { userId: number; guildId: num
         values.push(JSON.stringify(changes.achievements));
     }
 
+    if (changes.quests !== undefined) {
+        setClauses.push(`quests = $${idx++}`);
+        values.push(JSON.stringify(changes.quests));
+    }
+
     if (setClauses.length === 0) {
         cached.dirty = false;
         cached.pendingChanges = undefined;

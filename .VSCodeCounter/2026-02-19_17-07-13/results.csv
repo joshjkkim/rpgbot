@@ -1,0 +1,108 @@
+"filename", "language", "JSON", "TypeScript", "JSON with Comments", "Markdown", "JavaScript", "TypeScript JSX", "PostCSS", "XML", "comment", "blank", "total"
+"/Users/joshuakim/Documents/yeayea/README.md", "Markdown", 0, 0, 0, 29, 0, 0, 0, 0, 0, 2, 31
+"/Users/joshuakim/Documents/yeayea/package-lock.json", "JSON", 7775, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7776
+"/Users/joshuakim/Documents/yeayea/package.json", "JSON", 10, 0, 0, 0, 0, 0, 0, 0, 0, 1, 11
+"/Users/joshuakim/Documents/yeayea/rpgbot/package-lock.json", "JSON", 1045, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1046
+"/Users/joshuakim/Documents/yeayea/rpgbot/package.json", "JSON", 25, 0, 0, 0, 0, 0, 0, 0, 0, 1, 26
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/cache/caches.ts", "TypeScript", 0, 49, 0, 0, 0, 0, 0, 0, 0, 13, 62
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/cache/guildService.ts", "TypeScript", 0, 28, 0, 0, 0, 0, 0, 0, 0, 7, 35
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/cache/profileService.ts", "TypeScript", 0, 98, 0, 0, 0, 0, 0, 0, 0, 33, 131
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/cache/userService.ts", "TypeScript", 0, 24, 0, 0, 0, 0, 0, 0, 0, 8, 32
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/adminInventory.ts", "TypeScript", 0, 94, 0, 0, 0, 0, 0, 0, 0, 11, 105
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configAchievements.ts", "TypeScript", 0, 323, 0, 0, 0, 0, 0, 0, 0, 44, 367
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configGeneral.ts", "TypeScript", 0, 59, 0, 0, 0, 0, 0, 0, 0, 16, 75
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configLevels.ts", "TypeScript", 0, 364, 0, 0, 0, 0, 0, 0, 1, 61, 426
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configLogging.ts", "TypeScript", 0, 133, 0, 0, 0, 0, 0, 0, 0, 26, 159
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configQuests.ts", "TypeScript", 0, 296, 0, 0, 0, 0, 0, 0, 16, 43, 355
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configShop.ts", "TypeScript", 0, 551, 0, 0, 0, 0, 0, 0, 0, 90, 641
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configStreak.ts", "TypeScript", 0, 153, 0, 0, 0, 0, 0, 0, 0, 32, 185
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configStyles.ts", "TypeScript", 0, 106, 0, 0, 0, 0, 0, 0, 0, 26, 132
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configXp.ts", "TypeScript", 0, 514, 0, 0, 0, 0, 0, 0, 0, 78, 592
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/set.ts", "TypeScript", 0, 197, 0, 0, 0, 0, 0, 0, 0, 33, 230
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/index.ts", "TypeScript", 0, 61, 0, 0, 0, 0, 0, 0, 0, 2, 63
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/daily.ts", "TypeScript", 0, 125, 0, 0, 0, 0, 0, 0, 0, 22, 147
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/inventory.ts", "TypeScript", 0, 58, 0, 0, 0, 0, 0, 0, 0, 15, 73
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/leaderboard.ts", "TypeScript", 0, 88, 0, 0, 0, 0, 0, 0, 0, 20, 108
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/leveling.ts", "TypeScript", 0, 74, 0, 0, 0, 0, 0, 0, 0, 21, 95
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/profile.ts", "TypeScript", 0, 225, 0, 0, 0, 0, 0, 0, 0, 57, 282
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/quests.ts", "TypeScript", 0, 406, 0, 0, 0, 0, 0, 0, 17, 101, 524
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/shop.ts", "TypeScript", 0, 335, 0, 0, 0, 0, 0, 0, 0, 73, 408
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/use.ts", "TypeScript", 0, 31, 0, 0, 0, 0, 0, 0, 0, 8, 39
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/db/activeVC.ts", "TypeScript", 0, 128, 0, 0, 0, 0, 0, 0, 0, 26, 154
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/db/events.ts", "TypeScript", 0, 186, 0, 0, 0, 0, 0, 0, 0, 42, 228
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/db/guilds.ts", "TypeScript", 0, 151, 0, 0, 0, 0, 0, 0, 0, 15, 166
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/db/index.ts", "TypeScript", 0, 21, 0, 0, 0, 0, 0, 0, 0, 4, 25
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/db/userGuildProfiles.ts", "TypeScript", 0, 389, 0, 0, 0, 0, 0, 0, 0, 77, 466
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/db/users.ts", "TypeScript", 0, 35, 0, 0, 0, 0, 0, 0, 0, 6, 41
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/deploy-commands.ts", "TypeScript", 0, 29, 0, 0, 0, 0, 0, 0, 0, 6, 35
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/events/guildCreate.ts", "TypeScript", 0, 24, 0, 0, 0, 0, 0, 0, 0, 5, 29
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/events/interactionCreate.ts", "TypeScript", 0, 58, 0, 0, 0, 0, 0, 0, 0, 11, 69
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/events/messageCreate.ts", "TypeScript", 0, 144, 0, 0, 0, 0, 0, 0, 0, 17, 161
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/events/voiceStateUpdate.ts", "TypeScript", 0, 44, 0, 0, 0, 0, 0, 0, 2, 7, 53
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/index.ts", "TypeScript", 0, 44, 0, 0, 0, 0, 0, 0, 0, 9, 53
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/leveling/levels.ts", "TypeScript", 0, 96, 0, 0, 0, 0, 0, 0, 2, 19, 117
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/player/achievements.ts", "TypeScript", 0, 186, 0, 0, 0, 0, 0, 0, 0, 43, 229
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/player/inventory.ts", "TypeScript", 0, 336, 0, 0, 0, 0, 0, 0, 0, 66, 402
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/player/quests.ts", "TypeScript", 0, 176, 0, 0, 0, 0, 0, 0, 13, 41, 230
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/player/roles.ts", "TypeScript", 0, 114, 0, 0, 0, 0, 0, 0, 0, 34, 148
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/achievement.ts", "TypeScript", 0, 48, 0, 0, 0, 0, 0, 0, 0, 7, 55
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/cache.ts", "TypeScript", 0, 33, 0, 0, 0, 0, 0, 0, 0, 3, 36
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/dbuser.ts", "TypeScript", 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 7
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/economy.ts", "TypeScript", 0, 35, 0, 0, 0, 0, 0, 0, 0, 6, 41
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/guild.ts", "TypeScript", 0, 202, 0, 0, 0, 0, 0, 0, 0, 17, 219
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/logging.ts", "TypeScript", 0, 47, 0, 0, 0, 0, 0, 0, 0, 7, 54
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/quest.ts", "TypeScript", 0, 60, 0, 0, 0, 0, 0, 0, 0, 9, 69
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/userprofile.ts", "TypeScript", 0, 48, 0, 0, 0, 0, 0, 0, 0, 2, 50
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/mainPanel.ts", "TypeScript", 0, 97, 0, 0, 0, 0, 0, 0, 0, 8, 105
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/panelButton.ts", "TypeScript", 0, 982, 0, 0, 0, 0, 0, 0, 0, 252, 1234
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/panelModal.ts", "TypeScript", 0, 833, 0, 0, 0, 0, 0, 0, 0, 180, 1013
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/panelSelection.ts", "TypeScript", 0, 402, 0, 0, 0, 0, 0, 0, 0, 64, 466
+"/Users/joshuakim/Documents/yeayea/rpgbot/tsconfig.json", "JSON with Comments", 0, 0, 17, 0, 0, 0, 0, 0, 0, 1, 18
+"/Users/joshuakim/Documents/yeayea/tsconfig.json", "JSON with Comments", 0, 0, 17, 0, 0, 0, 0, 0, 0, 1, 18
+"/Users/joshuakim/Documents/yeayea/web/README.md", "Markdown", 0, 0, 0, 23, 0, 0, 0, 0, 0, 14, 37
+"/Users/joshuakim/Documents/yeayea/web/app/api/auth/[...nextauth]/auth.ts", "TypeScript", 0, 22, 0, 0, 0, 0, 0, 0, 0, 2, 24
+"/Users/joshuakim/Documents/yeayea/web/app/api/auth/[...nextauth]/route.ts", "TypeScript", 0, 5, 0, 0, 0, 0, 0, 0, 0, 3, 8
+"/Users/joshuakim/Documents/yeayea/web/app/api/discord/guilds/[guildId]/config/route.ts", "TypeScript", 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 46
+"/Users/joshuakim/Documents/yeayea/web/app/api/discord/guilds/route.ts", "TypeScript", 0, 42, 0, 0, 0, 0, 0, 0, 0, 11, 53
+"/Users/joshuakim/Documents/yeayea/web/app/components/achievements/achievementsEditor.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 649, 0, 0, 12, 66, 727
+"/Users/joshuakim/Documents/yeayea/web/app/components/configDisplay.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 11, 0, 0, 1, 2, 14
+"/Users/joshuakim/Documents/yeayea/web/app/components/dashboard.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 47, 0, 0, 0, 7, 54
+"/Users/joshuakim/Documents/yeayea/web/app/components/levels/levelsEditor.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 552, 0, 0, 12, 51, 615
+"/Users/joshuakim/Documents/yeayea/web/app/components/logging/loggingEditor.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 215, 0, 0, 12, 27, 254
+"/Users/joshuakim/Documents/yeayea/web/app/components/shop/shopBasicsEditor.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 958, 0, 0, 12, 109, 1079
+"/Users/joshuakim/Documents/yeayea/web/app/components/styles/styleBasicsEditor.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 186, 0, 0, 4, 27, 217
+"/Users/joshuakim/Documents/yeayea/web/app/components/xp/xpBasicsEditor.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 1063, 0, 0, 18, 95, 1176
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/achievements/achievementPageClient.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 38, 0, 0, 0, 9, 47
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/achievements/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 7
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/layout.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 42, 0, 0, 0, 6, 48
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/levels/levelsPageClient.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 38, 0, 0, 0, 9, 47
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/levels/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 7
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/logging/loggingPageClient.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 39, 0, 0, 0, 9, 48
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/logging/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 7
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 11, 0, 0, 0, 4, 15
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/shop/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 7
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/shop/shopPageClient.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 38, 0, 0, 0, 9, 47
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/styles/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 7
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/styles/stylePageClient.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 38, 0, 0, 0, 9, 47
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/xp/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 7
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/xp/xpPageClient.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 38, 0, 0, 1, 9, 48
+"/Users/joshuakim/Documents/yeayea/web/app/dashboard/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 17, 0, 0, 0, 4, 21
+"/Users/joshuakim/Documents/yeayea/web/app/globals.css", "PostCSS", 0, 0, 0, 0, 0, 0, 22, 0, 0, 5, 27
+"/Users/joshuakim/Documents/yeayea/web/app/hooks/useGuildConfig.ts", "TypeScript", 0, 54, 0, 0, 0, 0, 0, 0, 1, 12, 67
+"/Users/joshuakim/Documents/yeayea/web/app/layout.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 11, 0, 0, 0, 2, 13
+"/Users/joshuakim/Documents/yeayea/web/app/lib/db.ts", "TypeScript", 0, 15, 0, 0, 0, 0, 0, 0, 1, 4, 20
+"/Users/joshuakim/Documents/yeayea/web/app/lib/discord.ts", "TypeScript", 0, 31, 0, 0, 0, 0, 0, 0, 0, 12, 43
+"/Users/joshuakim/Documents/yeayea/web/app/page.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 32, 0, 0, 0, 6, 38
+"/Users/joshuakim/Documents/yeayea/web/app/providers.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 7
+"/Users/joshuakim/Documents/yeayea/web/eslint.config.mjs", "JavaScript", 0, 0, 0, 0, 14, 0, 0, 0, 2, 3, 19
+"/Users/joshuakim/Documents/yeayea/web/next.config.ts", "TypeScript", 0, 4, 0, 0, 0, 0, 0, 0, 1, 3, 8
+"/Users/joshuakim/Documents/yeayea/web/package.json", "JSON", 32, 0, 0, 0, 0, 0, 0, 0, 0, 1, 33
+"/Users/joshuakim/Documents/yeayea/web/postcss.config.mjs", "JavaScript", 0, 0, 0, 0, 6, 0, 0, 0, 0, 2, 8
+"/Users/joshuakim/Documents/yeayea/web/public/file.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1
+"/Users/joshuakim/Documents/yeayea/web/public/globe.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1
+"/Users/joshuakim/Documents/yeayea/web/public/next.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1
+"/Users/joshuakim/Documents/yeayea/web/public/vercel.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1
+"/Users/joshuakim/Documents/yeayea/web/public/window.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1
+"/Users/joshuakim/Documents/yeayea/web/tailwind.config.js", "JavaScript", 0, 0, 0, 0, 5, 0, 0, 0, 1, 1, 7
+"/Users/joshuakim/Documents/yeayea/web/tsconfig.json", "JSON with Comments", 0, 0, 34, 0, 0, 0, 0, 0, 0, 1, 35
+"Total", "-", 8887, 9556, 68, 52, 25, 4058, 22, 5, 129, 2389, 25191

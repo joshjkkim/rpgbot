@@ -1,4 +1,5 @@
 import type { QueryResultRow } from "pg";
+import type { UserQuestState } from "./quest.js";
 
 export interface UserStats {
     messagesSent: number;
@@ -45,4 +46,5 @@ export interface DbUserGuildProfile extends QueryResultRow {
     temp_roles: Record<string, TempRoleState>;
     user_stats: UserStats;
     achievements: Record<string, { unlockedAt: string; progress?: number;}>;
+    quests: Record<string, UserQuestState>; // questId -> UserQuestState
 }

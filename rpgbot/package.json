@@ -18,8 +18,10 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.93",
     "discord.js": "^14.24.2",
     "dotenv": "^17.2.3",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "twemoji-parser": "^14.0.0"
   }
 }

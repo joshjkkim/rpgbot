@@ -1,7 +1,7 @@
 import type { shopCategoryConfig, shopItemConfig } from "./economy.js";
 import type { EventCategory } from "./logging.js";
 import type { AchievementConfig } from "./achievement.js";
-
+import type { QuestConfig } from "./quest.js";
 export interface DbGuild {
     id: number;
     discord_guild_id: string;
@@ -102,6 +102,13 @@ export interface GuildConfig {
         announceAllId: string | null;
         announceMessage: string | null;
     },
+    quests: {
+        enabled: boolean;
+        progress: boolean;
+        quests: Record<string, QuestConfig>;
+        announceAllId: string | null;
+        announceMessage: string | null;
+    },
     levels: {
         maxLevel: number | null;
         announceLevelUpInChannelId: string | null;
@@ -171,6 +178,13 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         enabled: false,
         progress: false,
         achievements: {},
+        announceAllId: null,
+        announceMessage: null,
+    },
+    quests: {
+        enabled: false,
+        progress: false,
+        quests: {},
         announceAllId: null,
         announceMessage: null,
     },

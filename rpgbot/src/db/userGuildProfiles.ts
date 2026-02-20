@@ -2,7 +2,7 @@ import { query } from "./index.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { logAndBroadcastEvent } from "./events.js";
 import { getOrCreateProfile } from "../cache/profileService.js";
-import type { Client, GuildMember, User } from "discord.js";
+import type { Client, GuildMember } from "discord.js";
 import { profileKey } from "../cache/caches.js";
 import type { CachedUserGuildProfile, PendingProfileChanges } from "../types/cache.js";
 import { userGuildProfileCache } from "../cache/caches.js";
@@ -10,6 +10,7 @@ import { refreshTempRolesForMember } from "../player/roles.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../player/achievements.js";
 import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
+import { runQuestPipeline } from "../player/quests.js";
 
 type XpArgs = {
     client?: Client;
@@ -139,6 +140,28 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
         last_message_at: profile.last_message_at,
         user_stats: profile.user_stats,
     };
+
+    const questEventMsg = {
+        type: "message" as const,
+        guildId: String(args.discordGuildId ?? guildId),
+        userId: String(args.discordUserId ?? userId),
+        channelId: String(channelId ?? ""),
+    };
+
+    const questRes1 = await runQuestPipeline({ profile, pending: pendingChanges, config, event: questEventMsg });
+    profile = questRes1.profile;
+    pendingChanges = questRes1.pending;
+
+    const questEventXp = {
+        type: "earnXp" as const,
+        guildId: String(args.discordGuildId ?? guildId),
+        userId: String(args.discordUserId ?? userId),
+        amount: xpAmount,
+    };
+
+    const questRes2 = await runQuestPipeline({ profile, pending: pendingChanges, config, event: questEventXp });
+    profile = questRes2.profile;
+    pendingChanges = questRes2.pending;
 
     if (levelUp) {
         pendingChanges.level = profile.level;
@@ -325,6 +348,16 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         last_daily_at: profile.last_daily_at,
         user_stats: profile.user_stats,
     };
+
+    const questDaily = {
+    type: "dailyClaim" as const,
+    guildId: String(args.discordGuildId ?? guildId),
+    userId: String(args.discordUserId ?? userId),
+    };
+
+    const qd = await runQuestPipeline({ profile, pending: pendingChanges, config, event: questDaily });
+    profile = qd.profile;
+    pendingChanges = qd.pending;
 
     const key = profileKey(guildId, userId);
     

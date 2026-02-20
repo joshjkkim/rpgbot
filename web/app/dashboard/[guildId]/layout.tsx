@@ -22,8 +22,8 @@ export default async function GuildLayout({ children, params}: { children: React
     }
 
     return (
-        <div className="min-h-screen grid grid-cols-[260px_1fr]">
-            <aside className="border-r bg-gray-500 p-4">
+        <div className="min-h-screen grid grid-cols-[260px_1fr] bg-gradient-to-r from-gray-800 via-black to-gray-900">
+            <aside className="border-r bg-gradient-to-br from-black via-black to-blue-900 p-4">
                 <div className="mb-4">
                 <div className="text-xs text-zinc-500">Guild</div>
                 <div className="font-semibold break-all">{guildId}</div>
@@ -34,7 +34,7 @@ export default async function GuildLayout({ children, params}: { children: React
                     <Link
                     key={t.label}
                     href={`/dashboard/${guildId}/${t.href}`}
-                    className="block rounded px-3 py-2 text-sm hover:bg-zinc-200"
+                    className="block rounded px-3 py-2 text-sm shadow-lg transition-all duration-250 ease-out border-transparent hover:bg-blue-800 border-2 hover:border-blue-500 hover:scale-105"
                     >
                     {t.label}
                     </Link>

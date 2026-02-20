@@ -1,10 +1,16 @@
 {
   "private": true,
-  "workspaces": ["rpgbot", "web"],
+  "workspaces": [
+    "rpgbot",
+    "web"
+  ],
   "scripts": {
     "dev:bot": "npm --workspace rpgbot run dev",
     "deploy-test-commands": "npm --workspace rpgbot run deploy-test-commands",
     "dev:web": "npm --workspace web run dev",
     "build": "npm -ws run build"
+  },
+  "devDependencies": {
+    "@types/twemoji-parser": "^13.1.4"
   }
 }
