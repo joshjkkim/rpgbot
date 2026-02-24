@@ -415,6 +415,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         await logAndBroadcastEvent(interaction, {
             guildId: guild.id,
+            discordGuildId: guild.discord_guild_id,
             userId: user.id,
             category: "config",
             eventType: "configChange",

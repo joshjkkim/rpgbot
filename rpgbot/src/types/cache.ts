@@ -26,6 +26,24 @@ export interface PendingProfileChanges {
     user_stats?: UserStats;
     achievements?: Record<string, { unlockedAt: string; progress?: number;}>;
     quests?: Record<string, UserQuestState>; 
+    equips?: {
+        head?: item;
+        body?: item;
+        legs?: item;
+        feet?: item;
+        hands?: item;
+        weapon?: item;
+        shield?: item;
+        accessory?: item;
+        aura?: item;
+    };
+    settings?: {
+        inventoryPrivate?: boolean;
+        goldPrivate?: boolean;
+        xpPrivate?: boolean;
+        dmOnTradeInbound?: boolean;
+        profilePrivate?: boolean;
+    }
 }
 export interface CachedUserGuildProfile {
     profile: DbUserGuildProfile;

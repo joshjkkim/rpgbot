@@ -13,6 +13,25 @@ type NewCategoryDraft = {
   roleRequiredIds?: string[];
 };
 
+type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";
+
+type ItemEffects = {
+  cosmetic?: {
+    accentHex?: string;     // aura / accent
+    textHex?: string;
+    title?: string;
+    nameEmoji?: string;     // shown near username on card
+    fontPreset?: "inter" | "sora" | "nunito";
+  };
+  boosts?: {
+    xpMultiplier?: number;
+    goldMultiplier?: number;
+  };
+  quest?: {
+    canStartQuestIds?: string[];
+  };
+};
+
 type NewItemDraft = {
   id: string;
   name: string;
@@ -20,6 +39,8 @@ type NewItemDraft = {
   description?: string;
   categoryId: string;
   price: number;
+  equipable?: boolean;
+  equipSlot?: EquipSlot;
   sellPrice?: number | null;
   minLevel?: number;
   requiresRoleIds?: string[];
@@ -29,6 +50,7 @@ type NewItemDraft = {
   permanent?: boolean;
   tradeable?: boolean;
   actions?: Record<number, shopItemAction>;
+  effects?: ItemEffects;
 };
 
 function normalizeId(id: string) {
@@ -51,14 +73,17 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-  type: "assignRole" | "removeRole" | "sendMessage" | "runCommand" | "giveStat";
-  roleId?: string;
-  message?: string;
-  channelId?: string;
-  command?: string;
-  statId?: string;
-  amount?: number;
+    type: "assignRole" | "removeRole" | "sendMessage" | "runCommand" | "giveStat" | "giveItem";
+    roleId?: string;
+    message?: string;
+    channelId?: string;
+    itemId?: string;
+    quantity?: number;
+    command?: string;
+    statId?: string;
+    amount?: number;
 }
+
 
 export interface shopItemConfig {
   id: string;
@@ -67,6 +92,9 @@ export interface shopItemConfig {
   description?: string;
 
   categoryId: string;
+
+  equipable?: boolean;
+  equipSlot?: EquipSlot;
 
   price: number;
   sellPrice?: number | null;
@@ -80,12 +108,14 @@ export interface shopItemConfig {
   tradeable?: boolean;
 
   actions?: Record<number, shopItemAction>;
+  effects?: ItemEffects;
 }
 
 export type ShopConfig = {
   enabled?: boolean;
   categories?: Record<string, shopCategoryConfig>;
   items?: Record<string, shopItemConfig>;
+  gifting?: { enabled: boolean, message: string | null, announceChannel: string | null, dm: boolean, levelReq: number };
 };
 
 type Props = {
@@ -106,12 +136,6 @@ function safeNumber(s: string, fallback: number) {
   const n = Number(s);
   return Number.isFinite(n) ? n : fallback;
 }
-function nextId(prefix: string) {
-  // simple unique-ish ID for UI creation (replace with your own if needed)
-  return `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-
 
 export default function ShopEconomyEditor({ value, onChange }: Props) {
     const [newCategory, setNewCategory] = useState<NewCategoryDraft | null>(null);
@@ -119,8 +143,6 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
 
     const [createError, setCreateError] = useState<string | null>(null);
   const shop = value ?? {};
-  const categories = shop.categories ?? {};
-  const items = shop.items ?? {};
 
   const [expanded, setExpanded] = useState({
     general: true,
@@ -168,25 +190,6 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
   function updateShop(patch: Partial<ShopConfig>) {
     commit({ ...local, ...patch });
   }
-
-  function updateCategory(id: string, patch: Partial<shopCategoryConfig>) {
-  const curr = (local.categories ?? {})[id];
-  if (!curr) return;
-
-  const nextCats = { ...(local.categories ?? {}) };
-  nextCats[id] = { ...curr, ...patch, id }; // lock
-  commit({ ...local, categories: nextCats });
-}
-
-function updateItem(id: string, patch: Partial<shopItemConfig>) {
-  const curr = (local.items ?? {})[id];
-  if (!curr) return;
-
-  const nextItems = { ...(local.items ?? {}) };
-  nextItems[id] = { ...curr, ...patch, id }; // lock
-  commit({ ...local, items: nextItems });
-}
-
 
   function upsertCategory(cat: shopCategoryConfig) {
     const nextCats = { ...(local.categories ?? {}) };
@@ -258,6 +261,118 @@ function updateItem(id: string, patch: Partial<shopItemConfig>) {
               This editor uses raw IDs for roles/channels/stats (comma-separated). You can replace those inputs with
               pickers later.
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* GIFTING */}
+      <div className="rounded-lg border p-4">
+        <SectionHeader title="Gifting" section="general" />
+        {expanded.general && (
+          <div className="mt-4 space-y-4">
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={!!local.gifting?.enabled}
+            onChange={(e) =>
+          updateShop({
+            gifting: {
+              enabled: e.target.checked,
+              message: local.gifting?.message ?? null,
+              announceChannel: local.gifting?.announceChannel ?? null,
+              dm: local.gifting?.dm ?? false,
+              levelReq: local.gifting?.levelReq ?? 0,
+            },
+          })
+            }
+          />
+          <span className="font-medium">Enable Gifting</span>
+        </label>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <label className="block text-sm font-medium">Gift Message</label>
+            <input
+          className="w-full rounded border px-3 py-2 text-sm"
+          value={local.gifting?.message ?? ""}
+          onChange={(e) =>
+            updateShop({
+              gifting: {
+            enabled: local.gifting?.enabled ?? false,
+            message: e.target.value || null,
+            announceChannel: local.gifting?.announceChannel ?? null,
+            dm: local.gifting?.dm ?? false,
+            levelReq: local.gifting?.levelReq ?? 0,
+              },
+            })
+          }
+          placeholder="e.g. {giver} gifted {receiver} {item} {quantity}!"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Announce Channel ID</label>
+            <input
+          className="w-full rounded border px-3 py-2 text-sm font-mono"
+          value={local.gifting?.announceChannel ?? ""}
+          onChange={(e) =>
+            updateShop({
+              gifting: {
+            enabled: local.gifting?.enabled ?? false,
+            message: local.gifting?.message ?? null,
+            announceChannel: e.target.value || null,
+            dm: local.gifting?.dm ?? false,
+            levelReq: local.gifting?.levelReq ?? 0,
+              },
+            })
+          }
+          placeholder="(optional)"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Level Requirement</label>
+            <input
+          type="number"
+          className="w-full rounded border px-3 py-2 text-sm"
+          value={local.gifting?.levelReq ?? 0}
+          onChange={(e) =>
+            updateShop({
+              gifting: {
+            enabled: local.gifting?.enabled ?? false,
+            message: local.gifting?.message ?? null,
+            announceChannel: local.gifting?.announceChannel ?? null,
+            dm: local.gifting?.dm ?? false,
+            levelReq: safeNumber(e.target.value, 0),
+              },
+            })
+          }
+          placeholder="0"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={!!local.gifting?.dm}
+            onChange={(e) =>
+              updateShop({
+            gifting: {
+              enabled: local.gifting?.enabled ?? false,
+              message: local.gifting?.message ?? null,
+              announceChannel: local.gifting?.announceChannel ?? null,
+              dm: e.target.checked,
+              levelReq: local.gifting?.levelReq ?? 0,
+            },
+              })
+            }
+          />
+          DM Recipient on Gift
+            </label>
+            <div className="text-xs text-gray-500">Send a DM to the recipient when they receive a gift.</div>
+          </div>
+        </div>
           </div>
         )}
       </div>
@@ -782,6 +897,45 @@ function updateItem(id: string, patch: Partial<shopItemConfig>) {
                             />
                           </div>
 
+                          {/* equipable */}
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium">Equipable</label>
+                            <div className="flex items-center gap-2">
+                              <label className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={!!it.equipable}
+                                  onChange={(e) => upsertItem({ ...it, equipable: e.target.checked })}
+                                />
+                                Equipable
+                              </label>
+                            </div>
+                          </div>
+
+                          {it.equipable && (
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium">Equip Slot</label>
+                              <select
+                                className="w-full rounded border px-3 py-2 text-sm"
+                                value={it.equipSlot ?? ""}
+                                onChange={(e) =>
+                                  upsertItem({ ...it, equipSlot: (e.target.value || undefined) as EquipSlot | undefined })
+                                }
+                              >
+                                <option value="">(none)</option>
+                                <option value="head">head</option>
+                                <option value="body">body</option>
+                                <option value="legs">legs</option>
+                                <option value="feet">feet</option>
+                                <option value="hands">hands</option>
+                                <option value="weapon">weapon</option>
+                                <option value="shield">shield</option>
+                                <option value="accessory">accessory</option>
+                                <option value="aura">aura</option>
+                              </select>
+                            </div>
+                          )}
+
                           {/* sellPrice nullable */}
                           <div className="space-y-2">
                             <label className="block text-sm font-medium">Sell Price</label>
@@ -974,6 +1128,7 @@ function updateItem(id: string, patch: Partial<shopItemConfig>) {
                                             <option value="sendMessage">sendMessage</option>
                                             <option value="runCommand">runCommand</option>
                                             <option value="giveStat">giveStat</option>
+                                            <option value="giveItem">giveItem</option>
                                           </select>
                                         </div>
 
@@ -1046,6 +1201,29 @@ function updateItem(id: string, patch: Partial<shopItemConfig>) {
                                             </div>
                                           </>
                                         )}
+
+                                        {action.type === "giveItem" && (
+                                          <>
+                                            <div className="space-y-2">
+                                              <label className="block text-xs font-medium text-gray-600">Item ID</label>
+                                              <input
+                                                className="w-full rounded border px-3 py-2 text-sm font-mono"
+                                                value={action.itemId ?? ""}
+                                                onChange={(e) => setAction({ itemId: e.target.value })}
+                                                placeholder="item_id"
+                                              />
+                                            </div>
+                                            <div className="space-y-2">
+                                              <label className="block text-xs font-medium text-gray-600">Quantity</label>
+                                              <input
+                                                type="number"
+                                                className="w-full rounded border px-3 py-2 text-sm"
+                                                value={action.quantity ?? 1}
+                                                onChange={(e) => setAction({ quantity: safeNumber(e.target.value, 1) })}
+                                              />
+                                            </div>
+                                          </>
+                                        )}
                                       </div>
                                     </div>
                                   );
@@ -1053,7 +1231,192 @@ function updateItem(id: string, patch: Partial<shopItemConfig>) {
                             )}
                           </div>
                         </div>
+                        {/* Effects */}
+                        <div className="rounded border p-3">
+                          <div className="text-sm font-semibold mb-3">Effects</div>
 
+                          {/* Cosmetic */}
+                          <div className="mb-4">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cosmetic</div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">Accent Hex</label>
+                            <input
+                              className="w-full rounded border px-3 py-2 text-sm font-mono"
+                              value={it.effects?.cosmetic?.accentHex ?? ""}
+                              onChange={(e) =>
+                              upsertItem({
+                                ...it,
+                                effects: {
+                                ...it.effects,
+                                cosmetic: { ...it.effects?.cosmetic, accentHex: e.target.value || undefined },
+                                },
+                              })
+                              }
+                              placeholder="#ff0000"
+                            />
+                            </div>
+
+                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">Text Hex</label>
+                            <input
+                              className="w-full rounded border px-3 py-2 text-sm font-mono"
+                              value={it.effects?.cosmetic?.textHex ?? ""}
+                              onChange={(e) =>
+                              upsertItem({
+                                ...it,
+                                effects: {
+                                ...it.effects,
+                                cosmetic: { ...it.effects?.cosmetic, textHex: e.target.value || undefined },
+                                },
+                              })
+                              }
+                              placeholder="#ffffff"
+                            />
+                            </div>
+
+                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">Title</label>
+                            <input
+                              className="w-full rounded border px-3 py-2 text-sm"
+                              value={it.effects?.cosmetic?.title ?? ""}
+                              onChange={(e) =>
+                              upsertItem({
+                                ...it,
+                                effects: {
+                                ...it.effects,
+                                cosmetic: { ...it.effects?.cosmetic, title: e.target.value || undefined },
+                                },
+                              })
+                              }
+                              placeholder="e.g. The Legendary"
+                            />
+                            </div>
+
+                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">Name Emoji</label>
+                            <input
+                              className="w-full rounded border px-3 py-2 text-sm"
+                              value={it.effects?.cosmetic?.nameEmoji ?? ""}
+                              onChange={(e) =>
+                              upsertItem({
+                                ...it,
+                                effects: {
+                                ...it.effects,
+                                cosmetic: { ...it.effects?.cosmetic, nameEmoji: e.target.value || undefined },
+                                },
+                              })
+                              }
+                              placeholder="⭐"
+                            />
+                            </div>
+
+                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">Font Preset</label>
+                            <select
+                              className="w-full rounded border px-3 py-2 text-sm"
+                              value={it.effects?.cosmetic?.fontPreset ?? ""}
+                              onChange={(e) =>
+                              upsertItem({
+                                ...it,
+                                effects: {
+                                ...it.effects,
+                                cosmetic: {
+                                  ...it.effects?.cosmetic,
+                                  fontPreset: (e.target.value || undefined) as NonNullable<ItemEffects["cosmetic"]>["fontPreset"],
+                                },
+                                },
+                              })
+                              }
+                            >
+                              <option value="">(none)</option>
+                              <option value="inter">inter</option>
+                              <option value="sora">sora</option>
+                              <option value="nunito">nunito</option>
+                            </select>
+                            </div>
+                          </div>
+                          </div>
+
+                          {/* Boosts */}
+                          <div className="mb-4">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Boosts</div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">XP Multiplier</label>
+                            <input
+                              type="number"
+                              className="w-full rounded border px-3 py-2 text-sm"
+                              value={it.effects?.boosts?.xpMultiplier ?? ""}
+                              onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              upsertItem({
+                                ...it,
+                                effects: {
+                                ...it.effects,
+                                boosts: {
+                                  ...it.effects?.boosts,
+                                  xpMultiplier: raw === "" ? undefined : safeNumber(raw, 1),
+                                },
+                                },
+                              });
+                              }}
+                              placeholder="e.g. 1.5"
+                              step="0.01"
+                            />
+                            </div>
+
+                            <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">Gold Multiplier</label>
+                            <input
+                              type="number"
+                              className="w-full rounded border px-3 py-2 text-sm"
+                              value={it.effects?.boosts?.goldMultiplier ?? ""}
+                              onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              upsertItem({
+                                ...it,
+                                effects: {
+                                ...it.effects,
+                                boosts: {
+                                  ...it.effects?.boosts,
+                                  goldMultiplier: raw === "" ? undefined : safeNumber(raw, 1),
+                                },
+                                },
+                              });
+                              }}
+                              placeholder="e.g. 2"
+                              step="0.01"
+                            />
+                            </div>
+                          </div>
+                          </div>
+
+                          {/* Quest */}
+                          <div>
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Quest</div>
+                          <div className="space-y-2">
+                            <label className="block text-xs font-medium text-gray-600">Can Start Quest IDs (CSV)</label>
+                            <input
+                            className="w-full rounded border px-3 py-2 text-sm font-mono"
+                            value={toCsv(it.effects?.quest?.canStartQuestIds)}
+                            onChange={(e) =>
+                              upsertItem({
+                              ...it,
+                              effects: {
+                                ...it.effects,
+                                quest: {
+                                ...it.effects?.quest,
+                                canStartQuestIds: fromCsv(e.target.value),
+                                },
+                              },
+                              })
+                            }
+                            placeholder="quest_id_1, quest_id_2"
+                            />
+                          </div>
+                          </div>
+                        </div>
                         <div className="flex justify-end">
                           <button
                             type="button"

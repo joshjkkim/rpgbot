@@ -4,11 +4,13 @@ import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigDisplay from "@/app/components/configDisplay"; // make it display-only
 import LoggingEditor from "@/app/components/logging/loggingEditor";
 import LevelsEditor from "@/app/components/levels/levelsEditor";
+import { log } from "console";
 
 export default function LoggingPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, error, save } = useGuildConfig(guildId);
 
   const logging = config?.logging ?? null;
+  console.log(logging);
 
   return (
     <main className="space-y-4">

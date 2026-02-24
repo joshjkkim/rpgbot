@@ -2,7 +2,7 @@ import { query } from "./index.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { logAndBroadcastEvent } from "./events.js";
 import { getOrCreateProfile } from "../cache/profileService.js";
-import type { Client, GuildMember } from "discord.js";
+import type { Client, GuildMember, TextChannel } from "discord.js";
 import { profileKey } from "../cache/caches.js";
 import type { CachedUserGuildProfile, PendingProfileChanges } from "../types/cache.js";
 import { userGuildProfileCache } from "../cache/caches.js";
@@ -163,6 +163,38 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
     profile = questRes2.profile;
     pendingChanges = questRes2.pending;
 
+    // Passive quest completion DMs
+    const allNotifications = [...questRes1.notifications, ...questRes2.notifications];
+    if (args.client && args.discordUserId && allNotifications.length > 0) {
+        const discordUser = await args.client.users.fetch(args.discordUserId).catch(() => null);
+        if (discordUser && config.quests.dmUser) {
+            for (const n of allNotifications) {
+                await discordUser.send({
+                    embeds: [{
+                        title: "🎉 Quest Completed!",
+                        description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
+                        color: 0x57f287,
+                    }],
+                }).catch(() => null);
+            }
+        }
+
+        const channel = args.client.guilds.cache.get(String(args.discordGuildId))?.channels.cache.get(String(channelId ?? "")) as TextChannel | undefined;
+
+        if(channel && config.quests.replyMessage) {
+            for (const n of allNotifications) {
+                await channel.send({
+                    content: `<@${args.discordUserId}> completed a quest!`,
+                    embeds: [{
+                        title: "🎉 Quest Completed!",
+                        description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
+                        color: 0x57f287,
+                    }],
+                }).catch(() => null);
+            }
+        }
+    }
+
     if (levelUp) {
         pendingChanges.level = profile.level;
     }
@@ -217,6 +249,7 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
         if (guild) {
             await logAndBroadcastEvent(guild, {
                 guildId,
+                discordGuildId: guild.id,
                 userId,
                 category: "xp",
                 eventType: "messageXp",
@@ -359,6 +392,22 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
     profile = qd.profile;
     pendingChanges = qd.pending;
 
+    // Passive quest completion DMs
+    if (args.client && args.discordUserId && qd.notifications.length > 0) {
+        const discordUser = await args.client.users.fetch(args.discordUserId).catch(() => null);
+        if (discordUser && config.quests.dmUser) {
+            for (const n of qd.notifications) {
+                await discordUser.send({
+                    embeds: [{
+                        title: "🎉 Quest Completed!",
+                        description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
+                        color: 0x57f287,
+                    }],
+                }).catch(() => null);
+            }
+        }
+    }
+
     const key = profileKey(guildId, userId);
     
     let levelUp = false;
@@ -415,14 +464,16 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
     };
 
     userGuildProfileCache.set(key, updatedCache);
+    const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
 
-    if (newStreak > oldStreak) {
+    if (guild && newStreak > oldStreak) {
             increasedStreak = true;
-            const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
+            
             await logAndBroadcastEvent(
                 guild
                 , {
                     guildId,
+                    discordGuildId: guild.id,
                     userId,
                     category: "xp",
                     eventType: "streakIncrement",
@@ -432,12 +483,12 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
                     metaData: { actorDiscordId: args.discordUserId ?? null },
                     timestamp: new Date(),
                 }, config);
-        } else if (newStreak == 1 && oldStreak > 1) {
-            const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
+        } else if (guild && newStreak == 1 && oldStreak > 1) {
             await logAndBroadcastEvent(
                 guild
                 , {
                     guildId,
+                    discordGuildId: guild.id,
                     userId,
                     category: "xp",
                     eventType: "streakReset",
@@ -449,10 +500,10 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
                 }, config);
         }
 
-    if (config.logging.enabled) {
-        const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
+    if (guild && config.logging.enabled) {
         await logAndBroadcastEvent(guild, {
             guildId,
+            discordGuildId: guild.id,
             userId,
             category: "xp",
             eventType: "grantDaily",

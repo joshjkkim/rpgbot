@@ -138,6 +138,7 @@ export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: strin
         if (gave) {
             await logAndBroadcastEvent(voiceState.guild, {
                 guildId: guild.id,
+                discordGuildId: voiceState.guild.id,
                 userId: user.id,
                 category: "xp",
                 eventType: "vcXp",

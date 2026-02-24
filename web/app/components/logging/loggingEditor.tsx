@@ -11,7 +11,8 @@ export type EventCategory =
   | "level"
   | "config"
   | "inventory"
-  | "admin";
+  | "admin"
+  | "quests";
 
 export type LoggingConfig = {
   enabled?: boolean;
@@ -33,6 +34,7 @@ const CATEGORIES: { key: EventCategory; label: string }[] = [
   { key: "level", label: "Level" },
   { key: "config", label: "Config" },
   { key: "inventory", label: "Inventory" },
+  { key: "quests", label: "Quests" },
   { key: "admin", label: "Admin" },
 ];
 

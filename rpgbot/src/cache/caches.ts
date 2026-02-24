@@ -1,4 +1,5 @@
 import type { CachedUserId, CachedGuildConfig, CachedUserGuildProfile } from "../types/cache.js";
+import type { Trade } from "../types/trading.js";
 import { flushProfileCacheToDb } from "./profileService.js";
 
 const USER_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -8,6 +9,7 @@ const PROFILE_CONFIG_TTL_MS = 30 * 1000;
 export const userIdCache = new Map<string, CachedUserId>();
 export const guildConfigCache = new Map<string, CachedGuildConfig>();
 export const userGuildProfileCache = new Map<string, CachedUserGuildProfile>();
+export const imgCache = new Map<string, any>();
 
 export function profileKey(guildId: number, userId: number) {
     return `${guildId}:${userId}`;

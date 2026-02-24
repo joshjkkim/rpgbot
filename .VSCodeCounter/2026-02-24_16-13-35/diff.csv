@@ -1,0 +1,17 @@
+"filename", "language", "TypeScript", "TypeScript JSX", "comment", "blank", "total"
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/cache/profileService.ts", "TypeScript", 4, 0, 0, 1, 5
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configQuests.ts", "TypeScript", 32, 0, 0, 6, 38
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/set.ts", "TypeScript", 5, 0, 0, 5, 10
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/index.ts", "TypeScript", 3, 0, 0, 0, 3
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/inventory.ts", "TypeScript", 119, 0, 2, 25, 146
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/profile.ts", "TypeScript", 0, 0, -1, -1, -2
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/quests.ts", "TypeScript", 5, 0, 0, 1, 6
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/settings.ts", "TypeScript", 169, 0, 4, 31, 204
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/trade.ts", "TypeScript", 16, 0, 0, 2, 18
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/db/userGuildProfiles.ts", "TypeScript", 42, 0, 2, 4, 48
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/events/interactionCreate.ts", "TypeScript", 6, 0, 0, 0, 6
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/cache.ts", "TypeScript", 7, 0, 0, 0, 7
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/guild.ts", "TypeScript", 4, 0, 0, 0, 4
+"/Users/joshuakim/Documents/yeayea/rpgbot/src/types/userprofile.ts", "TypeScript", 7, 0, 0, 0, 7
+"/Users/joshuakim/Documents/yeayea/web/app/components/quests/questsBasicEditor.tsx", "TypeScript JSX", 0, 18, 0, 2, 20
+"Total", "-", 419, 18, 7, 76, 520

@@ -10,6 +10,7 @@ import { profileKey, userGuildProfileCache } from "../cache/caches.js";
 import type { item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
+import type { EquipSlot } from "../types/economy.js";
 
 export async function updateInventory(userId: number, guildId: number, inventory: Record<string, item>, newGoldBalance: number): Promise<void> {
     const cached = await getOrCreateProfile({ userId, guildId });
@@ -89,6 +90,7 @@ export async function handleClearInventory(interaction: ChatInputCommandInteract
 
     await logAndBroadcastEvent(interaction, {
         guildId: dbGuild.id,
+        discordGuildId: interaction.guild.id,
         userId: adminUser.id,
         targetUserId: dbUser.id,
         category: "admin",
@@ -133,6 +135,7 @@ export async function handleRemoveItem(interaction: ChatInputCommandInteraction,
 
     await logAndBroadcastEvent(interaction, {
         guildId: dbGuild.id,
+        discordGuildId: interaction.guild.id,
         userId: adminUser.id,
         targetUserId: dbUser.id,
         category: "admin",
@@ -190,6 +193,7 @@ export async function handleGiveItem(interaction: ChatInputCommandInteraction, t
 
     await logAndBroadcastEvent(interaction, {
         guildId: dbGuild.id,
+        discordGuildId: interaction.guild.id,
         userId: adminUser.id,
         targetUserId: dbUser.id,
         category: "admin",
@@ -234,6 +238,8 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
         return { success: false, message: `You are underleveled to use item \`${itemId}\`.` };
     }
 
+    const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+
     if (items[itemId].requiresRoleIds?.length) {
         const ok = items[itemId].requiresRoleIds.some(rid => member?.roles.cache.has(rid));
         if (!ok) return { success: false, message: `You do not have the required roles to use item \`${itemId}\`.` };
@@ -241,7 +247,6 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
 
     let xpGained = 0;
     let goldGained = 0;
-    const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
 
     for (let i = 0; i < quantity; i++) {
         for (const actionKey in items[itemId].actions) {
@@ -276,6 +281,41 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                     await member.roles.remove(action.roleId);
                 }
                 continue;
+            }
+
+            if (action.type === "giveItem" && action.itemId && action.quantity) {
+                const itemToGive = config.shop?.items?.[action.itemId];
+                if (!itemToGive) continue;
+
+                const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+                let p = cached.profile;
+                let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+
+                if (!p.inventory) p.inventory = {};
+
+                const currentQuantity = p.inventory[action.itemId]?.quantity ?? 0;
+                const newQuantity = currentQuantity + action.quantity;
+
+                p.inventory[action.itemId] = {
+                    id: itemToGive.id,
+                    name: itemToGive.name,
+                    quantity: newQuantity,
+                    ...(itemToGive.emoji !== undefined && { emoji: itemToGive.emoji }),
+                    ...(itemToGive.description !== undefined && { description: itemToGive.description }),
+                };
+
+                pending = {
+                    ...pending,
+                    inventory: p.inventory,
+                };
+
+                userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+                    profile: p,
+                    pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
+                    dirty: true,
+                    lastWroteToDb: cached.lastWroteToDb,
+                    lastLoaded: Date.now(),
+                });
             }
 
             if (action.type === "giveStat" && action.statId && action.amount) {
@@ -335,6 +375,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
 
     await logAndBroadcastEvent(interaction, {
         guildId: dbGuild.id,
+        discordGuildId: interaction.guild.id,
         userId: dbUser.id,
         category: "inventory",
         eventType: "use",
@@ -398,4 +439,117 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     }
 
     return { success: true, message: `Successfully used ${quantity} of item \`${itemId}\`.` };
+}
+export async function equipItemFromInventory(interaction: ChatInputCommandInteraction,  itemId?: string, slot?: EquipSlot,): Promise<{ success: boolean; message: string }> {
+    if(interaction.guild === null) {
+        return { success: false, message: "This command can only be used in a server." };
+    }
+
+    const { user: dbUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
+    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const inventory = profile.inventory;
+    const items = config.shop?.items;
+
+    // Unequip path
+    if (!itemId && slot) {
+        const currentEquipped = profile.equips?.[slot];
+        if (!currentEquipped) {
+            return { success: false, message: `No item is equipped in the \`${slot}\` slot.` };
+        }
+
+        if (inventory[currentEquipped]) {
+            inventory[currentEquipped].quantity += 1;
+        } else {
+            const currentEquippedItem = items?.[currentEquipped];
+            if (!currentEquippedItem) {
+                return { success: false, message: `Previously equipped item \`${currentEquipped}\` no longer exists in the shop.` };
+            }
+            inventory[currentEquipped] = { id: currentEquipped, name: currentEquippedItem.name, emoji: currentEquippedItem.emoji ?? "", description: currentEquippedItem.description ?? "", quantity: 1 };
+        }
+
+        delete profile.equips![slot];
+
+        const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+        let p = cached.profile;
+        let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+
+        p.inventory = inventory;
+        p.equips = profile.equips;
+        pending = { ...pending, inventory: p.inventory, equips: p.equips as any };
+
+        userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+            profile: p,
+            pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
+            dirty: true,
+            lastWroteToDb: cached.lastWroteToDb,
+            lastLoaded: Date.now(),
+        });
+
+        return { success: true, message: `Successfully unequipped item \`${currentEquipped}\` from the \`${slot}\` slot.` };
+    }
+
+    if(!itemId) {
+        return { success: false, message: "You must specify an item ID to equip." };
+    }
+
+    if (!items || !items[itemId]) {
+        return { success: false, message: `Item with ID \`${itemId}\` does not exist in the shop.` };
+    }
+
+    const item = items[itemId];
+    if (!item.equipable) {
+        return { success: false, message: `Item with ID \`${itemId}\` is not equipable.` };
+    }
+
+    if(!item.equipSlot) {
+        return { success: false, message: `Item with ID \`${itemId}\` cannot be equipped in any slot.` };
+    }
+
+    const currentEquipped = profile.equips?.[item.equipSlot];
+    if (currentEquipped === itemId) {
+        return { success: false, message: `Item with ID \`${itemId}\` is already equipped in the \`${slot}\` slot.` };
+    } else if (currentEquipped) {
+        if (inventory[currentEquipped]) {
+            inventory[currentEquipped].quantity += 1;
+        } else {
+            const currentEquippedItem = items[currentEquipped];
+            if (!currentEquippedItem) {
+                return { success: false, message: `Previously equipped item \`${currentEquipped}\` no longer exists in the shop.` };
+            }
+            inventory[currentEquipped] = { id: currentEquipped, name: currentEquippedItem.name, emoji: currentEquippedItem.emoji ?? "", description: currentEquippedItem.description ?? "", quantity: 1 };
+        }
+    }
+
+    if (!inventory[itemId]) {
+        return { success: false, message: `Item with ID \`${itemId}\` not found in your inventory.` };
+    }
+
+    if (!profile.equips) {
+        profile.equips = {};
+    }
+    profile.equips[item.equipSlot] = itemId;
+
+    inventory[itemId].quantity -= 1;
+    if (inventory[itemId].quantity <= 0) {
+        delete inventory[itemId];
+    }
+
+    const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    let p = cached.profile;
+    let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+
+    p.inventory = inventory;
+    p.equips = profile.equips;
+    pending = { ...pending, inventory: p.inventory, equips: p.equips as any };
+
+    userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+        profile: p,
+        pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
+        dirty: true,
+        lastWroteToDb: cached.lastWroteToDb,
+        lastLoaded: Date.now(),
+    });
+
+    return { success: true, message: `Successfully equipped item \`${itemId}\` in the \`${item.equipSlot}\` slot.` };
 }

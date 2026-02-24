@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 export function useGuildConfig(guildId: string) {
     const [config, setConfig] = useState<any>(null);
+    const [dbGuildId, setDbGuildId] = useState<number | null>(null);
     const did = useRef<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
     const [saving, setSaving] = useState<boolean>(false);
@@ -19,6 +20,7 @@ export function useGuildConfig(guildId: string) {
 
             const data = await res.json();
             setConfig(data.config);
+            setDbGuildId(data.id);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -63,5 +65,5 @@ export function useGuildConfig(guildId: string) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [guildId]);
 
-    return { config, setConfig, loading, saving, error, refresh, save };
+    return { config, setConfig, dbGuildId, loading, saving, error, refresh, save };
 }

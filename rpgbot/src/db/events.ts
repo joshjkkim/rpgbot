@@ -4,25 +4,26 @@ import type { LogEvent } from "../types/logging.js";
 import { EmbedBuilder, type BaseInteraction, type ColorResolvable, type Guild, type GuildTextBasedChannel } from "discord.js";
 
 export async function logEvent(opts: LogEvent): Promise<void> {
-    const { guildId, userId, targetUserId, category, eventType, source, xpDelta, goldDelta, streakDelta, levelDelta, itemId, itemQuantity, oldLevel, newLevel, oldStreak, newStreak, metaData } = opts;
+    const { guildId, discordGuildId, userId, targetUserId, category, eventType, source, xpDelta, goldDelta, streakDelta, levelDelta, itemId, itemQuantity, oldLevel, newLevel, oldStreak, newStreak, metaData } = opts;
 
     await query(
         `INSERT INTO events
-        (guild_id, user_id, target_user_id, category, event_type, source,
+        (guild_id, discord_guild_id, user_id, target_user_id, category, event_type, source,
          xp_delta, gold_delta, streak_delta, level_delta,
          item_id, quantity,
          old_level, new_level,
          old_streak, new_streak,
          metadata, timestamp)
         VALUES
-        ($1, $2, $3, $4, $5, $6,
-         $7, $8, $9, $10,
-         $11, $12,
-         $13, $14,
-         $15, $16,
-         $17, NOW())`,
+        ($1, $2, $3, $4, $5, $6, $7,
+         $8, $9, $10, $11,
+         $12, $13,
+         $14, $15,
+         $16, $17,
+         $18, NOW())`,
         [
             guildId,
+            discordGuildId,
             userId,
             targetUserId ?? null,
             category,
@@ -153,7 +154,9 @@ export function enqueueLogEvent(event: LogEvent): void {
 }
 
 export async function logAndBroadcastEvent(ctx: LogContext, event: LogEvent, config: GuildConfig): Promise<void> {
-    
+    if(!config.logging?.enabled || !config.logging?.mainChannelId) return;
+    if (config.logging?.allowedCategories?.[event.category] === false) return;
+
     await sendServerLogEvent(ctx, event, config);
 
     enqueueLogEvent(event);
@@ -179,7 +182,7 @@ export async function flushLogBuffer(): Promise<void> {
         let idx = 1;
 
         for (const event of batch) {
-            valuePlaceholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++},
+            valuePlaceholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++},
                                     $${idx++}, $${idx++}, $${idx++}, $${idx++},
                                     $${idx++}, $${idx++},
                                     $${idx++}, $${idx++},
@@ -187,6 +190,7 @@ export async function flushLogBuffer(): Promise<void> {
                                     $${idx++}, $${idx++})`);
             values.push(
                 event.guildId,
+                event.discordGuildId,
                 event.userId,
                 event.targetUserId ?? null,
                 event.category,
@@ -209,7 +213,7 @@ export async function flushLogBuffer(): Promise<void> {
 
         const sql = `
             INSERT INTO events
-            (guild_id, user_id, target_user_id, category, event_type, source,
+            (guild_id, discord_guild_id, user_id, target_user_id, category, event_type, source,
              xp_delta, gold_delta, streak_delta, level_delta,
              item_id, quantity,
              old_level, new_level,

@@ -4,6 +4,7 @@ import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import type { shopCategoryConfig, shopItemAction, shopItemConfig } from "../../types/economy.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
+import type { EquipSlot } from "../../types/economy.js";
 
 export const data = new SlashCommandBuilder()
     .setName("config-shop")
@@ -71,6 +72,45 @@ export const data = new SlashCommandBuilder()
             )
     )
 
+        .addSubcommand(sub =>
+            sub.setName("set-item-effects").setDescription("Set effects for a shop item")
+                .addStringOption(opt =>
+                    opt.setName("item-id").setDescription("The ID of the item to set effects for").setRequired(true)
+                )
+                .addStringOption(opt =>
+                    opt.setName("accent-hex").setDescription("Accent/aura hex color (e.g. #ff0000) (none for no accent)").setRequired(false)
+                )
+                .addStringOption(opt =>
+                    opt.setName("border-hex").setDescription("Border hex color (e.g. #ff0000) (none for no border)").setRequired(false)
+                )
+                .addStringOption(opt =>
+                    opt.setName("title").setDescription("Title shown on the user's card (none for no title)").setRequired(false)
+                )
+                .addStringOption(opt =>
+                    opt.setName("name-emoji").setDescription("Emoji shown near username on card (none for no emoji)").setRequired(false)
+                )
+                .addStringOption(opt =>
+                    opt.setName("font-preset").setDescription("Font preset for the user's card").setRequired(false)
+                    .addChoices(
+                        { name: "Inter", value: "inter" },
+                        { name: "Sora", value: "sora" },
+                        { name: "Nunito", value: "nunito" },
+                        { name: "None", value: "none" }
+                    )
+                )
+                // Boosts
+                .addNumberOption(opt =>
+                    opt.setName("xp-multiplier").setDescription("XP multiplier boost (e.g. 1.5 for 1.5x) (none for no boost)").setRequired(false)
+                )
+                .addNumberOption(opt =>
+                    opt.setName("gold-multiplier").setDescription("Gold multiplier boost (e.g. 1.5 for 1.5x) (none for no boost)").setRequired(false)
+                )
+                // Quest
+                .addStringOption(opt =>
+                    opt.setName("can-start-quest-ids").setDescription("Comma-separated quest IDs this item can start (none for no quests)").setRequired(false)
+                )
+        )
+
     .addSubcommand(sub =>
         sub.setName("list-categories").setDescription("List all shop categories")
     )
@@ -88,6 +128,23 @@ export const data = new SlashCommandBuilder()
             )
             .addIntegerOption(opt =>
                 opt.setName("price").setDescription("The price of the item in gold").setRequired(true)
+            )
+            .addBooleanOption(opt =>
+                opt.setName("equipable").setDescription("Whether the item is equipable (leave blank for false)").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("equip-slot").setDescription("The slot this item can be equipped to (if equipable)").setRequired(false)
+                .addChoices(
+                    { name: "Head", value: "head" },
+                    { name: "Body", value: "body" },
+                    { name: "Legs", value: "legs" },
+                    { name: "Feet", value: "feet" },
+                    { name: "Hands", value: "hands" },
+                    { name: "Weapon", value: "weapon" },
+                    { name: "Shield", value: "shield" },
+                    { name: "Accessory", value: "accessory" },
+                    { name: "Aura", value: "aura" }
+                )
             )
             .addIntegerOption(opt =>
                 opt.setName("sell-price").setDescription("The sell price for the item (leave blank/0 or do not enter for unsellable)").setRequired(false)
@@ -148,6 +205,23 @@ export const data = new SlashCommandBuilder()
             .addIntegerOption(opt =>
                 opt.setName("price").setDescription("The new price of the item in gold").setRequired(false)
             )
+            .addBooleanOption(opt =>
+                opt.setName("equipable").setDescription("The new equipable type of the item").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("equip-slot").setDescription("The new equip slot of the item").setRequired(false)
+                .addChoices(
+                    { name: "Head", value: "head" },
+                    { name: "Body", value: "body" },
+                    { name: "Legs", value: "legs" },
+                    { name: "Feet", value: "feet" },
+                    { name: "Hands", value: "hands" },
+                    { name: "Weapon", value: "weapon" },
+                    { name: "Shield", value: "shield" },
+                    { name: "Accessory", value: "accessory" },
+                    { name: "Aura", value: "aura" }
+                )
+            )
             .addIntegerOption(opt =>
                 opt.setName("min-level").setDescription("The new minimum level required to purchase this item").setRequired(false)
             )
@@ -182,6 +256,8 @@ export const data = new SlashCommandBuilder()
                     { name: "Send Message", value: "sendMessage" },
                     { name: "Run Command", value: "runCommand" },
                     { name: "Give Stat", value: "giveStat" },
+                    { name: "Give Item", value: "giveItem" },
+                    { name: "Change Style", value: "changeStyle" }
                 )
             )
             .addRoleOption(opt =>
@@ -201,6 +277,18 @@ export const data = new SlashCommandBuilder()
             )
             .addStringOption(opt =>
                 opt.setName("amount").setDescription("The amount of the stat to give for give stat actions").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("give-item-id").setDescription("The item ID to give for give item actions").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("quantity").setDescription("The quantity of the item to give for give item actions").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("hexcode").setDescription("The hex code to change for change style actions").setRequired(false)
+            )
+            .addStringOption(opt =>
+                opt.setName("emoji").setDescription("The emoji to use for change style actions").setRequired(false)
             )
     )
 
@@ -365,6 +453,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const description = interaction.options.getString("description", false) || undefined;
             const categoryId = interaction.options.getString("category-id", true);
             const price = interaction.options.getInteger("price", true);
+            const equipable = interaction.options.getBoolean("equipable", false) || false;
+            const equipSlot = interaction.options.getString("equip-slot", false) as EquipSlot|| undefined;
             const minLevel = interaction.options.getInteger("min-level", false) || undefined;
             const requiresRoleIdsStr = interaction.options.getString("requires-role-ids", false) || "";
             const requiresRoleIds = requiresRoleIdsStr ? requiresRoleIdsStr.split(",").map(s => s.trim()).filter(s => s.length > 0) : undefined;
@@ -390,6 +480,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 price,
                 actions: {},
                 hidden,
+                equipable,
+                equipSlot,
             };
             
             if (emoji !== undefined) item.emoji = emoji;
@@ -444,6 +536,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const description = interaction.options.getString("description", false);
             const categoryId = interaction.options.getString("category-id", false);
             const price = interaction.options.getInteger("price", false);
+            const equipable = interaction.options.getBoolean("equipable", false);
+            const equipSlot = interaction.options.getString("equip-slot", false) as EquipSlot || undefined;
             const minLevel = interaction.options.getInteger("min-level", false);
             const requiresRoleIdsStr = interaction.options.getString("requires-role-ids", false);
             const requiresRoleIds = requiresRoleIdsStr ? requiresRoleIdsStr.split(",").map(s => s.trim()).filter(s => s.length > 0) : undefined;
@@ -456,6 +550,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             if (description !== null) item.description = description;
             if (categoryId !== null) item.categoryId = categoryId;
             if (price !== null) item.price = price;
+            if (equipable !== null) item.equipable = equipable;
+            if (equipSlot !== null) item.equipSlot = equipSlot;
             if (minLevel !== null) item.minLevel = minLevel;
             if (requiresRoleIdsStr !== undefined) {
                 if (requiresRoleIds !== undefined) {
@@ -491,6 +587,54 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             await interaction.editReply(reply);
             break;
         }
+        case "set-item-effects": {
+            const itemId = interaction.options.getString("item-id", true);
+
+            newConfig.shop = newConfig.shop || {};
+            newConfig.shop.items = newConfig.shop.items || {};
+
+            const item = newConfig.shop.items[itemId];
+            if (!item) {
+            await interaction.editReply(`No item found with ID \`${itemId}\`.`);
+            return;
+            }
+
+            const accentHex = interaction.options.getString("accent-hex", false);
+            const borderHex = interaction.options.getString("border-hex", false);
+            const title = interaction.options.getString("title", false);
+            const nameEmoji = interaction.options.getString("name-emoji", false);
+            const fontPreset = interaction.options.getString("font-preset", false);
+            const xpMultiplier = interaction.options.getNumber("xp-multiplier", false);
+            const goldMultiplier = interaction.options.getNumber("gold-multiplier", false);
+            const canStartQuestIdsStr = interaction.options.getString("can-start-quest-ids", false);
+            const canStartQuestIds = canStartQuestIdsStr ? canStartQuestIdsStr.split(",").map(s => s.trim()).filter(s => s.length > 0) : undefined;
+
+            item.effects = item.effects || {};
+
+            const cosmeticUpdates: Record<string, string> = {};
+            if (accentHex !== null) cosmeticUpdates.accentHex = accentHex === "none" ? "" : accentHex;
+            if (borderHex !== null) cosmeticUpdates.borderHex = borderHex === "none" ? "" : borderHex;
+            if (title !== null) cosmeticUpdates.title = title === "none" ? "" : title;
+            if (nameEmoji !== null) cosmeticUpdates.nameEmoji = nameEmoji === "none" ? "" : nameEmoji;
+            if (fontPreset !== null) cosmeticUpdates.fontPreset = fontPreset === "none" ? "" : fontPreset;
+
+            if (Object.keys(cosmeticUpdates).length > 0)
+                item.effects.cosmetic = { ...item.effects.cosmetic, ...cosmeticUpdates };
+
+            if (xpMultiplier !== null || goldMultiplier !== null)
+                item.effects.boosts = {
+                    ...item.effects.boosts,
+                    ...(xpMultiplier !== null && { xpMultiplier }),
+                    ...(goldMultiplier !== null && { goldMultiplier }),
+                };
+
+            if (canStartQuestIds !== undefined)
+                item.effects.quest = { ...item.effects.quest, canStartQuestIds };
+
+            await setGuildConfig(interaction.guildId, newConfig);
+            await interaction.editReply(`Effects for item \`${itemId}\` have been updated.`);
+            break;
+        }
 
         case "add-item-action": {
             const itemId = interaction.options.getString("item-id", true);
@@ -499,6 +643,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const message = interaction.options.getString("message", false) || undefined;
             const channelId = interaction.options.getString("channel-id", false) || undefined;
             const command = interaction.options.getString("command", false) || undefined;
+            const giveItemId = interaction.options.getString("give-item-id", false) || undefined;
+            const quantityStr = interaction.options.getString("quantity", false);
+            const quantity = quantityStr ? parseInt(quantityStr, 10) : undefined;
 
             newConfig.shop = newConfig.shop || {};
             newConfig.shop.items = newConfig.shop.items || {};
@@ -548,6 +695,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 }
                 action.statId = stat;
                 action.amount = amount;
+            } else if (actionType === "giveItem") {
+                if (!giveItemId || !quantity) {
+                    await interaction.editReply("Item ID and quantity are required for give item actions.");
+                    return;
+                }
+                action.itemId = giveItemId;
+                action.quantity = quantity;
             }
 
             item.actions = item.actions || [];
@@ -630,6 +784,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
         await logAndBroadcastEvent(interaction, {
             guildId: guild.id,
+            discordGuildId: guild.discord_guild_id,
             userId: user.id,
             category: "config",
             eventType: "configChange",

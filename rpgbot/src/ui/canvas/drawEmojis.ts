@@ -1,10 +1,8 @@
 import { loadImage } from "@napi-rs/canvas";
 import { parse as parseTwemoji } from "twemoji-parser";
+import { imgCache } from "../../cache/caches.js";
 
 const discordEmojiRe = /<(a?):([a-zA-Z0-9_]+):(\d+)>/g;
-
-// simple in-memory cache
-const imgCache = new Map<string, any>();
 
 async function loadCachedImage(url: string) {
   const hit = imgCache.get(url);

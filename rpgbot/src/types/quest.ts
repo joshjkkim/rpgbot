@@ -37,7 +37,7 @@ export interface QuestConfig {
     name: string;
     description: string;
     conditions: QuestCondition;
-    reward?: QuestReward;
+    reward?: Record<number, QuestReward>;
     active: boolean;
     cooldown: number; // in seconds
     overrideChannelId?: string | null;

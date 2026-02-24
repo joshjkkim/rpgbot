@@ -5,6 +5,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 
 export type StyleConfig = {
   mainThemeColor?: string;
+  mainTextColor?: string;
+  template?: string;
   gold?: {
     icon?: string;
     name?: string;
@@ -26,6 +28,8 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
   const defaults = useMemo(
     () => ({
       mainThemeColor: "#00AE86",
+      mainTextColor: "#FFFFFF",
+      template: "default",
       goldIcon: "💰",
       goldName: "Gold",
       xpIcon: "⭐",
@@ -36,6 +40,8 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
 
   const [form, setForm] = useState(() => ({
     mainThemeColor: style.mainThemeColor ?? defaults.mainThemeColor,
+    mainTextColor: style.mainTextColor ?? defaults.mainTextColor,
+    template: style.template ?? defaults.template,
     goldIcon: style.gold?.icon ?? defaults.goldIcon,
     goldName: style.gold?.name ?? defaults.goldName,
     xpIcon: style.xp?.icon ?? defaults.xpIcon,
@@ -52,6 +58,8 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
     const nextStyle = value ?? {};
     setForm({
       mainThemeColor: nextStyle.mainThemeColor ?? defaults.mainThemeColor,
+      mainTextColor: nextStyle.mainTextColor ?? defaults.mainTextColor,
+      template: nextStyle.template ?? defaults.template,
       goldIcon: nextStyle.gold?.icon ?? defaults.goldIcon,
       goldName: nextStyle.gold?.name ?? defaults.goldName,
       xpIcon: nextStyle.xp?.icon ?? defaults.xpIcon,
@@ -67,6 +75,8 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
     const nextStyle: StyleConfig = {
       ...style,
       mainThemeColor: next.mainThemeColor,
+      mainTextColor: next.mainTextColor,
+      template: next.template,
       gold: {
         ...(style.gold ?? {}),
         icon: next.goldIcon,
@@ -76,7 +86,7 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
         ...(style.xp ?? {}),
         icon: next.xpIcon,
         name: next.xpName,
-      },
+      }
     };
 
     onChange(nextStyle);
@@ -129,6 +139,36 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
                 placeholder="#00AE86"
                 className="w-full rounded border px-3 py-2 text-sm"
               />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.mainTextColor}
+                onChange={(e) => commit({ mainTextColor: e.target.value })}
+                className="h-10 w-14 cursor-pointer rounded border"
+                aria-label="Theme color picker"
+              />
+
+              <input
+                type="text"
+                value={form.mainTextColor}
+                onChange={(e) => commit({ mainTextColor: e.target.value })}
+                placeholder="#FFFFFF"
+                className="w-full rounded border px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Template</label>
+              <select
+              value={form.template}
+              onChange={(e) => commit({ template: e.target.value })}
+              className="w-full rounded border px-3 py-2 text-sm"
+              >
+              <option value="default">Default</option>
+              <option value="fantasy">Fantasy</option>
+              </select>
             </div>
 
             <p className="text-xs text-gray-500">

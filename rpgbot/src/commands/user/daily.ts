@@ -38,7 +38,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const dailyMessage = config.xp.announceDailyMessage
             .replace('{user}', `<@${interaction.user.id}>`)
             .replace('{xp}', rewardXp?.toString() ?? '0')
-            .replace('{gold}', rewardGold?.toString() ?? '0');
+            .replace('{xpName}', config.style.xp.name || "XP")
+            .replace('{xpIcon}', config.style.xp.icon || "⭐")
+            .replace('{gold}', rewardGold?.toString() ?? '0')
+            .replace('{goldName}', config.style.gold.name || "Gold")
+            .replace('{goldIcon}', config.style.gold.icon || "💰");
 
         if (config.xp.announceDailyInChannelId) {
             const channel = await interaction.client.channels.fetch(config.xp.announceDailyInChannelId).catch(() => null);
@@ -51,7 +55,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const dailyReply = config.xp.replyToDailyMessage
                 .replace('{user}', `<@${interaction.user.id}>`)
                 .replace('{xp}', rewardXp?.toString() ?? '0')
+                .replace('{xpName}', config.style.xp.name || "XP")
+                .replace('{xpIcon}', config.style.xp.icon || "⭐")
                 .replace('{gold}', rewardGold?.toString() ?? '0')
+                .replace('{goldName}', config.style.gold.name || "Gold")
+                .replace('{goldIcon}', config.style.gold.icon || "💰")
                 .replace('{streak}', profile.streak_count.toString());
 
             await interaction.editReply({
@@ -113,6 +121,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if(config.logging.enabled) {
             await logAndBroadcastEvent(interaction, {
                 guildId: dbGuild.id,
+                discordGuildId: dbGuild.discord_guild_id,
                 userId: user.id,
                 category: "daily",
                 eventType: "grantDaily",

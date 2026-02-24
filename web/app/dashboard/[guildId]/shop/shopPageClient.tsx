@@ -12,7 +12,7 @@ export default function ShopPageClient({ guildId }: { guildId: string }) {
   return (
     <main className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Shop</h1>
+        <h1 className="text-2xl font-bold">Economy</h1>
 
         <button
           className="rounded bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"

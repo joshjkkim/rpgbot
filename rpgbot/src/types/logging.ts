@@ -6,7 +6,8 @@ export type EventCategory =
     | "level" 
     | "config" 
     | "inventory" 
-    | "admin";
+    | "admin"
+    | "quests";
 
 export type EventType = 
     "buy" 
@@ -25,11 +26,15 @@ export type EventType =
     | "setxp"
     | "setlevel"
     | "setgold"
-    | "setstreak";
+    | "setstreak"
+    | "startQuest"
+    | "claimQuest"
+    | "giftItem";
 
 
 export interface LogEvent {
     guildId: number;
+    discordGuildId: string;
     userId: number;
     targetUserId?: number;
 
@@ -48,6 +53,8 @@ export interface LogEvent {
     newLevel?: number | null;
     oldStreak?: number | null;
     newStreak?: number | null;
+
+    questId?: string | null;
 
     metaData?: Record<string, unknown> | null;
     timestamp: Date;

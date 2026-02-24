@@ -47,4 +47,22 @@ export interface DbUserGuildProfile extends QueryResultRow {
     user_stats: UserStats;
     achievements: Record<string, { unlockedAt: string; progress?: number;}>;
     quests: Record<string, UserQuestState>; // questId -> UserQuestState
+    equips: {
+        head?: string;
+        body?: string;
+        legs?: string;
+        feet?: string;
+        hands?: string;
+        weapon?: string;
+        shield?: string;
+        accessory?: string;
+        aura?: string;
+    };
+    settings: {
+        inventoryPrivate?: boolean;
+        goldPrivate?: boolean;
+        xpPrivate?: boolean;
+        dmOnTradeInbound?: boolean;
+        profilePrivate?: boolean;
+    }
 }

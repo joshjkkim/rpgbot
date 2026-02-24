@@ -1,0 +1,205 @@
+Date : 2026-02-22 22:40:52
+Directory : /Users/joshuakim/Documents/yeayea
+Total : 120 files,  26273 codes, 295 comments, 2906 blanks, all 29474 lines
+
+Languages
++--------------------+------------+------------+------------+------------+------------+
+| language           | files      | code       | comment    | blank      | total      |
++--------------------+------------+------------+------------+------------+------------+
+| TypeScript         |         70 |     11,869 |        204 |      2,304 |     14,377 |
+| JSON               |          5 |      9,162 |          0 |          5 |      9,167 |
+| TypeScript JSX     |         30 |      5,043 |         83 |        555 |      5,681 |
+| JSON with Comments |          3 |         68 |          0 |          3 |         71 |
+| JavaScript         |          4 |         52 |          8 |         18 |         78 |
+| Markdown           |          2 |         52 |          0 |         16 |         68 |
+| PostCSS            |          1 |         22 |          0 |          5 |         27 |
+| XML                |          5 |          5 |          0 |          0 |          5 |
++--------------------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                 | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                    |        120 |     26,273 |        295 |      2,906 |     29,474 |
+| . (Files)                                                                                            |          4 |      8,104 |          0 |          5 |      8,109 |
+| rpgbot                                                                                               |         66 |     12,774 |        206 |      2,263 |     15,243 |
+| rpgbot (Files)                                                                                       |          3 |      1,089 |          0 |          3 |      1,092 |
+| rpgbot/src                                                                                           |         63 |     11,685 |        206 |      2,260 |     14,151 |
+| rpgbot/src (Files)                                                                                   |          2 |         73 |          0 |         15 |         88 |
+| rpgbot/src/cache                                                                                     |          4 |        209 |          0 |         63 |        272 |
+| rpgbot/src/commands                                                                                  |         25 |      5,837 |        169 |      1,077 |      7,083 |
+| rpgbot/src/commands (Files)                                                                          |          1 |         76 |          0 |          2 |         78 |
+| rpgbot/src/commands/admin                                                                            |         12 |      3,173 |         19 |        514 |      3,706 |
+| rpgbot/src/commands/user                                                                             |         12 |      2,588 |        150 |        561 |      3,299 |
+| rpgbot/src/db                                                                                        |          7 |      1,166 |          9 |        221 |      1,396 |
+| rpgbot/src/events                                                                                    |          4 |        280 |          2 |         40 |        322 |
+| rpgbot/src/leveling                                                                                  |          1 |         96 |          2 |         19 |        117 |
+| rpgbot/src/player                                                                                    |          5 |      1,020 |         13 |        232 |      1,265 |
+| rpgbot/src/types                                                                                     |          9 |        580 |          1 |         59 |        640 |
+| rpgbot/src/ui                                                                                        |          6 |      2,424 |         10 |        534 |      2,968 |
+| rpgbot/src/ui/canvas                                                                                 |          2 |        110 |         10 |         30 |        150 |
+| rpgbot/src/ui/panel                                                                                  |          4 |      2,314 |          0 |        504 |      2,818 |
+| web                                                                                                  |         50 |      5,395 |         89 |        638 |      6,122 |
+| web (Files)                                                                                          |          7 |        118 |          4 |         25 |        147 |
+| web/app                                                                                              |         38 |      5,272 |         85 |        613 |      5,970 |
+| web/app (Files)                                                                                      |          4 |         70 |          0 |         15 |         85 |
+| web/app/api                                                                                          |          4 |        105 |          0 |         25 |        130 |
+| web/app/api/auth                                                                                     |          2 |         27 |          0 |          5 |         32 |
+| web/app/api/auth/[...nextauth]                                                                       |          2 |         27 |          0 |          5 |         32 |
+| web/app/api/discord                                                                                  |          2 |         78 |          0 |         20 |         98 |
+| web/app/api/discord/guilds                                                                           |          2 |         78 |          0 |         20 |         98 |
+| web/app/api/discord/guilds (Files)                                                                   |          1 |         42 |          0 |         11 |         53 |
+| web/app/api/discord/guilds/[guildId]                                                                 |          1 |         36 |          0 |          9 |         45 |
+| web/app/api/discord/guilds/[guildId]/config                                                          |          1 |         36 |          0 |          9 |         45 |
+| web/app/components                                                                                   |         10 |      4,646 |         82 |        457 |      5,185 |
+| web/app/components (Files)                                                                           |          2 |         58 |          1 |          9 |         68 |
+| web/app/components/achievements                                                                      |          1 |        649 |         12 |         66 |        727 |
+| web/app/components/levels                                                                            |          1 |        552 |         12 |         51 |        615 |
+| web/app/components/logging                                                                           |          1 |        217 |         12 |         27 |        256 |
+| web/app/components/quests                                                                            |          1 |        513 |          6 |         53 |        572 |
+| web/app/components/shop                                                                              |          1 |      1,304 |         17 |        121 |      1,442 |
+| web/app/components/sidebar                                                                           |          1 |         67 |          0 |          5 |         72 |
+| web/app/components/styles                                                                            |          1 |        223 |          4 |         30 |        257 |
+| web/app/components/xp                                                                                |          1 |      1,063 |         18 |         95 |      1,176 |
+| web/app/dashboard                                                                                    |         17 |        349 |          1 |         88 |        438 |
+| web/app/dashboard (Files)                                                                            |          1 |         17 |          0 |          4 |         21 |
+| web/app/dashboard/[guildId]                                                                          |         16 |        332 |          1 |         84 |        417 |
+| web/app/dashboard/[guildId] (Files)                                                                  |          2 |         28 |          0 |          7 |         35 |
+| web/app/dashboard/[guildId]/achievements                                                             |          2 |         43 |          0 |         11 |         54 |
+| web/app/dashboard/[guildId]/levels                                                                   |          2 |         43 |          0 |         11 |         54 |
+| web/app/dashboard/[guildId]/logging                                                                  |          2 |         46 |          0 |         11 |         57 |
+| web/app/dashboard/[guildId]/quests                                                                   |          2 |         43 |          0 |         11 |         54 |
+| web/app/dashboard/[guildId]/shop                                                                     |          2 |         43 |          0 |         11 |         54 |
+| web/app/dashboard/[guildId]/styles                                                                   |          2 |         43 |          0 |         11 |         54 |
+| web/app/dashboard/[guildId]/xp                                                                       |          2 |         43 |          1 |         11 |         55 |
+| web/app/hooks                                                                                        |          1 |         56 |          1 |         12 |         69 |
+| web/app/lib                                                                                          |          2 |         46 |          1 |         16 |         63 |
+| web/public                                                                                           |          5 |          5 |          0 |          0 |          5 |
++------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| filename                                                                                             | language           | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| /Users/joshuakim/Documents/yeayea/README.md                                                          | Markdown           |         29 |          0 |          2 |         31 |
+| /Users/joshuakim/Documents/yeayea/package-lock.json                                                  | JSON               |      8,042 |          0 |          1 |      8,043 |
+| /Users/joshuakim/Documents/yeayea/package.json                                                       | JSON               |         16 |          0 |          1 |         17 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/package-lock.json                                           | JSON               |      1,045 |          0 |          1 |      1,046 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/package.json                                                | JSON               |         27 |          0 |          1 |         28 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/cache/caches.ts                                         | TypeScript         |         51 |          0 |         13 |         64 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/cache/guildService.ts                                   | TypeScript         |         28 |          0 |          7 |         35 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/cache/profileService.ts                                 | TypeScript         |        106 |          0 |         35 |        141 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/cache/userService.ts                                    | TypeScript         |         24 |          0 |          8 |         32 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/adminInventory.ts                        | TypeScript         |         94 |          0 |         11 |        105 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configAchievements.ts                    | TypeScript         |        323 |          0 |         44 |        367 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configGeneral.ts                         | TypeScript         |         59 |          0 |         16 |         75 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configLevels.ts                          | TypeScript         |        365 |          1 |         61 |        427 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configLogging.ts                         | TypeScript         |        134 |          0 |         26 |        160 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configQuests.ts                          | TypeScript         |        406 |         16 |         63 |        485 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configShop.ts                            | TypeScript         |        694 |          2 |        100 |        796 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configStreak.ts                          | TypeScript         |        154 |          0 |         32 |        186 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configStyles.ts                          | TypeScript         |        144 |          0 |         35 |        179 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configTrading.ts                         | TypeScript         |         87 |          0 |         15 |        102 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configXp.ts                              | TypeScript         |        515 |          0 |         78 |        593 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/set.ts                                   | TypeScript         |        198 |          0 |         33 |        231 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/index.ts                                       | TypeScript         |         76 |          0 |          2 |         78 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/daily.ts                                  | TypeScript         |        134 |          0 |         22 |        156 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/equip.ts                                  | TypeScript         |         24 |          0 |          7 |         31 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/gift.ts                                   | TypeScript         |         60 |          0 |         17 |         77 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/inventory.ts                              | TypeScript         |         58 |          0 |         15 |         73 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/leaderboard.ts                            | TypeScript         |         89 |          0 |         21 |        110 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/leveling.ts                               | TypeScript         |         74 |          0 |         21 |         95 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/profile.ts                                | TypeScript         |      1,052 |        131 |        225 |      1,408 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/quests.ts                                 | TypeScript         |        403 |         11 |         94 |        508 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/shop.ts                                   | TypeScript         |        336 |          0 |         73 |        409 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/trade.ts                                  | TypeScript         |        291 |          8 |         51 |        350 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/unequip.ts                                | TypeScript         |         36 |          0 |          7 |         43 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/use.ts                                    | TypeScript         |         31 |          0 |          8 |         39 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/activeVC.ts                                          | TypeScript         |        129 |          0 |         26 |        155 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/events.ts                                            | TypeScript         |        190 |          0 |         42 |        232 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/guilds.ts                                            | TypeScript         |        152 |          0 |         16 |        168 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/index.ts                                             | TypeScript         |         21 |          0 |          4 |         25 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/trade.ts                                             | TypeScript         |        221 |          9 |         43 |        273 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/userGuildProfiles.ts                                 | TypeScript         |        418 |          0 |         84 |        502 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/users.ts                                             | TypeScript         |         35 |          0 |          6 |         41 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/deploy-commands.ts                                      | TypeScript         |         29 |          0 |          6 |         35 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/events/guildCreate.ts                                   | TypeScript         |         23 |          0 |          5 |         28 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/events/interactionCreate.ts                             | TypeScript         |         69 |          0 |         11 |         80 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/events/messageCreate.ts                                 | TypeScript         |        144 |          0 |         17 |        161 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/events/voiceStateUpdate.ts                              | TypeScript         |         44 |          2 |          7 |         53 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/index.ts                                                | TypeScript         |         44 |          0 |          9 |         53 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/leveling/levels.ts                                      | TypeScript         |         96 |          2 |         19 |        117 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/player/achievements.ts                                  | TypeScript         |        186 |          0 |         43 |        229 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/player/inventory.ts                                     | TypeScript         |        461 |          1 |         93 |        555 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/player/quests.ts                                        | TypeScript         |        216 |         12 |         53 |        281 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/player/roles.ts                                         | TypeScript         |        114 |          0 |         34 |        148 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/player/trading.ts                                       | TypeScript         |         43 |          0 |          9 |         52 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/achievement.ts                                    | TypeScript         |         48 |          0 |          7 |         55 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/cache.ts                                          | TypeScript         |         44 |          0 |          3 |         47 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/dbuser.ts                                         | TypeScript         |          7 |          0 |          0 |          7 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/economy.ts                                        | TypeScript         |         57 |          0 |          9 |         66 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/guild.ts                                          | TypeScript         |        209 |          0 |         17 |        226 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/logging.ts                                        | TypeScript         |         53 |          0 |          8 |         61 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/quest.ts                                          | TypeScript         |         65 |          0 |          9 |         74 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/trading.ts                                        | TypeScript         |         38 |          1 |          4 |         43 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/userprofile.ts                                    | TypeScript         |         59 |          0 |          2 |         61 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/ui/canvas/drawEmojis.ts                                 | TypeScript         |         83 |          5 |         18 |        106 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/ui/canvas/testcanvas.mjs                                | JavaScript         |         27 |          5 |         12 |         44 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/mainPanel.ts                                   | TypeScript         |         97 |          0 |          8 |        105 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/panelButton.ts                                 | TypeScript         |        982 |          0 |        252 |      1,234 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/panelModal.ts                                  | TypeScript         |        833 |          0 |        180 |      1,013 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/ui/panel/panelSelection.ts                              | TypeScript         |        402 |          0 |         64 |        466 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/tsconfig.json                                               | JSON with Comments |         17 |          0 |          1 |         18 |
+| /Users/joshuakim/Documents/yeayea/tsconfig.json                                                      | JSON with Comments |         17 |          0 |          1 |         18 |
+| /Users/joshuakim/Documents/yeayea/web/README.md                                                      | Markdown           |         23 |          0 |         14 |         37 |
+| /Users/joshuakim/Documents/yeayea/web/app/api/auth/[...nextauth]/auth.ts                             | TypeScript         |         22 |          0 |          2 |         24 |
+| /Users/joshuakim/Documents/yeayea/web/app/api/auth/[...nextauth]/route.ts                            | TypeScript         |          5 |          0 |          3 |          8 |
+| /Users/joshuakim/Documents/yeayea/web/app/api/discord/guilds/[guildId]/config/route.ts               | TypeScript         |         36 |          0 |          9 |         45 |
+| /Users/joshuakim/Documents/yeayea/web/app/api/discord/guilds/route.ts                                | TypeScript         |         42 |          0 |         11 |         53 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/achievements/achievementsEditor.tsx             | TypeScript JSX     |        649 |         12 |         66 |        727 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/configDisplay.tsx                               | TypeScript JSX     |         11 |          1 |          2 |         14 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/dashboard.tsx                                   | TypeScript JSX     |         47 |          0 |          7 |         54 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/levels/levelsEditor.tsx                         | TypeScript JSX     |        552 |         12 |         51 |        615 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/logging/loggingEditor.tsx                       | TypeScript JSX     |        217 |         12 |         27 |        256 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/quests/questsBasicEditor.tsx                    | TypeScript JSX     |        513 |          6 |         53 |        572 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/shop/shopBasicsEditor.tsx                       | TypeScript JSX     |      1,304 |         17 |        121 |      1,442 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/sidebar/sidebar.tsx                             | TypeScript JSX     |         67 |          0 |          5 |         72 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/styles/styleBasicsEditor.tsx                    | TypeScript JSX     |        223 |          4 |         30 |        257 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/xp/xpBasicsEditor.tsx                           | TypeScript JSX     |      1,063 |         18 |         95 |      1,176 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/achievements/achievementPageClient.tsx | TypeScript JSX     |         38 |          0 |          9 |         47 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/achievements/page.tsx                  | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/layout.tsx                             | TypeScript JSX     |         17 |          0 |          3 |         20 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/levels/levelsPageClient.tsx            | TypeScript JSX     |         38 |          0 |          9 |         47 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/levels/page.tsx                        | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/logging/loggingPageClient.tsx          | TypeScript JSX     |         41 |          0 |          9 |         50 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/logging/page.tsx                       | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/page.tsx                               | TypeScript JSX     |         11 |          0 |          4 |         15 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/quests/page.tsx                        | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/quests/questsPageClient.tsx            | TypeScript JSX     |         38 |          0 |          9 |         47 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/shop/page.tsx                          | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/shop/shopPageClient.tsx                | TypeScript JSX     |         38 |          0 |          9 |         47 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/styles/page.tsx                        | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/styles/stylePageClient.tsx             | TypeScript JSX     |         38 |          0 |          9 |         47 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/xp/page.tsx                            | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/[guildId]/xp/xpPageClient.tsx                    | TypeScript JSX     |         38 |          1 |          9 |         48 |
+| /Users/joshuakim/Documents/yeayea/web/app/dashboard/page.tsx                                         | TypeScript JSX     |         17 |          0 |          4 |         21 |
+| /Users/joshuakim/Documents/yeayea/web/app/globals.css                                                | PostCSS            |         22 |          0 |          5 |         27 |
+| /Users/joshuakim/Documents/yeayea/web/app/hooks/useGuildConfig.ts                                    | TypeScript         |         56 |          1 |         12 |         69 |
+| /Users/joshuakim/Documents/yeayea/web/app/layout.tsx                                                 | TypeScript JSX     |         11 |          0 |          2 |         13 |
+| /Users/joshuakim/Documents/yeayea/web/app/lib/db.ts                                                  | TypeScript         |         15 |          1 |          4 |         20 |
+| /Users/joshuakim/Documents/yeayea/web/app/lib/discord.ts                                             | TypeScript         |         31 |          0 |         12 |         43 |
+| /Users/joshuakim/Documents/yeayea/web/app/page.tsx                                                   | TypeScript JSX     |         32 |          0 |          6 |         38 |
+| /Users/joshuakim/Documents/yeayea/web/app/providers.tsx                                              | TypeScript JSX     |          5 |          0 |          2 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/eslint.config.mjs                                              | JavaScript         |         14 |          2 |          3 |         19 |
+| /Users/joshuakim/Documents/yeayea/web/next.config.ts                                                 | TypeScript         |          4 |          1 |          3 |          8 |
+| /Users/joshuakim/Documents/yeayea/web/package.json                                                   | JSON               |         32 |          0 |          1 |         33 |
+| /Users/joshuakim/Documents/yeayea/web/postcss.config.mjs                                             | JavaScript         |          6 |          0 |          2 |          8 |
+| /Users/joshuakim/Documents/yeayea/web/public/file.svg                                                | XML                |          1 |          0 |          0 |          1 |
+| /Users/joshuakim/Documents/yeayea/web/public/globe.svg                                               | XML                |          1 |          0 |          0 |          1 |
+| /Users/joshuakim/Documents/yeayea/web/public/next.svg                                                | XML                |          1 |          0 |          0 |          1 |
+| /Users/joshuakim/Documents/yeayea/web/public/vercel.svg                                              | XML                |          1 |          0 |          0 |          1 |
+| /Users/joshuakim/Documents/yeayea/web/public/window.svg                                              | XML                |          1 |          0 |          0 |          1 |
+| /Users/joshuakim/Documents/yeayea/web/tailwind.config.js                                             | JavaScript         |          5 |          1 |          1 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/tsconfig.json                                                  | JSON with Comments |         34 |          0 |          1 |         35 |
+| Total                                                                                                |                    |     26,273 |        295 |      2,906 |     29,474 |
++------------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+

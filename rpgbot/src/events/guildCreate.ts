@@ -4,7 +4,6 @@ import { setGuildConfig, upsertGuild } from "../db/guilds.js";
 import { DEFAULT_GUILD_CONFIG } from "../types/guild.js";
 
 export function registerGuildCreate(client: Client) {
-  console.log(`Registering guildCreate event handler`);
   client.on(Events.GuildCreate, async (guild: Guild) => {
     console.log(`Guild created: ${guild.name} (${guild.id})`);
     try {

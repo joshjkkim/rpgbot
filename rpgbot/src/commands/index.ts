@@ -17,6 +17,12 @@ import * as configLogging from "./admin/configLogging.js";
 import * as configAchievements from "./admin/configAchievements.js";
 import * as configQuests from "./admin/configQuests.js"
 import * as quests from "./user/quests.js"
+import * as equip from "./user/equip.js";
+import * as unequip from "./user/unequip.js"
+import * as configTrading from "./admin/configTrading.js"
+import * as gift from "./user/gift.js"
+import * as trade from "./user/trade.js"
+import * as settings from "./user/settings.js"
 
 export const commandList = [
     daily.data,
@@ -38,6 +44,12 @@ export const commandList = [
     configAchievements.data,
     configQuests.data,
     quests.data,
+    equip.data,
+    unequip.data,
+    configTrading.data,
+    gift.data,
+    trade.data,
+    settings.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -60,4 +72,10 @@ export const commands = new Map<string, any>([
     [configAchievements.data.name, configAchievements],
     [configQuests.data.name, configQuests],
     [quests.data.name, quests],
+    [equip.data.name, equip],
+    [unequip.data.name, unequip],
+    [configTrading.data.name, configTrading],
+    [gift.data.name, gift],
+    [trade.data.name, trade],
+    [settings.data.name, settings],
 ])

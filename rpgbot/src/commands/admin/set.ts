@@ -6,6 +6,7 @@ import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import type { EventType } from "../../types/logging.js";
 import { query } from "../../db/index.js";
+import { profileKey, userGuildProfileCache } from "../../cache/caches.js";
 
 export const data = new SlashCommandBuilder()
     .setName("set")
@@ -113,6 +114,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 return;
             }
 
+            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
+
             await interaction.reply({ content: `✅ Set XP of <@${dbUser.discord_user_id}> to **${amount}** (level **${newLevel}**).`, flags: MessageFlags.Ephemeral });
             break;
         }
@@ -142,6 +145,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 return;
             }
 
+            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
+
             await interaction.reply({ content: `✅ Set level of <@${dbUser.discord_user_id}> to **${level}** (XP **${xp}**).`, flags: MessageFlags.Ephemeral });
             break;
         }
@@ -162,6 +167,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 await interaction.reply({ content: "Failed to set gold.", flags: MessageFlags.Ephemeral });
                 return;
             }
+
+            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
+
             await interaction.reply({ content: `✅ Set gold of <@${dbUser.discord_user_id}> to **${amount}**.`, flags: MessageFlags.Ephemeral });
             break;
         }
@@ -182,6 +190,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 await interaction.reply({ content: "Failed to set streak count.", flags: MessageFlags.Ephemeral });
                 return;
             }
+
+            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
 
             await interaction.reply({ content: `✅ Set streak count of <@${dbUser.discord_user_id}> to **${count}**.`, flags: MessageFlags.Ephemeral });
             break;
@@ -217,6 +227,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         await logAndBroadcastEvent(interaction, {
                 guildId: dbGuild.id,
                 userId: admin.id,
+                discordGuildId: dbGuild.discord_guild_id,
                 targetUserId: dbUser.id,
                 category: "admin",
                 eventType: eventType!,

@@ -394,6 +394,7 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
 
     await logAndBroadcastEvent(interaction, {
         guildId: dbGuild.id,
+        discordGuildId: dbGuild.discord_guild_id,
         userId: dbUser.id,
         category: "economy",
         eventType: "buy",

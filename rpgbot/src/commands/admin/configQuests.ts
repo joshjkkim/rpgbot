@@ -61,15 +61,50 @@ export const data = new SlashCommandBuilder()
             .setDescription("Cooldown before user can do quest again (seconds)")
             .setRequired(true)
         )
-        .addStringOption(opt =>
-            opt.setName("reward")
-            .setDescription("Reward JSON (optional, see /config-quests help)")
-            .setRequired(false)
-        )
         .addBooleanOption(opt =>
             opt.setName("active")
             .setDescription("If the quest is active")
             .setRequired(false)
+        )
+    )
+
+    .addSubcommand(opt=>
+        opt.setName("add-reward")
+        .setDescription("Add a reward to a quest")
+        .addStringOption(opt =>
+            opt.setName("id")
+            .setDescription("ID of the quest to add reward to")
+            .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName("reward")
+            .setDescription("Reward JSON (see /config-quests help)")
+            .setRequired(true)
+        )
+    )
+
+    .addSubcommand(opt=>
+        opt.setName("remove-reward")
+        .setDescription("Remove a reward from a quest")
+        .addStringOption(opt =>
+            opt.setName("id")
+            .setDescription("ID of the quest to remove reward from")
+            .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName("reward-id")
+            .setDescription("Reward ID (see /config-quests list-rewards)")
+            .setRequired(true)
+        )
+    )
+
+    .addSubcommand(opt =>
+        opt.setName("list-rewards")
+        .setDescription("List all rewards for a quest")
+        .addStringOption(opt =>
+            opt.setName("id")
+            .setDescription("ID of the quest to list rewards for")
+            .setRequired(true)
         )
     )
 
@@ -99,6 +134,26 @@ export const data = new SlashCommandBuilder()
         .addStringOption(opt =>
             opt.setName("id")
             .setDescription("ID of the quest to remove")
+            .setRequired(true)
+        )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("toggle-dm")
+        .setDescription("Toggle DM notifications for quest completions")
+        .addBooleanOption(opt =>
+            opt.setName("enabled")
+            .setDescription("Enable or disable DM notifications")
+            .setRequired(true)
+        )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("toggle-reply")
+        .setDescription("Toggle reply notifications for quest completions")
+        .addBooleanOption(opt =>
+            opt.setName("enabled")
+            .setDescription("Enable or disable reply notifications")
             .setRequired(true)
         )
     )
@@ -273,7 +328,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             const name = interaction.options.getString("name", true);
             const description = interaction.options.getString("description", true);
             const conditionStr = interaction.options.getString("condition", true);
-            const rewardStr = interaction.options.getString("reward", false);
             const cooldown = interaction.options.getInteger("cooldown", false) || 0;
             const active = interaction.options.getBoolean("active", false) || false;
 
@@ -283,7 +337,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             }
 
             let conditions;
-            let reward;
             try {
                 conditions = JSON.parse(conditionStr);
             } catch (e) {
@@ -291,14 +344,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 return;
             }
 
-            if (rewardStr) {
-                try {
-                    reward = JSON.parse(rewardStr);
-                } catch (e) {
-                    await interaction.editReply({ content: `❌ Invalid JSON for reward.` });
-                    return;
-                }
-            }
 
             newConfig.quests.quests[id] = {
                 id,
@@ -307,12 +352,92 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 cooldown,
                 active,
                 conditions,
-                reward: reward || null,
+                reward: {},
             };
 
             await setGuildConfig(interaction.guildId, newConfig);
 
             await interaction.editReply({ content: `✅ Quest \`${name}\` (ID: \`${id}\`) has been added.` });
+            break;
+        }
+
+        case "list-rewards": {
+            const id = interaction.options.getString("id", true);
+            const quest = newConfig.quests.quests[id];
+            if (!quest) {
+                await interaction.editReply({ content: `❌ No quest found with ID \`${id}\`.` });
+                return;
+            }
+
+            const rewards = quest.reward || {};
+            if (Object.keys(rewards).length === 0) {
+                await interaction.editReply({ content: `❌ No rewards found for quest ID \`${id}\`.` });
+                return;
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(`🎁 Rewards for Quest: ${quest.name} (ID: ${id})`)
+                .setColor("#FFD700");
+
+            for (const [tier, reward] of Object.entries(rewards)) {
+                embed.addFields({
+                    name: `Tier ${tier}`,
+                    value: Object.entries(reward).map(([key, value]) => `${key}: ${value}`).join("\n"),
+                });
+            }
+
+            await interaction.editReply({ embeds: [embed] });
+            break;
+        }
+
+        case "add-reward": {
+            const id = interaction.options.getString("id", true);
+            const rewardStr = interaction.options.getString("reward", true);
+
+            const quest = newConfig.quests.quests[id];
+            if (!quest) {
+                await interaction.editReply({ content: `❌ No quest found with ID \`${id}\`.` });
+                return;
+            }
+
+            let reward;
+            try {
+                reward = JSON.parse(rewardStr);
+            } catch (e) {
+                await interaction.editReply({ content: `❌ Invalid JSON for reward.` });
+                return;
+            }
+
+            const rewardIndex = Object.keys(quest.reward || {}).length;
+            quest.reward = quest.reward || {};
+            quest.reward[rewardIndex] = reward;
+
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply({ content: `✅ Reward for quest ID \`${id}\` at tier \`${rewardIndex}\` has been added.` });
+            break;
+        }
+
+        case "remove-reward": {
+            const id = interaction.options.getString("id", true);
+            const index = interaction.options.getInteger("index", true);
+
+            const quest = newConfig.quests.quests[id];
+
+            if(!quest) {
+                await interaction.editReply({ content: `❌ No quest found with ID \`${id}\`.` });
+                return;
+            }
+
+            if (!quest.reward || !quest.reward[index]) {
+                await interaction.editReply({ content: `❌ Invalid reward index \`${index}\` for quest ID \`${id}\`.` });
+                return;
+            }
+
+            delete quest.reward[index];
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply({ content: `✅ Reward at index \`${index}\` for quest ID \`${id}\` has been removed.` });
             break;
         }
 
@@ -369,6 +494,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             await setGuildConfig(interaction.guildId, newConfig);
 
             await interaction.editReply({ content: `✅ Quest with ID \`${id}\` has been removed.` });
+            break;
+        }
+
+        case "toggle-dm": {
+            const enabled = interaction.options.getBoolean("enabled", true);
+            newConfig.quests.dmUser = enabled;
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply({ content: `✅ DM notifications for quest completions have been ${enabled ? "enabled" : "disabled"}.` });
+            break;
+        }
+
+        case "toggle-reply": {
+            const enabled = interaction.options.getBoolean("enabled", true);
+            newConfig.quests.replyMessage = enabled;
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply({ content: `✅ Reply notifications for quest completions have been ${enabled ? "enabled" : "disabled"}.` });
             break;
         }
 

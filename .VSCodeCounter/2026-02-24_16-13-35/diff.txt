@@ -1,0 +1,54 @@
+Date : 2026-02-24 16:13:35
+Directory : /Users/joshuakim/Documents/yeayea
+Total : 15 files,  437 codes, 7 comments, 76 blanks, all 520 lines
+
+Languages
++----------------+------------+------------+------------+------------+------------+
+| language       | files      | code       | comment    | blank      | total      |
++----------------+------------+------------+------------+------------+------------+
+| TypeScript     |         14 |        419 |          7 |         74 |        500 |
+| TypeScript JSX |          1 |         18 |          0 |          2 |         20 |
++----------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                              | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                 |         15 |        437 |          7 |         76 |        520 |
+| rpgbot                                                                            |         14 |        419 |          7 |         74 |        500 |
+| rpgbot/src                                                                        |         14 |        419 |          7 |         74 |        500 |
+| rpgbot/src/cache                                                                  |          1 |          4 |          0 |          1 |          5 |
+| rpgbot/src/commands                                                               |          8 |        349 |          5 |         69 |        423 |
+| rpgbot/src/commands (Files)                                                       |          1 |          3 |          0 |          0 |          3 |
+| rpgbot/src/commands/admin                                                         |          2 |         37 |          0 |         11 |         48 |
+| rpgbot/src/commands/user                                                          |          5 |        309 |          5 |         58 |        372 |
+| rpgbot/src/db                                                                     |          1 |         42 |          2 |          4 |         48 |
+| rpgbot/src/events                                                                 |          1 |          6 |          0 |          0 |          6 |
+| rpgbot/src/types                                                                  |          3 |         18 |          0 |          0 |         18 |
+| web                                                                               |          1 |         18 |          0 |          2 |         20 |
+| web/app                                                                           |          1 |         18 |          0 |          2 |         20 |
+| web/app/components                                                                |          1 |         18 |          0 |          2 |         20 |
+| web/app/components/quests                                                         |          1 |         18 |          0 |          2 |         20 |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| filename                                                                          | language       | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/cache/profileService.ts              | TypeScript     |          4 |          0 |          1 |          5 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/configQuests.ts       | TypeScript     |         32 |          0 |          6 |         38 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/admin/set.ts                | TypeScript     |          5 |          0 |          5 |         10 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/index.ts                    | TypeScript     |          3 |          0 |          0 |          3 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/inventory.ts           | TypeScript     |        119 |          2 |         25 |        146 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/profile.ts             | TypeScript     |          0 |         -1 |         -1 |         -2 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/quests.ts              | TypeScript     |          5 |          0 |          1 |          6 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/settings.ts            | TypeScript     |        169 |          4 |         31 |        204 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/commands/user/trade.ts               | TypeScript     |         16 |          0 |          2 |         18 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/db/userGuildProfiles.ts              | TypeScript     |         42 |          2 |          4 |         48 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/events/interactionCreate.ts          | TypeScript     |          6 |          0 |          0 |          6 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/cache.ts                       | TypeScript     |          7 |          0 |          0 |          7 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/guild.ts                       | TypeScript     |          4 |          0 |          0 |          4 |
+| /Users/joshuakim/Documents/yeayea/rpgbot/src/types/userprofile.ts                 | TypeScript     |          7 |          0 |          0 |          7 |
+| /Users/joshuakim/Documents/yeayea/web/app/components/quests/questsBasicEditor.tsx | TypeScript JSX |         18 |          0 |          2 |         20 |
+| Total                                                                             |                |        437 |          7 |         76 |        520 |
++-----------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+

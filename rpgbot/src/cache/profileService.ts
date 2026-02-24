@@ -100,6 +100,16 @@ export async function flushProfileCacheToDb(opts: { userId: number; guildId: num
         values.push(JSON.stringify(changes.quests));
     }
 
+    if (changes.equips !== undefined) {
+        setClauses.push(`equips = $${idx++}`);
+        values.push(JSON.stringify(changes.equips));
+    }
+
+    if (changes.settings !== undefined) {
+        setClauses.push(`settings = $${idx++}`);
+        values.push(JSON.stringify(changes.settings));
+    }
+
     if (setClauses.length === 0) {
         cached.dirty = false;
         cached.pendingChanges = undefined;

@@ -13,6 +13,8 @@ type UpsertGuildArgs = {
 export async function upsertGuild(args: UpsertGuildArgs): Promise<DbGuild> {
     const { discordGuildId, name, iconUrl } = args;
 
+    console.log(args)
+
     const result = await query<DbGuild>(
         `
         INSERT INTO guilds (discord_guild_id, name, icon_url)

@@ -10,14 +10,35 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "runCommand" | "giveStat";
+    type: "assignRole" | "removeRole" | "sendMessage" | "runCommand" | "giveStat" | "giveItem";
     roleId?: string;
     message?: string;
     channelId?: string;
+    itemId?: string;
+    quantity?: number;
     command?: string;
     statId?: string;
     amount?: number;
 }
+
+export type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";
+
+export type ItemEffects = {
+  cosmetic?: {
+    accentHex?: string;     // aura / accent
+    textHex?: string;
+    title?: string;
+    nameEmoji?: string;     // shown near username on card
+    fontPreset?: "inter" | "sora" | "nunito";
+  };
+  boosts?: {
+    xpMultiplier?: number;
+    goldMultiplier?: number;
+  };
+  quest?: {
+    canStartQuestIds?: string[];
+  };
+};
 export interface shopItemConfig {
     id: string;
     name: string;
@@ -28,6 +49,8 @@ export interface shopItemConfig {
 
     price: number;
     sellPrice?: number | null;
+    equipable?: boolean;
+    equipSlot?: EquipSlot;
 
     minLevel?: number;
     requiresRoleIds?: string[];
@@ -36,6 +59,8 @@ export interface shopItemConfig {
     hidden?: boolean;
     permanent?: boolean;
     tradeable?: boolean;
+
+    effects?: ItemEffects;
 
     actions?: Record<number, shopItemAction>;
 }

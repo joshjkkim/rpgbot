@@ -7,7 +7,10 @@ import { handleConfigPanelButton } from "../ui/panel/panelButton.js";
 import { handleConfigPanelModalSubmit } from "../ui/panel/panelModal.js";
 import { handleBuyItemButton, handleMainShopButton, handlePurchaseItemModal } from "../commands/user/shop.js";
 import { handleProfileButton } from "../commands/user/profile.js";
+import { handleInventoryButton } from "../commands/user/inventory.js";
 import { handleQuestsButton, handleQuestsClaimModal, handleQuestsStartModal } from "../commands/user/quests.js";
+import { handleTradeOfferButton, handleTradeOfferModal } from "../commands/user/trade.js";
+import { handleSettingsModal } from "../commands/user/settings.js";
 
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -41,6 +44,10 @@ export function registerInteractionCreate(client: Client) {
                     await handleProfileButton(interaction);
                 } else if (interaction.customId.startsWith("quests:")) {
                     await handleQuestsButton(interaction);
+                } else if (interaction.customId.startsWith("trade:")) {
+                    await handleTradeOfferButton(interaction);
+                } else if (interaction.customId.startsWith("inventory:")) {
+                    await handleInventoryButton(interaction);
                 }
 
                 return;
@@ -57,6 +64,10 @@ export function registerInteractionCreate(client: Client) {
                     } else if (interaction.customId.startsWith("quests:modal:claim")) {
                         await handleQuestsClaimModal(interaction);
                     }
+                } else if (interaction.customId.startsWith("trade:modal:")) {
+                    await handleTradeOfferModal(interaction);
+                } else if (interaction.customId.startsWith("settings:modal:")) {
+                    await handleSettingsModal(interaction);
                 }
                 return;
             }

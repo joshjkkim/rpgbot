@@ -54,7 +54,9 @@ export interface xpChannelConfig {
 
 export interface GuildConfig {
     style: {
+        template: "default" | "fantasy";
         mainThemeColor: string;
+        mainTextColor: string;
         gold: {
             icon?: string;
             name?: string;
@@ -108,6 +110,8 @@ export interface GuildConfig {
         quests: Record<string, QuestConfig>;
         announceAllId: string | null;
         announceMessage: string | null;
+        dmUser: boolean;
+        replyMessage: boolean;
     },
     levels: {
         maxLevel: number | null;
@@ -122,6 +126,7 @@ export interface GuildConfig {
         enabled?: boolean;
         categories?: Record<string, shopCategoryConfig>;
         items?: Record<string, shopItemConfig>;
+        gifting?: { enabled: boolean, message: string | null, announceChannel: string | null, dm: boolean, levelReq: number  };
     },
     logging: {
         enabled?: boolean;
@@ -133,6 +138,8 @@ export interface GuildConfig {
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {
     style: {
         mainThemeColor: "#00AE86",
+        mainTextColor: "#FFFFFF",
+        template: "default",
         gold: {
             icon: "💰",
             name: "Gold"
@@ -187,6 +194,8 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         quests: {},
         announceAllId: null,
         announceMessage: null,
+        dmUser: false,
+        replyMessage: false,
     },
     levels: {
         maxLevel: 100,
@@ -200,20 +209,22 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
     shop: {
         enabled: false,
         categories: {},
-        items: {}
+        items: {},
+        gifting: { enabled: false, message: null, announceChannel: null, dm: false,levelReq: 0 },
     },
     logging: {
         enabled: false,
         mainChannelId: null,
         allowedCategories: {
-            economy: null,
-            xp: null,
-            daily: null,
-            streak: null,
-            level: null,
-            config: null,
-            inventory: null,
-            admin: null
+            economy: false,
+            xp: false,
+            daily: false,
+            streak: false,
+            level: false,
+            config: false,
+            inventory: false,
+            admin: false,
+            quests: false
         }
     }
 };

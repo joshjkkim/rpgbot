@@ -18,6 +18,24 @@ export const data = new SlashCommandBuilder()
     )
 
     .addSubcommand(sub =>
+        sub.setName("set-main-text-color").setDescription("Set the main text color for embeds (other specifics override this)")
+            .addStringOption(opt =>
+                opt.setName("color").setDescription("The main text color in hex format (e.g. #FFFFFF)").setRequired(true)
+            )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("set-theme-template").setDescription("Set a predefined theme template for the server")
+            .addStringOption(opt =>
+                opt.setName("template").setDescription("The name of the theme template to apply").setRequired(true)
+                .addChoices(
+                    { name: "Default", value: "default" },
+                    { name: "Fantasy", value: "fantasy" },
+                )
+            )
+    )
+
+    .addSubcommand(sub =>
         sub.setName("set-xp").setDescription("Set name and icon for XP (any leveling thing)")
         .addStringOption(opt =>
             opt.setName("name").setDescription("The name for XP (e.g. 'Experience, Mana, Life')").setRequired(false)
@@ -71,11 +89,37 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             await interaction.editReply(`Main theme color set to ${newConfig.style.mainThemeColor}.`);
             break;
         }
-    
+
+        case "set-main-text-color": {
+            const color = interaction.options.getString("color", true);
+            
+            if (!/^#?[0-9A-Fa-f]{6}$/.test(color)) {
+                await interaction.editReply("Please provide a valid hex color code (e.g. #FFFFFF).");
+                return;
+            }
+
+            newConfig.style.mainTextColor = color.startsWith("#") ? color : `#${color}`;
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply(`Main text color set to ${newConfig.style.mainTextColor}.`);
+            break;
+        }
+
+        case "set-theme-template": {
+            const template = interaction.options.getString("template", true);
+
+            newConfig.style.template = template as "default" | "fantasy";
+            await setGuildConfig(interaction.guildId, newConfig);
+
+            await interaction.editReply(`Theme template set to ${template}.`);
+            break;
+        }
+
     case "set-xp": {
             const name = interaction.options.getString("name");
             const icon = interaction.options.getString("icon");
 
+            newConfig.style.xp = { ...(newConfig.style.xp ?? {}) };
             if (name) {
                 newConfig.style.xp.name = name;
             }
@@ -93,6 +137,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             const name = interaction.options.getString("name");
             const icon = interaction.options.getString("icon");
 
+            newConfig.style.gold = { ...(newConfig.style.gold ?? {}) };
             if (name) {
                 newConfig.style.gold.name = name;
             }
@@ -108,6 +153,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
         default: {
             await interaction.editReply("Unknown subcommand.");
+            return;
         }
     }
 
@@ -120,6 +166,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     
             await logAndBroadcastEvent(interaction, {
                 guildId: guild.id,
+                discordGuildId: guild.discord_guild_id,
                 userId: user.id,
                 category: "config",
                 eventType: "configChange",

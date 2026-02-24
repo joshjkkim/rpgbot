@@ -8,13 +8,20 @@ import { MessageFlags } from "discord.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import type { QuestConfig, UserQuestState } from "../../types/quest.js";
 import { userGuildProfileCache, profileKey } from "../../cache/caches.js";
+import { logAndBroadcastEvent } from "../../db/events.js";
 
 function formatProgress(state: any, def: any) {
   const cur = typeof state?.progress === "number" ? state.progress : 0;
   const target = def?.conditions?.target ?? def?.conditions?.value ?? 0;
 
   if (!target) return `\`${cur}\``;
-  return `\`${Math.min(cur, target)}/${target}\``;
+
+  const capped = Math.min(cur, target);
+  const BAR_LENGTH = 10;
+  const filled = Math.round((capped / target) * BAR_LENGTH);
+  const bar = "█".repeat(filled) + "░".repeat(BAR_LENGTH - filled);
+  const pct = Math.floor((capped / target) * 100);
+  return `\`[${bar}]\` **${capped}/${target}** (${pct}%)`;
 }
 
 export function questStatus(state: any, def: any, now: number) {
@@ -118,7 +125,7 @@ function renderMyQuestsEmbed({ userQuests, questDefs, config, username }: any) {
         lineStatus = `🎁 Completed — ready to claim`;
         break;
       case "active":
-        lineStatus = `🟡 In progress${config?.quests?.progress ? ` (${formatProgress(state, def)})` : ""}`;
+        lineStatus = `🟡 In progress — ${formatProgress(state, def)}`;
         break;
       default:
         lineStatus = `🟢 Available`;
@@ -157,7 +164,7 @@ function renderAllQuestsEmbed({ userQuests, questDefs, config }: any) {
         lineStatus = `✅ Completed — ready to claim`;
         break;
       case "active":
-        lineStatus = `🟡 In progress${config?.quests?.progress ? ` (${formatProgress(state, def)})` : ""}`;
+        lineStatus = `🟡 In progress — ${formatProgress(state, def)}`;
         break;
       default:
         lineStatus = `🟢 Available`;
@@ -377,6 +384,16 @@ export async function handleQuestsStartModal(interaction: ModalSubmitInteraction
     lastLoaded: Date.now(),
   });
 
+  await logAndBroadcastEvent(interaction, {
+    guildId: dbGuild.id,
+    discordGuildId: dbGuild.discord_guild_id,
+    userId: dbUser.id,
+    category: "quests",
+    eventType: "startQuest",
+    questId: questId,
+    timestamp: new Date(),
+  }, config);
+
   await interaction.editReply({ content: `Started **${qc.name}**.` });
 }
 
@@ -476,6 +493,20 @@ export async function handleQuestsClaimModal(interaction: ModalSubmitInteraction
   if (rewardEffects.grantedItems.length) {
     for (const it of rewardEffects.grantedItems) parts.push(`+${it.quantity} ${it.itemId}`);
   }
+
+  await logAndBroadcastEvent(interaction, {
+    guildId: dbGuild.id,
+    discordGuildId: dbGuild.discord_guild_id,
+    userId: dbUser.id,
+    category: "quests",
+    eventType: "claimQuest",
+    questId: questId,
+    xpDelta: rewardEffects.totalXp,
+    goldDelta: rewardEffects.totalGold,
+    itemId: rewardEffects.grantedItems.map(it => it.itemId).join(", "),
+    itemQuantity: rewardEffects.grantedItems.reduce((sum, it) => sum + it.quantity, 0),
+    timestamp: new Date(),
+  }, config);
 
   await interaction.editReply({
     content: parts.length ? `Claimed **${qc.name}**! (${parts.join(", ")})` : `Claimed **${qc.name}**!`,

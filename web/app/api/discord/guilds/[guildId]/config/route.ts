@@ -12,15 +12,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
     const auth = await requireGuildOwner(guildId);
     if (!auth.ok) return NextResponse.json({ error: "forbidden" }, { status: auth.status });
 
-    const res = await dbQuery<{ config: any }>(
-        `SELECT config FROM guilds WHERE discord_guild_id = $1`, 
+    const res = await dbQuery<{ config: any, id: any }>(
+        `SELECT id, config FROM guilds WHERE discord_guild_id = $1`, 
         [guildId]
     );
 
-    const result = res.rows[0]?.config ?? null;
-    if (!result) return NextResponse.json({ error: "not_found" }, { status: 404 });
-
-    return NextResponse.json({ config: result });
+    if (!res.rows[0] || !res.rows[0]?.id || !res.rows[0]?.config ) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    console.log(res.rows[0]);
+    return NextResponse.json({ config: res.rows[0].config, id: res.rows[0].id });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {

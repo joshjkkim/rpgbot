@@ -123,62 +123,72 @@ export function applyQuestRewards(args: {
 }): QuestRewardEffects {
   let { profile, pending, quest, config } = args;
 
-  const reward = quest.reward;
+  const rewards = quest.reward;
   let totalXp = 0;
   let totalGold = 0;
   const grantedItems: { itemId: string; quantity: number }[] = [];
   const grantedRoles: string[] = [];
   const messages: { channelId: string; message: string }[] = [];
 
-  if (!reward) {
+  if (!rewards) {
     return { profile, pending, totalXp, totalGold, grantedItems, grantedRoles, messages };
   }
 
-  // init stats bucket if you want (optional)
   const stats = (profile.user_stats ?? {}) as any;
   profile.user_stats = stats;
 
-  // XP
-  if (reward.xp && reward.xp > 0) {
-    totalXp += reward.xp;
-    const currentXp = BigInt(profile.xp ?? "0");
-    profile.xp = (currentXp + BigInt(reward.xp)).toString();
-  }
+  const rewardList = typeof rewards === "object" && !Array.isArray(rewards)
+    ? Object.values(rewards)
+    : Array.isArray(rewards)
+      ? rewards
+      : [rewards];
 
-  // Gold
-  if (reward.gold && reward.gold > 0) {
-    totalGold += reward.gold;
-    const currentGold = BigInt(profile.gold ?? "0");
-    profile.gold = (currentGold + BigInt(reward.gold)).toString();
-  }
+  for (const reward of rewardList) {
 
-  // Item
-  if (reward.itemId && (reward.quantity ?? 0) > 0) {
-    const inventory = profile.inventory ?? {};
-    const qty = reward.quantity ?? 0;
+    if (!reward) continue;
 
-    const itemDef = config.shop?.items?.[reward.itemId] ?? null;
-    if (itemDef) {
-      const currentQty = inventory[itemDef.id]?.quantity ?? 0;
-      inventory[itemDef.id] = {
-        id: itemDef.id,
-        name: itemDef.name,
-        emoji: itemDef.emoji ?? "",
-        description: itemDef.description ?? "",
-        quantity: currentQty + qty,
-      } as item;
-
-      profile.inventory = inventory;
-      grantedItems.push({ itemId: itemDef.id, quantity: qty });
+    // XP
+    if (reward.xp && reward.xp > 0) {
+      totalXp += reward.xp;
+      const currentXp = BigInt(profile.xp ?? "0");
+      profile.xp = (currentXp + BigInt(reward.xp)).toString();
     }
+
+    // Gold
+    if (reward.gold && reward.gold > 0) {
+      totalGold += reward.gold;
+      const currentGold = BigInt(profile.gold ?? "0");
+      profile.gold = (currentGold + BigInt(reward.gold)).toString();
+    }
+
+    // Item
+    if (reward.itemId) {
+      const inventory = profile.inventory ?? {};
+      const qty = reward.quantity ?? 1;
+
+      const itemDef = config.shop?.items?.[reward.itemId] ?? null;
+      if (itemDef) {
+        const currentQty = inventory[itemDef.id]?.quantity ?? 0;
+        inventory[itemDef.id] = {
+          id: itemDef.id,
+          name: itemDef.name,
+          emoji: itemDef.emoji ?? "",
+          description: itemDef.description ?? "",
+          quantity: currentQty + qty,
+        } as item;
+
+        profile.inventory = inventory;
+        grantedItems.push({ itemId: itemDef.id, quantity: qty });
+      }
+    }
+
+    // Role
+    if (reward.roleId) grantedRoles.push(reward.roleId);
+
+    // Message
+    const chId = reward.channelId ?? quest.overrideChannelId ?? null;
+    if (reward.message && chId) messages.push({ channelId: chId, message: reward.message });
   }
-
-  // Role + message are side-effects (we *collect* them here)
-  if (reward.roleId) grantedRoles.push(reward.roleId);
-
-  // channelId/message: allow quest-level overrideChannelId too
-  const chId = reward.channelId ?? quest.overrideChannelId ?? null;
-  if (reward.message && chId) messages.push({ channelId: chId, message: reward.message });
 
   pending = {
     ...pending,

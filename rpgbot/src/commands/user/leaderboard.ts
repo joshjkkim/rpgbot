@@ -74,12 +74,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             ? row.gold
             : row.streak_count;
 
-        return `${rank} **${row.username}** — Lvl ${row.level} • ${typeIcon} \`${value}\``;
+        return `${rank} **<@${row.discord_user_id}>** — Lvl ${row.level} • ${typeIcon} \`${value}\``;
     });
 
     const me = res.rows.find((row: any) => row.discord_user_id === interaction.user.id);
 
     const themeColor = (config.style.mainThemeColor || "#00AE86") as ColorResolvable;
+
+    console.log(guild)
 
     const embed = new EmbedBuilder()
         .setTitle(`${guild.name}'s ${typeLabel} Leaderboard`)
