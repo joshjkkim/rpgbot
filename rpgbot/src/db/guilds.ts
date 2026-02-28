@@ -13,16 +13,14 @@ type UpsertGuildArgs = {
 export async function upsertGuild(args: UpsertGuildArgs): Promise<DbGuild> {
     const { discordGuildId, name, iconUrl } = args;
 
-    console.log(args)
-
     const result = await query<DbGuild>(
         `
         INSERT INTO guilds (discord_guild_id, name, icon_url)
         VALUES ($1, $2, $3)
         ON CONFLICT (discord_guild_id)
         DO UPDATE SET
-        name = EXCLUDED.name,
-        icon_url = EXCLUDED.icon_url
+        name = COALESCE(EXCLUDED.name, guilds.name),
+        icon_url = COALESCE(EXCLUDED.icon_url, guilds.icon_url)
         RETURNING *;
         `,
         [discordGuildId, name ?? null, iconUrl ?? null]

@@ -45,6 +45,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const typeLabel = prettyLabel[leaderboardType] ?? leaderboardType.toUpperCase();
     const typeIcon = icon[leaderboardType] ?? "⭐";
 
+    // Settings key that controls privacy for each leaderboard type (null = no flag)
+    const privacyKey: Record<string, string | null> = {
+        xp: "xpPrivate",
+        gold: "goldPrivate",
+        streak_count: null,
+    };
+    const privKey = privacyKey[leaderboardType];
+
     const res = await query(
         `SELECT ugp.*, u.username, u.discord_user_id
         FROM user_guild_profiles ugp
@@ -67,21 +75,38 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         : index === 2 ? "🥉"
         : `#${index + 1}`;
 
-        const value =
-        leaderboardType === "xp"
-            ? row.xp
-            : leaderboardType === "gold"
-            ? row.gold
+        const isPrivate = privKey ? !!(row.settings?.[privKey]) : false;
+        const rawValue =
+            leaderboardType === "xp" ? row.xp
+            : leaderboardType === "gold" ? row.gold
             : row.streak_count;
+        const displayValue = isPrivate ? "??" : rawValue;
 
-        return `${rank} **<@${row.discord_user_id}>** — Lvl ${row.level} • ${typeIcon} \`${value}\``;
+        return `${rank} **<@${row.discord_user_id}>** — Lvl ${row.level} • ${typeIcon} \`${displayValue}\``;
     });
 
-    const me = res.rows.find((row: any) => row.discord_user_id === interaction.user.id);
+    const meInTop = res.rows.find((row: any) => row.discord_user_id === interaction.user.id);
+
+    // If caller is not in the top 10, fetch their rank via window function
+    let myRankRow: any = null;
+    if (!meInTop) {
+        const rankRes = await query(
+            `SELECT rank_val, level, xp, gold, streak_count
+            FROM (
+                SELECT ugp.level, ugp.xp, ugp.gold, ugp.streak_count,
+                       u.discord_user_id,
+                       RANK() OVER (ORDER BY ugp.${leaderboardType} DESC) AS rank_val
+                FROM user_guild_profiles ugp
+                JOIN users u ON ugp.user_id = u.id
+                WHERE ugp.guild_id = $1
+            ) ranked
+            WHERE discord_user_id = $2`,
+            [guild.id, interaction.user.id],
+        );
+        if (rankRes.rows.length > 0) myRankRow = rankRes.rows[0];
+    }
 
     const themeColor = (config.style.mainThemeColor || "#00AE86") as ColorResolvable;
-
-    console.log(guild)
 
     const embed = new EmbedBuilder()
         .setTitle(`${guild.name}'s ${typeLabel} Leaderboard`)
@@ -89,16 +114,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         .setColor(themeColor)
         .setThumbnail(guild.icon_url ?? null);
 
-    if (me) {
+    if (meInTop) {
+        // Always show caller their own real value
         const meValue =
-        leaderboardType === "xp"
-            ? me.xp
-            : leaderboardType === "gold"
-            ? me.gold
-            : me.streak_count;
-
+            leaderboardType === "xp" ? meInTop.xp
+            : leaderboardType === "gold" ? meInTop.gold
+            : meInTop.streak_count;
+        const meRank = res.rows.indexOf(meInTop) + 1;
         embed.setFooter({
-        text: `${interaction.user.username}'s ${typeLabel}: ${meValue} • Level ${me.level}`,
+            text: `You are #${meRank} • ${typeLabel}: ${meValue} • Level ${meInTop.level}`,
+        });
+    } else if (myRankRow) {
+        const meValue =
+            leaderboardType === "xp" ? myRankRow.xp
+            : leaderboardType === "gold" ? myRankRow.gold
+            : myRankRow.streak_count;
+        embed.setFooter({
+            text: `You are #${myRankRow.rank_val} • ${typeLabel}: ${meValue} • Level ${myRankRow.level}`,
         });
     }
 

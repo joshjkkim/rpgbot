@@ -1,11 +1,10 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags, type ChatInputCommandInteraction, type ColorResolvable, type MessageActionRowComponentBuilder } from "discord.js";
-import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { calculateTotalXpForLevel } from "../../leveling/levels.js";
-import { refreshTempRolesForMember } from "../../player/roles.js";
-import type { GuildConfig, StreakReward } from "../../types/guild.js";
+import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile, UserStats } from "../../types/userprofile.js";
 import { AttachmentBuilder } from "discord.js";
 import { createCanvas, loadImage, GlobalFonts, type CanvasRenderingContext2D } from "@napi-rs/canvas";
@@ -13,31 +12,6 @@ GlobalFonts.registerFromPath("assets/fonts/Inter-Regular.ttf", "Inter");
 GlobalFonts.registerFromPath("assets/fonts/Inter-SemiBold.ttf", "InterSemi");
 GlobalFonts.registerFromPath("assets/fonts/Inter-Bold.ttf", "InterBold");
 import { drawTextWithEmojis } from "../../ui/canvas/drawEmojis.js";
-
-function createProgressBar(current: number, max: number, length: number = 10): string {
-    const progress = Math.min(current / max, 1);
-    const filledBars = Math.floor(progress * length);
-    const emptyBars = length - filledBars;
-    
-    const filled = '█'.repeat(filledBars);
-    const empty = '░'.repeat(emptyBars);
-    
-    return `${filled}${empty}`;
-}
-
-function formatDuration(ms: number): string {
-    if (ms <= 0) return "expired";
-
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days}d ${hours % 24}h`;
-    if (hours > 0) return `${hours}h ${minutes % 60}m`;
-    if (minutes > 0) return `${minutes}m`;
-    return `${totalSeconds}s`;
-}
 
 function roundRectPath(ctx: any, x: number, y: number, w: number, h: number, r: number) {
   const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
@@ -74,7 +48,13 @@ async function drawAvatarCircle(ctx: any, url: string, cx: number, cy: number, r
 
 export const data = new SlashCommandBuilder()
     .setName("profile")
-    .setDescription("View your profile");
+    .setDescription("View your profile")
+
+    .addUserOption(option =>
+        option.setName("user")
+            .setDescription("The user to view the profile of")
+            .setRequired(false)
+    );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.inGuild() || !interaction.guildId) {
@@ -82,10 +62,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
+    const user = interaction.options.getUser("user") ?? interaction.user;
+
     const { user: dbUser } = await getOrCreateDbUser({
-        discordUserId: interaction.user.id,
-        username: interaction.user.username,
-        avatarUrl: interaction.user.displayAvatarURL(),
+        discordUserId: user.id,
+        username: user.username,
+        avatarUrl: user.displayAvatarURL(),
     });
 
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });

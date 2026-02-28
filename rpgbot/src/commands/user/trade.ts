@@ -357,10 +357,10 @@ export async function handleTradeOfferModal(interaction: ModalSubmitInteraction)
         });
 
         const receiverDiscordUser = await interaction.client.users.fetch(receiverDiscordId);
-        if(receiverDiscordUser) {
+        if (receiverDiscordUser && receiverProfile.settings && receiverProfile.settings?.dmOnTradeInbound !== false) {
             await receiverDiscordUser.send({
                 content: `You have a new trade offer from <@${interaction.user.id}> in **${interaction.guild?.name}**.`
-            });
+            }).catch(() => null);
         }
     } else {
         await interaction.editReply({ content: "Failed to create trade offer. Make sure both parties have the required items and gold." });
