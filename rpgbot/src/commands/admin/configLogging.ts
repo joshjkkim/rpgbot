@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
@@ -9,6 +9,10 @@ export const data = new SlashCommandBuilder()
     .setName("config-logging")
     .setDescription("Configure event logging for this server")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+
+    .addSubcommand(sub =>
+        sub.setName("show").setDescription("Show current logging configuration")
+    )
 
     .addSubcommand(sub =>
         sub.setName("toggle").setDescription("Enable or disable event logging")
@@ -92,6 +96,24 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const sub = interaction.options.getSubcommand();
 
     switch (sub) {
+        case "show": {
+            const categories = config.logging.allowedCategories ?? {};
+            const activeCategories = Object.entries(categories)
+                .filter(([, val]) => val !== false)
+                .map(([cat, channelId]) => `**${cat}**${channelId ? ` → <#${channelId}>` : " (main)"}`)
+                .join("\n") || "None";
+            const embed = new EmbedBuilder()
+                .setTitle("📋 Logging Configuration")
+                .setColor((config.style?.mainThemeColor ?? "#00AE86") as any)
+                .addFields(
+                    { name: "Enabled", value: config.logging.enabled ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "Main Channel", value: config.logging.mainChannelId ? `<#${config.logging.mainChannelId}>` : "None", inline: true },
+                    { name: "Active Categories", value: activeCategories, inline: false },
+                );
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
+
         case "toggle": {
             const enabled = interaction.options.getBoolean("enabled", true);
 

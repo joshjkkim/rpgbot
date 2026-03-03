@@ -3,6 +3,7 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { getInventory } from "../../player/inventory.js";
+import { calculateStats, resolveCurrentHp, formatStats } from "../../player/combat.js";
 
 const SLOT_META: { key: keyof NonNullable<import("../../types/userprofile.js").DbUserGuildProfile["equips"]>; label: string; emoji: string }[] = [
     { key: "head",      label: "Head",      emoji: "👑" },
@@ -149,8 +150,18 @@ export async function handleInventoryButton(interaction: ButtonInteraction) {
             if (boosts?.goldMultiplier && boosts.goldMultiplier !== 1) effectLines.push(`💰 Gold ×${boosts.goldMultiplier}`);
         }
 
-        const description = slotLines.join("\n") +
-            (effectLines.length > 0 ? `\n\n**Active Effects**\n${effectLines.join("\n")}` : "");
+        // Combat stats
+        const combatStats = config.combat?.enabled
+            ? calculateStats(profile, config, shopItems)
+            : null;
+        const currentHp = combatStats ? resolveCurrentHp(profile, combatStats) : null;
+
+        const description =
+            slotLines.join("\n") +
+            (effectLines.length > 0 ? `\n\n**Active Effects**\n${effectLines.join("\n")}` : "") +
+            (combatStats && currentHp !== null
+                ? `\n\n**Combat Stats**\n${formatStats(combatStats, currentHp)}`
+                : "");
 
         const gearEmbed = new EmbedBuilder()
             .setTitle(`⚔️ ${interaction.user.username}'s Gear`)

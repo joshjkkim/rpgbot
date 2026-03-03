@@ -2,6 +2,7 @@ import type { shopCategoryConfig, shopItemConfig } from "./economy.js";
 import type { EventCategory } from "./logging.js";
 import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
+import type { EnemyConfig } from "./combat.js";
 export interface DbGuild {
     id: number;
     discord_guild_id: string;
@@ -64,6 +65,33 @@ export interface GuildConfig {
         xp: {
             icon?: string;
             name?: string;
+        };
+    },
+    combat: {
+        enabled: boolean;
+        hpBase?: number;
+        hpPerLevel?: number;
+        attackBase?: number;
+        attackPerLevel?: number;
+        defenseBase?: number;
+        defensePerLevel?: number;
+        speedBase?: number;
+        speedPerLevel?: number;
+        critChanceBase?: number;
+        critChancePerLevel?: number;
+        critMultiplierBase?: number;
+        critMultiplierPerLevel?: number;
+        enemies?: Record<string, EnemyConfig>;
+        pveDeathPenalty?: {
+            goldPercent?: number;   // % of current gold lost (e.g. 5 = 5%). Default: 0
+            goldFlat?: number;      // minimum flat gold lost regardless of percent. Default: 0
+            xpPercent?: number;     // % of current XP lost. Default: 0 (not recommended)
+        };
+        pvpDeathPenalty?: {
+            goldPercent?: number;
+            goldFlat?: number;
+            xpPercent?: number;
+            loserGoldToWinner?: boolean; // if true, loser's lost gold goes to winner
         };
     },
     xp: {
@@ -148,6 +176,22 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
             icon: "⭐",
             name: "XP"
         }
+    },
+    combat: {
+        enabled: false,
+        hpBase: 100,
+        hpPerLevel: 10,
+        attackBase: 10,
+        attackPerLevel: 2,
+        defenseBase: 5,
+        defensePerLevel: 1,
+        speedBase: 5,
+        speedPerLevel: 1,
+        critChanceBase: 0.05,
+        critChancePerLevel: 0.01,
+        critMultiplierBase: 1.5,
+        critMultiplierPerLevel: 0.1,
+        enemies: {}
     },
     xp: {
         basePerMessage: 5,

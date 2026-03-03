@@ -11,6 +11,7 @@ import type { item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
 import type { EquipSlot } from "../types/economy.js";
+import { calculateStats, resolveCurrentHp } from "./combat.js";
 
 export async function updateInventory(userId: number, guildId: number, inventory: Record<string, item>, newGoldBalance: number): Promise<void> {
     const cached = await getOrCreateProfile({ userId, guildId });
@@ -247,6 +248,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
 
     let xpGained = 0;
     let goldGained = 0;
+    let healthGained = 0;
 
     for (let i = 0; i < quantity; i++) {
         for (const actionKey in items[itemId].actions) {
@@ -366,6 +368,31 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                         break; 
                     }
 
+                    case "health": {
+                        const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+                        let p = cached.profile;
+                        let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+
+                        const playerStats = calculateStats(p, config, config.shop?.items ?? {});
+                        const currentHp = resolveCurrentHp(p, playerStats);
+                        const newHp = Math.min(playerStats.maxHp, currentHp + (action.amount ?? 0));
+                        healthGained += newHp - currentHp;
+
+                        const s = { ...(p.user_stats ?? {}) };
+                        s.currentHp = newHp;
+                        p.user_stats = s;
+                        pending = { ...pending, user_stats: p.user_stats };
+
+                        userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+                            profile: p,
+                            pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
+                            dirty: true,
+                            lastWroteToDb: cached.lastWroteToDb,
+                            lastLoaded: Date.now(),
+                        });
+                        break;
+                    }
+
                     default:
                         break;
                 }
@@ -395,6 +422,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     s2.goldEarned = (s2.goldEarned ?? 0) + goldGained;
     s2.goldFromItems = (s2.goldFromItems ?? 0) + goldGained;
     s2.xpFromItems = (s2.xpFromItems ?? 0) + xpGained;
+    s2.healthFromItems = (s2.healthFromItems ?? 0) + healthGained;
     s2.itemsUsed = (s2.itemsUsed ?? 0) + quantity;
     p2.user_stats = s2;
 

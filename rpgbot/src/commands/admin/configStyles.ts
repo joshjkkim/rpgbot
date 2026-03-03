@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
+import { EmbedBuilder, SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
@@ -9,6 +9,10 @@ export const data = new SlashCommandBuilder()
     .setName("config-styles")
     .setDescription("Configure styles settings for this server")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+
+    .addSubcommand(sub =>
+        sub.setName("show").setDescription("Show current style configuration")
+    )
 
     .addSubcommand(sub =>
         sub.setName("set-main-theme-color").setDescription("Set the main theme color for embeds (other specifics override this)")
@@ -75,6 +79,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     let newConfig = { ...config, style: { ...(config.style ?? {})}}
 
     switch (sub) {
+        case "show": {
+            const embed = new EmbedBuilder()
+                .setTitle("🎨 Style Configuration")
+                .setColor((config.style?.mainThemeColor ?? "#00AE86") as any)
+                .addFields(
+                    { name: "Theme Template", value: config.style.template ?? "default", inline: true },
+                    { name: "Main Theme Color", value: config.style.mainThemeColor ?? "#00AE86", inline: true },
+                    { name: "Main Text Color", value: config.style.mainTextColor ?? "#FFFFFF", inline: true },
+                    { name: "XP Style", value: `Name: **${config.style.xp?.name ?? "XP"}**  Icon: ${config.style.xp?.icon ?? "⭐"}`, inline: true },
+                    { name: "Gold Style", value: `Name: **${config.style.gold?.name ?? "Gold"}**  Icon: ${config.style.gold?.icon ?? "💰"}`, inline: true },
+                );
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
+
         case "set-main-theme-color": {
             const color = interaction.options.getString("color", true);
             

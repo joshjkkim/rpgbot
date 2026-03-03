@@ -38,6 +38,13 @@ export type ItemEffects = {
   quest?: {
     canStartQuestIds?: string[];
   };
+  stats?: {
+    hp?: number;       // bonus max HP
+    atk?: number;      // bonus attack
+    def?: number;      // bonus defense
+    spd?: number;      // bonus speed
+    crit?: number;     // bonus crit chance (%)
+  };
 };
 export interface shopItemConfig {
     id: string;

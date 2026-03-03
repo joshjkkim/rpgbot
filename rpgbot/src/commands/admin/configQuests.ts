@@ -9,6 +9,11 @@ export const data = new SlashCommandBuilder()
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 
     .addSubcommand(sub =>
+        sub.setName("show")
+        .setDescription("Show current quest configuration")
+    )
+
+    .addSubcommand(sub =>
         sub.setName("enable-quests")
         .setDescription("Enable quests system in this server")
         .addBooleanOption(opt =>
@@ -184,6 +189,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     let newConfig = structuredClone(config);
 
     switch (sub) {
+        case "show": {
+            const themeColor: string = config.style.mainThemeColor || "#0099ff";
+            const questCount = Object.keys(config.quests.quests || {}).length;
+            const embed = new EmbedBuilder()
+                .setTitle("📜 Quest Configuration")
+                .setColor(themeColor as ColorResolvable)
+                .addFields(
+                    { name: "Enabled", value: config.quests.enabled ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "DM on Complete", value: config.quests.dmUser ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "Reply on Complete", value: config.quests.replyMessage ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "Quests Configured", value: questCount.toString(), inline: true },
+                    { name: "Announce Channel", value: config.quests.announceAllId ? `<#${config.quests.announceAllId}>` : "None", inline: true },
+                    { name: "Announce Message", value: config.quests.announceMessage ?? "None", inline: false },
+                );
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
+
         case "help": {
             const themeColor: string = config.style.mainThemeColor || "#0099ff";
             const embed = new EmbedBuilder()

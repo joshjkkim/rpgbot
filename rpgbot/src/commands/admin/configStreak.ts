@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from "discord.js";
+import { EmbedBuilder, SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";   
 import { getOrCreateDbUser } from "../../cache/userService.js";
@@ -9,6 +9,10 @@ export const data = new SlashCommandBuilder()
     .setName("config-streak")
     .setDescription("Configure Streak settings for this server")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+
+    .addSubcommand(sub =>
+        sub.setName("show").setDescription("Show current streak configuration")
+    )
 
     .addSubcommand(sub =>
         sub.setName("set-announcement-channel").setDescription("Set the channel to announce streak milestones")
@@ -76,6 +80,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     let newConfig = { ...config };
 
     switch (sub) {
+        case "show": {
+            const rewardCount = Object.keys(newConfig.xp.streakRewards || {}).length;
+            const embed = new EmbedBuilder()
+                .setTitle("🔥 Streak Configuration")
+                .setColor((config.style?.mainThemeColor ?? "#00AE86") as any)
+                .addFields(
+                    { name: "Streak Multiplier", value: `${newConfig.xp.streakMultiplier}`, inline: true },
+                    { name: "Announce Channel", value: newConfig.xp.streakAnnounceChannelId ? `<#${newConfig.xp.streakAnnounceChannelId}>` : "None", inline: true },
+                    { name: "Streak Rewards Configured", value: rewardCount.toString(), inline: true },
+                    { name: "Announcement Message", value: newConfig.xp.streakAnnounceMessage, inline: false },
+                );
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
+
         case "set-announcement-channel": {
             const channel = interaction.options.getChannel("channel", false);
             

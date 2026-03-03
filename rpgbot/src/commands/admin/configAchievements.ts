@@ -9,6 +9,11 @@ export const data = new SlashCommandBuilder()
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 
     .addSubcommand(sub =>
+        sub.setName("show")
+        .setDescription("Show current achievement configuration")
+    )
+
+    .addSubcommand(sub =>
         sub.setName("enable-achievements")
         .setDescription("Enable achievements system in this server")
         .addBooleanOption(opt =>
@@ -136,7 +141,22 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     let newConfig = structuredClone(config);
 
-    switch (sub) {
+    switch (sub) {        case "show": {
+            const themeColor: string = config.style.mainThemeColor || "#0099ff";
+            const achieveCount = Object.keys(config.achievements.achievements || {}).length;
+            const embed = new EmbedBuilder()
+                .setTitle("🏆 Achievement Configuration")
+                .setColor(themeColor as ColorResolvable)
+                .addFields(
+                    { name: "Enabled", value: config.achievements.enabled ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "Progress Tracking", value: config.achievements.progress ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "Achievements Configured", value: achieveCount.toString(), inline: true },
+                    { name: "Announce Channel", value: config.achievements.announceAllId ? `<#${config.achievements.announceAllId}>` : "None", inline: true },
+                    { name: "Announce Message", value: config.achievements.announceMessage ?? "None", inline: false },
+                );
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
         case "help": {
             const themeColor: string = config.style.mainThemeColor || "#0099ff";
             const embed = new EmbedBuilder()

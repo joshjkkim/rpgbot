@@ -10,6 +10,7 @@ import { registerInteractionCreate } from "./events/interactionCreate.js";
 import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
 import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
 import { flushLogBuffer } from "./db/events.js";
+import { cleanupStaleFights } from "./player/fight.js";
 
 const client = new Client({
   intents: [
@@ -32,6 +33,7 @@ registerVoiceStateUpdate(client);
 
 setInterval(() => {
     pruneCaches();
+    cleanupStaleFights();
 }, 5 * 60 * 1000);
 
 setInterval(() => {

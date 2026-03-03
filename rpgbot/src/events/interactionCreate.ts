@@ -11,6 +11,7 @@ import { handleInventoryButton } from "../commands/user/inventory.js";
 import { handleQuestsButton, handleQuestsClaimModal, handleQuestsStartModal } from "../commands/user/quests.js";
 import { handleTradeOfferButton, handleTradeOfferModal } from "../commands/user/trade.js";
 import { handleSettingsModal } from "../commands/user/settings.js";
+import { handleFightButton } from "../commands/user/fight.js";
 
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -48,6 +49,8 @@ export function registerInteractionCreate(client: Client) {
                     await handleTradeOfferButton(interaction);
                 } else if (interaction.customId.startsWith("inventory:")) {
                     await handleInventoryButton(interaction);
+                } else if (interaction.customId.startsWith("fight:")) {
+                    await handleFightButton(interaction);
                 }
 
                 return;

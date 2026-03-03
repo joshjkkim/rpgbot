@@ -23,6 +23,9 @@ import * as configTrading from "./admin/configTrading.js"
 import * as gift from "./user/gift.js"
 import * as trade from "./user/trade.js"
 import * as settings from "./user/settings.js"
+import * as configCombat from "./admin/configCombat.js"
+import * as configEnemy from "./admin/configEnemy.js"
+import * as fight from "./user/fight.js"
 
 export const commandList = [
     daily.data,
@@ -50,6 +53,9 @@ export const commandList = [
     gift.data,
     trade.data,
     settings.data,
+    configCombat.data,
+    configEnemy.data,
+    fight.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -78,4 +84,7 @@ export const commands = new Map<string, any>([
     [gift.data.name, gift],
     [trade.data.name, trade],
     [settings.data.name, settings],
+    [configCombat.data.name, configCombat],
+    [configEnemy.data.name, configEnemy],
+    [fight.data.name, fight],
 ])

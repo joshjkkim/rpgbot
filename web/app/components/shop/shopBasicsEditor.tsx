@@ -30,6 +30,13 @@ type ItemEffects = {
   quest?: {
     canStartQuestIds?: string[];
   };
+  stats?: {
+    hp?: number;    // bonus max HP
+    atk?: number;   // bonus attack
+    def?: number;   // bonus defense
+    spd?: number;   // bonus speed
+    crit?: number;  // bonus crit chance (%)
+  };
 };
 
 type NewItemDraft = {
@@ -1414,6 +1421,44 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                             }
                             placeholder="quest_id_1, quest_id_2"
                             />
+                          </div>
+                          </div>
+
+                          {/* Combat Stats */}
+                          <div className="mt-4">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Combat Stats (when equipped)</div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            {([
+                              { key: "hp",  label: "HP Bonus",         placeholder: "+50" },
+                              { key: "atk", label: "Attack Bonus",     placeholder: "+10" },
+                              { key: "def", label: "Defense Bonus",    placeholder: "+5" },
+                              { key: "spd", label: "Speed Bonus",      placeholder: "+3" },
+                              { key: "crit",label: "Crit Chance % Bonus", placeholder: "+5" },
+                            ] as { key: keyof NonNullable<ItemEffects["stats"]>; label: string; placeholder: string }[]).map(({ key, label, placeholder }) => (
+                              <div key={key} className="space-y-2">
+                                <label className="block text-xs font-medium text-gray-600">{label}</label>
+                                <input
+                                  type="number"
+                                  className="w-full rounded border px-3 py-2 text-sm"
+                                  value={it.effects?.stats?.[key] ?? ""}
+                                  onChange={(e) => {
+                                    const raw = e.target.value.trim();
+                                    upsertItem({
+                                      ...it,
+                                      effects: {
+                                        ...it.effects,
+                                        stats: {
+                                          ...it.effects?.stats,
+                                          [key]: raw === "" ? undefined : safeNumber(raw, 0),
+                                        },
+                                      },
+                                    });
+                                  }}
+                                  placeholder={placeholder}
+                                  step={key === "crit" ? "0.1" : "1"}
+                                />
+                              </div>
+                            ))}
                           </div>
                           </div>
                         </div>

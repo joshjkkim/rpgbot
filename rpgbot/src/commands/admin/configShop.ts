@@ -109,6 +109,22 @@ export const data = new SlashCommandBuilder()
                 .addStringOption(opt =>
                     opt.setName("can-start-quest-ids").setDescription("Comma-separated quest IDs this item can start (none for no quests)").setRequired(false)
                 )
+                // Combat stats
+                .addIntegerOption(opt =>
+                    opt.setName("stat-hp").setDescription("Bonus max HP granted when equipped").setRequired(false)
+                )
+                .addIntegerOption(opt =>
+                    opt.setName("stat-atk").setDescription("Bonus attack granted when equipped").setRequired(false)
+                )
+                .addIntegerOption(opt =>
+                    opt.setName("stat-def").setDescription("Bonus defense granted when equipped").setRequired(false)
+                )
+                .addIntegerOption(opt =>
+                    opt.setName("stat-spd").setDescription("Bonus speed granted when equipped").setRequired(false)
+                )
+                .addNumberOption(opt =>
+                    opt.setName("stat-crit").setDescription("Bonus crit chance % granted when equipped (e.g. 5 for +5%)").setRequired(false)
+                )
         )
 
     .addSubcommand(sub =>
@@ -608,6 +624,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const goldMultiplier = interaction.options.getNumber("gold-multiplier", false);
             const canStartQuestIdsStr = interaction.options.getString("can-start-quest-ids", false);
             const canStartQuestIds = canStartQuestIdsStr ? canStartQuestIdsStr.split(",").map(s => s.trim()).filter(s => s.length > 0) : undefined;
+            const statHp = interaction.options.getInteger("stat-hp", false);
+            const statAtk = interaction.options.getInteger("stat-atk", false);
+            const statDef = interaction.options.getInteger("stat-def", false);
+            const statSpd = interaction.options.getInteger("stat-spd", false);
+            const statCrit = interaction.options.getNumber("stat-crit", false);
 
             item.effects = item.effects || {};
 
@@ -630,6 +651,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
             if (canStartQuestIds !== undefined)
                 item.effects.quest = { ...item.effects.quest, canStartQuestIds };
+
+            if (statHp !== null || statAtk !== null || statDef !== null || statSpd !== null || statCrit !== null)
+                item.effects.stats = {
+                    ...item.effects.stats,
+                    ...(statHp !== null && { hp: statHp }),
+                    ...(statAtk !== null && { atk: statAtk }),
+                    ...(statDef !== null && { def: statDef }),
+                    ...(statSpd !== null && { spd: statSpd }),
+                    ...(statCrit !== null && { crit: statCrit }),
+                };
 
             await setGuildConfig(interaction.guildId, newConfig);
             await interaction.editReply(`Effects for item \`${itemId}\` have been updated.`);

@@ -18,6 +18,13 @@ export interface UserStats {
     dailiesClaimed: number;
     maxStreak: number;
     timeSpentInVC: number; // in seconds
+
+    currentHp: number;
+    enemiesDefeated: number;
+    fightsWon: number;
+    fightsLost: number;
+    totalDamageDealt: number;
+    totalDamageTaken: number;
 }
 export interface item {
     id: string;

@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, MessageFlags } from "discord.js";
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -9,6 +9,10 @@ export const data = new SlashCommandBuilder()
     .setName("config-trading")
     .setDescription("Configure trading settings for the server")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+
+    .addSubcommand(sub =>
+        sub.setName("show").setDescription("Show current trading configuration")
+    )
 
     .addSubcommand(subcommand =>
         subcommand.setName("gifting")
@@ -59,6 +63,22 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     let newConfig = structuredClone(config);
 
     switch (sub) {
+        case "show": {
+            const gifting = config.shop.gifting;
+            const embed = new EmbedBuilder()
+                .setTitle("🤝 Trading Configuration")
+                .setColor((config.style?.mainThemeColor ?? "#00AE86") as any)
+                .addFields(
+                    { name: "Gifting Enabled", value: gifting?.enabled ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "DM Receiver", value: gifting?.dm ? "✅ Yes" : "❌ No", inline: true },
+                    { name: "Level Requirement", value: `${gifting?.levelReq ?? 0}`, inline: true },
+                    { name: "Announce Channel", value: gifting?.announceChannel ? `<#${gifting.announceChannel}>` : "None", inline: true },
+                    { name: "Gift Message", value: gifting?.message ?? "None", inline: false },
+                );
+            await interaction.editReply({ embeds: [embed] });
+            return;
+        }
+
         case "gifting":
             const enabled = interaction.options.getBoolean("enabled", true);
             let message = interaction.options.getString("message");
