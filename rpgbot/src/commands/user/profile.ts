@@ -12,6 +12,7 @@ GlobalFonts.registerFromPath("assets/fonts/Inter-Regular.ttf", "Inter");
 GlobalFonts.registerFromPath("assets/fonts/Inter-SemiBold.ttf", "InterSemi");
 GlobalFonts.registerFromPath("assets/fonts/Inter-Bold.ttf", "InterBold");
 import { drawTextWithEmojis } from "../../ui/canvas/drawEmojis.js";
+import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
 
 function roundRectPath(ctx: any, x: number, y: number, w: number, h: number, r: number) {
   const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
@@ -94,6 +95,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             .setLabel("Achievements")
             .setStyle(ButtonStyle.Primary),
     ];
+
+    if (config.combat?.enabled) {
+        buttons.push(
+            new ButtonBuilder()
+                .setCustomId("profile:combat")
+                .setLabel("⚔️ Combat")
+                .setStyle(ButtonStyle.Secondary),
+        );
+    }
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
 
@@ -477,12 +487,10 @@ export async function buildProfileCard(
     ctx.font = "13px Inter";
     ctx.fillText(`to Level ${level + 1}`, rX + 20, 320);
 
-    // ---------- output ----------
     const buffer = canvas.toBuffer("image/png");
     return new AttachmentBuilder(buffer, { name: "profile-card.png" });
 }
 
-// ...existing code...
 export async function handleProfileButton(interaction: ButtonInteraction) {
     if(!interaction.customId.startsWith("profile:")) return;
 
@@ -490,8 +498,6 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
         await interaction.reply("This command can only be used in a server.");
         return;
     }
-
-    await interaction.deferReply();
 
     const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
@@ -504,6 +510,10 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
     const { profile } = await getOrCreateProfile({
         userId: dbUser.id,
         guildId: dbGuild.id,
+    });
+
+    await interaction.deferReply({
+        flags: profile.settings?.profilePrivate ? MessageFlags.Ephemeral : undefined,
     });
 
     const stats: UserStats = profile.user_stats || {};
@@ -785,6 +795,182 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
 
         const buffer = canvas.toBuffer("image/png");
         file = new AttachmentBuilder(buffer, { name: "profile-achievements.png" });
+
+    } else if (choice === "combat") {
+        if (!config.combat?.enabled) {
+            await interaction.editReply({ content: "Combat is not enabled on this server." });
+            return;
+        }
+
+        const combatStats = calculateStats(profile, config, config.shop?.items ?? {});
+        const currentHp   = resolveCurrentHp(profile, combatStats);
+        const hpPct       = Math.max(0, Math.min(1, currentHp / combatStats.maxHp));
+        const fightStats  = profile.user_stats ?? {};
+
+        const statRows: [string, string][] = [
+            ["Fights Won",       (fightStats.fightsWon        ?? 0).toLocaleString()],
+            ["Fights Lost",      (fightStats.fightsLost       ?? 0).toLocaleString()],
+            ["Enemies Defeated", (fightStats.enemiesDefeated  ?? 0).toLocaleString()],
+            ["Total Dmg Dealt",  (fightStats.totalDamageDealt ?? 0).toLocaleString()],
+            ["Total Dmg Taken",  (fightStats.totalDamageTaken ?? 0).toLocaleString()],
+        ];
+
+        const W2 = 900;
+        const H2 = 420;
+        const canvas2 = createCanvas(W2, H2);
+        const ctx2    = canvas2.getContext("2d");
+
+        // background
+        const bgGrad2 = ctx2.createLinearGradient(0, 0, W2, H2);
+        bgGrad2.addColorStop(0, "#080c18");
+        bgGrad2.addColorStop(1, "#0f1525");
+        ctx2.fillStyle = bgGrad2;
+        ctx2.fillRect(0, 0, W2, H2);
+
+        ctx2.strokeStyle = "rgba(255,255,255,0.025)";
+        ctx2.lineWidth = 1;
+        for (let x = 0; x < W2; x += 40) { ctx2.beginPath(); ctx2.moveTo(x, 0); ctx2.lineTo(x, H2); ctx2.stroke(); }
+        for (let y = 0; y < H2; y += 40) { ctx2.beginPath(); ctx2.moveTo(0, y); ctx2.lineTo(W2, y); ctx2.stroke(); }
+
+        const blob2 = ctx2.createRadialGradient(W2 / 2, 0, 0, W2 / 2, 0, 300);
+        blob2.addColorStop(0, `rgba(${ac.r},${ac.g},${ac.b},0.10)`);
+        blob2.addColorStop(1, "transparent");
+        ctx2.fillStyle = blob2;
+        ctx2.fillRect(0, 0, W2, H2);
+
+        // card bg
+        ctx2.fillStyle = "rgba(13,18,35,0.95)";
+        roundRectPath(ctx2, 24, 24, W2 - 48, H2 - 48, 20);
+        ctx2.fill();
+        ctx2.strokeStyle = `rgba(${ac.r},${ac.g},${ac.b},0.25)`;
+        ctx2.lineWidth = 1.5;
+        roundRectPath(ctx2, 24, 24, W2 - 48, H2 - 48, 20);
+        ctx2.stroke();
+
+        // left accent bar
+        const barGrad2 = ctx2.createLinearGradient(24, 24, 24, H2 - 24);
+        barGrad2.addColorStop(0, accent);
+        barGrad2.addColorStop(0.6, `rgba(${ac.r},${ac.g},${ac.b},0.5)`);
+        barGrad2.addColorStop(1, "transparent");
+        ctx2.shadowColor = accent;
+        ctx2.shadowBlur  = 16;
+        ctx2.fillStyle   = barGrad2;
+        roundRectPath(ctx2, 24, 24, 5, H2 - 48, 4);
+        ctx2.fill();
+        ctx2.shadowBlur = 0;
+
+        // title
+        ctx2.fillStyle    = textColor;
+        ctx2.font         = "bold 30px InterBold";
+        ctx2.textBaseline = "middle";
+        ctx2.fillText(`${interaction.user.username}'s Combat Stats`, 50, 62);
+        const tW2 = ctx2.measureText(`${interaction.user.username}'s Combat Stats`).width;
+        const ulG2 = ctx2.createLinearGradient(50, 0, 50 + tW2, 0);
+        ulG2.addColorStop(0, accent); ulG2.addColorStop(1, "transparent");
+        ctx2.fillStyle = ulG2;
+        ctx2.fillRect(50, 78, tW2, 2);
+        ctx2.textBaseline = "alphabetic";
+
+        // ── HP bar ─────────────────────────────────────────────────────────
+        const hpBarX = 50, hpBarY = 108, hpBarW = W2 - 100, hpBarH = 28;
+        const hpColor = hpPct > 0.5 ? "#4caf50" : hpPct > 0.25 ? "#ff9800" : "#f44336";
+
+        ctx2.fillStyle    = `rgba(${tc.r},${tc.g},${tc.b},0.55)`;
+        ctx2.font         = "14px InterSemi";
+        ctx2.textBaseline = "middle";
+        ctx2.fillText("HP", hpBarX, hpBarY - 12);
+        ctx2.fillStyle = textColor;
+        ctx2.font      = "bold 14px InterBold";
+        ctx2.textAlign = "right";
+        ctx2.fillText(`${currentHp} / ${combatStats.maxHp}`, hpBarX + hpBarW, hpBarY - 12);
+        ctx2.textAlign    = "left";
+        ctx2.textBaseline = "alphabetic";
+
+        ctx2.fillStyle = "rgba(255,255,255,0.08)";
+        roundRectPath(ctx2, hpBarX, hpBarY, hpBarW, hpBarH, 8);
+        ctx2.fill();
+
+        const hpFillW = Math.max(hpBarH, Math.floor(hpBarW * hpPct));
+        const hpGrad  = ctx2.createLinearGradient(hpBarX, 0, hpBarX + hpBarW, 0);
+        hpGrad.addColorStop(0, hpColor);
+        hpGrad.addColorStop(1, hpColor + "99");
+        ctx2.fillStyle  = hpGrad;
+        ctx2.shadowColor = hpColor;
+        ctx2.shadowBlur  = 10;
+        roundRectPath(ctx2, hpBarX, hpBarY, hpFillW, hpBarH, 8);
+        ctx2.fill();
+        ctx2.shadowBlur = 0;
+        ctx2.fillStyle  = "rgba(255,255,255,0.12)";
+        roundRectPath(ctx2, hpBarX, hpBarY, hpFillW, hpBarH / 2, 8);
+        ctx2.fill();
+
+        // ── Stat chips ─────────────────────────────────────────────────────
+        const chips: [string, string, string][] = [
+            ["⚔️",  "ATK",  String(combatStats.atk)],
+            ["🛡️", "DEF",  String(combatStats.def)],
+            ["💨",  "SPD",  String(combatStats.spd)],
+            ["🎯",  "Crit", `${combatStats.critChance.toFixed(1)}%`],
+            ["💥",  "×",    combatStats.critMultiplier.toFixed(2)],
+        ];
+
+        const chipW  = (W2 - 100 - (chips.length - 1) * 14) / chips.length;
+        const chipY  = hpBarY + hpBarH + 28;
+        const chipH  = 80;
+
+        for (let i = 0; i < chips.length; i++) {
+            const chip = chips[i];
+            if (!chip) continue;
+            const [icon, label, val] = chip;
+            const cx = hpBarX + i * (chipW + 14);
+
+            ctx2.fillStyle = "rgba(255,255,255,0.06)";
+            roundRectPath(ctx2, cx, chipY, chipW, chipH, 12);
+            ctx2.fill();
+            ctx2.strokeStyle = `rgba(${tc.r},${tc.g},${tc.b},0.12)`;
+            ctx2.lineWidth   = 1;
+            roundRectPath(ctx2, cx, chipY, chipW, chipH, 12);
+            ctx2.stroke();
+
+            ctx2.fillStyle    = `rgba(${tc.r},${tc.g},${tc.b},0.7)`;
+            ctx2.font         = "15px InterSemi";
+            ctx2.textBaseline = "middle";
+            await drawTextWithEmojis({ ctx: ctx2, text: `${icon} ${label}`, x: cx + 14, y: chipY + 24, emojiSize: 15 });
+
+            ctx2.fillStyle    = textColor;
+            ctx2.font         = "bold 22px InterBold";
+            await drawTextWithEmojis({ ctx: ctx2, text: val, x: cx + 14, y: chipY + 56, emojiSize: 22 });
+            ctx2.textBaseline = "alphabetic";
+        }
+
+        // ── Battle record ──────────────────────────────────────────────────
+        const recY    = chipY + chipH + 28;
+        const recRowH = 38;
+        const colW2   = (W2 - 100) / 2;
+
+        statRows.forEach(([label, val], i) => {
+            const col  = i % 2;
+            const row2 = Math.floor(i / 2);
+            const rx   = hpBarX + col * colW2;
+            const ry   = recY + row2 * recRowH;
+
+            ctx2.fillStyle = row2 % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent";
+            roundRectPath(ctx2, rx - 4, ry + 2, colW2 - 8, recRowH - 4, 6);
+            ctx2.fill();
+
+            ctx2.fillStyle    = `rgba(${tc.r},${tc.g},${tc.b},0.5)`;
+            ctx2.font         = "14px Inter";
+            ctx2.textBaseline = "middle";
+            ctx2.fillText(label, rx + 8, ry + recRowH * 0.38);
+
+            ctx2.fillStyle = textColor;
+            ctx2.font      = "bold 16px InterBold";
+            ctx2.fillText(val, rx + 8, ry + recRowH * 0.75);
+            ctx2.textBaseline = "alphabetic";
+        });
+
+        const buffer2 = canvas2.toBuffer("image/png");
+        file = new AttachmentBuilder(buffer2, { name: "profile-combat.png" });
+
     } else {
         await interaction.editReply({ content: "Unknown panel." });
         return;
