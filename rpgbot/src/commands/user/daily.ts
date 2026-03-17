@@ -28,7 +28,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     
     const { guild: dbGuild, config} = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
  
-    const { profile, granted, rewardXp, rewardGold, levelUp, streakReward, increasedStreak } = await grantDailyXp({
+    const { profile, granted, rewardXp, rewardGold, levelUp, hpRestored, streakReward, increasedStreak } = await grantDailyXp({
         userId: user.id,
         guildId: dbGuild.id,
         config,
@@ -51,6 +51,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             }
         }
         
+        const healNote = hpRestored ? `\n❤️ HP restored to full!` : "";
+
         if(config.xp.replyToDailyInChannel) {
             const dailyReply = config.xp.replyToDailyMessage
                 .replace('{user}', `<@${interaction.user.id}>`)
@@ -63,7 +65,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 .replace('{streak}', profile.streak_count.toString());
 
             await interaction.editReply({
-                content: dailyReply
+                content: dailyReply + healNote
+            });
+        } else {
+            await interaction.editReply({
+                content: `✅ Daily claimed! +${rewardXp} ${config.style.xp.icon || "⭐"} ${config.style.xp.name || "XP"}, +${rewardGold} ${config.style.gold.icon || "💰"} ${config.style.gold.name || "Gold"} (Streak: ${profile.streak_count})${healNote}`
             });
         }
 

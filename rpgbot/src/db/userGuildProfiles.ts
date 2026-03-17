@@ -11,6 +11,7 @@ import { applyAchievementSideEffects, runAchievementPipeline } from "../player/a
 import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
 import { runQuestPipeline } from "../player/quests.js";
+import { calculateStats, resolveCurrentHp } from "../player/combat.js";
 
 type XpArgs = {
     client?: Client;
@@ -264,7 +265,7 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
     return { profile, gave: true, levelUp };
 }
 
-export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildProfile, granted: boolean, rewardXp?: number, rewardGold?: number, levelUp: boolean, 
+export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildProfile, granted: boolean, rewardXp?: number, rewardGold?: number, levelUp: boolean, hpRestored?: number,
                                                             streakReward?: {streak: number; xpBonus: number; goldBonus: number; channelId?: string; message?: string;}, increasedStreak?: boolean }> {
     const { userId, guildId, config, roleIds } = args;
 
@@ -372,6 +373,17 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
     profile.gold = (BigInt(profile.gold) + BigInt(rewardGold)).toString();
     profile.streak_count = newStreak;
     profile.last_daily_at = now.toISOString();
+
+    // Restore HP to full on daily claim if combat is enabled
+    let hpRestored = 0;
+    if (config.combat?.enabled) {
+        const combatStats = calculateStats(profile, config, config.shop?.items ?? {});
+        const currentHp = resolveCurrentHp(profile, combatStats);
+        hpRestored = combatStats.maxHp - currentHp;
+        if (hpRestored > 0) {
+            profile.user_stats.currentHp = combatStats.maxHp;
+        }
+    }
 
     pendingChanges = {
         ...pendingChanges,
@@ -515,7 +527,7 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         }, config);
     }
 
-    return { profile, granted: true, rewardXp, rewardGold, levelUp, ...(streakRewardInfo && { streakReward: streakRewardInfo }), increasedStreak };
+    return { profile, granted: true, rewardXp, rewardGold, levelUp, ...(hpRestored > 0 && { hpRestored }), ...(streakRewardInfo && { streakReward: streakRewardInfo }), increasedStreak };
 }
 
 export async function updateUserStats(userId: number, guildId: number, statsUpdate: Partial<UserStats>): Promise<void> {

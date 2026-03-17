@@ -14,6 +14,7 @@ const sections = [
             { href: "achievements", label: "Achievements" },
             { href: "levels", label: "Levels" },
             { href: "quests", label: "Quests" },
+            { href: "combat", label: "Combat" },
             { href: "logging", label: "Logging" },
         ],
     },
