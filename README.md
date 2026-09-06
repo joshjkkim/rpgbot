@@ -109,6 +109,7 @@ All commands below are run **from the repo root**.
 ```bash
 npm run deploy-test-commands   # register slash commands (see below)
 npm run dev:bot                # start the bot  (tsx src/index.ts)
+npm run dev:bot:watch          # ...or restart it automatically on every save
 npm run dev:web                # start the dashboard on :3000
 ```
 
@@ -119,10 +120,16 @@ a command needs nothing but a bot restart. It registers guild-scoped commands to
 `SERVER_ID`, which appear instantly; global registration would take up to an
 hour.
 
-The bot has no hot reload — restart it after a change. On `SIGINT`/`SIGTERM` it
-flushes the write-back cache before exiting, so stop it with **Ctrl-C** rather
-than killing the process: up to 30 seconds of XP and gold lives only in memory
-at any moment.
+`dev:bot` does not reload, so restart it after a change. `dev:bot:watch`
+restarts on save instead: `tsx watch` sends `SIGTERM` and waits for the process
+to exit, so the shutdown flush still runs and nothing buffered is lost. The
+tradeoff is that a restart kills whatever Discord interaction is open at that
+moment and the user sees *This application did not respond* — fine alone in a
+test server, less so while other people are using the bot.
+
+Either way, stop the bot with **Ctrl-C** rather than killing the process. On
+`SIGINT`/`SIGTERM` it flushes the write-back cache before exiting, and up to 30
+seconds of XP and gold lives only in memory at any moment.
 
 ---
 

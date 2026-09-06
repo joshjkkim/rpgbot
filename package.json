@@ -6,6 +6,7 @@
   ],
   "scripts": {
     "dev:bot": "npm --workspace rpgbot run dev",
+    "dev:bot:watch": "npm --workspace rpgbot run dev:watch",
     "deploy-test-commands": "npm --workspace rpgbot run deploy-test-commands",
     "dev:web": "npm --workspace web run dev",
     "build": "npm -ws run build"
