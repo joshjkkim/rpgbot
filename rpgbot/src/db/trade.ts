@@ -153,8 +153,11 @@ type LockedProfile = {
 /**
  * Moves `qty` of `itemId` out of `from` and into `to`, creating the destination
  * slot from shop metadata when the receiver doesn't own the item yet.
+ *
+ * Shared with the gifting path. `from` and `to` must be distinct objects, so a
+ * caller handing over both sides of the same profile has to reject that first.
  */
-function moveItem(
+export function moveItem(
     from: Record<string, item>,
     to: Record<string, item>,
     itemId: string,

@@ -22,6 +22,7 @@ import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache
 import { query, closePool } from "../src/db/index.js";
 import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trade.js";
 import { updateInventory } from "../src/player/inventory.js";
+import { transferItem } from "../src/player/trading.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
@@ -632,6 +633,92 @@ async function main() {
 
         check("items updated", await qty(fx.a, g, "potion"), 3);
         check("gold updated", await goldOf(fx.a, g), "250");
+    });
+
+    // ─── Gifting ──────────────────────────────────────────────────────────────
+
+    await test("a gift moves items and touches neither side's gold", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, inv([["potion", 3]]), 500);
+        await seed(fx.b, g, {}, 700);
+
+        const config = mergeConfig(fx.guild.config);
+        const res = await transferItem(await row(fx.a, g), await row(fx.b, g), "potion", 2, config);
+
+        check("gift succeeded", res.success, "true");
+        check("giver debited", await qty(fx.a, g, "potion"), 1);
+        check("receiver credited", await qty(fx.b, g, "potion"), 2);
+        check("giver gold untouched", await goldOf(fx.a, g), "500");
+        check("receiver gold untouched", await goldOf(fx.b, g), "700");
+        check("receiver slot named from shop config", (await row(fx.b, g)).inventory?.potion?.name, "Health Potion");
+    });
+
+    await test("two simultaneous gifts cannot overdraw the same stack", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, inv([["potion", 1]]), 0);
+        await seed(fx.b, g, {}, 0);
+        await seed(fx.c, g, {}, 0);
+
+        const config = mergeConfig(fx.guild.config);
+        const giver = await row(fx.a, g);
+
+        // One potion, two gifts of it going to different people at once.
+        const results = await Promise.all([
+            transferItem(giver, await row(fx.b, g), "potion", 1, config),
+            transferItem(giver, await row(fx.c, g), "potion", 1, config),
+        ]);
+
+        check("exactly one gift landed", results.filter(r => r.success).length, 1);
+        check("giver has nothing left", await qty(fx.a, g, "potion"), 0);
+        check("only one potion exists downstream",
+            (await qty(fx.b, g, "potion")) + (await qty(fx.c, g, "potion")), 1);
+    });
+
+    await test("a gift is re-checked against writes still buffered in cache", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, inv([["potion", 2]]), 0);
+        await seed(fx.b, g, {}, 0);
+
+        const giver = await row(fx.a, g);
+        await updateInventory(fx.a.userId, g, inv([["potion", 1]])); // cache only
+        check("DB is still behind the cache", await qty(fx.a, g, "potion"), 2);
+
+        const config = mergeConfig(fx.guild.config);
+        const res = await transferItem(giver, await row(fx.b, g), "potion", 2, config);
+
+        check("gift refused", res.success, "false");
+        check("receiver got nothing", await qty(fx.b, g, "potion"), 0);
+        check("giver keeps what they had", await qty(fx.a, g, "potion"), 1);
+    });
+
+    await test("gifting to yourself is refused rather than duplicating the stack", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, inv([["potion", 2]]), 0);
+
+        const self = await row(fx.a, g);
+        const config = mergeConfig(fx.guild.config);
+        const res = await transferItem(self, self, "potion", 2, config);
+
+        check("gift refused", res.success, "false");
+        check("stack unchanged", await qty(fx.a, g, "potion"), 2);
+    });
+
+    await test("a gift larger than the stack is refused", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, inv([["potion", 1]]), 0);
+        await seed(fx.b, g, {}, 0);
+
+        const config = mergeConfig(fx.guild.config);
+        const res = await transferItem(await row(fx.a, g), await row(fx.b, g), "potion", 5, config);
+
+        check("gift refused", res.success, "false");
+        check("giver keeps the stack", await qty(fx.a, g, "potion"), 1);
+        check("receiver got nothing", await qty(fx.b, g, "potion"), 0);
     });
 
     console.log(`\n${"─".repeat(60)}`);
