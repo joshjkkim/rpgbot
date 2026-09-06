@@ -1,12 +1,10 @@
 import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable } from "discord.js";
 import { EmbedBuilder, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, GuildMember } from "discord.js";
-import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { updateInventory } from "../../player/inventory.js";
+import { purchaseItem } from "../../db/shop.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
-import type { item } from "../../types/userprofile.js"
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../../player/achievements.js";
 import { profileKey, userGuildProfileCache } from "../../cache/caches.js";
@@ -296,65 +294,46 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
 
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
-    const { profile } = await getOrCreateProfile({
+    // Ensures the profile row exists; purchaseItem locks it rather than reading
+    // anything from this snapshot.
+    await getOrCreateProfile({
         userId: dbUser.id,
         guildId: dbGuild.id,
     });
 
-    const newConfig = structuredClone(config);
-
-    const item = newConfig.shop?.items?.[itemId];
-    if (!item) {
+    // Role gating needs the Discord member, so it stays here. Everything that
+    // depends on mutable state -- price, level, gold, stock -- is re-checked
+    // against locked rows inside purchaseItem.
+    const configItem = config.shop?.items?.[itemId];
+    if (!configItem) {
         await interaction.editReply({ content: "This item does not exist."});
         return;
     }
 
-    const price = item.price * quantity;
-    const balance = Number(profile.gold ?? 0);
-
-    if (balance < price) {
-        await interaction.editReply({ content: "You do not have enough gold to make this purchase."});
-        return;
-    }
-
-    if (item.minLevel !== undefined && profile.level < item.minLevel) {
-        await interaction.editReply({ content: `You need to be at least level ${item.minLevel} to purchase this item.`});
-        return;
-    }
-
-    if (item.requiresRoleIds && item.requiresRoleIds.length > 0) {
+    if (configItem.requiresRoleIds && configItem.requiresRoleIds.length > 0) {
         const member = await interaction.guild?.members.fetch(interaction.user.id);
-        const hasRequiredRole = item.requiresRoleIds.some(roleId => member?.roles.cache.has(roleId));
+        const hasRequiredRole = configItem.requiresRoleIds.some(roleId => member?.roles.cache.has(roleId));
         if (!hasRequiredRole) {
             await interaction.editReply({ content: "You do not have the required role to purchase this item."});
             return;
         }
     }
 
-    if (item.stock !== undefined && item.stock !== null) {
-        if (item.stock < quantity || item.stock <= 0) {
-            await interaction.editReply({ content: "There is not enough stock to complete your purchase."});
-            return;
-        }
-        item.stock -= quantity;
+    const purchase = await purchaseItem({
+        userId: dbUser.id,
+        guildId: dbGuild.id,
+        discordGuildId: dbGuild.discord_guild_id,
+        itemId,
+        quantity,
+    });
+
+    if (!purchase.success) {
+        await interaction.editReply({ content: purchase.message });
+        return;
     }
 
-    const newInventory: Record<string, item> = { ...profile.inventory };
-    if (!newInventory[itemId]) {
-        newInventory[itemId] = {
-            id: item.id,
-            name: item.name,
-            ...(item.emoji ? { emoji: item.emoji } : {}),
-            ...(item.description !== undefined && { description: item.description }),
-            quantity: 0,
-        };
-    }
-
-    newInventory[itemId].quantity += quantity;
-    const newGoldBalance = balance - price;
-
-    await updateInventory(profile.user_id, profile.guild_id, newInventory, newGoldBalance);
-    await setGuildConfig(interaction.guildId, newConfig);
+    const item = purchase.item;
+    const price = Number(purchase.price);
 
     const cached2 = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
     let prof2 = cached2.profile;
@@ -388,8 +367,8 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
     await interaction.editReply({ content: `You have purchased **${quantity} x ${item.name}** for **${item.price * quantity} ${config.style.gold.icon || "💰"}**!` });
 
     await updateUserStats(dbUser.id, dbGuild.id, {
-        itemsPurchased: (profile.user_stats?.itemsPurchased ?? 0) + quantity,
-        goldSpent: (profile.user_stats?.goldSpent ?? 0) + price,
+        itemsPurchased: (prof2.user_stats?.itemsPurchased ?? 0) + quantity,
+        goldSpent: (prof2.user_stats?.goldSpent ?? 0) + price,
     });
 
     await logAndBroadcastEvent(interaction, {

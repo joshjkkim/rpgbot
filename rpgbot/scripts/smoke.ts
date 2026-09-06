@@ -23,6 +23,7 @@ import { query, closePool } from "../src/db/index.js";
 import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trade.js";
 import { updateInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
+import { purchaseItem } from "../src/db/shop.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
@@ -243,6 +244,32 @@ async function rawOffer(
     );
     if (!res.rows[0]) throw new Error("rawOffer insert returned no id");
     return res.rows[0].id;
+}
+
+/** Overwrites one shop item's config, e.g. to give it finite stock. */
+async function patchShopItem(fx: TradeFixture, itemId: string, patch: Partial<shopItemConfig>): Promise<void> {
+    const base = SHOP_ITEMS[itemId];
+    if (!base) throw new Error(`no fixture item ${itemId}`);
+
+    const config = mergeConfig(fx.guild.config);
+    config.logging.enabled = false;
+    config.shop = {
+        ...config.shop,
+        enabled: true,
+        items: { ...SHOP_ITEMS, [itemId]: { ...base, ...patch } },
+    };
+    await setGuildConfig(fx.guild.discord_guild_id, config);
+    guildConfigCache.clear();
+}
+
+/** Reads an item's stock straight out of the stored config JSONB. */
+async function itemStock(fx: TradeFixture, itemId: string): Promise<string> {
+    const res = await query<{ stock: string | null }>(
+        `SELECT config #>> ARRAY['shop', 'items', $2::text, 'stock'] AS stock
+         FROM guilds WHERE id = $1`,
+        [fx.guild.id, itemId]
+    );
+    return res.rows[0]?.stock ?? "null";
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -719,6 +746,117 @@ async function main() {
         check("gift refused", res.success, "false");
         check("giver keeps the stack", await qty(fx.a, g, "potion"), 1);
         check("receiver got nothing", await qty(fx.b, g, "potion"), 0);
+    });
+
+    // ─── Shop purchases ───────────────────────────────────────────────────────
+
+    await test("a purchase debits gold and credits the item", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 500);
+
+        const res = await purchaseItem({
+            userId: fx.a.userId, guildId: g,
+            discordGuildId: fx.guild.discord_guild_id,
+            itemId: "sword", quantity: 2,
+        });
+
+        check("purchase succeeded", res.success, "true");
+        check("gold debited 2 x 100", await goldOf(fx.a, g), "300");
+        check("items credited", await qty(fx.a, g, "sword"), 2);
+        check("slot named from shop config", (await row(fx.a, g)).inventory?.sword?.name, "Iron Sword");
+    });
+
+    await test("gold cannot be spent twice by two purchases at once", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 100); // exactly one sword's worth
+
+        const buy = () => purchaseItem({
+            userId: fx.a.userId, guildId: g,
+            discordGuildId: fx.guild.discord_guild_id,
+            itemId: "sword", quantity: 1,
+        });
+
+        const results = await Promise.all([buy(), buy()]);
+
+        check("exactly one purchase went through", results.filter(r => r.success).length, 1);
+        check("charged once", await goldOf(fx.a, g), "0");
+        check("delivered once", await qty(fx.a, g, "sword"), 1);
+    });
+
+    await test("limited stock cannot be oversold by simultaneous buyers", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await patchShopItem(fx, "sword", { stock: 1 });
+        await seed(fx.a, g, {}, 500);
+        await seed(fx.b, g, {}, 500);
+
+        const results = await Promise.all([
+            purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "sword", quantity: 1 }),
+            purchaseItem({ userId: fx.b.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "sword", quantity: 1 }),
+        ]);
+
+        check("exactly one buyer got it", results.filter(r => r.success).length, 1);
+        check("stock landed on zero", await itemStock(fx, "sword"), "0");
+        check("only one sword exists", (await qty(fx.a, g, "sword")) + (await qty(fx.b, g, "sword")), 1);
+        check("the loser was not charged",
+            (await goldOf(fx.a, g)) === "500" || (await goldOf(fx.b, g)) === "500", "true");
+    });
+
+    await test("stock decrements by the quantity bought, and unlimited stays unlimited", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await patchShopItem(fx, "sword", { stock: 5 });
+        await seed(fx.a, g, {}, 500);
+
+        await purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "sword", quantity: 3 });
+        check("stock 5 - 3", await itemStock(fx, "sword"), "2");
+
+        const tooMany = await purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "sword", quantity: 3 });
+        check("buying past the stock is refused", tooMany.success, "false");
+        check("stock unchanged after the refusal", await itemStock(fx, "sword"), "2");
+
+        // potion has no stock key at all, which means unlimited.
+        await purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "potion", quantity: 4 });
+        check("unlimited item still has no stock", await itemStock(fx, "potion"), "null");
+        check("unlimited item delivered", await qty(fx.a, g, "potion"), 4);
+    });
+
+    await test("a purchase is refused on gold or level, charging nothing", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 50);
+
+        const broke = await purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "sword", quantity: 1 });
+        check("too poor is refused", broke.success, "false");
+        check("gold untouched", await goldOf(fx.a, g), "50");
+        check("no item delivered", await qty(fx.a, g, "sword"), 0);
+
+        await patchShopItem(fx, "potion", { minLevel: 10 });
+        const underLevelled = await purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "potion", quantity: 1 });
+        check("under the level requirement is refused", underLevelled.success, "false");
+        check("still nothing charged", await goldOf(fx.a, g), "50");
+    });
+
+    await test("a purchase sees gold spent but still buffered in cache", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 500);
+
+        // Spend down to 50 in the cache only; Postgres still shows 500.
+        await updateInventory(fx.a.userId, g, {}, 50);
+        check("DB is still behind the cache", await goldOf(fx.a, g), "500");
+
+        const res = await purchaseItem({
+            userId: fx.a.userId, guildId: g,
+            discordGuildId: fx.guild.discord_guild_id,
+            itemId: "sword", quantity: 1,
+        });
+
+        check("purchase refused against the real balance", res.success, "false");
+        check("buffered balance survived", await goldOf(fx.a, g), "50");
+        check("no item delivered", await qty(fx.a, g, "sword"), 0);
     });
 
     console.log(`\n${"─".repeat(60)}`);
