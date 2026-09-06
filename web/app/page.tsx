@@ -28,7 +28,7 @@ export default function Home() {
 
       <div className="flex-1 flex min-h-screen items-center justify-center">
         <div className="text-center p-10 bg-gradient-to-tr z-10 rounded-xl to-blue-900 via-black from-black">
-          <h1 className="text-white text-4xl">Blah Blah</h1>
+          <h1 className="text-white text-4xl">Hermes</h1>
         </div>
       </div>
      
