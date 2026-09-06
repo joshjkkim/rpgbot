@@ -11,7 +11,7 @@ export interface Trade {
     receiverGold: number; // gold being traded by the responder
 }
 
-export type TradeStatus = "pending" | "accepted" | "denied" | "cancelled" | "expired";
+export type TradeStatus = "pending" | "accepted" | "denied" | "canceled" | "expired";
 
 export interface DbTrade extends Trade {
     id?: string;

@@ -1,9 +1,10 @@
 import type { shopItemConfig } from "../types/economy.js";
 import type { DbGuild } from "../types/guild.js";
 import type { DbTrade, DbTradeRow, Trade, TradeStatus } from "../types/trading.js";
-import { getInventory, updateInventory } from "../player/inventory.js";
-import { query } from "./index.js";
-import { getOrCreateDbUser } from "../cache/userService.js";
+import type { DbUserGuildProfile, item } from "../types/userprofile.js";
+import { query, withTransaction } from "./index.js";
+import { flushProfileCacheToDb } from "../cache/profileService.js";
+import { profileKey, userGuildProfileCache } from "../cache/caches.js";
 
 export async function createTrade(trade: Trade, guild: DbGuild): Promise<{success: boolean; tradeId: string | null}> {
     const asker = trade.asker;
@@ -140,106 +141,200 @@ export async function viewTrades(args: { guildId: string; status?: TradeStatus; 
     return res.rows as DbTradeRow[];
 }
 
+/** Row shape when we lock a profile inside the trade transaction. */
+type LockedProfile = {
+    id: string;
+    user_id: number;
+    guild_id: number;
+    gold: string;
+    inventory: Record<string, item> | null;
+};
+
+/**
+ * Moves `qty` of `itemId` out of `from` and into `to`, creating the destination
+ * slot from shop metadata when the receiver doesn't own the item yet.
+ */
+function moveItem(
+    from: Record<string, item>,
+    to: Record<string, item>,
+    itemId: string,
+    qty: number,
+    shopItems: Record<string, shopItemConfig>,
+): void {
+    const fromSlot = from[itemId];
+    if (fromSlot) {
+        fromSlot.quantity -= qty;
+        if (fromSlot.quantity <= 0) delete from[itemId];
+    }
+
+    const toSlot = to[itemId];
+    if (toSlot) {
+        toSlot.quantity += qty;
+        return;
+    }
+
+    const shopItem = shopItems[itemId];
+    to[itemId] = {
+        id: itemId,
+        name: shopItem?.name ?? itemId,
+        quantity: qty,
+        ...(shopItem?.emoji !== undefined && { emoji: shopItem.emoji }),
+        ...(shopItem?.description !== undefined && { description: shopItem.description }),
+    };
+}
+
 export async function acceptTrade(
     tradeId: string,
-    acceptorProfile: import("../types/userprofile.js").DbUserGuildProfile,
+    acceptorProfile: DbUserGuildProfile,
     guild: DbGuild
 ): Promise<{ success: boolean; message: string }> {
-    // Fetch the trade row
-    const tradeRes = await query<DbTradeRow>(`SELECT * FROM trades WHERE id = $1`, [tradeId]);
-    const row = tradeRes.rows[0];
+    // Profile writes are normally buffered in the write-back cache, so the rows in
+    // Postgres can lag reality by up to 30s. Push both sides' pending changes down
+    // first so the transaction below can treat the DB as authoritative.
+    const partiesRes = await query<{ id: string; user_id: number; guild_id: number }>(
+        `SELECT p.id, p.user_id, p.guild_id
+         FROM trades t
+         JOIN user_guild_profiles p
+           ON p.id IN (t.asker_profile_id, t.receiver_profile_id)
+         WHERE t.id = $1`,
+        [tradeId]
+    );
 
-    if (!row) return { success: false, message: `Trade \`#${tradeId}\` not found.` };
-    if (row.status !== "pending") return { success: false, message: `Trade \`#${tradeId}\` is no longer pending (status: ${row.status}).` };
-    if (String(row.receiver_profile_id) !== String(acceptorProfile.id)) return { success: false, message: "You are not the receiver of this trade." };
-    if (new Date(row.expires_at) < new Date()) {
-        await query(`UPDATE trades SET status = 'expired', updated_at = NOW() WHERE id = $1`, [tradeId]);
-        return { success: false, message: "That trade has expired." };
+    if (partiesRes.rows.length === 0) {
+        return { success: false, message: `Trade \`#${tradeId}\` not found.` };
     }
 
-    const { user: askerUser } = await getOrCreateDbUser({ discordUserId:row.asker_discord_id });
-
-    const items = guild.config?.shop?.items ?? {};
-
-    // Re-validate asker inventory
-    const askerInventory = await getInventory(askerUser.id, guild.id);
-    const askerItems: Record<string, number> = row.asker_items ?? {};
-    for (const [itemId, qty] of Object.entries(askerItems)) {
-        if (!askerInventory[itemId] || askerInventory[itemId].quantity < qty)
-            return { success: false, message: `The sender no longer has enough \`${itemId}\` to complete this trade.` };
+    for (const party of partiesRes.rows) {
+        await flushProfileCacheToDb({ userId: party.user_id, guildId: party.guild_id, force: true });
     }
 
-    // Re-validate receiver inventory
-    const receiverInventory = await getInventory(acceptorProfile.user_id, guild.id);
-    const receiverItems: Record<string, number> = row.receiver_items ?? {};
-    for (const [itemId, qty] of Object.entries(receiverItems)) {
-        if (!receiverInventory[itemId] || receiverInventory[itemId].quantity < qty)
-            return { success: false, message: `You no longer have enough \`${itemId}\` to complete this trade.` };
-    }
+    const shopItems = (guild.config?.shop?.items ?? {}) as Record<string, shopItemConfig>;
 
-    // Re-validate gold
-    const askerGoldRes = await query<{ gold: string }>(`SELECT gold FROM user_guild_profiles WHERE id = $1`, [row.asker_profile_id]);
-    const receiverGoldRes = await query<{ gold: string }>(`SELECT gold FROM user_guild_profiles WHERE id = $1`, [row.receiver_profile_id]);
-    if (Number(askerGoldRes.rows[0]?.gold ?? 0) < Number(row.asker_gold ?? 0))
-        return { success: false, message: "The sender no longer has enough gold." };
-    if (Number(receiverGoldRes.rows[0]?.gold ?? 0) < Number(row.receiver_gold ?? 0))
-        return { success: false, message: "You no longer have enough gold." };
+    let touched: Array<{ userId: number; guildId: number }> = [];
 
-    // ── Execute swap ──────────────────────────────────────────────────────────
+    try {
+        const result = await withTransaction(async (client) => {
+            // Lock the trade first so two accepts of the same offer serialize.
+            const tradeRes = await client.query<DbTradeRow>(
+                `SELECT * FROM trades WHERE id = $1 FOR UPDATE`,
+                [tradeId]
+            );
+            const row = tradeRes.rows[0];
 
-    // Transfer asker items → receiver
-    for (const [itemId, qty] of Object.entries(askerItems)) {
-        const askerSlot = askerInventory[itemId];
-        if (askerSlot) {
-            askerSlot.quantity -= qty;
-            if (askerSlot.quantity === 0) delete askerInventory[itemId];
+            if (!row) return { success: false, message: `Trade \`#${tradeId}\` not found.` };
+            if (row.status !== "pending") {
+                return { success: false, message: `Trade \`#${tradeId}\` is no longer pending (status: ${row.status}).` };
+            }
+            if (String(row.receiver_profile_id) !== String(acceptorProfile.id)) {
+                return { success: false, message: "You are not the receiver of this trade." };
+            }
+            if (row.expires_at && new Date(row.expires_at) < new Date()) {
+                await client.query(`UPDATE trades SET status = 'expired', updated_at = NOW() WHERE id = $1`, [tradeId]);
+                return { success: false, message: "That trade has expired." };
+            }
+
+            // Lock both profiles in ascending id order. Every trade takes these
+            // locks in the same order, so two crossing trades cannot deadlock.
+            const [firstId, secondId] = [String(row.asker_profile_id), String(row.receiver_profile_id)]
+                .sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
+
+            const locked = new Map<string, LockedProfile>();
+            for (const profileId of [firstId, secondId]) {
+                const res = await client.query<LockedProfile>(
+                    `SELECT id, user_id, guild_id, gold, inventory
+                     FROM user_guild_profiles WHERE id = $1 FOR UPDATE`,
+                    [profileId]
+                );
+                const locked_row = res.rows[0];
+                if (!locked_row) {
+                    return { success: false, message: "One of the traders no longer has a profile in this server." };
+                }
+                locked.set(String(locked_row.id), locked_row);
+            }
+
+            const asker = locked.get(String(row.asker_profile_id))!;
+            const receiver = locked.get(String(row.receiver_profile_id))!;
+
+            const askerInventory = asker.inventory ?? {};
+            const receiverInventory = receiver.inventory ?? {};
+            const askerItems: Record<string, number> = row.asker_items ?? {};
+            const receiverItems: Record<string, number> = row.receiver_items ?? {};
+
+            // Re-validate against the locked rows: the offer may have been made
+            // before either side spent the items or gold it promised.
+            for (const [itemId, qty] of Object.entries(askerItems)) {
+                const slot = askerInventory[itemId];
+                if (!slot || slot.quantity < qty) {
+                    return { success: false, message: `The sender no longer has enough \`${itemId}\` to complete this trade.` };
+                }
+            }
+            for (const [itemId, qty] of Object.entries(receiverItems)) {
+                const slot = receiverInventory[itemId];
+                if (!slot || slot.quantity < qty) {
+                    return { success: false, message: `You no longer have enough \`${itemId}\` to complete this trade.` };
+                }
+            }
+
+            const askerGoldOffer = BigInt(row.asker_gold ?? 0);
+            const receiverGoldOffer = BigInt(row.receiver_gold ?? 0);
+            const askerGold = BigInt(asker.gold ?? 0);
+            const receiverGold = BigInt(receiver.gold ?? 0);
+
+            if (askerGold < askerGoldOffer) {
+                return { success: false, message: "The sender no longer has enough gold." };
+            }
+            if (receiverGold < receiverGoldOffer) {
+                return { success: false, message: "You no longer have enough gold." };
+            }
+
+            // ── Execute the swap ────────────────────────────────────────────
+            for (const [itemId, qty] of Object.entries(askerItems)) {
+                moveItem(askerInventory, receiverInventory, itemId, qty, shopItems);
+            }
+            for (const [itemId, qty] of Object.entries(receiverItems)) {
+                moveItem(receiverInventory, askerInventory, itemId, qty, shopItems);
+            }
+
+            const askerNewGold = askerGold - askerGoldOffer + receiverGoldOffer;
+            const receiverNewGold = receiverGold - receiverGoldOffer + askerGoldOffer;
+
+            await client.query(
+                `UPDATE user_guild_profiles
+                 SET inventory = $2, gold = $3, updated_at = NOW()
+                 WHERE id = $1`,
+                [asker.id, JSON.stringify(askerInventory), askerNewGold.toString()]
+            );
+            await client.query(
+                `UPDATE user_guild_profiles
+                 SET inventory = $2, gold = $3, updated_at = NOW()
+                 WHERE id = $1`,
+                [receiver.id, JSON.stringify(receiverInventory), receiverNewGold.toString()]
+            );
+
+            await client.query(
+                `UPDATE trades SET status = 'accepted', updated_at = NOW() WHERE id = $1`,
+                [tradeId]
+            );
+
+            touched = [
+                { userId: asker.user_id, guildId: asker.guild_id },
+                { userId: receiver.user_id, guildId: receiver.guild_id },
+            ];
+
+            return { success: true, message: `✅ Trade \`#${tradeId}\` accepted! Items and gold have been swapped.` };
+        });
+
+        // The transaction wrote behind the cache's back, so drop both entries and
+        // let the next read pull the committed state.
+        for (const { userId, guildId } of touched) {
+            userGuildProfileCache.delete(profileKey(guildId, userId));
         }
-        if (receiverInventory[itemId]) {
-            receiverInventory[itemId]!.quantity += qty;
-        } else {
-            const shopItem = (items as Record<string, shopItemConfig>)[itemId];
-            receiverInventory[itemId] = {
-                id: itemId,
-                name: shopItem?.name ?? itemId,
-                quantity: qty,
-                ...(shopItem?.emoji !== undefined && { emoji: shopItem.emoji }),
-                ...(shopItem?.description !== undefined && { description: shopItem.description }),
-            };
-        }
+
+        return result;
+    } catch (err) {
+        console.error(`Trade ${tradeId} failed and was rolled back:`, err);
+        return { success: false, message: "Something went wrong completing that trade. No items or gold were moved." };
     }
-
-    // Transfer receiver items → asker
-    for (const [itemId, qty] of Object.entries(receiverItems)) {
-        const receiverSlot = receiverInventory[itemId];
-        if (receiverSlot) {
-            receiverSlot.quantity -= qty;
-            if (receiverSlot.quantity === 0) delete receiverInventory[itemId];
-        }
-        if (askerInventory[itemId]) {
-            askerInventory[itemId]!.quantity += qty;
-        } else {
-            const shopItem = (items as Record<string, shopItemConfig>)[itemId];
-            askerInventory[itemId] = {
-                id: itemId,
-                name: shopItem?.name ?? itemId,
-                quantity: qty,
-                ...(shopItem?.emoji !== undefined && { emoji: shopItem.emoji }),
-                ...(shopItem?.description !== undefined && { description: shopItem.description }),
-            };
-        }
-    }
-
-    const askerCurrentGold = Number(askerGoldRes.rows[0]?.gold ?? 0);
-    const receiverCurrentGold = Number(receiverGoldRes.rows[0]?.gold ?? 0);
-    const askerGoldOffer = Number(row.asker_gold ?? 0);
-    const receiverGoldOffer = Number(row.receiver_gold ?? 0);
-
-    await updateInventory(askerUser.id, guild.id, askerInventory, askerCurrentGold - askerGoldOffer + receiverGoldOffer);
-    await updateInventory(acceptorProfile.user_id, guild.id, receiverInventory, receiverCurrentGold - receiverGoldOffer + askerGoldOffer);
-
-    await query(`UPDATE trades SET status = 'accepted', updated_at = NOW() WHERE id = $1`, [tradeId]);
-
-    return { success: true, message: `✅ Trade \`#${tradeId}\` accepted! Items and gold have been swapped.` };
 }
 
 export async function denyTrade(
