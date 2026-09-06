@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 export function useGuildConfig(guildId: string) {
     const [config, setConfig] = useState<any>(null);
     const [dbGuildId, setDbGuildId] = useState<number | null>(null);
+    // Hash of the config as loaded. Sent back on save so the server can reject
+    // the write if the bot or another editor changed it in the meantime.
+    const [version, setVersion] = useState<string | null>(null);
     const did = useRef<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
     const [saving, setSaving] = useState<boolean>(false);
@@ -21,6 +24,7 @@ export function useGuildConfig(guildId: string) {
             const data = await res.json();
             setConfig(data.config);
             setDbGuildId(data.id);
+            setVersion(data.version ?? null);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -39,8 +43,18 @@ export function useGuildConfig(guildId: string) {
             const res = await fetch(`/api/discord/guilds/${guildId}/config`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ config: toSave }),
+                body: JSON.stringify({ config: toSave, version }),
             });
+
+            if (res.status === 409) {
+                // Someone -- or the bot -- wrote first. Pull the current config
+                // back so the page is not left showing a save that never landed.
+                await refresh();
+                throw new Error(
+                    "These settings changed while you were editing them. The latest version has been loaded; please reapply your change."
+                );
+            }
+
             if (!res.ok) {
                 const text = await res.text().catch(() => "");
                 throw new Error(`POST failed: ${res.status} ${text}`);
@@ -65,5 +79,5 @@ export function useGuildConfig(guildId: string) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [guildId]);
 
-    return { config, setConfig, dbGuildId, loading, saving, error, refresh, save };
+    return { config, setConfig, dbGuildId, version, loading, saving, error, refresh, save };
 }
