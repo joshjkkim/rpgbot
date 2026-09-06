@@ -24,6 +24,8 @@ import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trad
 import { updateInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
+import { startFight, applyAction, applyFightRewards } from "../src/player/fight.js";
+import type { EnemyConfig } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
@@ -857,6 +859,58 @@ async function main() {
         check("purchase refused against the real balance", res.success, "false");
         check("buffered balance survived", await goldOf(fx.a, g), "50");
         check("no item delivered", await qty(fx.a, g, "sword"), 0);
+    });
+
+    // ─── Combat ───────────────────────────────────────────────────────────────
+
+    await test("a finished fight pays out once, however many clicks arrive", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 0);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+
+        // One hit kills: 1 HP, no attack of its own.
+        const enemy: EnemyConfig = {
+            id: "dummy", name: "Training Dummy", emoji: "🎯",
+            hp: 1, atk: 0, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+            minLevel: 0, maxLevel: null,
+            xpReward: 50, goldReward: 25, drops: [],
+        };
+
+        const profile = await row(fx.a, g);
+        const fight = startFight({
+            discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
+            messageId: "smoke-fight-1", channelId: "smoke-channel",
+            combatType: "pve", profile, enemy, config,
+        });
+
+        const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
+        check("first click ended the fight", first.ended, "true");
+        check("first click produced a summary", first.summary !== null, "true");
+
+        await applyFightRewards(first.summary!, first.fight, profile, config);
+        await flushDirtyProfiles(true);
+        const afterFirst = await goldOf(fx.a, g);
+        check("rewards paid once", afterFirst, "25");
+
+        // The double-click: the handler captures the fight object before it
+        // awaits, so a second click reaches applyAction holding the same object
+        // even though the fight is no longer in the active map.
+        const second = applyAction(fight, "basic_attack", fx.guild, profile, config);
+        check("second click is rejected", second.alreadyResolved, "true");
+        check("second click reports no end", second.ended, "false");
+        check("second click has no summary", second.summary === null, "true");
+
+        // Mirror the handler: it pays out whenever an action reports the fight
+        // ended. Without the guard this is the second payout.
+        if (second.ended && second.summary) {
+            await applyFightRewards(second.summary, second.fight, profile, config);
+        }
+        await flushDirtyProfiles(true);
+        check("no second payout", await goldOf(fx.a, g), afterFirst);
     });
 
     console.log(`\n${"─".repeat(60)}`);

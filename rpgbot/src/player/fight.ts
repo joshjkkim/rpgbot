@@ -234,6 +234,12 @@ export interface ApplyActionResult {
     result: CombatActionResult;
     ended: boolean;
     summary: FightEndSummary | null;
+    /**
+     * True when the fight was already over before this action. The caller must
+     * hand out no rewards and render nothing -- the action that actually ended
+     * the fight has already done both.
+     */
+    alreadyResolved?: boolean;
 }
 
 export function applyAction(
@@ -246,6 +252,19 @@ export function applyAction(
     const action = COMBAT_ACTIONS[actionId];
     if (!action) {
         throw new Error(`Unknown combat action: ${actionId}`);
+    }
+
+    // A finished fight accepts no further actions. Without this, a second
+    // click resolves against an enemy already on 0 HP, reports another win and
+    // pays out the rewards a second time.
+    if (fight.resolved) {
+        return {
+            fight,
+            result: { outcome: "continue", playerHpDelta: 0, enemyHpDelta: 0, log: [] },
+            ended: false,
+            summary: null,
+            alreadyResolved: true,
+        };
     }
 
     const ctx: FightContext = { fight, profile, guild, config };
@@ -262,6 +281,8 @@ export function applyAction(
     const ended = result.outcome !== "continue";
 
     if (ended) {
+        // Set before anything awaits, so a concurrent click sees it.
+        fight.resolved = true;
         const summary = buildSummary(fight, result.outcome, config);
         clearActiveFight(fight.userId, fight.guildId);
         return { fight, result, ended: true, summary };

@@ -58,6 +58,15 @@ export interface ActiveFight {
     // Accumulated totals (written to UserStats at fight end)
     totalDamageDealt: number;
     totalDamageTaken: number;
+
+    /**
+     * Set once the fight has ended and its rewards have been handed out.
+     *
+     * Button handlers capture this object before awaiting, so two clicks can
+     * both reach applyAction() holding the same fight. Removing it from the
+     * active map is not enough to stop the second one -- this flag is.
+     */
+    resolved?: boolean;
 }
 
 // ─── Fight context ────────────────────────────────────────────────────────────

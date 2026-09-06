@@ -275,9 +275,13 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
     const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
 
-    const { fight: updatedFight, result, ended, summary } = applyAction(
+    const { fight: updatedFight, result, ended, summary, alreadyResolved } = applyAction(
         fight, actionId, dbGuild, profile, config,
     );
+
+    // A second click that raced the winning one. The click that ended the fight
+    // has already paid out and rendered the end embed; this one does nothing.
+    if (alreadyResolved) return;
 
     if (ended && summary) {
         await applyFightRewards(summary, updatedFight, profile, config);
