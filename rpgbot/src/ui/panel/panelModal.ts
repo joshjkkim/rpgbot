@@ -1002,6 +1002,7 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
 
         await logAndBroadcastEvent(interaction, {
             guildId: guild.id,
+            discordGuildId: guild.discord_guild_id,
             userId: user.id,
             category: "config",
             eventType: "configChange",
