@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
-    "deploy-test-commands": "tsx src/deploy-commands.ts"
+    "deploy-test-commands": "tsx src/deploy-commands.ts",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "keywords": [],
   "author": "",
