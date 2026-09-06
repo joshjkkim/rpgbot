@@ -601,6 +601,39 @@ async function main() {
         check("the trade itself still applied", await qty(fx.b, g, "potion"), 1);
     });
 
+    // ─── Inventory writes ─────────────────────────────────────────────────────
+
+    await test("an inventory write leaves gold alone unless asked to change it", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, inv([["potion", 2]]), 500);
+        await seed(fx.b, g, inv([["sword", 1]]), 700);
+
+        // What /removeitem does: take an item away, touch nothing else. It used
+        // to pass a hardcoded 0 here, and a profile id in place of a user id, so
+        // it wiped the gold of whichever user happened to hold that id.
+        await updateInventory(fx.a.userId, g, inv([["potion", 1]]));
+        await flushDirtyProfiles(true);
+
+        check("item was removed", await qty(fx.a, g, "potion"), 1);
+        check("gold untouched", await goldOf(fx.a, g), "500");
+        check("bystander's gold untouched", await goldOf(fx.b, g), "700");
+        check("bystander's items untouched", await qty(fx.b, g, "sword"), 1);
+    });
+
+    await test("an inventory write still updates gold when given a balance", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, inv([["potion", 1]]), 500);
+
+        // The shop purchase path, which does mean to move both.
+        await updateInventory(fx.a.userId, g, inv([["potion", 3]]), 250);
+        await flushDirtyProfiles(true);
+
+        check("items updated", await qty(fx.a, g, "potion"), 3);
+        check("gold updated", await goldOf(fx.a, g), "250");
+    });
+
     console.log(`\n${"─".repeat(60)}`);
     console.log(`${passed} passed, ${failed} failed`);
     await closePool();

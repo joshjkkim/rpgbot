@@ -13,7 +13,14 @@ import { runAchievementPipeline, applyAchievementSideEffects } from "./achieveme
 import type { EquipSlot } from "../types/economy.js";
 import { calculateStats, resolveCurrentHp } from "./combat.js";
 
-export async function updateInventory(userId: number, guildId: number, inventory: Record<string, item>, newGoldBalance: number): Promise<void> {
+/**
+ * Buffers an inventory write for `userId` (a `users.id`, not a profile id).
+ *
+ * `newGoldBalance` is optional and gold is left alone when it is omitted.
+ * Callers that only move items must omit it: passing a placeholder is what made
+ * /removeitem zero out a bystander's gold.
+ */
+export async function updateInventory(userId: number, guildId: number, inventory: Record<string, item>, newGoldBalance?: number): Promise<void> {
     const cached = await getOrCreateProfile({ userId, guildId });
     let profile = cached.profile;
     let pendingChanges: Record<string, any> = cached.pendingChanges ?? {};
@@ -24,9 +31,9 @@ export async function updateInventory(userId: number, guildId: number, inventory
         inventory,
     }
 
-    if (!isNaN(newGoldBalance)) {
+    if (newGoldBalance !== undefined && Number.isFinite(newGoldBalance)) {
         profile.gold = newGoldBalance.toString();
-        pendingChanges.gold = newGoldBalance;
+        pendingChanges.gold = profile.gold;
     }
 
     const key = profileKey(guildId, userId);
@@ -85,7 +92,7 @@ export async function handleClearInventory(interaction: ChatInputCommandInteract
     const { user: dbUser } = await getOrCreateDbUser({ discordUserId: targetUserId });
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
     const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
-    await updateInventory(profile.user_id, profile.guild_id, {}, profile.gold ? Number(profile.gold) : 0);
+    await updateInventory(profile.user_id, profile.guild_id, {});
 
     await interaction.editReply({ content: `Cleared inventory for <@${targetUserId}>.` });
 
@@ -131,7 +138,7 @@ export async function handleRemoveItem(interaction: ChatInputCommandInteraction,
         await interaction.editReply({ content: `Removed ${quantity} of item \`${itemId}\` from <@${targetUserId}>'s inventory.` });
     }
 
-    await updateInventory(profile.id, dbGuild.id, inventory, 0);
+    await updateInventory(profile.user_id, profile.guild_id, inventory);
     await interaction.editReply({ content: `Updated <@${targetUserId}>'s inventory.` });
 
     await logAndBroadcastEvent(interaction, {
@@ -189,7 +196,7 @@ export async function handleGiveItem(interaction: ChatInputCommandInteraction, t
         inventory[itemId] = newItem;
     }
 
-    await updateInventory(dbUser.id, dbGuild.id, inventory, profile.gold ? parseInt(profile.gold) : 0);
+    await updateInventory(dbUser.id, dbGuild.id, inventory);
     await interaction.editReply({ content: `Gave ${quantity} of item \`${itemId}\` to <@${targetUserId}>.` });
 
     await logAndBroadcastEvent(interaction, {
