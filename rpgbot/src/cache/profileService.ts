@@ -86,14 +86,28 @@ export async function getOrCreateProfile(opts: { userId: number; guildId: number
  * in which case the caller must not evict the entry.
  *
  * Never throws: a failed write leaves the changes buffered for the next attempt.
+ *
+ * `force` both skips the write throttle and refuses to settle for a flush that
+ * is already running, so a forced call always reflects the buffer as of the
+ * moment it was made.
  */
 export async function flushProfileCacheToDb(
     opts: { userId: number; guildId: number; force?: boolean }
 ): Promise<boolean> {
     const key = profileKey(opts.guildId, opts.userId);
 
-    const existing = inFlight.get(key);
-    if (existing) return existing;
+    // Wait out any flush already running for this profile, so two writes for the
+    // same row never overlap.
+    //
+    // A non-forced caller takes that flush's result and is done. A forced caller
+    // cannot: the in-flight flush may be throttled into a no-op, or may have
+    // snapshotted the buffer before the writes this caller needs persisted. So
+    // it waits for the flush to settle and then runs a pass of its own. That
+    // matters on shutdown, where there is no later flush to fall back on.
+    while (inFlight.has(key)) {
+        const settled = await inFlight.get(key)!.catch(() => false);
+        if (!opts.force) return settled;
+    }
 
     const run = doFlush(opts, key).finally(() => inFlight.delete(key));
     inFlight.set(key, run);

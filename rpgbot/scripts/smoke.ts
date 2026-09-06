@@ -311,6 +311,26 @@ async function main() {
         check("forced flush persisted it", await xpInDb(userId, guildId), "20");
     });
 
+    await test("a forced flush does not settle for a throttled one already running", async () => {
+        const { userId, guildId, config } = await reset();
+
+        await addMessageXp({ userId, guildId, config });
+        await flushDirtyProfiles(true);          // leaves lastWroteToDb recent
+        await addMessageXp({ userId, guildId, config });
+
+        // Both calls are in flight at once, and the throttled one gets there
+        // first. Deduping purely by profile key would hand the forced caller the
+        // throttled call's no-op result and drop the buffered XP -- which is the
+        // shutdown path, where a SIGTERM lands on top of the 30s flush timer.
+        const throttled = flushProfileCacheToDb({ userId, guildId });
+        const forced = flushProfileCacheToDb({ userId, guildId, force: true });
+        const [throttledResult, forcedResult] = await Promise.all([throttled, forced]);
+
+        check("throttled call reported the entry still dirty", throttledResult, false);
+        check("forced call reported it clean", forcedResult, true);
+        check("forced call persisted the XP", await xpInDb(userId, guildId), "20");
+    });
+
     await test("daily grants xp + gold once per day", async () => {
         const { userId, guildId, config } = await reset();
 
