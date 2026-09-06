@@ -1,5 +1,4 @@
 import type { CachedUserId, CachedGuildConfig, CachedUserGuildProfile } from "../types/cache.js";
-import type { Trade } from "../types/trading.js";
 import { flushProfileCacheToDb } from "./profileService.js";
 
 const USER_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -19,46 +18,63 @@ export function isStale(last: number, ttlMs: number) {
     return Date.now() - last > ttlMs;
 }
 
-export function pruneCaches() {
+function parseProfileKey(key: string): { guildId: number; userId: number } | null {
+    const [guildIdStr, userIdStr] = key.split(":");
+    const guildId = Number(guildIdStr);
+    const userId = Number(userIdStr);
+    if (Number.isNaN(guildId) || Number.isNaN(userId)) return null;
+    return { guildId, userId };
+}
+
+export async function pruneCaches(): Promise<void> {
     const now = Date.now();
 
     for (const [id, value] of userIdCache) {
         if (now - value.lastRefreshed > USER_CACHE_TTL_MS * 3) {
-        userIdCache.delete(id);
+            userIdCache.delete(id);
         }
     }
-    
+
     for (const [id, value] of guildConfigCache) {
         if (now - value.lastLoaded > GUILD_CONFIG_TTL_MS * 10) {
-        guildConfigCache.delete(id);
+            guildConfigCache.delete(id);
         }
     }
 
-    for (const [id, value] of userGuildProfileCache) {
-        if (now - value.lastLoaded > PROFILE_CONFIG_TTL_MS * 10) {
-            const [guildIdStr, userIdStr] = id.split(":");
-            const guildId = Number(guildIdStr);
-            const userId = Number(userIdStr);
+    for (const [key, value] of userGuildProfileCache) {
+        if (now - value.lastLoaded <= PROFILE_CONFIG_TTL_MS * 10) continue;
 
-            if (value.dirty && value.pendingChanges) {
-                void flushProfileCacheToDb({ guildId, userId });
-            }
-            userGuildProfileCache.delete(id);
+        const ids = parseProfileKey(key);
+        if (!ids) {
+            userGuildProfileCache.delete(key);
+            continue;
         }
+
+        if (value.dirty && value.pendingChanges) {
+            // Must land before eviction, otherwise the buffered XP/gold is gone.
+            const flushed = await flushProfileCacheToDb({ ...ids, force: true });
+            if (!flushed) continue; // keep the entry; retry on the next prune
+        }
+
+        userGuildProfileCache.delete(key);
     }
 }
 
-export async function flushDirtyProfiles(): Promise<void> {
+/**
+ * Flushes every profile with buffered changes.
+ *
+ * `force` bypasses the per-profile write throttle - use it on shutdown, where
+ * there is no "next flush" to fall back on.
+ */
+export async function flushDirtyProfiles(force = false): Promise<void> {
     const entries = Array.from(userGuildProfileCache.entries());
 
     for (const [key, cached] of entries) {
         if (!cached.dirty || !cached.pendingChanges) continue;
 
-        const [guildIdStr, userIdStr] = key.split(":");
-        const guildId = Number(guildIdStr);
-        const userId = Number(userIdStr);
-        if (Number.isNaN(guildId) || Number.isNaN(userId)) continue;
+        const ids = parseProfileKey(key);
+        if (!ids) continue;
 
-        await flushProfileCacheToDb({ guildId, userId });
+        await flushProfileCacheToDb({ ...ids, force });
     }
 }

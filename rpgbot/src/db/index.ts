@@ -22,3 +22,29 @@ export async function withClient<T>(
     client.release();
   }
 }
+
+/**
+ * Runs `fn` inside a transaction, committing on success and rolling back on
+ * any thrown error. Use this for anything that must not half-apply -- trades,
+ * or any multi-row balance change.
+ */
+export async function withTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>
+): Promise<T> {
+  return withClient(async (client) => {
+    await client.query("BEGIN");
+    try {
+      const result = await fn(client);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => null);
+      throw err;
+    }
+  });
+}
+
+/** Closes the pool. Called on shutdown, after the final cache flush. */
+export async function closePool(): Promise<void> {
+  await pool.end();
+}
