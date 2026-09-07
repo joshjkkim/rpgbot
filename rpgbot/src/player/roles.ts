@@ -3,7 +3,7 @@ import type { GuildConfig } from "../types/guild.js";
 import type { DbUserGuildProfile, TempRoleState } from "../types/userprofile.js";
 import { profileKey, userGuildProfileCache } from "../cache/caches.js";
 import type { PendingProfileChanges } from "../types/cache.js";
-import { getOrCreateProfile } from "../cache/profileService.js";
+import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 
@@ -72,15 +72,13 @@ export async function applyRoleWithTemp(args: ApplyRoleWithTempArgs): Promise<Db
         temp_roles: tempRoles,
     };
 
-    userGuildProfileCache.set(key, {
+    return commitProfileChanges({
+        userId: profile.user_id,
+        guildId: profile.guild_id,
         profile: updatedProfile,
-        pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
-        dirty: true,
-        lastWroteToDb: cached?.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pending,
+        baseline: { xp: updatedProfile.xp, gold: updatedProfile.gold },
     });
-
-    return updatedProfile;
 }
 
 
@@ -122,15 +120,13 @@ export async function removeTempRole(member: GuildMember, roleId: string, guildI
         temp_roles: tempRoles,
     };
 
-    userGuildProfileCache.set(key, {
+    return commitProfileChanges({
+        userId,
+        guildId,
         profile: updatedProfile,
-        pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
-        dirty: true,
-        lastWroteToDb: cached?.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pending,
+        baseline: { xp: updatedProfile.xp, gold: updatedProfile.gold },
     });
-
-    return updatedProfile;
 }
 
 export async function refreshTempRolesForMember(member: GuildMember, profile: DbUserGuildProfile): Promise<DbUserGuildProfile> {

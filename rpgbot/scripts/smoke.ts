@@ -960,6 +960,50 @@ async function main() {
         check("no second payout", await goldOf(fx.a, g), afterFirst);
     });
 
+    await test("a fight payout does not erase a write that landed just before it", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 0);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+
+        const enemy: EnemyConfig = {
+            id: "dummy", name: "Training Dummy", emoji: "\u{1f3af}",
+            hp: 1, atk: 0, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+            minLevel: 0, maxLevel: null,
+            xpReward: 50, goldReward: 25, drops: [],
+        };
+
+        const profile = await row(fx.a, g);
+        const fight = startFight({
+            discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
+            messageId: "smoke-fight-2", channelId: "smoke-channel",
+            combatType: "pve", profile, enemy, config,
+        });
+        const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
+
+        // Warm the cache so neither call starts by loading the row.
+        await getOrCreateProfile({ userId: fx.a.userId, guildId: g });
+
+        // Both writers reach their commit after a single await, so they land in
+        // call order: the inventory write buffers first, the fight payout second.
+        // The payout used to write back a buffer snapshotted before the item
+        // existed, so the item was never flushed.
+        await Promise.all([
+            updateInventory(fx.a.userId, g, inv([["potion", 1]])),
+            applyFightRewards(first.summary!, first.fight, profile, config),
+        ]);
+
+        await flushDirtyProfiles(true);
+        const after = await row(fx.a, g);
+        check("fight gold paid", after.gold, "25");
+        check("fight xp paid", after.xp, "50");
+        check("the write that landed first survived", after.inventory?.potion?.quantity, 1);
+        check("fight counters survived", after.user_stats?.fightsWon, 1);
+    });
+
     console.log(`\n${"─".repeat(60)}`);
     console.log(`${passed} passed, ${failed} failed`);
     await closePool();

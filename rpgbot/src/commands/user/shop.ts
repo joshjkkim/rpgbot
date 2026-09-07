@@ -2,12 +2,12 @@ import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable } 
 import { EmbedBuilder, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, GuildMember } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
-import { getOrCreateProfile } from "../../cache/profileService.js";
+import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
+import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { purchaseItem } from "../../db/shop.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../../player/achievements.js";
-import { profileKey, userGuildProfileCache } from "../../cache/caches.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 
 function chunkButtons(buttons: ButtonBuilder[], size = 5) {
@@ -338,17 +338,19 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
     const cached2 = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
     let prof2 = cached2.profile;
     let pending2 = cached2.pendingChanges ?? ({} as PendingProfileChanges);
+    const baseline = { xp: prof2.xp, gold: prof2.gold };
 
     const ach = await runAchievementPipeline({ profile: prof2, pending: pending2, config });
     prof2 = ach.profile;
     pending2 = ach.pending;
 
-    userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+    commitProfileChanges({
+        userId: dbUser.id,
+        guildId: dbGuild.id,
         profile: prof2,
-        pendingChanges: Object.keys(pending2).length ? pending2 : undefined,
-        dirty: true,
-        lastWroteToDb: cached2.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pending2,
+        baseline,
+        recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
     });
 
     if (ach.unlocked.length || ach.rewards?.messages?.length || ach.rewards?.grantedRoles?.length) {

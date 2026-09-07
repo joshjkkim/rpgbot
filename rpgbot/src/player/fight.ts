@@ -11,8 +11,7 @@ import type {
     FightOutcome,
 } from "../types/combat.js";
 import { calculateStats, resolveCurrentHp } from "./combat.js";
-import { getOrCreateProfile } from "../cache/profileService.js";
-import { profileKey, userGuildProfileCache } from "../cache/caches.js";
+import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 
@@ -369,6 +368,7 @@ export async function applyFightRewards(
     });
     let p = cached.profile;
     let pendingChanges: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+    const baseline = { xp: p.xp, gold: p.gold };
 
     // ── XP/gold multipliers from equipped item boosts ──
     let xpMult = 1;
@@ -471,16 +471,14 @@ export async function applyFightRewards(
     pendingChanges.user_stats = stats;
 
     // ── Write to cache (dirty → synced to DB on next flush) ──
-    const key = profileKey(p.guild_id, p.user_id);
-    userGuildProfileCache.set(key, {
+    return commitProfileChanges({
+        userId: p.user_id,
+        guildId: p.guild_id,
         profile: p,
-        pendingChanges: Object.keys(pendingChanges).length > 0 ? pendingChanges : undefined,
-        dirty: true,
-        lastWroteToDb: cached.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pendingChanges,
+        baseline,
+        recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
     });
-
-    return p;
 }
 
 // ─── Enemy selection helpers ───────────────────────────────────────────────────

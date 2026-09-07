@@ -12,8 +12,7 @@ import {
 } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
-import { getOrCreateProfile } from "../../cache/profileService.js";
-import { userGuildProfileCache, profileKey } from "../../cache/caches.js";
+import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 
@@ -170,12 +169,12 @@ export async function handleSettingsModal(interaction: ModalSubmitInteraction) {
     const updatedProfile: DbUserGuildProfile = { ...profile, settings: newSettings };
     const pending: PendingProfileChanges = { ...(cached.pendingChanges ?? {}), settings: newSettings };
 
-    userGuildProfileCache.set(profileKey(guild.id, user.id), {
+    commitProfileChanges({
+        userId: user.id,
+        guildId: guild.id,
         profile: updatedProfile,
-        pendingChanges: pending,
-        dirty: true,
-        lastWroteToDb: cached.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pending,
+        baseline: { xp: profile.xp, gold: profile.gold },
     });
 
     const themeColor = (config.style.mainThemeColor || "#00AE86") as ColorResolvable;

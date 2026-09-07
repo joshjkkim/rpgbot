@@ -4,10 +4,9 @@ import { addMessageXp } from "./userGuildProfiles.js";
 import { upsertUser } from "./users.js";
 import type { VoiceState } from "discord.js";
 import { refreshTempRolesForMember } from "../player/roles.js";
-import { getOrCreateProfile } from "../cache/profileService.js";
+import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../player/achievements.js";
-import { profileKey, userGuildProfileCache } from "../cache/caches.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 
 export interface ActiveVCSessions {
@@ -87,6 +86,7 @@ export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: strin
         const cached2 = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
         let profile2 = cached2.profile;
         let pending2: PendingProfileChanges = cached2.pendingChanges ?? ({} as PendingProfileChanges);
+        const baseline2 = { xp: profile2.xp, gold: profile2.gold };
 
         const stats2 = profile2.user_stats ?? ({} as any);
         stats2.xpFromVC = (stats2.xpFromVC ?? 0) + xpAmount;
@@ -106,12 +106,13 @@ export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: strin
             pending2.level = profile2.level;
         }
 
-        userGuildProfileCache.set(profileKey(guild.id, user.id), {
+        commitProfileChanges({
+            userId: user.id,
+            guildId: guild.id,
             profile: profile2,
-            pendingChanges: Object.keys(pending2).length ? pending2 : undefined,
-            dirty: true,
-            lastWroteToDb: cached2.lastWroteToDb,
-            lastLoaded: Date.now(),
+            changes: pending2,
+            baseline: baseline2,
+            recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
         });
         
         const hasDiscordCtx = Boolean(voiceState.guild?.client && voiceState.guild.id && userId);

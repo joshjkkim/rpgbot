@@ -2,12 +2,12 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, type C
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
-import { getOrCreateProfile } from "../../cache/profileService.js";
+import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
+import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { applyQuestRewards, applyQuestSideEffects, canStartQuest } from "../../player/quests.js";
 import { MessageFlags } from "discord.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import type { QuestConfig, UserQuestState } from "../../types/quest.js";
-import { userGuildProfileCache, profileKey } from "../../cache/caches.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 
 function formatProgress(state: any, def: any) {
@@ -325,6 +325,7 @@ export async function handleQuestsStartModal(interaction: ModalSubmitInteraction
   const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
   const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+  const baseline = { xp: cached.profile.xp, gold: cached.profile.gold };
   let profile = cached.profile;
   let pending = cached.pendingChanges ?? ({} as PendingProfileChanges);
 
@@ -376,12 +377,12 @@ export async function handleQuestsStartModal(interaction: ModalSubmitInteraction
   profile = { ...profile, quests: userQuests };
   pending = { ...pending, quests: userQuests };
 
-  userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+  commitProfileChanges({
+    userId: dbUser.id,
+    guildId: dbGuild.id,
     profile,
-    pendingChanges: Object.keys(pending).length ? pending : undefined,
-    dirty: true,
-    lastWroteToDb: cached.lastWroteToDb,
-    lastLoaded: Date.now(),
+    changes: pending,
+    baseline,
   });
 
   await logAndBroadcastEvent(interaction, {
@@ -418,6 +419,7 @@ export async function handleQuestsClaimModal(interaction: ModalSubmitInteraction
   const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
   const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+  const baseline = { xp: cached.profile.xp, gold: cached.profile.gold };
   let profile = cached.profile;
   let pending = cached.pendingChanges ?? ({} as PendingProfileChanges);
 
@@ -466,13 +468,13 @@ export async function handleQuestsClaimModal(interaction: ModalSubmitInteraction
   profile = rewardEffects.profile;
   pending = rewardEffects.pending;
 
-  // write cache dirty
-  userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+  commitProfileChanges({
+    userId: dbUser.id,
+    guildId: dbGuild.id,
     profile,
-    pendingChanges: Object.keys(pending).length ? pending : undefined,
-    dirty: true,
-    lastWroteToDb: cached.lastWroteToDb,
-    lastLoaded: Date.now(),
+    changes: pending,
+    baseline,
+    recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
   });
 
   // side effects (roles/messages)

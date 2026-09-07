@@ -2,11 +2,11 @@ import { query } from "../db/index.js";
 import { addMessageXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
-import { getOrCreateProfile } from "../cache/profileService.js";
+import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
+import { calculateLevelFromXp } from "../leveling/levels.js";
 import type { ChatInputCommandInteraction } from "discord.js";
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
-import { profileKey, userGuildProfileCache } from "../cache/caches.js";
 import type { item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
@@ -25,6 +25,8 @@ export async function updateInventory(userId: number, guildId: number, inventory
     let profile = cached.profile;
     let pendingChanges: Record<string, any> = cached.pendingChanges ?? {};
 
+    const baseline = { xp: profile.xp, gold: profile.gold };
+
     profile.inventory = inventory;
     pendingChanges = {
         ...pendingChanges,
@@ -36,13 +38,12 @@ export async function updateInventory(userId: number, guildId: number, inventory
         pendingChanges.gold = profile.gold;
     }
 
-    const key = profileKey(guildId, userId);
-    userGuildProfileCache.set(key, {
+    commitProfileChanges({
+        userId,
+        guildId,
         profile,
-        pendingChanges,
-        dirty: true,
-        lastWroteToDb: cached.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pendingChanges as PendingProfileChanges,
+        baseline,
     });
 }
 
@@ -299,6 +300,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                 const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
                 let p = cached.profile;
                 let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+                const baseline = { xp: p.xp, gold: p.gold };
 
                 if (!p.inventory) p.inventory = {};
 
@@ -318,12 +320,12 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                     inventory: p.inventory,
                 };
 
-                userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+                commitProfileChanges({
+                    userId: dbUser.id,
+                    guildId: dbGuild.id,
                     profile: p,
-                    pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
-                    dirty: true,
-                    lastWroteToDb: cached.lastWroteToDb,
-                    lastLoaded: Date.now(),
+                    changes: pending,
+                    baseline,
                 });
             }
 
@@ -333,6 +335,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                         const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
                         let p = cached.profile;
                         let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+                        const baseline = { xp: p.xp, gold: p.gold };
 
                         const currentGold = p.gold ? BigInt(p.gold) : 0n;
                         const newGoldBig = currentGold + BigInt(action.amount);
@@ -345,13 +348,13 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                             gold: p.gold,
                         };
 
-                        const key = profileKey(dbGuild.id, dbUser.id);
-                        userGuildProfileCache.set(key, {
+                        commitProfileChanges({
+                            userId: dbUser.id,
+                            guildId: dbGuild.id,
                             profile: p,
-                            pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
-                            dirty: true,
-                            lastWroteToDb: cached.lastWroteToDb,
-                            lastLoaded: Date.now(),
+                            changes: pending,
+                            baseline,
+                            recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
                         });
 
                         break;
@@ -379,6 +382,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                         const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
                         let p = cached.profile;
                         let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+                        const baseline = { xp: p.xp, gold: p.gold };
 
                         const playerStats = calculateStats(p, config, config.shop?.items ?? {});
                         const currentHp = resolveCurrentHp(p, playerStats);
@@ -390,12 +394,12 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                         p.user_stats = s;
                         pending = { ...pending, user_stats: p.user_stats };
 
-                        userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+                        commitProfileChanges({
+                            userId: dbUser.id,
+                            guildId: dbGuild.id,
                             profile: p,
-                            pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
-                            dirty: true,
-                            lastWroteToDb: cached.lastWroteToDb,
-                            lastLoaded: Date.now(),
+                            changes: pending,
+                            baseline,
                         });
                         break;
                     }
@@ -424,6 +428,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     const cached2 = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
     let p2 = cached2.profile;
     let pending2: PendingProfileChanges = cached2.pendingChanges ?? ({} as PendingProfileChanges);
+    const baseline2 = { xp: p2.xp, gold: p2.gold };
 
     const s2 = (p2.user_stats ?? {}) as any;
     s2.goldEarned = (s2.goldEarned ?? 0) + goldGained;
@@ -445,12 +450,13 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     p2 = ach.profile;
     pending2 = ach.pending;
 
-    userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+    commitProfileChanges({
+        userId: dbUser.id,
+        guildId: dbGuild.id,
         profile: p2,
-        pendingChanges: Object.keys(pending2).length ? pending2 : undefined,
-        dirty: true,
-        lastWroteToDb: cached2.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pending2,
+        baseline: baseline2,
+        recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
     });
 
     const hasEffects =
@@ -508,17 +514,18 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
         const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
         let p = cached.profile;
         let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+        const baseline = { xp: p.xp, gold: p.gold };
 
         p.inventory = inventory;
         p.equips = profile.equips;
         pending = { ...pending, inventory: p.inventory, equips: p.equips as any };
 
-        userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+        commitProfileChanges({
+            userId: dbUser.id,
+            guildId: dbGuild.id,
             profile: p,
-            pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
-            dirty: true,
-            lastWroteToDb: cached.lastWroteToDb,
-            lastLoaded: Date.now(),
+            changes: pending,
+            baseline,
         });
 
         return { success: true, message: `Successfully unequipped item \`${currentEquipped}\` from the \`${slot}\` slot.` };
@@ -573,17 +580,18 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
     const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
     let p = cached.profile;
     let pending: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+    const baseline = { xp: p.xp, gold: p.gold };
 
     p.inventory = inventory;
     p.equips = profile.equips;
     pending = { ...pending, inventory: p.inventory, equips: p.equips as any };
 
-    userGuildProfileCache.set(profileKey(dbGuild.id, dbUser.id), {
+    commitProfileChanges({
+        userId: dbUser.id,
+        guildId: dbGuild.id,
         profile: p,
-        pendingChanges: Object.keys(pending).length > 0 ? pending : undefined,
-        dirty: true,
-        lastWroteToDb: cached.lastWroteToDb,
-        lastLoaded: Date.now(),
+        changes: pending,
+        baseline,
     });
 
     return { success: true, message: `Successfully equipped item \`${itemId}\` in the \`${item.equipSlot}\` slot.` };
