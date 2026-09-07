@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import {
+  Field,
+  FieldGrid,
+  KeyedList,
+  NumberField,
+  Section,
+  SelectField,
+  TextAreaField,
+  TextField,
+} from "@/app/components/ui/form";
 
 export interface LevelAction {
   type: "assignRole" | "removeRole" | "sendMessage";
@@ -25,8 +35,25 @@ type Props = {
   onChange: (next: LevelsConfig) => void;
 };
 
-const CURVES: LevelsConfig["curveType"][] = ["linear", "exponential", "polynomial", "logarithmic"];
-const ACTION_TYPES: LevelAction["type"][] = ["assignRole", "removeRole", "sendMessage"];
+const CURVES = [
+  { value: "linear" as const, label: "Linear" },
+  { value: "exponential" as const, label: "Exponential" },
+  { value: "polynomial" as const, label: "Polynomial" },
+  { value: "logarithmic" as const, label: "Logarithmic" },
+];
+
+const CURVE_HINTS: Record<LevelsConfig["curveType"], string> = {
+  linear: "total ≈ base + perLevel × level",
+  exponential: "total ≈ base × growth^(level − 1)",
+  polynomial: "total ≈ a × level^power + b",
+  logarithmic: "total ≈ a × ln(level + b) + c",
+};
+
+const ACTION_TYPES = [
+  { value: "assignRole" as const, label: "Assign role" },
+  { value: "removeRole" as const, label: "Remove role" },
+  { value: "sendMessage" as const, label: "Send message" },
+];
 
 /**
  * Drops actions the bot no longer runs.
@@ -37,31 +64,15 @@ const ACTION_TYPES: LevelAction["type"][] = ["assignRole", "removeRole", "sendMe
  * matching option, and the next save writes the config back without it.
  */
 function dropRetiredActions(config: LevelsConfig): LevelsConfig {
+  const known = ACTION_TYPES.map((t) => t.value) as string[];
   const levelActions: Record<number, LevelAction[]> = {};
 
   for (const [level, actions] of Object.entries(config.levelActions ?? {})) {
-    const kept = (actions ?? []).filter((a) => ACTION_TYPES.includes(a?.type));
+    const kept = (actions ?? []).filter((a) => known.includes(a?.type));
     if (kept.length) levelActions[Number(level)] = kept;
   }
 
   return { ...config, levelActions };
-}
-
-function safeNumber(raw: string, fallback: number) {
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function parseNumberOrNull(raw: string) {
-  const t = raw.trim();
-  if (t === "") return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
-
-function numKey(k: string) {
-  const n = Number(k);
-  return Number.isFinite(n) ? n : null;
 }
 
 export default function LevelsEditor({ value, onChange }: Props) {
@@ -79,21 +90,6 @@ export default function LevelsEditor({ value, onChange }: Props) {
   );
 
   const [local, setLocal] = useState<LevelsConfig>(dropRetiredActions(value ?? defaults));
-  const [expanded, setExpanded] = useState({
-    general: true,
-    curve: true,
-    overrides: true,
-    actions: true,
-  });
-
-  // draft creation rows for "level -> value"
-  const [newOverrideLevel, setNewOverrideLevel] = useState<string>("");
-  const [newOverrideXp, setNewOverrideXp] = useState<string>("");
-
-  const [newActionLevel, setNewActionLevel] = useState<string>("");
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  const [openActionLevel, setOpenActionLevel] = useState<number | null>(null);
 
   useEffect(() => {
     setLocal(dropRetiredActions(value ?? defaults));
@@ -109,512 +105,261 @@ export default function LevelsEditor({ value, onChange }: Props) {
     commit({ ...local, ...patch });
   }
 
-  // ---------- Curve params helpers ----------
   function suggestedParams(curveType: LevelsConfig["curveType"]): Record<string, number> {
     switch (curveType) {
       case "linear":
         return { base: 100, perLevel: 50 };
       case "exponential":
-        return { base: 100, growth: 1.15 }; // total ≈ base * growth^(level-1)
+        return { base: 100, growth: 1.15 };
       case "polynomial":
-        return { a: 10, power: 2, b: 0 }; // total ≈ a * level^power + b
+        return { a: 10, power: 2, b: 0 };
       case "logarithmic":
-        return { a: 200, b: 1, c: 0 }; // total ≈ a * ln(level + b) + c
+        return { a: 200, b: 1, c: 0 };
       default:
         return {};
     }
   }
 
-  // ---------- XP Overrides ----------
-  const overrideRows = useMemo(() => {
-    return Object.entries(local.xpOverrides ?? {})
-      .map(([k, v]) => [Number(k), v] as const)
-      .filter(([lvl]) => Number.isFinite(lvl))
-      .sort((a, b) => a[0] - b[0]);
-  }, [local.xpOverrides]);
-
-  function upsertOverride(level: number, xpRequired: number) {
-    const next = { ...(local.xpOverrides ?? {}) };
-    next[level] = xpRequired;
-    commit({ ...local, xpOverrides: next });
+  function setLevelActions(level: string, actions: LevelAction[]) {
+    commit({ ...local, levelActions: { ...(local.levelActions ?? {}), [Number(level)]: actions } });
   }
 
-  function deleteOverride(level: number) {
-    const next = { ...(local.xpOverrides ?? {}) };
-    delete next[level];
-    commit({ ...local, xpOverrides: next });
-  }
+  const overrideEntries = useMemo(
+    () =>
+      Object.entries(local.xpOverrides ?? {})
+        .filter(([k]) => Number.isFinite(Number(k)))
+        .sort((a, b) => Number(a[0]) - Number(b[0])),
+    [local.xpOverrides]
+  );
 
-  // ---------- Level Actions ----------
-  const actionLevelRows = useMemo(() => {
-    return Object.entries(local.levelActions ?? {})
-      .map(([k, v]) => [Number(k), v] as const)
-      .filter(([lvl]) => Number.isFinite(lvl))
-      .sort((a, b) => a[0] - b[0]);
-  }, [local.levelActions]);
-
-  function ensureLevelActions(level: number) {
-    const next = { ...(local.levelActions ?? {}) };
-    if (!next[level]) next[level] = [];
-    commit({ ...local, levelActions: next });
-  }
-
-  function setLevelActions(level: number, actions: LevelAction[]) {
-    const next = { ...(local.levelActions ?? {}) };
-    next[level] = actions;
-    commit({ ...local, levelActions: next });
-  }
-
-  function deleteLevelActions(level: number) {
-    const next = { ...(local.levelActions ?? {}) };
-    delete next[level];
-    commit({ ...local, levelActions: next });
-    if (openActionLevel === level) setOpenActionLevel(null);
-  }
-
-  function addAction(level: number) {
-    const curr = (local.levelActions ?? {})[level] ?? [];
-    const next: LevelAction[] = [...curr, { type: "sendMessage", message: "Congrats {user}!", channelId: local.announceLevelUpInChannelId ?? "" }];
-    setLevelActions(level, next);
-  }
-
-  function updateAction(level: number, index: number, patch: Partial<LevelAction>) {
-    const curr = (local.levelActions ?? {})[level] ?? [];
-    const next = curr.map((a, i) => (i === index ? { ...a, ...patch } : a));
-    setLevelActions(level, next);
-  }
-
-  function removeAction(level: number, index: number) {
-    const curr = (local.levelActions ?? {})[level] ?? [];
-    const next = curr.filter((_, i) => i !== index);
-    setLevelActions(level, next);
-  }
-
-  const SectionHeader = ({
-    title,
-    section,
-    right,
-  }: {
-    title: string;
-    section: keyof typeof expanded;
-    right?: React.ReactNode;
-  }) => (
-    <div className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={() => setExpanded((p) => ({ ...p, [section]: !p[section] }))}
-        className="flex w-full items-center justify-between rounded px-2 py-2 text-lg font-semibold hover:bg-gray-50"
-      >
-        <span>{title}</span>
-        {expanded[section] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-      </button>
-      {right ? <div className="ml-2 shrink-0">{right}</div> : null}
-    </div>
+  const actionEntries = useMemo(
+    () =>
+      Object.entries(local.levelActions ?? {})
+        .filter(([k]) => Number.isFinite(Number(k)))
+        .sort((a, b) => Number(a[0]) - Number(b[0])),
+    [local.levelActions]
   );
 
   return (
-    <div className="max-w-5xl space-y-6">
-      {/* GENERAL */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="Levels — General" section="general" />
-        {expanded.general && (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Max Level (null = no cap)</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  className="w-full rounded border px-3 py-2 text-sm"
-                  value={local.maxLevel ?? ""}
-                  onChange={(e) => updateRoot({ maxLevel: parseNumberOrNull(e.target.value) })}
-                  placeholder="(null)"
-                />
-                <button
-                  type="button"
-                  className="rounded border px-3 py-2 text-sm hover:bg-gray-50"
-                  onClick={() => updateRoot({ maxLevel: null })}
-                >
-                  Null
-                </button>
-              </div>
-            </div>
+    <div className="space-y-4">
+      <Section title="General" description="The level cap and how level-ups are announced.">
+        <FieldGrid>
+          <NumberField
+            label="Max level"
+            value={local.maxLevel ?? 0}
+            min={0}
+            onChange={(v) => updateRoot({ maxLevel: v > 0 ? v : null })}
+            hint="0 means no cap."
+          />
+          <TextField
+            label="Announce channel ID"
+            value={local.announceLevelUpInChannelId ?? ""}
+            onChange={(v) => updateRoot({ announceLevelUpInChannelId: v.trim() || null })}
+            placeholder="Leave blank to reply in place"
+            mono
+          />
+          <TextAreaField
+            label="Level-up message"
+            value={local.announceLevelUpMessage}
+            onChange={(v) => updateRoot({ announceLevelUpMessage: v })}
+            rows={2}
+            hint="{user} {level}"
+          />
+        </FieldGrid>
+      </Section>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Announce Channel ID</label>
-              <div className="flex items-center gap-2">
-                <input
-                  className="w-full rounded border px-3 py-2 text-sm font-mono"
-                  value={local.announceLevelUpInChannelId ?? ""}
-                  onChange={(e) => updateRoot({ announceLevelUpInChannelId: e.target.value.trim() || null })}
-                  placeholder="(blank = null)"
-                />
-                <button
-                  type="button"
-                  className="rounded border px-3 py-2 text-sm hover:bg-gray-50"
-                  onClick={() => updateRoot({ announceLevelUpInChannelId: null })}
-                >
-                  Null
-                </button>
-              </div>
-            </div>
+      <Section title="Progression curve" description="How much total XP each level costs.">
+        <FieldGrid>
+          <SelectField
+            label="Curve"
+            value={local.curveType}
+            onChange={(v) => commit({ ...local, curveType: v, curveParams: suggestedParams(v) })}
+            options={CURVES}
+            hint={`Changing this resets the parameters. ${CURVE_HINTS[local.curveType]}`}
+          />
+        </FieldGrid>
 
-            <div className="space-y-2 sm:col-span-2">
-              <label className="block text-sm font-medium">Announce Level Up Message</label>
-              <input
-                className="w-full rounded border px-3 py-2 text-sm"
-                value={local.announceLevelUpMessage}
-                onChange={(e) => updateRoot({ announceLevelUpMessage: e.target.value })}
-                placeholder="🎉 {user} reached level {level}!"
+        <div className="mt-4">
+          <FieldGrid>
+            {Object.entries(local.curveParams ?? {}).map(([param, val]) => (
+              <NumberField
+                key={param}
+                label={param}
+                value={val}
+                step={0.01}
+                onChange={(v) =>
+                  updateRoot({ curveParams: { ...(local.curveParams ?? {}), [param]: v } })
+                }
               />
-              <p className="text-xs text-gray-500">You can use placeholders like {`{user}`} and {`{level}`} if your bot supports them.</p>
-            </div>
-          </div>
-        )}
-      </div>
+            ))}
+          </FieldGrid>
+        </div>
+      </Section>
 
-      {/* CURVE */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="XP Curve" section="curve" />
-        {expanded.curve && (
-          <div className="mt-4 space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Curve Type</label>
-                <select
-                  className="w-full rounded border px-3 py-2 text-sm"
-                  value={local.curveType}
-                  onChange={(e) => {
-                    const nextType = e.target.value as LevelsConfig["curveType"];
-                    updateRoot({
-                      curveType: nextType,
-                      curveParams: suggestedParams(nextType),
-                    });
-                  }}
+      <Section
+        title="XP overrides"
+        description="Pin specific levels to an exact total XP, ignoring the curve."
+        defaultOpen={false}
+      >
+        <KeyedList<number>
+          entries={overrideEntries}
+          addPlaceholder="Level number"
+          addLabel="Add override"
+          empty="No overrides. Every level follows the curve."
+          itemLabel={(level) => `Level ${level}`}
+          onAdd={(raw) => {
+            const level = Number(raw);
+            if (!Number.isFinite(level) || level <= 0) return;
+            updateRoot({ xpOverrides: { ...(local.xpOverrides ?? {}), [level]: 0 } });
+          }}
+          onRemove={(level) => {
+            const next = { ...(local.xpOverrides ?? {}) };
+            delete next[Number(level)];
+            updateRoot({ xpOverrides: next });
+          }}
+          renderItem={(level, xpRequired) => (
+            <FieldGrid>
+              <NumberField
+                label="Total XP required"
+                value={xpRequired}
+                min={0}
+                onChange={(v) =>
+                  updateRoot({ xpOverrides: { ...(local.xpOverrides ?? {}), [Number(level)]: v } })
+                }
+              />
+            </FieldGrid>
+          )}
+        />
+      </Section>
+
+      <Section
+        title="Level actions"
+        description="What happens when someone reaches a level."
+        defaultOpen={false}
+      >
+        <KeyedList<LevelAction[]>
+          entries={actionEntries}
+          addPlaceholder="Level number"
+          addLabel="Add level"
+          empty="No level actions configured."
+          itemLabel={(level, actions) =>
+            `Level ${level} — ${actions.length} action${actions.length === 1 ? "" : "s"}`
+          }
+          onAdd={(raw) => {
+            const level = Number(raw);
+            if (!Number.isFinite(level) || level <= 0) return;
+            if ((local.levelActions ?? {})[level]) return;
+            updateRoot({ levelActions: { ...(local.levelActions ?? {}), [level]: [] } });
+          }}
+          onRemove={(level) => {
+            const next = { ...(local.levelActions ?? {}) };
+            delete next[Number(level)];
+            updateRoot({ levelActions: next });
+          }}
+          renderItem={(level, actions) => (
+            <div className="space-y-3">
+              {actions.length === 0 && (
+                <p className="text-xs text-[var(--muted)]">Nothing happens at this level yet.</p>
+              )}
+
+              {actions.map((action, index) => (
+                <div
+                  key={index}
+                  className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
                 >
-                  {CURVES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500">
-                  Changing type resets params to defaults (so users don’t keep invalid keys).
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded border p-3">
-              <div className="text-sm font-semibold">Curve Params</div>
-              <div className="mt-3 space-y-3">
-                {Object.entries(local.curveParams ?? {}).length === 0 ? (
-                  <div className="text-sm text-gray-600">No params.</div>
-                ) : (
-                  Object.entries(local.curveParams).map(([key, val]) => (
-                    <div key={key} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <div className="sm:col-span-1">
-                        <div className="rounded border bg-gray-50 px-3 py-2 text-sm font-mono">{key}</div>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <input
-                          type="number"
-                          className="w-full rounded border px-3 py-2 text-sm"
-                          value={val}
-                          onChange={(e) => {
-                            const next = { ...(local.curveParams ?? {}) };
-                            next[key] = safeNumber(e.target.value, val);
-                            updateRoot({ curveParams: next });
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <details className="rounded border bg-gray-50 p-3">
-              <summary className="cursor-pointer text-sm font-semibold">Param meaning (suggested)</summary>
-              <div className="mt-2 text-sm text-gray-700 space-y-2">
-                <div><span className="font-semibold">linear</span>: <span className="font-mono">base</span>, <span className="font-mono">perLevel</span></div>
-                <div><span className="font-semibold">exponential</span>: <span className="font-mono">base</span>, <span className="font-mono">growth</span></div>
-                <div><span className="font-semibold">polynomial</span>: <span className="font-mono">a</span>, <span className="font-mono">power</span>, <span className="font-mono">b</span></div>
-                <div><span className="font-semibold">logarithmic</span>: <span className="font-mono">a</span>, <span className="font-mono">b</span>, <span className="font-mono">c</span></div>
-              </div>
-            </details>
-          </div>
-        )}
-      </div>
-
-      {/* XP OVERRIDES */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="XP Overrides (level → total XP required)" section="overrides" />
-        {expanded.overrides && (
-          <div className="mt-4 space-y-4">
-            {/* create row */}
-            <div className="rounded border p-3">
-              <div className="text-sm font-semibold">Add Override</div>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-5">
-                <div className="sm:col-span-2 space-y-2">
-                  <label className="block text-xs font-medium text-gray-600">Level</label>
-                  <input
-                    type="number"
-                    className="w-full rounded border px-3 py-2 text-sm"
-                    value={newOverrideLevel}
-                    onChange={(e) => setNewOverrideLevel(e.target.value)}
-                    placeholder="e.g. 10"
-                  />
-                </div>
-                <div className="sm:col-span-2 space-y-2">
-                  <label className="block text-xs font-medium text-gray-600">Total XP Required</label>
-                  <input
-                    type="number"
-                    className="w-full rounded border px-3 py-2 text-sm"
-                    value={newOverrideXp}
-                    onChange={(e) => setNewOverrideXp(e.target.value)}
-                    placeholder="e.g. 5000"
-                  />
-                </div>
-                <div className="sm:col-span-1 flex items-end">
-                  <button
-                    type="button"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded bg-zinc-900 px-3 py-2 text-sm text-white hover:opacity-95"
-                    onClick={() => {
-                      setCreateError(null);
-                      const lvl = numKey(newOverrideLevel);
-                      const xp = numKey(newOverrideXp);
-
-                      if (lvl === null || lvl < 1) return setCreateError("Override level must be a number >= 1.");
-                      if (xp === null || xp < 0) return setCreateError("XP required must be a number >= 0.");
-
-                      upsertOverride(lvl, xp);
-                      setNewOverrideLevel("");
-                      setNewOverrideXp("");
-                    }}
-                  >
-                    <Plus size={16} />
-                    Add
-                  </button>
-                </div>
-              </div>
-
-              {createError && (
-                <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{createError}</div>
-              )}
-            </div>
-
-            {/* list */}
-            {overrideRows.length === 0 ? (
-              <div className="rounded border bg-gray-50 p-3 text-sm text-gray-600">No overrides.</div>
-            ) : (
-              <div className="rounded border overflow-hidden">
-                <div className="grid grid-cols-12 gap-0 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600">
-                  <div className="col-span-3">Level</div>
-                  <div className="col-span-7">Total XP Required</div>
-                  <div className="col-span-2 text-right">Actions</div>
-                </div>
-
-                {overrideRows.map(([lvl, xp]) => (
-                  <div key={lvl} className="grid grid-cols-12 items-center gap-0 border-t px-3 py-2">
-                    <div className="col-span-3 font-mono text-sm">{lvl}</div>
-                    <div className="col-span-7">
-                      <input
-                        type="number"
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={xp}
-                        onChange={(e) => upsertOverride(lvl, safeNumber(e.target.value, xp))}
-                      />
-                    </div>
-                    <div className="col-span-2 flex justify-end">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
-                        onClick={() => deleteOverride(lvl)}
-                      >
-                        <Trash2 size={16} />
-                        Remove
-                      </button>
-                    </div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs text-[var(--muted)]">Action {index + 1}</span>
+                    <button
+                      type="button"
+                      aria-label="Remove action"
+                      onClick={() => setLevelActions(level, actions.filter((_, i) => i !== index))}
+                      className="text-[var(--muted)] transition-colors hover:text-red-400"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* LEVEL ACTIONS */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="Level Actions (level → actions[])" section="actions" />
-        {expanded.actions && (
-          <div className="mt-4 space-y-4">
-            {/* add action level */}
-            <div className="rounded border p-3">
-              <div className="text-sm font-semibold">Add Level Action Group</div>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-5">
-                <div className="sm:col-span-4 space-y-2">
-                  <label className="block text-xs font-medium text-gray-600">Level</label>
-                  <input
-                    type="number"
-                    className="w-full rounded border px-3 py-2 text-sm"
-                    value={newActionLevel}
-                    onChange={(e) => setNewActionLevel(e.target.value)}
-                    placeholder="e.g. 5"
-                  />
-                </div>
-                <div className="sm:col-span-1 flex items-end">
-                  <button
-                    type="button"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded bg-zinc-900 px-3 py-2 text-sm text-white hover:opacity-95"
-                    onClick={() => {
-                      setCreateError(null);
-                      const lvl = numKey(newActionLevel);
-                      if (lvl === null || lvl < 1) return setCreateError("Level must be a number >= 1.");
+                  <FieldGrid>
+                    <SelectField
+                      label="Type"
+                      value={action.type}
+                      onChange={(v) =>
+                        setLevelActions(
+                          level,
+                          actions.map((a, i) => (i === index ? { ...a, type: v } : a))
+                        )
+                      }
+                      options={ACTION_TYPES}
+                    />
 
-                      ensureLevelActions(lvl);
-                      setOpenActionLevel(lvl);
-                      setNewActionLevel("");
-                    }}
-                  >
-                    <Plus size={16} />
-                    Add
-                  </button>
+                    {(action.type === "assignRole" || action.type === "removeRole") && (
+                      <TextField
+                        label="Role ID"
+                        value={action.roleId ?? ""}
+                        onChange={(v) =>
+                          setLevelActions(
+                            level,
+                            actions.map((a, i) => (i === index ? { ...a, roleId: v } : a))
+                          )
+                        }
+                        mono
+                      />
+                    )}
+
+                    {action.type === "sendMessage" && (
+                      <>
+                        <TextField
+                          label="Channel ID"
+                          value={action.channelId ?? ""}
+                          onChange={(v) =>
+                            setLevelActions(
+                              level,
+                              actions.map((a, i) => (i === index ? { ...a, channelId: v } : a))
+                            )
+                          }
+                          placeholder="Defaults to the announce channel"
+                          mono
+                        />
+                        <TextField
+                          wide
+                          label="Message"
+                          value={action.message ?? ""}
+                          onChange={(v) =>
+                            setLevelActions(
+                              level,
+                              actions.map((a, i) => (i === index ? { ...a, message: v } : a))
+                            )
+                          }
+                          hint="{user}"
+                        />
+                      </>
+                    )}
+                  </FieldGrid>
                 </div>
-              </div>
-              {createError && (
-                <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{createError}</div>
-              )}
+              ))}
+
+              <Field>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLevelActions(level, [
+                      ...actions,
+                      {
+                        type: "sendMessage",
+                        message: "Congrats {user}!",
+                        channelId: local.announceLevelUpInChannelId ?? "",
+                      },
+                    ])
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+                >
+                  <Plus size={14} /> Add action
+                </button>
+              </Field>
             </div>
-
-            {actionLevelRows.length === 0 ? (
-              <div className="rounded border bg-gray-50 p-3 text-sm text-gray-600">No level actions yet.</div>
-            ) : (
-              <div className="space-y-3">
-                {actionLevelRows.map(([lvl, actions]) => {
-                  const isOpen = openActionLevel === lvl;
-                  return (
-                    <div key={lvl} className="rounded border">
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-between px-3 py-3 text-left hover:bg-gray-50"
-                        onClick={() => setOpenActionLevel(isOpen ? null : lvl)}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-semibold">Level {lvl}</span>
-                            <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                              {actions.length} action{actions.length === 1 ? "" : "s"}
-                            </span>
-                          </div>
-                        </div>
-                        {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                      </button>
-
-                      {isOpen && (
-                        <div className="border-t p-3 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm hover:bg-gray-50"
-                              onClick={() => addAction(lvl)}
-                            >
-                              <Plus size={16} />
-                              Add Action
-                            </button>
-
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
-                              onClick={() => deleteLevelActions(lvl)}
-                            >
-                              <Trash2 size={16} />
-                              Delete Level Group
-                            </button>
-                          </div>
-
-                          {actions.length === 0 ? (
-                            <div className="rounded border bg-gray-50 p-3 text-sm text-gray-600">No actions in this level group.</div>
-                          ) : (
-                            actions.map((a, idx) => (
-                              <div key={idx} className="rounded border p-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-sm font-semibold">
-                                    Action #{idx + 1}{" "}
-                                    <span className="ml-2 rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">{a.type}</span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center gap-2 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
-                                    onClick={() => removeAction(lvl, idx)}
-                                  >
-                                    <Trash2 size={16} />
-                                    Remove
-                                  </button>
-                                </div>
-
-                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                  <div className="space-y-2">
-                                    <label className="block text-xs font-medium text-gray-600">Type</label>
-                                    <select
-                                      className="w-full rounded border px-3 py-2 text-sm"
-                                      value={a.type}
-                                      onChange={(e) => updateAction(lvl, idx, { type: e.target.value as LevelAction["type"] })}
-                                    >
-                                      {ACTION_TYPES.map((t) => (
-                                        <option key={t} value={t}>
-                                          {t}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-
-                                  {(a.type === "assignRole" || a.type === "removeRole") && (
-                                    <div className="space-y-2">
-                                      <label className="block text-xs font-medium text-gray-600">Role ID</label>
-                                      <input
-                                        className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                        value={a.roleId ?? ""}
-                                        onChange={(e) => updateAction(lvl, idx, { roleId: e.target.value })}
-                                        placeholder="discord role id"
-                                      />
-                                    </div>
-                                  )}
-
-                                  {a.type === "sendMessage" && (
-                                    <>
-                                      <div className="space-y-2 sm:col-span-2">
-                                        <label className="block text-xs font-medium text-gray-600">Message</label>
-                                        <input
-                                          className="w-full rounded border px-3 py-2 text-sm"
-                                          value={a.message ?? ""}
-                                          onChange={(e) => updateAction(lvl, idx, { message: e.target.value })}
-                                          placeholder="Congrats {user}!"
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="block text-xs font-medium text-gray-600">Channel ID</label>
-                                        <input
-                                          className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                          value={a.channelId ?? ""}
-                                          onChange={(e) => updateAction(lvl, idx, { channelId: e.target.value })}
-                                          placeholder="discord channel id"
-                                        />
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        />
+      </Section>
     </div>
   );
 }
