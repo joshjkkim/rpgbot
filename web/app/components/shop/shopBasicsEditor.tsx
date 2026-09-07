@@ -1,26 +1,48 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import {
+  Field,
+  FieldGrid,
+  KeyedList,
+  NumberField,
+  Section,
+  SelectField,
+  TextAreaField,
+  TextField,
+  Toggle,
+} from "@/app/components/ui/form";
 
-type NewCategoryDraft = {
-  id: string;
-  name: string;
-  icon?: string;
-  description?: string;
-  sortOrder?: number;
-  hidden?: boolean;
-  roleRequiredIds?: string[];
-};
+type EquipSlot =
+  | "head" | "body" | "legs" | "feet" | "hands"
+  | "weapon" | "shield" | "accessory" | "aura";
 
-type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";
+export interface shopItemAction {
+  type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem";
+  roleId?: string;
+  message?: string;
+  channelId?: string;
+  itemId?: string;
+  quantity?: number;
+  statId?: string;
+  amount?: number;
+}
+
+const ITEM_ACTION_TYPES = [
+  { value: "assignRole" as const, label: "Assign role" },
+  { value: "removeRole" as const, label: "Remove role" },
+  { value: "sendMessage" as const, label: "Send message" },
+  { value: "giveStat" as const, label: "Give stat" },
+  { value: "giveItem" as const, label: "Give item" },
+];
 
 type ItemEffects = {
   cosmetic?: {
-    accentHex?: string;     // aura / accent
+    accentHex?: string;
     textHex?: string;
     title?: string;
-    nameEmoji?: string;     // shown near username on card
+    nameEmoji?: string;
     fontPreset?: "inter" | "sora" | "nunito";
   };
   boosts?: {
@@ -31,23 +53,33 @@ type ItemEffects = {
     canStartQuestIds?: string[];
   };
   stats?: {
-    hp?: number;    // bonus max HP
-    atk?: number;   // bonus attack
-    def?: number;   // bonus defense
-    spd?: number;   // bonus speed
-    crit?: number;  // bonus crit chance (%)
+    hp?: number;
+    atk?: number;
+    def?: number;
+    spd?: number;
+    crit?: number;
   };
 };
 
-type NewItemDraft = {
+export interface shopCategoryConfig {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
+  sortOrder?: number;
+  hidden?: boolean;
+  roleRequiredIds?: string[];
+}
+
+export interface shopItemConfig {
   id: string;
   name: string;
   emoji?: string;
   description?: string;
   categoryId: string;
-  price: number;
   equipable?: boolean;
   equipSlot?: EquipSlot;
+  price: number;
   sellPrice?: number | null;
   minLevel?: number;
   requiresRoleIds?: string[];
@@ -58,40 +90,51 @@ type NewItemDraft = {
   tradeable?: boolean;
   actions?: Record<number, shopItemAction>;
   effects?: ItemEffects;
+}
+
+export type ShopConfig = {
+  enabled?: boolean;
+  categories?: Record<string, shopCategoryConfig>;
+  items?: Record<string, shopItemConfig>;
+  gifting?: {
+    enabled: boolean;
+    message: string | null;
+    announceChannel: string | null;
+    dm: boolean;
+    levelReq: number;
+  };
 };
 
-function normalizeId(id: string) {
-  return id.trim();
+type Props = {
+  value: ShopConfig | null | undefined;
+  onChange: (next: ShopConfig) => void;
+};
+
+const EQUIP_SLOTS = [
+  { value: "head" as const, label: "Head" },
+  { value: "body" as const, label: "Body" },
+  { value: "legs" as const, label: "Legs" },
+  { value: "feet" as const, label: "Feet" },
+  { value: "hands" as const, label: "Hands" },
+  { value: "weapon" as const, label: "Weapon" },
+  { value: "shield" as const, label: "Shield" },
+  { value: "accessory" as const, label: "Accessory" },
+  { value: "aura" as const, label: "Aura" },
+];
+
+const FONT_PRESETS = [
+  { value: "inter" as const, label: "Inter" },
+  { value: "sora" as const, label: "Sora" },
+  { value: "nunito" as const, label: "Nunito" },
+];
+
+function toCsv(ids?: string[]) {
+  return (ids ?? []).join(", ");
 }
 
-function isValidId(id: string) {
-  return /^[a-zA-Z0-9_-]{2,40}$/.test(id);
+function fromCsv(s: string) {
+  return s.split(",").map((x) => x.trim()).filter(Boolean);
 }
-
-export interface shopCategoryConfig {
-  id: string;
-  name: string;
-  icon?: string;
-  description?: string;
-  sortOrder?: number;
-
-  hidden?: boolean;
-  roleRequiredIds?: string[];
-}
-
-export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem";
-    roleId?: string;
-    message?: string;
-    channelId?: string;
-    itemId?: string;
-    quantity?: number;
-    statId?: string;
-    amount?: number;
-}
-
-const ITEM_ACTION_TYPES: shopItemAction["type"][] =
-  ["assignRole", "removeRole", "sendMessage", "giveStat", "giveItem"];
 
 /**
  * Drops item effects the bot no longer runs.
@@ -105,11 +148,12 @@ function dropRetiredActions(config: ShopConfig): ShopConfig {
   const items = config.items;
   if (!items) return config;
 
+  const known = ITEM_ACTION_TYPES.map((t) => t.value) as string[];
   const cleaned: Record<string, shopItemConfig> = {};
 
   for (const [id, item] of Object.entries(items)) {
     const entries = Object.entries(item?.actions ?? {});
-    const kept = entries.filter(([, a]) => ITEM_ACTION_TYPES.includes(a?.type));
+    const kept = entries.filter(([, a]) => known.includes(a?.type));
 
     if (kept.length === entries.length) {
       cleaned[id] = item;
@@ -118,1390 +162,529 @@ function dropRetiredActions(config: ShopConfig): ShopConfig {
 
     // The bot keys actions by index, so reindex rather than leaving a hole.
     const actions: Record<number, shopItemAction> = {};
-    kept.forEach(([, a], i) => { actions[i] = a; });
+    kept.forEach(([, a], i) => {
+      actions[i] = a;
+    });
     cleaned[id] = { ...item, actions };
   }
 
   return { ...config, items: cleaned };
 }
 
-
-export interface shopItemConfig {
-  id: string;
-  name: string;
-  emoji?: string;
-  description?: string;
-
-  categoryId: string;
-
-  equipable?: boolean;
-  equipSlot?: EquipSlot;
-
-  price: number;
-  sellPrice?: number | null;
-
-  minLevel?: number;
-  requiresRoleIds?: string[];
-  maxPerUser?: number;
-  stock?: number | null;
-  hidden?: boolean;
-  permanent?: boolean;
-  tradeable?: boolean;
-
-  actions?: Record<number, shopItemAction>;
-  effects?: ItemEffects;
-}
-
-export type ShopConfig = {
-  enabled?: boolean;
-  categories?: Record<string, shopCategoryConfig>;
-  items?: Record<string, shopItemConfig>;
-  gifting?: { enabled: boolean, message: string | null, announceChannel: string | null, dm: boolean, levelReq: number };
-};
-
-type Props = {
-  value: ShopConfig | null | undefined;
-  onChange: (next: ShopConfig) => void;
-};
-
-function toCsv(ids?: string[]) {
-  return (ids ?? []).join(", ");
-}
-function fromCsv(s: string) {
-  return s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-function safeNumber(s: string, fallback: number) {
-  const n = Number(s);
-  return Number.isFinite(n) ? n : fallback;
-}
-
 export default function ShopEconomyEditor({ value, onChange }: Props) {
-    const [newCategory, setNewCategory] = useState<NewCategoryDraft | null>(null);
-    const [newItem, setNewItem] = useState<NewItemDraft | null>(null);
-
-    const [createError, setCreateError] = useState<string | null>(null);
-  const shop = value ?? {};
-
-  const [expanded, setExpanded] = useState({
-    general: true,
-    categories: true,
-    items: true,
-  });
-
-  // track which item/category is expanded for editing
-  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
-  const [openItemId, setOpenItemId] = useState<string | null>(null);
-
-  // keep local copy so typing feels responsive even if parent re-renders
-  const [local, setLocal] = useState<ShopConfig>(dropRetiredActions(shop));
+  const [local, setLocal] = useState<ShopConfig>(dropRetiredActions(value ?? {}));
 
   useEffect(() => {
-    setLocal(dropRetiredActions(shop));
+    setLocal(dropRetiredActions(value ?? {}));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(value)]);
-
-  const localCategories = local.categories ?? {};
-  const localItems = local.items ?? {};
-
-  const sortedCategories = useMemo(() => {
-    return Object.values(localCategories).sort((a, b) => {
-      const ao = a.sortOrder ?? 0;
-      const bo = b.sortOrder ?? 0;
-      if (ao !== bo) return ao - bo;
-      return a.name.localeCompare(b.name);
-    });
-  }, [localCategories]);
-
-  const sortedItems = useMemo(() => {
-    return Object.values(localItems).sort((a, b) => {
-      const an = a.name.localeCompare(b.name);
-      if (an !== 0) return an;
-      return a.id.localeCompare(b.id);
-    });
-  }, [localItems]);
 
   function commit(next: ShopConfig) {
     setLocal(next);
     onChange(next);
   }
 
-  function updateShop(patch: Partial<ShopConfig>) {
+  function updateRoot(patch: Partial<ShopConfig>) {
     commit({ ...local, ...patch });
   }
 
-  function upsertCategory(cat: shopCategoryConfig) {
-    const nextCats = { ...(local.categories ?? {}) };
-    nextCats[cat.id] = cat;
-    commit({ ...local, categories: nextCats });
+  function updateGifting(patch: Partial<NonNullable<ShopConfig["gifting"]>>) {
+    updateRoot({
+      gifting: {
+        enabled: false,
+        message: null,
+        announceChannel: null,
+        dm: false,
+        levelReq: 0,
+        ...(local.gifting ?? {}),
+        ...patch,
+      },
+    });
   }
 
-  function deleteCategory(id: string) {
-    const nextCats = { ...(local.categories ?? {}) };
-    delete nextCats[id];
-
-    // also keep items intact; you might want to auto-migrate items off this category later
-    commit({ ...local, categories: nextCats });
-    if (openCategoryId === id) setOpenCategoryId(null);
+  function upsertCategory(category: shopCategoryConfig) {
+    updateRoot({ categories: { ...(local.categories ?? {}), [category.id]: category } });
   }
 
   function upsertItem(item: shopItemConfig) {
-    const nextItems = { ...(local.items ?? {}) };
-    nextItems[item.id] = item;
-    commit({ ...local, items: nextItems });
+    updateRoot({ items: { ...(local.items ?? {}), [item.id]: item } });
   }
 
-  function deleteItem(id: string) {
-    const nextItems = { ...(local.items ?? {}) };
-    delete nextItems[id];
-    commit({ ...local, items: nextItems });
-    if (openItemId === id) setOpenItemId(null);
-  }
+  const categoryEntries = useMemo(
+    () =>
+      Object.entries(local.categories ?? {}).sort((a, b) => {
+        const ao = a[1].sortOrder ?? 0;
+        const bo = b[1].sortOrder ?? 0;
+        return ao !== bo ? ao - bo : (a[1].name || a[0]).localeCompare(b[1].name || b[0]);
+      }),
+    [local.categories]
+  );
 
-  const SectionHeader = ({
-    title,
-    section,
-    right,
-  }: {
-    title: string;
-    section: keyof typeof expanded;
-    right?: React.ReactNode;
-  }) => (
-    <div className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={() => setExpanded((p) => ({ ...p, [section]: !p[section] }))}
-        className="flex w-full items-center justify-between rounded px-2 py-2 text-lg font-semibold hover:bg-gray-50"
-      >
-        <span>{title}</span>
-        {expanded[section] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-      </button>
-      {right ? <div className="ml-2 shrink-0">{right}</div> : null}
-    </div>
+  const itemEntries = useMemo(
+    () =>
+      Object.entries(local.items ?? {}).sort((a, b) =>
+        (a[1].name || a[0]).localeCompare(b[1].name || b[0])
+      ),
+    [local.items]
+  );
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: "", label: "— none —" },
+      ...categoryEntries.map(([id, c]) => ({ value: id, label: c.name || id })),
+    ],
+    [categoryEntries]
   );
 
   return (
-    <div className="max-w-5xl space-y-6">
-      {/* GENERAL */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="Shop — General" section="general" />
-        {expanded.general && (
-          <div className="mt-4 space-y-3">
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={!!local.enabled}
-                onChange={(e) => updateShop({ enabled: e.target.checked })}
-              />
-              <span className="font-medium">Enabled</span>
-            </label>
+    <div className="space-y-4">
+      <Section title="General" description="Whether the shop is open, and how gifting works.">
+        <Toggle
+          label="Enable shop"
+          checked={!!local.enabled}
+          onChange={(v) => updateRoot({ enabled: v })}
+        />
 
-            <div className="rounded border bg-gray-50 p-3 text-xs text-gray-600">
-              This editor uses raw IDs for roles/channels/stats (comma-separated). You can replace those inputs with
-              pickers later.
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* GIFTING */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="Gifting" section="general" />
-        {expanded.general && (
-          <div className="mt-4 space-y-4">
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
+        <div className="mt-5 space-y-3">
+          <Toggle
+            label="Allow gifting"
             checked={!!local.gifting?.enabled}
-            onChange={(e) =>
-          updateShop({
-            gifting: {
-              enabled: e.target.checked,
-              message: local.gifting?.message ?? null,
-              announceChannel: local.gifting?.announceChannel ?? null,
-              dm: local.gifting?.dm ?? false,
-              levelReq: local.gifting?.levelReq ?? 0,
-            },
-          })
-            }
+            onChange={(v) => updateGifting({ enabled: v })}
+            hint="Members can send items to each other."
           />
-          <span className="font-medium">Enable Gifting</span>
-        </label>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
-            <label className="block text-sm font-medium">Gift Message</label>
-            <input
-          className="w-full rounded border px-3 py-2 text-sm"
-          value={local.gifting?.message ?? ""}
-          onChange={(e) =>
-            updateShop({
-              gifting: {
-            enabled: local.gifting?.enabled ?? false,
-            message: e.target.value || null,
-            announceChannel: local.gifting?.announceChannel ?? null,
-            dm: local.gifting?.dm ?? false,
-            levelReq: local.gifting?.levelReq ?? 0,
-              },
-            })
-          }
-          placeholder="e.g. {giver} gifted {receiver} {item} {quantity}!"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium">Announce Channel ID</label>
-            <input
-          className="w-full rounded border px-3 py-2 text-sm font-mono"
-          value={local.gifting?.announceChannel ?? ""}
-          onChange={(e) =>
-            updateShop({
-              gifting: {
-            enabled: local.gifting?.enabled ?? false,
-            message: local.gifting?.message ?? null,
-            announceChannel: e.target.value || null,
-            dm: local.gifting?.dm ?? false,
-            levelReq: local.gifting?.levelReq ?? 0,
-              },
-            })
-          }
-          placeholder="(optional)"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium">Level Requirement</label>
-            <input
-          type="number"
-          className="w-full rounded border px-3 py-2 text-sm"
-          value={local.gifting?.levelReq ?? 0}
-          onChange={(e) =>
-            updateShop({
-              gifting: {
-            enabled: local.gifting?.enabled ?? false,
-            message: local.gifting?.message ?? null,
-            announceChannel: local.gifting?.announceChannel ?? null,
-            dm: local.gifting?.dm ?? false,
-            levelReq: safeNumber(e.target.value, 0),
-              },
-            })
-          }
-          placeholder="0"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
+          <Toggle
+            label="DM the receiver"
             checked={!!local.gifting?.dm}
-            onChange={(e) =>
-              updateShop({
-            gifting: {
-              enabled: local.gifting?.enabled ?? false,
-              message: local.gifting?.message ?? null,
-              announceChannel: local.gifting?.announceChannel ?? null,
-              dm: e.target.checked,
-              levelReq: local.gifting?.levelReq ?? 0,
-            },
-              })
-            }
+            onChange={(v) => updateGifting({ dm: v })}
           />
-          DM Recipient on Gift
-            </label>
-            <div className="text-xs text-gray-500">Send a DM to the recipient when they receive a gift.</div>
-          </div>
         </div>
-          </div>
-        )}
-      </div>
 
-      {/* CATEGORIES */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader
-          title="Categories"
-          section="categories"
-          right={
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm hover:bg-gray-50"
-              onClick={() => {
-                setCreateError(null);
-                setNewCategory({
-                    id: "",
-                    name: "New Category",
-                    icon: "🛍️",
-                    description: "",
-                    sortOrder: Object.keys(local.categories ?? {}).length,
-                    hidden: false,
-                    roleRequiredIds: [],
-                });
-                setExpanded((p) => ({ ...p, categories: true }));
-                }}
-            >
-              <Plus size={16} />
-              Add
-            </button>
-          }
+        <div className="mt-4">
+          <FieldGrid>
+            <NumberField
+              label="Minimum level to gift"
+              value={local.gifting?.levelReq ?? 0}
+              min={0}
+              onChange={(v) => updateGifting({ levelReq: v })}
+            />
+            <TextField
+              label="Gift announce channel ID"
+              value={local.gifting?.announceChannel ?? ""}
+              onChange={(v) => updateGifting({ announceChannel: v.trim() || null })}
+              placeholder="Leave blank to skip announcing"
+              mono
+            />
+            <TextAreaField
+              label="Gift message"
+              value={local.gifting?.message ?? ""}
+              onChange={(v) => updateGifting({ message: v || null })}
+              rows={2}
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
+      <Section title="Categories" description="How the shop is grouped." defaultOpen={false}>
+        <KeyedList<shopCategoryConfig>
+          entries={categoryEntries}
+          addPlaceholder="Category ID, e.g. consumables"
+          addLabel="Add category"
+          empty="No categories. Items will be ungrouped."
+          itemLabel={(id, c) => `${c.icon ?? ""} ${c.name || id}`.trim()}
+          onAdd={(rawId) => {
+            const id = rawId.trim();
+            if (!/^[a-zA-Z0-9_-]{2,40}$/.test(id)) return;
+            if ((local.categories ?? {})[id]) return;
+            upsertCategory({ id, name: id, sortOrder: categoryEntries.length });
+          }}
+          onRemove={(id) => {
+            const next = { ...(local.categories ?? {}) };
+            delete next[id];
+            updateRoot({ categories: next });
+          }}
+          renderItem={(id, category) => (
+            <div className="space-y-4">
+              <FieldGrid>
+                <TextField
+                  label="Name"
+                  value={category.name}
+                  onChange={(v) => upsertCategory({ ...category, name: v })}
+                />
+                <TextField
+                  label="Icon"
+                  value={category.icon ?? ""}
+                  onChange={(v) => upsertCategory({ ...category, icon: v })}
+                  placeholder="🧪"
+                />
+                <NumberField
+                  label="Sort order"
+                  value={category.sortOrder ?? 0}
+                  onChange={(v) => upsertCategory({ ...category, sortOrder: v })}
+                />
+                <TextField
+                  label="Required role IDs"
+                  value={toCsv(category.roleRequiredIds)}
+                  onChange={(v) => upsertCategory({ ...category, roleRequiredIds: fromCsv(v) })}
+                  placeholder="Comma-separated, blank for anyone"
+                  mono
+                />
+                <TextAreaField
+                  label="Description"
+                  value={category.description ?? ""}
+                  onChange={(v) => upsertCategory({ ...category, description: v })}
+                  rows={2}
+                />
+              </FieldGrid>
+
+              <Toggle
+                label="Hidden"
+                checked={!!category.hidden}
+                onChange={(v) => upsertCategory({ ...category, hidden: v })}
+              />
+            </div>
+          )}
         />
+      </Section>
 
-        {expanded.categories && (
-          <div className="mt-4 space-y-3">
-            {newCategory && (
-                <div className="rounded border p-3">
-                    <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">Create Category</div>
-                    <button
-                        type="button"
-                        className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
-                        onClick={() => {
-                        setNewCategory(null);
-                        setCreateError(null);
-                        }}
-                    >
-                        Cancel
-                    </button>
-                    </div>
+      <Section title="Items" description="What is for sale, and what it does." defaultOpen={false}>
+        <KeyedList<shopItemConfig>
+          entries={itemEntries}
+          addPlaceholder="Item ID, e.g. health-potion"
+          addLabel="Add item"
+          empty="No items for sale yet."
+          itemLabel={(id, item) => `${item.emoji ?? ""} ${item.name || id}`.trim()}
+          onAdd={(rawId) => {
+            const id = rawId.trim();
+            if (!/^[a-zA-Z0-9_-]{2,40}$/.test(id)) return;
+            if ((local.items ?? {})[id]) return;
+            upsertItem({ id, name: id, categoryId: categoryEntries[0]?.[0] ?? "", price: 100 });
+          }}
+          onRemove={(id) => {
+            const next = { ...(local.items ?? {}) };
+            delete next[id];
+            updateRoot({ items: next });
+          }}
+          renderItem={(id, item) => {
+            const actions = item.actions ?? {};
+            const actionKeys = Object.keys(actions).map(Number).sort((a, b) => a - b);
+            const effects = item.effects ?? {};
 
-                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-2 sm:col-span-2">
-                        <label className="block text-sm font-medium">Category ID (set once)</label>
-                        <input
-                        className="w-full rounded border px-3 py-2 text-sm font-mono"
-                        value={newCategory.id}
-                        onChange={(e) => setNewCategory({ ...newCategory, id: e.target.value })}
-                        placeholder="e.g. roles, cosmetics, boosts"
-                        />
-                        <p className="text-xs text-gray-500">
-                        Allowed: letters, numbers, <span className="font-mono">_</span> or <span className="font-mono">-</span>.
-                        Once created, you can’t change it.
-                        </p>
-                    </div>
+            const patchEffects = (p: Partial<ItemEffects>) =>
+              upsertItem({ ...item, effects: { ...effects, ...p } });
 
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium">Name</label>
-                        <input
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={newCategory.name}
-                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                        />
-                    </div>
+            return (
+              <div className="space-y-4">
+                <FieldGrid>
+                  <TextField label="Name" value={item.name} onChange={(v) => upsertItem({ ...item, name: v })} />
+                  <TextField
+                    label="Emoji"
+                    value={item.emoji ?? ""}
+                    onChange={(v) => upsertItem({ ...item, emoji: v })}
+                  />
+                  <SelectField
+                    label="Category"
+                    value={item.categoryId ?? ""}
+                    onChange={(v) => upsertItem({ ...item, categoryId: v })}
+                    options={categoryOptions}
+                  />
+                  <NumberField
+                    label="Price"
+                    value={item.price ?? 0}
+                    min={0}
+                    onChange={(v) => upsertItem({ ...item, price: v })}
+                  />
+                  <TextAreaField
+                    label="Description"
+                    value={item.description ?? ""}
+                    onChange={(v) => upsertItem({ ...item, description: v })}
+                    rows={2}
+                  />
+                </FieldGrid>
 
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium">Icon</label>
-                        <input
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={newCategory.icon ?? ""}
-                        onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
-                        />
-                    </div>
+                <Field label="Availability">
+                  <FieldGrid>
+                    <NumberField
+                      label="Sell price"
+                      value={item.sellPrice ?? 0}
+                      min={0}
+                      onChange={(v) => upsertItem({ ...item, sellPrice: v > 0 ? v : null })}
+                      hint="0 means it cannot be sold back."
+                    />
+                    <NumberField
+                      label="Minimum level"
+                      value={item.minLevel ?? 0}
+                      min={0}
+                      onChange={(v) => upsertItem({ ...item, minLevel: v })}
+                    />
+                    <NumberField
+                      label="Stock"
+                      value={item.stock ?? 0}
+                      min={0}
+                      onChange={(v) => upsertItem({ ...item, stock: v > 0 ? v : null })}
+                      hint="0 means unlimited."
+                    />
+                    <NumberField
+                      label="Max per member"
+                      value={item.maxPerUser ?? 0}
+                      min={0}
+                      onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
+                      hint="0 means no cap."
+                    />
+                    <TextField
+                      wide
+                      label="Required role IDs"
+                      value={toCsv(item.requiresRoleIds)}
+                      onChange={(v) => upsertItem({ ...item, requiresRoleIds: fromCsv(v) })}
+                      placeholder="Comma-separated, blank for anyone"
+                      mono
+                    />
+                  </FieldGrid>
+                </Field>
 
-                    <div className="space-y-2 sm:col-span-2">
-                        <label className="block text-sm font-medium">Description</label>
-                        <input
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={newCategory.description ?? ""}
-                        onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                        />
-                    </div>
-                    </div>
-
-                    {createError && <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{createError}</div>}
-
-                    <div className="mt-4 flex justify-end">
-                    <button
-                        type="button"
-                        className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:opacity-95"
-                        onClick={() => {
-                        setCreateError(null);
-                        const id = normalizeId(newCategory.id);
-
-                        if (!id) return setCreateError("Category ID is required.");
-                        if (!isValidId(id)) return setCreateError("Category ID must be 2–40 chars: letters/numbers/_/- only.");
-                        if ((local.categories ?? {})[id]) return setCreateError("That category ID is already taken.");
-
-                        const cat: shopCategoryConfig = {
-                            id,
-                            name: newCategory.name,
-                            icon: newCategory.icon,
-                            description: newCategory.description,
-                            sortOrder: newCategory.sortOrder,
-                            hidden: newCategory.hidden,
-                            roleRequiredIds: newCategory.roleRequiredIds ?? [],
-                        };
-
-                        const nextCats = { ...(local.categories ?? {}) };
-                        nextCats[id] = cat;
-                        commit({ ...local, categories: nextCats });
-
-                        setNewCategory(null);
-                        setOpenCategoryId(id);
-                        }}
-                    >
-                        Create Category
-                    </button>
-                    </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Toggle label="Hidden" checked={!!item.hidden} onChange={(v) => upsertItem({ ...item, hidden: v })} />
+                  <Toggle
+                    label="Permanent"
+                    checked={!!item.permanent}
+                    onChange={(v) => upsertItem({ ...item, permanent: v })}
+                    hint="Not consumed when used."
+                  />
+                  <Toggle
+                    label="Tradeable"
+                    checked={!!item.tradeable}
+                    onChange={(v) => upsertItem({ ...item, tradeable: v })}
+                  />
+                  <Toggle
+                    label="Equipable"
+                    checked={!!item.equipable}
+                    onChange={(v) => upsertItem({ ...item, equipable: v })}
+                  />
                 </div>
+
+                {item.equipable && (
+                  <FieldGrid>
+                    <SelectField
+                      label="Equipment slot"
+                      value={item.equipSlot ?? "accessory"}
+                      onChange={(v) => upsertItem({ ...item, equipSlot: v })}
+                      options={EQUIP_SLOTS}
+                    />
+                  </FieldGrid>
                 )}
 
+                <Field label="Equipped stat bonuses">
+                  <FieldGrid>
+                    {(["hp", "atk", "def", "spd", "crit"] as const).map((stat) => (
+                      <NumberField
+                        key={stat}
+                        label={stat.toUpperCase()}
+                        value={effects.stats?.[stat] ?? 0}
+                        step={stat === "crit" ? 0.01 : 1}
+                        onChange={(v) => patchEffects({ stats: { ...(effects.stats ?? {}), [stat]: v } })}
+                      />
+                    ))}
+                  </FieldGrid>
+                </Field>
 
-            {sortedCategories.length === 0 ? (
-              <div className="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                No categories yet. Add one to start.
-              </div>
-            ) : (
-              sortedCategories.map((cat) => {
-                const isOpen = openCategoryId === cat.id;
-                return (
-                  <div key={cat.id} className="rounded border">
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between px-3 py-3 text-left hover:bg-gray-50"
-                      onClick={() => setOpenCategoryId(isOpen ? null : cat.id)}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base font-semibold">
-                            {cat.icon ? `${cat.icon} ` : ""}
-                            {cat.name}
-                          </span>
-                          {cat.hidden ? (
-                            <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">Hidden</span>
-                          ) : null}
-                        </div>
-                        <div className="truncate text-xs text-gray-500">
-                          id: <span className="font-mono">{cat.id}</span>
-                          {cat.description ? ` • ${cat.description}` : ""}
-                        </div>
-                      </div>
-                      {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                    </button>
+                <Field label="Boosts">
+                  <FieldGrid>
+                    <NumberField
+                      label="XP multiplier"
+                      value={effects.boosts?.xpMultiplier ?? 1}
+                      step={0.1}
+                      min={0}
+                      onChange={(v) =>
+                        patchEffects({ boosts: { ...(effects.boosts ?? {}), xpMultiplier: v } })
+                      }
+                    />
+                    <NumberField
+                      label="Gold multiplier"
+                      value={effects.boosts?.goldMultiplier ?? 1}
+                      step={0.1}
+                      min={0}
+                      onChange={(v) =>
+                        patchEffects({ boosts: { ...(effects.boosts ?? {}), goldMultiplier: v } })
+                      }
+                    />
+                  </FieldGrid>
+                </Field>
 
-                    {isOpen && (
-                      <div className="border-t p-3">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Name</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={cat.name}
-                              onChange={(e) => upsertCategory({ ...cat, name: e.target.value })}
-                            />
-                          </div>
+                <Field label="Cosmetic">
+                  <FieldGrid>
+                    <TextField
+                      label="Title"
+                      value={effects.cosmetic?.title ?? ""}
+                      onChange={(v) => patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), title: v } })}
+                    />
+                    <TextField
+                      label="Name emoji"
+                      value={effects.cosmetic?.nameEmoji ?? ""}
+                      onChange={(v) =>
+                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), nameEmoji: v } })
+                      }
+                    />
+                    <TextField
+                      label="Accent hex"
+                      value={effects.cosmetic?.accentHex ?? ""}
+                      onChange={(v) =>
+                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), accentHex: v } })
+                      }
+                      placeholder="#00AE86"
+                      mono
+                    />
+                    <TextField
+                      label="Text hex"
+                      value={effects.cosmetic?.textHex ?? ""}
+                      onChange={(v) =>
+                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), textHex: v } })
+                      }
+                      placeholder="#FFFFFF"
+                      mono
+                    />
+                    <SelectField
+                      label="Font"
+                      value={effects.cosmetic?.fontPreset ?? "inter"}
+                      onChange={(v) =>
+                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), fontPreset: v } })
+                      }
+                      options={FONT_PRESETS}
+                    />
+                    <TextField
+                      label="Unlocks quest IDs"
+                      value={toCsv(effects.quest?.canStartQuestIds)}
+                      onChange={(v) => patchEffects({ quest: { canStartQuestIds: fromCsv(v) } })}
+                      placeholder="Comma-separated"
+                      mono
+                    />
+                  </FieldGrid>
+                </Field>
 
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Icon (emoji)</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={cat.icon ?? ""}
-                              onChange={(e) => upsertCategory({ ...cat, icon: e.target.value })}
-                              placeholder="🛍️"
-                            />
-                          </div>
-
-                          <div className="space-y-2 sm:col-span-2">
-                            <label className="block text-sm font-medium">Description</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={cat.description ?? ""}
-                              onChange={(e) => upsertCategory({ ...cat, description: e.target.value })}
-                              placeholder="Optional"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Sort Order</label>
-                            <input
-                              type="number"
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={cat.sortOrder ?? 0}
-                              onChange={(e) =>
-                                upsertCategory({ ...cat, sortOrder: safeNumber(e.target.value, cat.sortOrder ?? 0) })
-                              }
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-medium">
-                              <input
-                                type="checkbox"
-                                checked={!!cat.hidden}
-                                onChange={(e) => upsertCategory({ ...cat, hidden: e.target.checked })}
-                              />
-                              Hidden
-                            </label>
-                            <div className="text-xs text-gray-500">Hidden categories won’t show in shop UI.</div>
-                          </div>
-
-                          <div className="space-y-2 sm:col-span-2">
-                            <label className="block text-sm font-medium">Role Required IDs (CSV)</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm font-mono"
-                              value={toCsv(cat.roleRequiredIds)}
-                              onChange={(e) => upsertCategory({ ...cat, roleRequiredIds: fromCsv(e.target.value) })}
-                              placeholder="123, 456"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex justify-end">
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
-                            onClick={() => deleteCategory(cat.id)}
-                          >
-                            <Trash2 size={16} />
-                            Delete Category
-                          </button>
-                        </div>
-                      </div>
+                <Field label="Actions on use">
+                  <div className="space-y-3">
+                    {actionKeys.length === 0 && (
+                      <p className="text-xs text-[var(--muted)]">
+                        Nothing happens when this item is used.
+                      </p>
                     )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* ITEMS */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader
-          title="Items"
-          section="items"
-          right={
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm hover:bg-gray-50"
-              onClick={() => {
-                setCreateError(null);
-                const firstCategory = Object.values(local.categories ?? {})[0]?.id ?? "uncategorized";
+                    {actionKeys.map((key) => {
+                      const action = actions[key] ?? { type: "sendMessage" as const };
+                      const patch = (p: Partial<shopItemAction>) =>
+                        upsertItem({ ...item, actions: { ...actions, [key]: { ...action, ...p } } });
 
-                setNewItem({
-                    id: "",
-                    name: "New Item",
-                    emoji: "✨",
-                    description: "",
-                    categoryId: firstCategory,
-                    price: 100,
-                    sellPrice: null,
-                    minLevel: undefined,
-                    requiresRoleIds: [],
-                    maxPerUser: undefined,
-                    stock: null,
-                    hidden: false,
-                    permanent: false,
-                    tradeable: false,
-                    actions: {},
-                });
-                setExpanded((p) => ({ ...p, items: true }));
-                }}
-
-            >
-              <Plus size={16} />
-              Add
-            </button>
-          }
-        />
-
-        {expanded.items && (
-          <div className="mt-4 space-y-3">
-            {newItem && (
-                <div className="rounded border p-3">
-                    <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">Create Item</div>
-                    <button
-                        type="button"
-                        className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
-                        onClick={() => {
-                        setNewItem(null);
-                        setCreateError(null);
-                        }}
-                    >
-                        Cancel
-                    </button>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-2 sm:col-span-2">
-                        <label className="block text-sm font-medium">Item ID (set once)</label>
-                        <input
-                        className="w-full rounded border px-3 py-2 text-sm font-mono"
-                        value={newItem.id}
-                        onChange={(e) => setNewItem({ ...newItem, id: e.target.value })}
-                        placeholder="e.g. vip_role, rename_token, booster_pack"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium">Name</label>
-                        <input
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={newItem.name}
-                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium">Emoji</label>
-                        <input
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={newItem.emoji ?? ""}
-                        onChange={(e) => setNewItem({ ...newItem, emoji: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="space-y-2 sm:col-span-2">
-                        <label className="block text-sm font-medium">Category</label>
-                        <select
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={newItem.categoryId}
-                        onChange={(e) => setNewItem({ ...newItem, categoryId: e.target.value })}
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
                         >
-                        {Object.values(local.categories ?? {}).map((c) => (
-                            <option key={c.id} value={c.id}>
-                            {c.icon ? `${c.icon} ` : ""}{c.name} ({c.id})
-                            </option>
-                        ))}
-                        <option value="uncategorized">Uncategorized (uncategorized)</option>
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium">Price</label>
-                        <input
-                        type="number"
-                        className="w-full rounded border px-3 py-2 text-sm"
-                        value={newItem.price}
-                        onChange={(e) => setNewItem({ ...newItem, price: Number(e.target.value) })}
-                        />
-                    </div>
-                    </div>
-
-                    {createError && <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{createError}</div>}
-
-                    <div className="mt-4 flex justify-end">
-                    <button
-                        type="button"
-                        className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:opacity-95"
-                        onClick={() => {
-                        setCreateError(null);
-                        const id = normalizeId(newItem.id);
-
-                        if (!id) return setCreateError("Item ID is required.");
-                        if (!isValidId(id)) return setCreateError("Item ID must be 2–40 chars: letters/numbers/_/- only.");
-                        if ((local.items ?? {})[id]) return setCreateError("That item ID is already taken.");
-
-                        const item: shopItemConfig = {
-                            id,
-                            name: newItem.name,
-                            emoji: newItem.emoji,
-                            description: newItem.description,
-                            categoryId: newItem.categoryId,
-                            price: newItem.price,
-                            sellPrice: newItem.sellPrice ?? null,
-                            minLevel: newItem.minLevel,
-                            requiresRoleIds: newItem.requiresRoleIds ?? [],
-                            maxPerUser: newItem.maxPerUser,
-                            stock: newItem.stock ?? null,
-                            hidden: newItem.hidden,
-                            permanent: newItem.permanent,
-                            tradeable: newItem.tradeable,
-                            actions: newItem.actions ?? {},
-                        };
-
-                        const nextItems = { ...(local.items ?? {}) };
-                        nextItems[id] = item;
-                        commit({ ...local, items: nextItems });
-
-                        setNewItem(null);
-                        setOpenItemId(id);
-                        }}
-                    >
-                        Create Item
-                    </button>
-                    </div>
-                </div>
-                )}
-
-
-            {sortedItems.length === 0 ? (
-              <div className="rounded border bg-gray-50 p-3 text-sm text-gray-600">
-                No items yet. Add one to start.
-              </div>
-            ) : (
-              sortedItems.map((it) => {
-                const isOpen = openItemId === it.id;
-                const catName =
-                  localCategories[it.categoryId]?.name ??
-                  (it.categoryId === "uncategorized" ? "Uncategorized" : it.categoryId);
-
-                return (
-                  <div key={it.id} className="rounded border">
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between px-3 py-3 text-left hover:bg-gray-50"
-                      onClick={() => setOpenItemId(isOpen ? null : it.id)}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-base font-semibold">
-                            {it.emoji ? `${it.emoji} ` : ""}
-                            {it.name}
-                          </span>
-
-                          <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">{catName}</span>
-
-                          <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                            Price: {it.price}
-                          </span>
-
-                          {it.hidden ? (
-                            <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">Hidden</span>
-                          ) : null}
-                          {it.permanent ? (
-                            <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">Permanent</span>
-                          ) : null}
-                          {it.tradeable ? (
-                            <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">Tradeable</span>
-                          ) : null}
-                        </div>
-
-                        <div className="truncate text-xs text-gray-500">
-                          id: <span className="font-mono">{it.id}</span>
-                          {it.description ? ` • ${it.description}` : ""}
-                        </div>
-                      </div>
-
-                      {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                    </button>
-
-                    {isOpen && (
-                      <div className="border-t p-3 space-y-6">
-                        {/* Basic fields */}
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Name</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.name}
-                              onChange={(e) => upsertItem({ ...it, name: e.target.value })}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Emoji</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.emoji ?? ""}
-                              onChange={(e) => upsertItem({ ...it, emoji: e.target.value })}
-                              placeholder="✨"
-                            />
-                          </div>
-
-                          <div className="space-y-2 sm:col-span-2">
-                            <label className="block text-sm font-medium">Description</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.description ?? ""}
-                              onChange={(e) => upsertItem({ ...it, description: e.target.value })}
-                              placeholder="Optional"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Category</label>
-                            <select
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.categoryId}
-                              onChange={(e) => upsertItem({ ...it, categoryId: e.target.value })}
-                            >
-                              {sortedCategories.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.icon ? `${c.icon} ` : ""}
-                                  {c.name} ({c.id})
-                                </option>
-                              ))}
-                              <option value="uncategorized">Uncategorized (uncategorized)</option>
-                            </select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Price</label>
-                            <input
-                              type="number"
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.price}
-                              onChange={(e) => upsertItem({ ...it, price: safeNumber(e.target.value, it.price) })}
-                            />
-                          </div>
-
-                          {/* equipable */}
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Equipable</label>
-                            <div className="flex items-center gap-2">
-                              <label className="flex items-center gap-2 text-sm">
-                                <input
-                                  type="checkbox"
-                                  checked={!!it.equipable}
-                                  onChange={(e) => upsertItem({ ...it, equipable: e.target.checked })}
-                                />
-                                Equipable
-                              </label>
-                            </div>
-                          </div>
-
-                          {it.equipable && (
-                            <div className="space-y-2">
-                              <label className="block text-sm font-medium">Equip Slot</label>
-                              <select
-                                className="w-full rounded border px-3 py-2 text-sm"
-                                value={it.equipSlot ?? ""}
-                                onChange={(e) =>
-                                  upsertItem({ ...it, equipSlot: (e.target.value || undefined) as EquipSlot | undefined })
-                                }
-                              >
-                                <option value="">(none)</option>
-                                <option value="head">head</option>
-                                <option value="body">body</option>
-                                <option value="legs">legs</option>
-                                <option value="feet">feet</option>
-                                <option value="hands">hands</option>
-                                <option value="weapon">weapon</option>
-                                <option value="shield">shield</option>
-                                <option value="accessory">accessory</option>
-                                <option value="aura">aura</option>
-                              </select>
-                            </div>
-                          )}
-
-                          {/* sellPrice nullable */}
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Sell Price</label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                className="w-full rounded border px-3 py-2 text-sm"
-                                value={it.sellPrice ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value.trim();
-                                  upsertItem({ ...it, sellPrice: raw === "" ? null : safeNumber(raw, 0) });
-                                }}
-                                placeholder="(null)"
-                              />
-                              <button
-                                type="button"
-                                className="rounded border px-3 py-2 text-sm hover:bg-gray-50"
-                                onClick={() => upsertItem({ ...it, sellPrice: null })}
-                                title="Set to null"
-                              >
-                                Null
-                              </button>
-                            </div>
-                            <div className="text-xs text-gray-500">Leave null to disable selling (if that’s your logic).</div>
-                          </div>
-
-                          {/* stock nullable */}
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Stock</label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                className="w-full rounded border px-3 py-2 text-sm"
-                                value={it.stock ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value.trim();
-                                  upsertItem({ ...it, stock: raw === "" ? null : safeNumber(raw, 0) });
-                                }}
-                                placeholder="(null = unlimited)"
-                              />
-                              <button
-                                type="button"
-                                className="rounded border px-3 py-2 text-sm hover:bg-gray-50"
-                                onClick={() => upsertItem({ ...it, stock: null })}
-                              >
-                                Unlimited
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Min Level</label>
-                            <input
-                              type="number"
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.minLevel ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value.trim();
-                                upsertItem({ ...it, minLevel: raw === "" ? undefined : safeNumber(raw, 0) });
-                              }}
-                              placeholder="(none)"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium">Max Per User</label>
-                            <input
-                              type="number"
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.maxPerUser ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value.trim();
-                                upsertItem({ ...it, maxPerUser: raw === "" ? undefined : safeNumber(raw, 0) });
-                              }}
-                              placeholder="(none)"
-                            />
-                          </div>
-
-                          <div className="space-y-2 sm:col-span-2">
-                            <label className="block text-sm font-medium">Requires Role IDs (CSV)</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm font-mono"
-                              value={toCsv(it.requiresRoleIds)}
-                              onChange={(e) => upsertItem({ ...it, requiresRoleIds: fromCsv(e.target.value) })}
-                              placeholder="123, 456"
-                            />
-                          </div>
-
-                          <div className="flex flex-wrap gap-4 sm:col-span-2">
-                            <label className="flex items-center gap-2 text-sm font-medium">
-                              <input
-                                type="checkbox"
-                                checked={!!it.hidden}
-                                onChange={(e) => upsertItem({ ...it, hidden: e.target.checked })}
-                              />
-                              Hidden
-                            </label>
-                            <label className="flex items-center gap-2 text-sm font-medium">
-                              <input
-                                type="checkbox"
-                                checked={!!it.permanent}
-                                onChange={(e) => upsertItem({ ...it, permanent: e.target.checked })}
-                              />
-                              Permanent
-                            </label>
-                            <label className="flex items-center gap-2 text-sm font-medium">
-                              <input
-                                type="checkbox"
-                                checked={!!it.tradeable}
-                                onChange={(e) => upsertItem({ ...it, tradeable: e.target.checked })}
-                              />
-                              Tradeable
-                            </label>
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="rounded border p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm font-semibold">Actions</div>
+                          <div className="mb-3 flex items-center justify-between">
+                            <span className="text-xs text-[var(--muted)]">Action {key}</span>
                             <button
                               type="button"
-                              className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm hover:bg-gray-50"
+                              aria-label="Remove action"
                               onClick={() => {
-                                const current = it.actions ?? {};
-                                const keys = Object.keys(current).map((k) => Number(k)).filter(Number.isFinite);
-                                const nextKey = (keys.length ? Math.max(...keys) : -1) + 1;
-
-                                const nextActions: Record<number, shopItemAction> = {
-                                  ...current,
-                                  [nextKey]: { type: "sendMessage", message: "Thanks for your purchase!" },
-                                };
-                                upsertItem({ ...it, actions: nextActions });
+                                const next = { ...actions };
+                                delete next[key];
+                                upsertItem({ ...item, actions: next });
                               }}
+                              className="text-[var(--muted)] transition-colors hover:text-red-400"
                             >
-                              <Plus size={16} />
-                              Add Action
+                              <Trash2 size={14} />
                             </button>
                           </div>
 
-                          <div className="mt-3 space-y-3">
-                            {Object.keys(it.actions ?? {}).length === 0 ? (
-                              <div className="text-xs text-gray-500">No actions. Add one if this item should do something on purchase.</div>
-                            ) : (
-                              Object.entries(it.actions ?? {})
-                                .map(([k, v]) => [Number(k), v] as const)
-                                .sort((a, b) => a[0] - b[0])
-                                .map(([key, action]) => {
-                                  const setAction = (patch: Partial<shopItemAction>) => {
-                                    const nextActions = { ...(it.actions ?? {}) };
-                                    nextActions[key] = { ...action, ...patch };
-                                    upsertItem({ ...it, actions: nextActions });
-                                  };
+                          <FieldGrid>
+                            <SelectField
+                              label="Type"
+                              value={action.type}
+                              onChange={(v) => patch({ type: v })}
+                              options={ITEM_ACTION_TYPES}
+                            />
 
-                                  const removeAction = () => {
-                                    const nextActions = { ...(it.actions ?? {}) };
-                                    delete nextActions[key];
-                                    upsertItem({ ...it, actions: nextActions });
-                                  };
-
-                                  return (
-                                    <div key={key} className="rounded border p-3">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="text-sm font-medium">
-                                          Action #{key}{" "}
-                                          <span className="ml-2 rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                                            {action.type}
-                                          </span>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          className="inline-flex items-center gap-2 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
-                                          onClick={removeAction}
-                                        >
-                                          <Trash2 size={16} />
-                                          Remove
-                                        </button>
-                                      </div>
-
-                                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                        <div className="space-y-2">
-                                          <label className="block text-xs font-medium text-gray-600">Type</label>
-                                          <select
-                                            className="w-full rounded border px-3 py-2 text-sm"
-                                            value={action.type}
-                                            onChange={(e) => setAction({ type: e.target.value as shopItemAction["type"] })}
-                                          >
-                                            <option value="assignRole">assignRole</option>
-                                            <option value="removeRole">removeRole</option>
-                                            <option value="sendMessage">sendMessage</option>
-                                            <option value="giveStat">giveStat</option>
-                                            <option value="giveItem">giveItem</option>
-                                          </select>
-                                        </div>
-
-                                        {(action.type === "assignRole" || action.type === "removeRole") && (
-                                          <div className="space-y-2">
-                                            <label className="block text-xs font-medium text-gray-600">Role ID</label>
-                                            <input
-                                              className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                              value={action.roleId ?? ""}
-                                              onChange={(e) => setAction({ roleId: e.target.value })}
-                                              placeholder="1234567890"
-                                            />
-                                          </div>
-                                        )}
-
-                                        {action.type === "sendMessage" && (
-                                          <>
-                                            <div className="space-y-2 sm:col-span-2">
-                                              <label className="block text-xs font-medium text-gray-600">Message</label>
-                                              <input
-                                                className="w-full rounded border px-3 py-2 text-sm"
-                                                value={action.message ?? ""}
-                                                onChange={(e) => setAction({ message: e.target.value })}
-                                                placeholder="Message to send"
-                                              />
-                                            </div>
-                                            <div className="space-y-2">
-                                              <label className="block text-xs font-medium text-gray-600">Channel ID (optional)</label>
-                                              <input
-                                                className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                                value={action.channelId ?? ""}
-                                                onChange={(e) => setAction({ channelId: e.target.value })}
-                                                placeholder="(optional)"
-                                              />
-                                            </div>
-                                          </>
-                                        )}
-
-                                        {action.type === "giveStat" && (
-                                          <>
-                                            <div className="space-y-2">
-                                              <label className="block text-xs font-medium text-gray-600">Stat ID</label>
-                                              <input
-                                                className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                                value={action.statId ?? ""}
-                                                onChange={(e) => setAction({ statId: e.target.value })}
-                                                placeholder="stat_id"
-                                              />
-                                            </div>
-                                            <div className="space-y-2">
-                                              <label className="block text-xs font-medium text-gray-600">Amount</label>
-                                              <input
-                                                type="number"
-                                                className="w-full rounded border px-3 py-2 text-sm"
-                                                value={action.amount ?? 0}
-                                                onChange={(e) => setAction({ amount: safeNumber(e.target.value, 0) })}
-                                              />
-                                            </div>
-                                          </>
-                                        )}
-
-                                        {action.type === "giveItem" && (
-                                          <>
-                                            <div className="space-y-2">
-                                              <label className="block text-xs font-medium text-gray-600">Item ID</label>
-                                              <input
-                                                className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                                value={action.itemId ?? ""}
-                                                onChange={(e) => setAction({ itemId: e.target.value })}
-                                                placeholder="item_id"
-                                              />
-                                            </div>
-                                            <div className="space-y-2">
-                                              <label className="block text-xs font-medium text-gray-600">Quantity</label>
-                                              <input
-                                                type="number"
-                                                className="w-full rounded border px-3 py-2 text-sm"
-                                                value={action.quantity ?? 1}
-                                                onChange={(e) => setAction({ quantity: safeNumber(e.target.value, 1) })}
-                                              />
-                                            </div>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })
+                            {(action.type === "assignRole" || action.type === "removeRole") && (
+                              <TextField
+                                label="Role ID"
+                                value={action.roleId ?? ""}
+                                onChange={(v) => patch({ roleId: v })}
+                                mono
+                              />
                             )}
-                          </div>
-                        </div>
-                        {/* Effects */}
-                        <div className="rounded border p-3">
-                          <div className="text-sm font-semibold mb-3">Effects</div>
 
-                          {/* Cosmetic */}
-                          <div className="mb-4">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cosmetic</div>
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">Accent Hex</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm font-mono"
-                              value={it.effects?.cosmetic?.accentHex ?? ""}
-                              onChange={(e) =>
-                              upsertItem({
-                                ...it,
-                                effects: {
-                                ...it.effects,
-                                cosmetic: { ...it.effects?.cosmetic, accentHex: e.target.value || undefined },
-                                },
-                              })
-                              }
-                              placeholder="#ff0000"
-                            />
-                            </div>
-
-                            <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">Text Hex</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm font-mono"
-                              value={it.effects?.cosmetic?.textHex ?? ""}
-                              onChange={(e) =>
-                              upsertItem({
-                                ...it,
-                                effects: {
-                                ...it.effects,
-                                cosmetic: { ...it.effects?.cosmetic, textHex: e.target.value || undefined },
-                                },
-                              })
-                              }
-                              placeholder="#ffffff"
-                            />
-                            </div>
-
-                            <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">Title</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.effects?.cosmetic?.title ?? ""}
-                              onChange={(e) =>
-                              upsertItem({
-                                ...it,
-                                effects: {
-                                ...it.effects,
-                                cosmetic: { ...it.effects?.cosmetic, title: e.target.value || undefined },
-                                },
-                              })
-                              }
-                              placeholder="e.g. The Legendary"
-                            />
-                            </div>
-
-                            <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">Name Emoji</label>
-                            <input
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.effects?.cosmetic?.nameEmoji ?? ""}
-                              onChange={(e) =>
-                              upsertItem({
-                                ...it,
-                                effects: {
-                                ...it.effects,
-                                cosmetic: { ...it.effects?.cosmetic, nameEmoji: e.target.value || undefined },
-                                },
-                              })
-                              }
-                              placeholder="⭐"
-                            />
-                            </div>
-
-                            <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">Font Preset</label>
-                            <select
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.effects?.cosmetic?.fontPreset ?? ""}
-                              onChange={(e) =>
-                              upsertItem({
-                                ...it,
-                                effects: {
-                                ...it.effects,
-                                cosmetic: {
-                                  ...it.effects?.cosmetic,
-                                  fontPreset: (e.target.value || undefined) as NonNullable<ItemEffects["cosmetic"]>["fontPreset"],
-                                },
-                                },
-                              })
-                              }
-                            >
-                              <option value="">(none)</option>
-                              <option value="inter">inter</option>
-                              <option value="sora">sora</option>
-                              <option value="nunito">nunito</option>
-                            </select>
-                            </div>
-                          </div>
-                          </div>
-
-                          {/* Boosts */}
-                          <div className="mb-4">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Boosts</div>
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">XP Multiplier</label>
-                            <input
-                              type="number"
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.effects?.boosts?.xpMultiplier ?? ""}
-                              onChange={(e) => {
-                              const raw = e.target.value.trim();
-                              upsertItem({
-                                ...it,
-                                effects: {
-                                ...it.effects,
-                                boosts: {
-                                  ...it.effects?.boosts,
-                                  xpMultiplier: raw === "" ? undefined : safeNumber(raw, 1),
-                                },
-                                },
-                              });
-                              }}
-                              placeholder="e.g. 1.5"
-                              step="0.01"
-                            />
-                            </div>
-
-                            <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">Gold Multiplier</label>
-                            <input
-                              type="number"
-                              className="w-full rounded border px-3 py-2 text-sm"
-                              value={it.effects?.boosts?.goldMultiplier ?? ""}
-                              onChange={(e) => {
-                              const raw = e.target.value.trim();
-                              upsertItem({
-                                ...it,
-                                effects: {
-                                ...it.effects,
-                                boosts: {
-                                  ...it.effects?.boosts,
-                                  goldMultiplier: raw === "" ? undefined : safeNumber(raw, 1),
-                                },
-                                },
-                              });
-                              }}
-                              placeholder="e.g. 2"
-                              step="0.01"
-                            />
-                            </div>
-                          </div>
-                          </div>
-
-                          {/* Quest */}
-                          <div>
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Quest</div>
-                          <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-600">Can Start Quest IDs (CSV)</label>
-                            <input
-                            className="w-full rounded border px-3 py-2 text-sm font-mono"
-                            value={toCsv(it.effects?.quest?.canStartQuestIds)}
-                            onChange={(e) =>
-                              upsertItem({
-                              ...it,
-                              effects: {
-                                ...it.effects,
-                                quest: {
-                                ...it.effects?.quest,
-                                canStartQuestIds: fromCsv(e.target.value),
-                                },
-                              },
-                              })
-                            }
-                            placeholder="quest_id_1, quest_id_2"
-                            />
-                          </div>
-                          </div>
-
-                          {/* Combat Stats */}
-                          <div className="mt-4">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Combat Stats (when equipped)</div>
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                            {([
-                              { key: "hp",  label: "HP Bonus",         placeholder: "+50" },
-                              { key: "atk", label: "Attack Bonus",     placeholder: "+10" },
-                              { key: "def", label: "Defense Bonus",    placeholder: "+5" },
-                              { key: "spd", label: "Speed Bonus",      placeholder: "+3" },
-                              { key: "crit",label: "Crit Chance % Bonus", placeholder: "+5" },
-                            ] as { key: keyof NonNullable<ItemEffects["stats"]>; label: string; placeholder: string }[]).map(({ key, label, placeholder }) => (
-                              <div key={key} className="space-y-2">
-                                <label className="block text-xs font-medium text-gray-600">{label}</label>
-                                <input
-                                  type="number"
-                                  className="w-full rounded border px-3 py-2 text-sm"
-                                  value={it.effects?.stats?.[key] ?? ""}
-                                  onChange={(e) => {
-                                    const raw = e.target.value.trim();
-                                    upsertItem({
-                                      ...it,
-                                      effects: {
-                                        ...it.effects,
-                                        stats: {
-                                          ...it.effects?.stats,
-                                          [key]: raw === "" ? undefined : safeNumber(raw, 0),
-                                        },
-                                      },
-                                    });
-                                  }}
-                                  placeholder={placeholder}
-                                  step={key === "crit" ? "0.1" : "1"}
+                            {action.type === "sendMessage" && (
+                              <>
+                                <TextField
+                                  label="Channel ID"
+                                  value={action.channelId ?? ""}
+                                  onChange={(v) => patch({ channelId: v })}
+                                  mono
                                 />
-                              </div>
-                            ))}
-                          </div>
-                          </div>
+                                <TextField
+                                  wide
+                                  label="Message"
+                                  value={action.message ?? ""}
+                                  onChange={(v) => patch({ message: v })}
+                                />
+                              </>
+                            )}
+
+                            {action.type === "giveStat" && (
+                              <>
+                                <TextField
+                                  label="Stat ID"
+                                  value={action.statId ?? ""}
+                                  onChange={(v) => patch({ statId: v })}
+                                  placeholder="gold, xp or health"
+                                  mono
+                                />
+                                <NumberField
+                                  label="Amount"
+                                  value={action.amount ?? 0}
+                                  onChange={(v) => patch({ amount: v })}
+                                />
+                              </>
+                            )}
+
+                            {action.type === "giveItem" && (
+                              <>
+                                <TextField
+                                  label="Item ID"
+                                  value={action.itemId ?? ""}
+                                  onChange={(v) => patch({ itemId: v })}
+                                  mono
+                                />
+                                <NumberField
+                                  label="Quantity"
+                                  value={action.quantity ?? 1}
+                                  min={1}
+                                  onChange={(v) => patch({ quantity: v })}
+                                />
+                              </>
+                            )}
+                          </FieldGrid>
                         </div>
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
-                            onClick={() => deleteItem(it.id)}
-                          >
-                            <Trash2 size={16} />
-                            Delete Item
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextKey = actionKeys.length ? Math.max(...actionKeys) + 1 : 0;
+                        upsertItem({
+                          ...item,
+                          actions: { ...actions, [nextKey]: { type: "sendMessage", message: "" } },
+                        });
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+                    >
+                      <Plus size={14} /> Add action
+                    </button>
                   </div>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
+                </Field>
+              </div>
+            );
+          }}
+        />
+      </Section>
     </div>
   );
 }
