@@ -14,8 +14,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
 
     // `version` is a hash of the stored config. The client sends it back on save
     // so a write can be rejected if anything changed in the meantime -- see POST.
-    const res = await dbQuery<{ config: any; id: any; version: string }>(
-        `SELECT id, config, md5(config::text) AS version
+    const res = await dbQuery<{ config: any; id: any; name: string | null; icon_url: string | null; version: string }>(
+        `SELECT id, name, icon_url, config, md5(config::text) AS version
          FROM guilds WHERE discord_guild_id = $1`,
         [guildId]
     );
@@ -23,7 +23,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
     const row = res.rows[0];
     if (!row || !row.id || !row.config) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-    return NextResponse.json({ config: row.config, id: row.id, version: row.version });
+    // name/icon come from the bot's own guilds row, so the dashboard can label
+    // itself without a second round-trip to Discord.
+    return NextResponse.json({
+        config: row.config,
+        id: row.id,
+        name: row.name,
+        iconUrl: row.icon_url,
+        version: row.version,
+    });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {

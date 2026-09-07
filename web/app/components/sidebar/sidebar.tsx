@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
 
 const sections = [
     {
@@ -28,41 +29,77 @@ const sections = [
 
 function NavSection({ section, guildId }: { section: typeof sections[0]; guildId: string }) {
     const [open, setOpen] = useState(true);
+    const pathname = usePathname();
 
     return (
-        <div className="mb-3">
+        <div className="mb-4">
             <button
                 onClick={() => setOpen((v) => !v)}
-                className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wider hover:text-white transition-colors"
+                className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
             >
                 <span>{section.label}</span>
                 {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
 
             {open && (
-                <div className="mt-1 space-y-1">
-                    {section.tabs.map((t) => (
-                        <Link
-                            key={t.label}
-                            href={`/dashboard/${guildId}/${t.href}`}
-                            className="block rounded px-3 py-2 text-sm shadow-lg transition-all duration-250 ease-out border-transparent hover:bg-blue-800 border-2 hover:border-blue-500 hover:scale-105"
-                        >
-                            {t.label}
-                        </Link>
-                    ))}
+                <div className="mt-1 space-y-0.5">
+                    {section.tabs.map((t) => {
+                        const href = `/dashboard/${guildId}${t.href ? `/${t.href}` : ""}`;
+                        const active = pathname === href;
+
+                        return (
+                            <Link
+                                key={t.label}
+                                href={href}
+                                aria-current={active ? "page" : undefined}
+                                className={`block rounded-md px-2 py-1.5 text-sm transition-colors ${
+                                    active
+                                        ? "bg-[var(--accent)] font-medium"
+                                        : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+                                }`}
+                            >
+                                {t.label}
+                            </Link>
+                        );
+                    })}
                 </div>
             )}
         </div>
     );
 }
 
-export default function Sidebar({ guildId }: { guildId: string }) {
+export default function Sidebar({
+    guildId,
+    guildName,
+    guildIconUrl,
+}: {
+    guildId: string;
+    guildName?: string | null;
+    guildIconUrl?: string | null;
+}) {
     return (
-        <aside className="border-r bg-gradient-to-br from-black via-black to-blue-900 p-4">
-            <div className="mb-4">
-                <div className="text-xs text-zinc-400">Guild</div>
-                <div className="font-semibold break-all">{guildId}</div>
+        <aside className="border-r border-[var(--border)] bg-[var(--surface)] p-4">
+            <Link
+                href="/dashboard"
+                className="mb-5 inline-flex items-center gap-1.5 text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+            >
+                <ArrowLeft size={13} />
+                All servers
+            </Link>
+
+            <div className="mb-6 flex items-center gap-2.5">
+                {guildIconUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={guildIconUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                ) : (
+                    <div className="h-8 w-8 shrink-0 rounded-full bg-[var(--border)]" />
+                )}
+                <div className="min-w-0">
+                    {/* Falls back to the id when the bot has not recorded a name yet. */}
+                    <div className="truncate text-sm font-semibold">{guildName ?? guildId}</div>
+                </div>
             </div>
+
             <nav>
                 {sections.map((section) => (
                     <NavSection key={section.label} section={section} guildId={guildId} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
-import ConfigDisplay from "@/app/components/configDisplay"; // make it display-only
+import ConfigPage from "@/app/components/configPage";
 import QuestsBasicsEditor from "@/app/components/quests/questsBasicEditor";
 
 export default function QuestsPageClient({ guildId }: { guildId: string }) {
@@ -10,37 +10,22 @@ export default function QuestsPageClient({ guildId }: { guildId: string }) {
   const quests = config?.quests ?? null;
 
   return (
-    <main className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Quests</h1>
-
-        <button
-          className="rounded bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-          disabled={loading || saving || !config}
-          onClick={() => save(config)}
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-      </div>
-
-      {loading && <div className="rounded border bg-zinc-50 p-3 text-black text-sm">Loading…</div>}
-      {error && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-
-      {!loading && config && (
-        <>
-          <QuestsBasicsEditor
-            value={quests}
-            onChange={(nextQuests) => setConfig((prev: any) => ({ ...prev, quests: nextQuests }))}
-          />
-
-          <details className="rounded-lg border border-zinc-200 bg-white p-4">
-            <summary className="cursor-pointer text-sm text-black font-medium">Advanced (raw JSON)</summary>
-            <div className="mt-3">
-              <ConfigDisplay config={quests} />
-            </div>
-          </details>
-        </>
+    <ConfigPage
+      title="Quests"
+      description="Objectives members can take on, how progress is tracked, and what completing one pays out."
+      loading={loading}
+      saving={saving}
+      error={error}
+      canSave={Boolean(config)}
+      onSave={() => save(config)}
+      rawSection={quests}
+    >
+      {config && (
+        <QuestsBasicsEditor
+          value={quests}
+          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, quests: next }))}
+        />
       )}
-    </main>
+    </ConfigPage>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
+import ConfigPage from "@/app/components/configPage";
 import XpBasicsEditor from "@/app/components/xp/xpBasicsEditor";
-import ConfigDisplay from "@/app/components/configDisplay"; // make it display-only
 
 export default function XpPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, error, save } = useGuildConfig(guildId);
@@ -10,38 +10,22 @@ export default function XpPageClient({ guildId }: { guildId: string }) {
   const xp = config?.xp ?? null;
 
   return (
-    <main className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">XP</h1>
-
-        <button
-          className="rounded bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-          disabled={loading || saving || !config}
-          onClick={() => save(config)}
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-      </div>
-
-      {loading && <div className="rounded border bg-zinc-50 p-3 text-sm">Loading…</div>}
-      {error && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-
-      {!loading && config && (
-        <>
-          <XpBasicsEditor
-            value={xp}
-            onChange={(nextXp) => setConfig((prev: any) => ({ ...prev, xp: nextXp }))}
-          />
-
-          {/* Advanced / Debug */}
-          <details className="rounded-lg border border-zinc-200 bg-white p-4">
-            <summary className="cursor-pointer text-sm font-medium">Advanced (raw JSON)</summary>
-            <div className="mt-3">
-              <ConfigDisplay config={xp} />
-            </div>
-          </details>
-        </>
+    <ConfigPage
+      title="XP"
+      description="How members earn XP from messages and voice, plus daily rewards, streaks and role-based rates."
+      loading={loading}
+      saving={saving}
+      error={error}
+      canSave={Boolean(config)}
+      onSave={() => save(config)}
+      rawSection={xp}
+    >
+      {config && (
+        <XpBasicsEditor
+          value={xp}
+          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, xp: next }))}
+        />
       )}
-    </main>
+    </ConfigPage>
   );
 }

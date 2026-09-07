@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export function useGuildConfig(guildId: string) {
     const [config, setConfig] = useState<any>(null);
     const [dbGuildId, setDbGuildId] = useState<number | null>(null);
+    const [guild, setGuild] = useState<{ name: string | null; iconUrl: string | null }>({ name: null, iconUrl: null });
     // Hash of the config as loaded. Sent back on save so the server can reject
     // the write if the bot or another editor changed it in the meantime.
     const [version, setVersion] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function useGuildConfig(guildId: string) {
             const data = await res.json();
             setConfig(data.config);
             setDbGuildId(data.id);
+            setGuild({ name: data.name ?? null, iconUrl: data.iconUrl ?? null });
             setVersion(data.version ?? null);
         } catch (err: any) {
             setError(err.message);
@@ -79,5 +81,5 @@ export function useGuildConfig(guildId: string) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [guildId]);
 
-    return { config, setConfig, dbGuildId, version, loading, saving, error, refresh, save };
+    return { config, setConfig, dbGuildId, guild, version, loading, saving, error, refresh, save };
 }
