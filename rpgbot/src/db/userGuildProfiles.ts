@@ -8,7 +8,7 @@ import { refreshTempRolesForMember } from "../player/roles.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../player/achievements.js";
 import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
-import { runQuestPipeline } from "../player/quests.js";
+import { runQuestPipeline, announceQuestCompletions } from "../player/quests.js";
 import { calculateStats, resolveCurrentHp } from "../player/combat.js";
 
 type XpArgs = {
@@ -195,8 +195,20 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
         recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
     });
 
-    // Passive quest completion DMs
     const allNotifications = [...questRes1.notifications, ...questRes2.notifications];
+
+    if (args.client && args.discordGuildId && args.discordUserId) {
+        await announceQuestCompletions({
+            client: args.client,
+            discordGuildId: String(args.discordGuildId),
+            discordUserId: String(args.discordUserId),
+            channelIdHint: channelId ?? null,
+            config,
+            notifications: allNotifications,
+        });
+    }
+
+    // Passive quest completion DMs
     if (args.client && args.discordUserId && allNotifications.length > 0) {
         const discordUser = await args.client.users.fetch(args.discordUserId).catch(() => null);
         if (discordUser && config.quests.dmUser) {
@@ -447,6 +459,17 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         baseline,
         recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
     });
+
+    if (args.client && args.discordGuildId && args.discordUserId) {
+        await announceQuestCompletions({
+            client: args.client,
+            discordGuildId: String(args.discordGuildId),
+            discordUserId: String(args.discordUserId),
+            channelIdHint: args.channelId ?? null,
+            config,
+            notifications: qd.notifications,
+        });
+    }
 
     // Passive quest completion DMs
     if (args.client && args.discordUserId && qd.notifications.length > 0) {

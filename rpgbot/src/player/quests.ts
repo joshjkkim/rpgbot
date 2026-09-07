@@ -207,8 +207,56 @@ async function safeSend(channel: TextBasedChannel | null, content: string) {
   await (channel as TextChannel).send({ content });
 }
 
-function formatTemplate(template: string, args: { userMention: string }) {
-  return template.replaceAll("{user}", args.userMention);
+function formatTemplate(template: string, args: { userMention: string; quest?: QuestConfig }) {
+  let out = template.replaceAll("{user}", args.userMention);
+  if (args.quest) {
+    out = out
+      .replaceAll("{questName}", args.quest.name)
+      .replaceAll("{questDescription}", args.quest.description);
+  }
+  return out;
+}
+
+/**
+ * Announces completed quests to a channel.
+ *
+ * Mirrors how achievements announce (applyAchievementSideEffects): the quest's
+ * own override wins, then the guild-wide announce channel, then the channel the
+ * event came from. config.quests.announceAllId and announceMessage existed and
+ * were shown by /config-quests, but nothing ever read them, so a configured
+ * announce channel stayed silent.
+ */
+export async function announceQuestCompletions(args: {
+  client: Client;
+  discordGuildId: string;
+  discordUserId: string;
+  channelIdHint?: string | null;
+  config: GuildConfig;
+  notifications: QuestNotify[];
+}) {
+  const { client, discordGuildId, discordUserId, channelIdHint, config, notifications } = args;
+  if (!notifications.length) return;
+
+  const guild = client.guilds.cache.get(discordGuildId) ?? null;
+  if (!guild) return;
+
+  const userMention = `<@${discordUserId}>`;
+  const globalChannelId = config.quests?.announceAllId ?? null;
+  const globalTemplate = config.quests?.announceMessage ?? null;
+
+  for (const n of notifications) {
+    // Only the channel is overridable per quest. A quest's overrideAnnouncement
+    // is the second-person text sent to the user ("You have completed..."),
+    // which reads wrong announced to a channel, so the guild-wide template is
+    // the one used here.
+    const channelId = (n.quest.overrideChannelId ?? null) ?? globalChannelId ?? channelIdHint ?? null;
+    if (!channelId || !globalTemplate) continue;
+
+    const ch = await guild.channels.fetch(channelId).catch(() => null);
+    const textCh = ch && ch.isTextBased() ? ch : null;
+
+    await safeSend(textCh, formatTemplate(globalTemplate, { userMention, quest: n.quest }));
+  }
 }
 
 export async function applyQuestSideEffects(args: {

@@ -17,16 +17,20 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
     
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    // The config decides whether the reply is private, so it has to be loaded
+    // before deferring -- the flag cannot be changed afterwards. This was
+    // hardcoded to Ephemeral, which made replyToDailyEphemeral do nothing.
+    const { guild: dbGuild, config} = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+
+    await interaction.deferReply(
+        config.xp.replyToDailyEphemeral === false ? {} : { flags: MessageFlags.Ephemeral }
+    );
 
     const { user } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
-    
-    
-    const { guild: dbGuild, config} = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
  
     const { profile, granted, rewardXp, rewardGold, levelUp, hpRestored, streakReward, increasedStreak } = await grantDailyXp({
         userId: user.id,
