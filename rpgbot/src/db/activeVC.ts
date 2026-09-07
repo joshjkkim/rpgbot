@@ -53,10 +53,13 @@ export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: strin
     const durationMinutes = Math.floor(durationMs / 60000);
     
 
-    if (durationMinutes >= config.xp.vc.minMinutesForXp) {
+    const channelXp = config.xp.vc.channelIds[session.channelId];
+    const minMinutes = channelXp?.minMinutesOverride ?? config.xp.vc.minMinutesForXp;
+
+    if (durationMinutes >= minMinutes) {
         let xpAmount = config.xp.vc.basePerMinute * durationMinutes;
-        xpAmount += config.xp.vc.channelIds[session.channelId]?.flatBonus ?? 0;
-        xpAmount = Math.floor(xpAmount * (config.xp.vc.channelIds[session.channelId]?.multiplier ?? 1));
+        xpAmount += channelXp?.flatBonus ?? 0;
+        xpAmount = Math.floor(xpAmount * (channelXp?.multiplier ?? 1));
 
         for (const roleId of roleIds) {
             const roleConfig = config.xp.vc.roleXpBonus[roleId];

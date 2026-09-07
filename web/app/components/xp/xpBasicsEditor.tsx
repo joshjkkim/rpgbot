@@ -36,20 +36,51 @@ type XpChannelConfig = {
   cooldownOverride?: number;
 };
 
-// Voice channel config (mirrors message channel config, but uses minMinutes override instead of cooldown)
+// Voice channel config (mirrors message channel config, but uses minMinutes
+// override instead of cooldown). Field names must match the bot's
+// xpChannelConfig exactly -- these records are written into the config blob
+// as-is, with no per-field mapping, so a name only this file knows is a value
+// the bot never reads.
 type VcChannelConfig = {
   enabled: boolean;
   channelId: string;
   multiplier: number;
-  flatBonusPerMinute: number;
+  flatBonus: number;
   minMinutesOverride?: number;
 };
 
 // Voice role bonus config (simple + optional multiplier)
 type VcRoleBonusConfig = {
-  extraXpPerMinute?: number;
+  extraXp?: number;
   multiplier?: number;
 };
+
+/**
+ * Carries voice settings saved under the dashboard's old field names.
+ *
+ * This editor wrote flatBonusPerMinute and extraXpPerMinute, but the bot reads
+ * flatBonus and extraXp (db/activeVC.ts), so anything configured here never
+ * affected voice XP. Read the legacy key when the correct one is absent, so a
+ * guild's existing numbers start working instead of resetting to zero.
+ */
+function migrateVcChannels(raw: Record<string, any>): Record<string, VcChannelConfig> {
+  const out: Record<string, VcChannelConfig> = {};
+  for (const [id, cfg] of Object.entries(raw ?? {})) {
+    const { flatBonusPerMinute, ...rest } = cfg ?? {};
+    out[id] = { ...rest, flatBonus: cfg?.flatBonus ?? flatBonusPerMinute ?? 0 };
+  }
+  return out;
+}
+
+function migrateVcRoles(raw: Record<string, any>): Record<string, VcRoleBonusConfig> {
+  const out: Record<string, VcRoleBonusConfig> = {};
+  for (const [id, cfg] of Object.entries(raw ?? {})) {
+    const { extraXpPerMinute, ...rest } = cfg ?? {};
+    const extraXp = cfg?.extraXp ?? extraXpPerMinute;
+    out[id] = { ...rest, ...(extraXp !== undefined && { extraXp }) };
+  }
+  return out;
+}
 
 type Props = {
   value: any;
@@ -96,8 +127,8 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
     vcEnabled: xp.vc?.enabled ?? false,
     vcBasePerMinute: xp.vc?.basePerMinute ?? 2,
     vcMinMinutesForXp: xp.vc?.minMinutesForXp ?? 0,
-    vcChannelIds: (xp.vc?.channelIds ?? {}) as Record<string, VcChannelConfig>,
-    vcRoleXpBonus: (xp.vc?.roleXpBonus ?? {}) as Record<string, VcRoleBonusConfig>,
+    vcChannelIds: migrateVcChannels(xp.vc?.channelIds ?? {}),
+    vcRoleXpBonus: migrateVcRoles(xp.vc?.roleXpBonus ?? {}),
   }));
 
   const [expandedSections, setExpandedSections] = useState({
@@ -148,8 +179,8 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
       vcEnabled: nextXp.vc?.enabled ?? false,
       vcBasePerMinute: nextXp.vc?.basePerMinute ?? 2,
       vcMinMinutesForXp: nextXp.vc?.minMinutesForXp ?? 0,
-      vcChannelIds: nextXp.vc?.channelIds ?? {},
-      vcRoleXpBonus: nextXp.vc?.roleXpBonus ?? {},
+      vcChannelIds: migrateVcChannels(nextXp.vc?.channelIds ?? {}),
+      vcRoleXpBonus: migrateVcRoles(nextXp.vc?.roleXpBonus ?? {}),
     });
   }, [JSON.stringify(value)]);
 
@@ -987,7 +1018,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
                     enabled: true,
                     channelId,
                     multiplier: 1.0,
-                    flatBonusPerMinute: 0,
+                    flatBonus: 0,
                     minMinutesOverride: undefined,
                   },
                 };
@@ -1050,11 +1081,11 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
                     <label className="block text-sm font-medium mb-1">Flat Bonus / Minute</label>
                     <input
                       type="number"
-                      value={cfg.flatBonusPerMinute ?? 0}
+                      value={cfg.flatBonus ?? 0}
                       onChange={(e) => {
                         const next = {
                           ...form.vcChannelIds,
-                          [channelId]: { ...cfg, flatBonusPerMinute: Number(e.target.value) },
+                          [channelId]: { ...cfg, flatBonus: Number(e.target.value) },
                         };
                         commit({ vcChannelIds: next });
                       }}
@@ -1103,7 +1134,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
                 const next: Record<string, VcRoleBonusConfig> = {
                   ...form.vcRoleXpBonus,
                   [roleId]: {
-                    extraXpPerMinute: 0,
+                    extraXp: 0,
                     multiplier: 1.0,
                   },
                 };
@@ -1136,11 +1167,11 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
                     <label className="block text-sm font-medium mb-1">Extra XP / Minute</label>
                     <input
                       type="number"
-                      value={cfg.extraXpPerMinute ?? 0}
+                      value={cfg.extraXp ?? 0}
                       onChange={(e) => {
                         const next = {
                           ...form.vcRoleXpBonus,
-                          [roleId]: { ...cfg, extraXpPerMinute: Number(e.target.value) },
+                          [roleId]: { ...cfg, extraXp: Number(e.target.value) },
                         };
                         commit({ vcRoleXpBonus: next });
                       }}

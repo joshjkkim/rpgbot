@@ -49,7 +49,8 @@ export interface xpChannelConfig {
     channelId: string;
     multiplier: number;
     flatBonus: number;
-    cooldownOverride?: number;
+    cooldownOverride?: number;   // text channels only
+    minMinutesOverride?: number; // voice channels only
 }
 
 export interface GuildConfig {
