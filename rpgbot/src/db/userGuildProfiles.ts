@@ -1,11 +1,9 @@
 import { query } from "./index.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { logAndBroadcastEvent } from "./events.js";
-import { getOrCreateProfile } from "../cache/profileService.js";
+import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import type { Client, GuildMember, TextChannel } from "discord.js";
-import { profileKey } from "../cache/caches.js";
-import type { CachedUserGuildProfile, PendingProfileChanges } from "../types/cache.js";
-import { userGuildProfileCache } from "../cache/caches.js";
+import type { PendingProfileChanges } from "../types/cache.js";
 import { refreshTempRolesForMember } from "../player/roles.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../player/achievements.js";
 import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
@@ -72,6 +70,10 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
 
     let profile = cached.profile;
     let pendingChanges: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+
+    // Snapshot the additive columns before anything mutates them, so the commit
+    // can re-apply this call's delta over whatever landed while it was awaiting.
+    const baseline = { xp: profile.xp, gold: profile.gold };
 
     if(args.member) {
         profile = await refreshTempRolesForMember(args.member, profile);
@@ -164,6 +166,35 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
     profile = questRes2.profile;
     pendingChanges = questRes2.pending;
 
+    if (levelUp) {
+        pendingChanges.level = profile.level;
+    }
+
+    const achievementResults = await runAchievementPipeline({profile, pending: pendingChanges, config});
+    profile = achievementResults.profile;
+    pendingChanges = achievementResults.pending;
+
+    const xpAfter = Number(profile.xp);
+    const levelAfter = calculateLevelFromXp(xpAfter, config);
+
+    if (levelAfter > profile.level) {
+        profile.level = levelAfter;
+        levelUp = true;
+        pendingChanges.level = profile.level;
+    }
+
+    // Commit before touching Discord: every await from here on is a network
+    // round-trip, and holding the write buffer open across one is what let a
+    // concurrent purchase or fight reward be dropped.
+    profile = commitProfileChanges({
+        userId,
+        guildId,
+        profile: profile as DbUserGuildProfile,
+        changes: pendingChanges,
+        baseline,
+        recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
+    });
+
     // Passive quest completion DMs
     const allNotifications = [...questRes1.notifications, ...questRes2.notifications];
     if (args.client && args.discordUserId && allNotifications.length > 0) {
@@ -195,34 +226,6 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
             }
         }
     }
-
-    if (levelUp) {
-        pendingChanges.level = profile.level;
-    }
-
-    const achievementResults = await runAchievementPipeline({profile, pending: pendingChanges, config});
-    profile = achievementResults.profile;
-    pendingChanges = achievementResults.pending;
-
-    const xpAfter = Number(profile.xp);
-    const levelAfter = calculateLevelFromXp(xpAfter, config);
-
-    if (levelAfter > profile.level) {
-        profile.level = levelAfter;
-        levelUp = true;
-        pendingChanges.level = profile.level;
-    }
-
-    const key = profileKey(guildId, userId);
-    const updatedCache: CachedUserGuildProfile = {
-        profile: profile as DbUserGuildProfile,
-        pendingChanges: Object.keys(pendingChanges).length > 0 ? pendingChanges : undefined,
-        dirty: true,
-        lastWroteToDb: cached.lastWroteToDb,
-        lastLoaded: Date.now(),
-    };
-
-    userGuildProfileCache.set(key, updatedCache);
 
     const hasDiscordCtx = Boolean(args.client && args.discordGuildId && args.discordUserId);
     const hasAnyAchievementEffects = achievementResults.unlocked.length > 0 || Boolean(achievementResults.rewards?.messages?.length) || Boolean(achievementResults.rewards?.grantedRoles?.length);
@@ -272,6 +275,10 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
     let cached = await getOrCreateProfile({userId, guildId});
     let profile = cached.profile;
     let pendingChanges: PendingProfileChanges = cached.pendingChanges ?? {} as PendingProfileChanges;
+
+    // Snapshot the additive columns before anything mutates them, so the commit
+    // can re-apply this call's delta over whatever landed while it was awaiting.
+    const baseline = { xp: profile.xp, gold: profile.gold };
 
     if (args.member) {
         profile = await refreshTempRolesForMember(args.member, profile);
@@ -404,24 +411,6 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
     profile = qd.profile;
     pendingChanges = qd.pending;
 
-    // Passive quest completion DMs
-    if (args.client && args.discordUserId && qd.notifications.length > 0) {
-        const discordUser = await args.client.users.fetch(args.discordUserId).catch(() => null);
-        if (discordUser && config.quests.dmUser) {
-            for (const n of qd.notifications) {
-                await discordUser.send({
-                    embeds: [{
-                        title: "🎉 Quest Completed!",
-                        description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
-                        color: 0x57f287,
-                    }],
-                }).catch(() => null);
-            }
-        }
-    }
-
-    const key = profileKey(guildId, userId);
-    
     let levelUp = false;
     const xpNumber = Number(profile.xp);
     const newLevel = calculateLevelFromXp(xpNumber, config);
@@ -447,6 +436,34 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         pendingChanges.level = profile.level;
     }
 
+    // Commit before touching Discord: every await from here on is a network
+    // round-trip, and holding the write buffer open across one is what let a
+    // concurrent purchase or fight reward be dropped.
+    profile = commitProfileChanges({
+        userId,
+        guildId,
+        profile: profile as DbUserGuildProfile,
+        changes: pendingChanges,
+        baseline,
+        recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
+    });
+
+    // Passive quest completion DMs
+    if (args.client && args.discordUserId && qd.notifications.length > 0) {
+        const discordUser = await args.client.users.fetch(args.discordUserId).catch(() => null);
+        if (discordUser && config.quests.dmUser) {
+            for (const n of qd.notifications) {
+                await discordUser.send({
+                    embeds: [{
+                        title: "🎉 Quest Completed!",
+                        description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
+                        color: 0x57f287,
+                    }],
+                }).catch(() => null);
+            }
+        }
+    }
+
     const hasDiscordCtx = Boolean(args.client && args.discordGuildId && args.discordUserId);
     const hasAnyAchievementEffects = achievementResults.unlocked.length > 0 || Boolean(achievementResults.rewards?.messages?.length) || Boolean(achievementResults.rewards?.grantedRoles?.length);
     if (hasDiscordCtx && hasAnyAchievementEffects) {
@@ -467,15 +484,6 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         });
     }
 
-     const updatedCache: CachedUserGuildProfile = {
-        profile: profile as DbUserGuildProfile,
-        pendingChanges: Object.keys(pendingChanges).length > 0 ? pendingChanges : undefined,
-        dirty: true,
-        lastWroteToDb: cached.lastWroteToDb,
-        lastLoaded: Date.now(),
-    };
-
-    userGuildProfileCache.set(key, updatedCache);
     const guild = args.client?.guilds.cache.get(String(args.discordGuildId)) ?? null; 
 
     if (guild && newStreak > oldStreak) {
@@ -547,16 +555,13 @@ export async function updateUserStats(userId: number, guildId: number, statsUpda
         user_stats: updatedStats,
     };
 
-    const key = profileKey(guildId, userId);
-    const updatedCache: CachedUserGuildProfile = {
+    commitProfileChanges({
+        userId,
+        guildId,
         profile: profile as DbUserGuildProfile,
-        pendingChanges: Object.keys(pendingChanges).length > 0 ? pendingChanges : undefined,
-        dirty: true,
-        lastWroteToDb: cached.lastWroteToDb,
-        lastLoaded: Date.now(),
-    };
-
-    userGuildProfileCache.set(key, updatedCache);
+        changes: pendingChanges,
+        baseline: { xp: profile.xp, gold: profile.gold },
+    });
 
     return;
 }

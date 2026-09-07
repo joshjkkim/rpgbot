@@ -202,3 +202,86 @@ async function doFlush(
         return false;
     }
 }
+
+/** Columns two writers can both add to, so merging has to combine the deltas. */
+const ADDITIVE_COLUMNS = ["xp", "gold"] as const;
+
+/** `xp` and `gold` as a writer read them, before it touched anything. */
+export type ProfileBaseline = { xp: string; gold: string };
+
+/**
+ * Commits one writer's changes into the cached profile.
+ *
+ * Writers read the profile, mutate it, and buffer the columns they touched.
+ * That work awaits in between - the quest and achievement pipelines, and on the
+ * Discord side DMs and role grants - so another writer can buffer its own
+ * columns before this one gets back. Replacing the entry wholesale erased them
+ * from the buffer: the shared profile object still showed the value, so the
+ * cache looked right, but the column was never flushed and reverted the next
+ * time the row was reloaded. That is how gold went missing when a purchase
+ * landed while a message was still being processed.
+ *
+ * So merge rather than replace. Anything buffered while this writer was away
+ * survives, and for the columns both writers add to, this writer's delta is
+ * re-applied on top of the value that is live now instead of the stale one it
+ * was computed from.
+ *
+ * Returns the merged profile.
+ */
+export function commitProfileChanges(opts: {
+    userId: number;
+    guildId: number;
+    profile: DbUserGuildProfile;
+    changes: PendingProfileChanges;
+    baseline: ProfileBaseline;
+    /** Recomputes the level when merging moves xp off what the caller saw. */
+    recomputeLevel?: (xp: string) => number;
+}): DbUserGuildProfile {
+    const { userId, guildId, profile, changes, baseline, recomputeLevel } = opts;
+
+    const key = profileKey(guildId, userId);
+    const current = userGuildProfileCache.get(key);
+    const buffered = current?.pendingChanges ?? {};
+
+    const merged: PendingProfileChanges = { ...buffered, ...changes };
+
+    for (const column of ADDITIVE_COLUMNS) {
+        const ours = changes[column];
+        if (ours === undefined) continue;
+
+        const delta = BigInt(ours) - BigInt(baseline[column]);
+        if (delta === 0n) continue;
+
+        // Whatever is buffered now already carries the other writer's delta;
+        // with nothing buffered, this writer is the only contributor.
+        const live = buffered[column] ?? baseline[column];
+        merged[column] = (BigInt(live) + delta).toString();
+    }
+
+    // user_stats is a bag of counters. Writers normally increment the same
+    // object in place, so this is a no-op, but a writer that replaced it would
+    // otherwise drop every counter it did not set.
+    if (buffered.user_stats && changes.user_stats && buffered.user_stats !== changes.user_stats) {
+        merged.user_stats = { ...buffered.user_stats, ...changes.user_stats };
+    }
+
+    // Level follows from xp, so recompute it whenever the merge moved xp.
+    if (recomputeLevel && merged.xp !== undefined && merged.xp !== changes.xp) {
+        merged.level = recomputeLevel(merged.xp);
+    }
+
+    const mergedProfile = { ...profile, ...merged } as DbUserGuildProfile;
+
+    userGuildProfileCache.set(key, {
+        profile: mergedProfile,
+        pendingChanges: Object.keys(merged).length > 0 ? merged : undefined,
+        dirty: Object.keys(merged).length > 0,
+        // Prefer the live timestamp: a flush may have completed while this
+        // writer was awaiting, and restoring the stale one would reopen the
+        // write-throttle window it just closed.
+        lastWroteToDb: current?.lastWroteToDb,
+        lastLoaded: Date.now(),
+    });
+
+    return mergedProfile;
+}

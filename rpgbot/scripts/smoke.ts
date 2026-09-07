@@ -389,6 +389,53 @@ async function main() {
         check("all ten grants landed", await xpInDb(userId, guildId), "100");
     });
 
+    await test("a gold write landing during addMessageXp is not dropped", async () => {
+        const { userId, guildId, config } = await reset();
+
+        // Warm the cache so neither call starts by loading the row from Postgres.
+        await getOrCreateProfile({ userId, guildId });
+
+        // A message and a gold write resolve concurrently. addMessageXp reads
+        // the pending-change buffer up front and only writes it back after the
+        // quest and achievement pipelines have awaited, so a write that lands in
+        // between used to be erased from the buffer. The cache still showed the
+        // gold (every writer mutates the same profile object), but it never
+        // reached Postgres and reverted the next time the entry was reloaded.
+        await Promise.all([
+            addMessageXp({ userId, guildId, config }),
+            updateInventory(userId, guildId, inv([["potion", 2]]), 500),
+        ]);
+
+        await flushDirtyProfiles(true);
+        const row = await getUserGuildProfile(userId, guildId);
+        check("XP persisted", row?.xp, "10");
+        check("the concurrent gold write persisted", row?.gold, "500");
+        check("the concurrent inventory write persisted", row?.inventory?.potion?.quantity, "2");
+    });
+
+    await test("a gold write landing during grantDailyXp is not dropped", async () => {
+        const { userId, guildId, config } = await reset();
+        await getOrCreateProfile({ userId, guildId });
+
+        // Same race on the daily path, which awaits the quest pipeline and the
+        // achievement pipeline between reading the buffer and writing it back.
+        const [daily] = await Promise.all([
+            grantDailyXp({ userId, guildId, config }),
+            updateInventory(userId, guildId, inv([["potion", 1]]), 777),
+        ]);
+        check("daily granted", daily.granted, "true");
+
+        await flushDirtyProfiles(true);
+        const row = await getUserGuildProfile(userId, guildId);
+        check("daily xp persisted", row?.xp, String(config.xp.dailyXp));
+
+        // The daily reward is added to the balance the writer left behind, not
+        // to the stale one read before it landed.
+        check("gold is the concurrent write plus the daily reward",
+            row?.gold, String(777 + config.xp.dailyGold));
+        check("the concurrent inventory write persisted", row?.inventory?.potion?.quantity, "1");
+    });
+
     // ─── Trades ───────────────────────────────────────────────────────────────
 
     await test("trade swaps items and gold both ways", async () => {
