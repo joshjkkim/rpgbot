@@ -110,8 +110,6 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
       if (channel && channel.isTextBased() && channel.isSendable()) {
         await channel.send(action.message.replace("{user}", `<@${userId}>`));
       }
-    } else if (action.type === "runCommand" && action.command) {
-      // TODO: implement custom command execution later
     }
   }
 }

@@ -790,7 +790,6 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
                 let roleId: string | undefined;
                 let channelId: string | undefined;
                 let messageContent: string | undefined;
-                let commandContent: string | undefined;
                 let statType: string | undefined;
                 let statAmount: number | undefined;
 
@@ -799,8 +798,6 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
                 } else if (actionType === "sendMessage") {
                     channelId = field1;
                     messageContent = field2;
-                }  else if (actionType === "command") {
-                    commandContent = field1;
                 } else if (actionType === "giveStat") {
                     statType = field1;
                     statAmount = Number(field2);
@@ -824,15 +821,13 @@ export async function handleConfigPanelModalSubmit(interaction: ModalSubmitInter
                     actionObj.roleId = roleId;
                 } else if (actionType === "sendMessage") {
                     actionObj.channelId = channelId;
-                    actionObj.content = messageContent;
-                } else if (actionType === "command") {
-                    actionObj.command = commandContent;
+                    actionObj.message = messageContent;
                 } else if (actionType === "giveStat") {
                     actionObj.statId = statType;
                     actionObj.amount = statAmount;
                 } else {
                     await interaction.reply({
-                        content: `Invalid action type \`${actionType}\`. Valid types are: assignRole, removeRole, sendMessage, command, giveStat.`,
+                        content: `Invalid action type \`${actionType}\`. Valid types are: assignRole, removeRole, sendMessage, giveStat.`,
                         flags: MessageFlags.Ephemeral,
                     });
                     return;

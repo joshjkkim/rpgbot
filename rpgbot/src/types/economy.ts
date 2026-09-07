@@ -10,13 +10,12 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "runCommand" | "giveStat" | "giveItem";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem";
     roleId?: string;
     message?: string;
     channelId?: string;
     itemId?: string;
     quantity?: number;
-    command?: string;
     statId?: string;
     amount?: number;
 }

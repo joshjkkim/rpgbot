@@ -270,10 +270,8 @@ export const data = new SlashCommandBuilder()
                     { name: "Assign Role", value: "assignRole" },
                     { name: "Remove Role", value: "removeRole" },
                     { name: "Send Message", value: "sendMessage" },
-                    { name: "Run Command", value: "runCommand" },
                     { name: "Give Stat", value: "giveStat" },
-                    { name: "Give Item", value: "giveItem" },
-                    { name: "Change Style", value: "changeStyle" }
+                    { name: "Give Item", value: "giveItem" }
                 )
             )
             .addRoleOption(opt =>
@@ -284,9 +282,6 @@ export const data = new SlashCommandBuilder()
             )
             .addStringOption(opt =>
                 opt.setName("channel-id").setDescription("The channel ID to send the message in for send message actions").setRequired(false)
-            )
-            .addStringOption(opt =>
-                opt.setName("command").setDescription("The command to run for run command actions").setRequired(false)
             )
             .addStringOption(opt =>
                 opt.setName("stat").setDescription("The stat to give for give stat actions").setRequired(false)
@@ -673,7 +668,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             const roleId = interaction.options.getRole("role-id", false)?.id || undefined;
             const message = interaction.options.getString("message", false) || undefined;
             const channelId = interaction.options.getString("channel-id", false) || undefined;
-            const command = interaction.options.getString("command", false) || undefined;
             const giveItemId = interaction.options.getString("give-item-id", false) || undefined;
             const quantityStr = interaction.options.getString("quantity", false);
             const quantity = quantityStr ? parseInt(quantityStr, 10) : undefined;
@@ -706,12 +700,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 if (channelId) {
                     action.channelId = channelId;
                 }
-            } else if (actionType === "runCommand") {
-                if (!command) {
-                    await interaction.editReply("Command is required for run command actions.");
-                    return;
-                }
-                action.command = command;
             } else if (actionType === "giveStat") {
                 const stat = interaction.options.getString("stat", false);
                 const amountStr = interaction.options.getString("amount", false);

@@ -30,11 +30,10 @@ export interface RoleTempConfig {
 }
 
 export interface LevelAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "runCommand";
+    type: "assignRole" | "removeRole" | "sendMessage";
     roleId?: string; // for assignRole/removeRole
     message?: string; // for sendMessage
     channelId?: string; // for sendMessage
-    command?: string; // for runCommand
 }
 
 export interface StreakReward {

@@ -1023,7 +1023,7 @@ export async function handleConfigPanelButton(interaction: ButtonInteraction) {
 
                 const actionType = new TextInputBuilder()
                     .setCustomId("shop-item--action-type-input")
-                    .setLabel("assignRole, removeRole, sendMessage, runCommand, giveStat")
+                    .setLabel("assignRole, removeRole, sendMessage, giveStat")
                     .setPlaceholder("e.g. assignRole")
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);

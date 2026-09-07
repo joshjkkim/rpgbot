@@ -80,15 +80,49 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "runCommand" | "giveStat" | "giveItem";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem";
     roleId?: string;
     message?: string;
     channelId?: string;
     itemId?: string;
     quantity?: number;
-    command?: string;
     statId?: string;
     amount?: number;
+}
+
+const ITEM_ACTION_TYPES: shopItemAction["type"][] =
+  ["assignRole", "removeRole", "sendMessage", "giveStat", "giveItem"];
+
+/**
+ * Drops item effects the bot no longer runs.
+ *
+ * `runCommand` was offered here and saved into configs, but /use never had a
+ * branch for it, so the effect silently did nothing. Filtering on load stops a
+ * stored one rendering as a type with no matching option, and the next save
+ * writes the config back without it.
+ */
+function dropRetiredActions(config: ShopConfig): ShopConfig {
+  const items = config.items;
+  if (!items) return config;
+
+  const cleaned: Record<string, shopItemConfig> = {};
+
+  for (const [id, item] of Object.entries(items)) {
+    const entries = Object.entries(item?.actions ?? {});
+    const kept = entries.filter(([, a]) => ITEM_ACTION_TYPES.includes(a?.type));
+
+    if (kept.length === entries.length) {
+      cleaned[id] = item;
+      continue;
+    }
+
+    // The bot keys actions by index, so reindex rather than leaving a hole.
+    const actions: Record<number, shopItemAction> = {};
+    kept.forEach(([, a], i) => { actions[i] = a; });
+    cleaned[id] = { ...item, actions };
+  }
+
+  return { ...config, items: cleaned };
 }
 
 
@@ -162,10 +196,10 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
   const [openItemId, setOpenItemId] = useState<string | null>(null);
 
   // keep local copy so typing feels responsive even if parent re-renders
-  const [local, setLocal] = useState<ShopConfig>(shop);
+  const [local, setLocal] = useState<ShopConfig>(dropRetiredActions(shop));
 
   useEffect(() => {
-    setLocal(shop);
+    setLocal(dropRetiredActions(shop));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(value)]);
 
@@ -1133,7 +1167,6 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                                             <option value="assignRole">assignRole</option>
                                             <option value="removeRole">removeRole</option>
                                             <option value="sendMessage">sendMessage</option>
-                                            <option value="runCommand">runCommand</option>
                                             <option value="giveStat">giveStat</option>
                                             <option value="giveItem">giveItem</option>
                                           </select>
@@ -1172,18 +1205,6 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                                               />
                                             </div>
                                           </>
-                                        )}
-
-                                        {action.type === "runCommand" && (
-                                          <div className="space-y-2 sm:col-span-2">
-                                            <label className="block text-xs font-medium text-gray-600">Command</label>
-                                            <input
-                                              className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                              value={action.command ?? ""}
-                                              onChange={(e) => setAction({ command: e.target.value })}
-                                              placeholder="e.g. /grant @user something"
-                                            />
-                                          </div>
                                         )}
 
                                         {action.type === "giveStat" && (

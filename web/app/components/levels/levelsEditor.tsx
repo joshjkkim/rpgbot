@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 
 export interface LevelAction {
-  type: "assignRole" | "removeRole" | "sendMessage" | "runCommand";
+  type: "assignRole" | "removeRole" | "sendMessage";
   roleId?: string;
   message?: string;
   channelId?: string;
-  command?: string;
 }
 
 export type LevelsConfig = {
@@ -27,7 +26,26 @@ type Props = {
 };
 
 const CURVES: LevelsConfig["curveType"][] = ["linear", "exponential", "polynomial", "logarithmic"];
-const ACTION_TYPES: LevelAction["type"][] = ["assignRole", "removeRole", "sendMessage", "runCommand"];
+const ACTION_TYPES: LevelAction["type"][] = ["assignRole", "removeRole", "sendMessage"];
+
+/**
+ * Drops actions the bot no longer runs.
+ *
+ * `runCommand` was offered here and saved into configs, but the bot never
+ * implemented it -- it sat in an empty branch, so the action silently did
+ * nothing. Filtering on load stops a stored one rendering as a type with no
+ * matching option, and the next save writes the config back without it.
+ */
+function dropRetiredActions(config: LevelsConfig): LevelsConfig {
+  const levelActions: Record<number, LevelAction[]> = {};
+
+  for (const [level, actions] of Object.entries(config.levelActions ?? {})) {
+    const kept = (actions ?? []).filter((a) => ACTION_TYPES.includes(a?.type));
+    if (kept.length) levelActions[Number(level)] = kept;
+  }
+
+  return { ...config, levelActions };
+}
 
 function safeNumber(raw: string, fallback: number) {
   const n = Number(raw);
@@ -60,7 +78,7 @@ export default function LevelsEditor({ value, onChange }: Props) {
     []
   );
 
-  const [local, setLocal] = useState<LevelsConfig>(value ?? defaults);
+  const [local, setLocal] = useState<LevelsConfig>(dropRetiredActions(value ?? defaults));
   const [expanded, setExpanded] = useState({
     general: true,
     curve: true,
@@ -78,7 +96,7 @@ export default function LevelsEditor({ value, onChange }: Props) {
   const [openActionLevel, setOpenActionLevel] = useState<number | null>(null);
 
   useEffect(() => {
-    setLocal(value ?? defaults);
+    setLocal(dropRetiredActions(value ?? defaults));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(value)]);
 
@@ -582,18 +600,6 @@ export default function LevelsEditor({ value, onChange }: Props) {
                                         />
                                       </div>
                                     </>
-                                  )}
-
-                                  {a.type === "runCommand" && (
-                                    <div className="space-y-2 sm:col-span-2">
-                                      <label className="block text-xs font-medium text-gray-600">Command</label>
-                                      <input
-                                        className="w-full rounded border px-3 py-2 text-sm font-mono"
-                                        value={a.command ?? ""}
-                                        onChange={(e) => updateAction(lvl, idx, { command: e.target.value })}
-                                        placeholder="e.g. /grant {user} something"
-                                      />
-                                    </div>
                                   )}
                                 </div>
                               </div>

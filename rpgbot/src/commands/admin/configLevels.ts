@@ -138,8 +138,7 @@ export const data = new SlashCommandBuilder()
                     .addChoices(
                         { name: "Assign Role", value: "assignRole" },
                         { name: "Remove Role", value: "removeRole" },
-                        { name: "Send Message", value: "sendMessage" },
-                        { name: "Run Command", value: "runCommand" }
+                        { name: "Send Message", value: "sendMessage" }
                     )
             )
 
@@ -159,12 +158,6 @@ export const data = new SlashCommandBuilder()
             .addStringOption((option) =>
                 option.setName("message")
                     .setDescription("The message to send (required for sendMessage)")
-                    .setRequired(false)
-            )
-
-            .addStringOption((option) =>
-                option.setName("command")
-                    .setDescription("The command to run (required for runCommand)")
                     .setRequired(false)
             )
     ))
@@ -339,11 +332,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                         const message = interaction.options.getString("message", true);
                         action.channelId = channel.id;
                         action.message = message;
-                        break;
-                    }
-                case "runCommand": {
-                        const command = interaction.options.getString("command", true);
-                        action.command = command;
                         break;
                     }
             }
