@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  FieldGrid,
+  KeyedList,
+  NumberField,
+  Section,
+  TextAreaField,
+  TextField,
+  Toggle,
+} from "@/app/components/ui/form";
 
 type RoleXpConfig = {
   extraXp?: number;
@@ -82,6 +90,13 @@ function migrateVcRoles(raw: Record<string, any>): Record<string, VcRoleBonusCon
   return out;
 }
 
+const DEFAULT_DAILY_REPLY =
+  "You have claimed your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}! Your current streak is {streak} days.";
+const DEFAULT_DAILY_ANNOUNCE =
+  "🎉 {user}, you have received your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}!";
+const DEFAULT_STREAK_ANNOUNCE =
+  "🔥 {user}, you are on a {streak}-day streak! You've earned a bonus of {xp} XP and {gold} gold!";
+
 type Props = {
   value: any;
   onChange: (nextXp: any) => void;
@@ -90,105 +105,48 @@ type Props = {
 export default function XpBasicsEditor({ value, onChange }: Props) {
   const xp = value ?? {};
 
-  const [form, setForm] = useState(() => ({
-    // Message XP
-    basePerMessage: xp.basePerMessage ?? 5,
-    xpMessageCooldown: xp.xpMessageCooldown ?? 60,
-    xpChannelIds: (xp.xpChannelIds ?? {}) as Record<string, XpChannelConfig>,
+  const read = (src: any) => ({
+    basePerMessage: src.basePerMessage ?? 5,
+    xpMessageCooldown: src.xpMessageCooldown ?? 60,
+    xpChannelIds: (src.xpChannelIds ?? {}) as Record<string, XpChannelConfig>,
 
-    // Daily
-    dailyXp: xp.dailyXp ?? 50,
-    dailyGold: xp.dailyGold ?? 20,
-    autoDailyEnabled: xp.autoDailyEnabled ?? false,
-    replyToDailyInChannel: xp.replyToDailyInChannel ?? true,
-    replyToDailyEphemeral: xp.replyToDailyEphemeral ?? true,
-    replyToDailyMessage:
-      xp.replyToDailyMessage ??
-      "You have claimed your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}! Your current streak is {streak} days.",
-    announceDailyInChannelId: xp.announceDailyInChannelId ?? null,
-    announceDailyMessage:
-      xp.announceDailyMessage ??
-      "🎉 {user}, you have received your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}!",
+    dailyXp: src.dailyXp ?? 50,
+    dailyGold: src.dailyGold ?? 20,
+    autoDailyEnabled: src.autoDailyEnabled ?? false,
+    replyToDailyInChannel: src.replyToDailyInChannel ?? true,
+    replyToDailyEphemeral: src.replyToDailyEphemeral ?? true,
+    replyToDailyMessage: src.replyToDailyMessage ?? DEFAULT_DAILY_REPLY,
+    announceDailyInChannelId: src.announceDailyInChannelId ?? null,
+    announceDailyMessage: src.announceDailyMessage ?? DEFAULT_DAILY_ANNOUNCE,
 
-    // Streak
-    streakMultiplier: xp.streakMultiplier ?? 0.1,
-    streakAnnounceChannelId: xp.streakAnnounceChannelId ?? null,
-    streakAnnounceMessage:
-      xp.streakAnnounceMessage ??
-      "🔥 {user}, you are on a {streak}-day streak! You've earned a bonus of {xp} XP and {gold} gold!",
-    streakRewards: (xp.streakRewards ?? {}) as Record<string, StreakReward>,
+    streakMultiplier: src.streakMultiplier ?? 0.1,
+    streakAnnounceChannelId: src.streakAnnounceChannelId ?? null,
+    streakAnnounceMessage: src.streakAnnounceMessage ?? DEFAULT_STREAK_ANNOUNCE,
+    streakRewards: (src.streakRewards ?? {}) as Record<string, StreakReward>,
 
-    // Role-based
-    roleXp: (xp.roleXp ?? {}) as Record<string, RoleXpConfig>,
-    roleDailyBonus: (xp.roleDailyBonus ?? {}) as Record<string, RoleDailyBonusConfig>,
-    roleTemp: (xp.roleTemp ?? {}) as Record<string, RoleTempConfig>,
+    roleXp: (src.roleXp ?? {}) as Record<string, RoleXpConfig>,
+    roleDailyBonus: (src.roleDailyBonus ?? {}) as Record<string, RoleDailyBonusConfig>,
+    roleTemp: (src.roleTemp ?? {}) as Record<string, RoleTempConfig>,
 
-    // Voice / VC
-    vcEnabled: xp.vc?.enabled ?? false,
-    vcBasePerMinute: xp.vc?.basePerMinute ?? 2,
-    vcMinMinutesForXp: xp.vc?.minMinutesForXp ?? 0,
-    vcChannelIds: migrateVcChannels(xp.vc?.channelIds ?? {}),
-    vcRoleXpBonus: migrateVcRoles(xp.vc?.roleXpBonus ?? {}),
-  }));
-
-  const [expandedSections, setExpandedSections] = useState({
-    message: true,
-    channels: false,
-    daily: true,
-    streak: false,
-    streakRewards: false,
-    roleXp: false,
-    roleDailyBonus: false,
-    roleTemp: false,
-    voice: false,
-    voiceChannels: false,
-    voiceRoles: false,
+    vcEnabled: src.vc?.enabled ?? false,
+    vcBasePerMinute: src.vc?.basePerMinute ?? 2,
+    vcMinMinutesForXp: src.vc?.minMinutesForXp ?? 0,
+    vcChannelIds: migrateVcChannels(src.vc?.channelIds ?? {}),
+    vcRoleXpBonus: migrateVcRoles(src.vc?.roleXpBonus ?? {}),
   });
 
+  const [form, setForm] = useState(() => read(xp));
+
   useEffect(() => {
-    const nextXp = value ?? {};
-    setForm({
-      basePerMessage: nextXp.basePerMessage ?? 5,
-      xpMessageCooldown: nextXp.xpMessageCooldown ?? 60,
-      xpChannelIds: nextXp.xpChannelIds ?? {},
-
-      dailyXp: nextXp.dailyXp ?? 50,
-      dailyGold: nextXp.dailyGold ?? 20,
-      autoDailyEnabled: nextXp.autoDailyEnabled ?? false,
-      replyToDailyInChannel: nextXp.replyToDailyInChannel ?? true,
-      replyToDailyEphemeral: nextXp.replyToDailyEphemeral ?? true,
-      replyToDailyMessage:
-        nextXp.replyToDailyMessage ??
-        "You have claimed your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}! Your current streak is {streak} days.",
-      announceDailyInChannelId: nextXp.announceDailyInChannelId ?? null,
-      announceDailyMessage:
-        nextXp.announceDailyMessage ??
-        "🎉 {user}, you have received your daily reward of {xp} {xpName} {xpIcon} and {gold} {goldName} {goldIcon}!",
-
-      streakMultiplier: nextXp.streakMultiplier ?? 0.1,
-      streakAnnounceChannelId: nextXp.streakAnnounceChannelId ?? null,
-      streakAnnounceMessage:
-        nextXp.streakAnnounceMessage ??
-        "🔥 {user}, you are on a {streak}-day streak! You've earned a bonus of {xp} XP and {gold} gold!",
-      streakRewards: nextXp.streakRewards ?? {},
-
-      roleXp: nextXp.roleXp ?? {},
-      roleDailyBonus: nextXp.roleDailyBonus ?? {},
-      roleTemp: nextXp.roleTemp ?? {},
-
-      vcEnabled: nextXp.vc?.enabled ?? false,
-      vcBasePerMinute: nextXp.vc?.basePerMinute ?? 2,
-      vcMinMinutesForXp: nextXp.vc?.minMinutesForXp ?? 0,
-      vcChannelIds: migrateVcChannels(nextXp.vc?.channelIds ?? {}),
-      vcRoleXpBonus: migrateVcRoles(nextXp.vc?.roleXpBonus ?? {}),
-    });
+    setForm(read(value ?? {}));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(value)]);
 
   function commit(partial: Partial<typeof form>) {
     const next = { ...form, ...partial };
     setForm(next);
 
-    const nextXp = {
+    onChange({
       ...xp,
       basePerMessage: next.basePerMessage,
       xpMessageCooldown: next.xpMessageCooldown,
@@ -220,987 +178,475 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         channelIds: next.vcChannelIds,
         roleXpBonus: next.vcRoleXpBonus,
       },
-    };
-
-    onChange(nextXp);
+    });
   }
 
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
+  /** Replaces one entry in a keyed map without disturbing the rest. */
+  function patchMap<K extends keyof typeof form, V>(key: K, id: string, patch: Partial<V>) {
+    const map = form[key] as Record<string, V>;
+    commit({ [key]: { ...map, [id]: { ...map[id], ...patch } } } as Partial<typeof form>);
+  }
 
-  const SectionHeader = ({
-    title,
-    section,
-  }: {
-    title: string;
-    section: keyof typeof expandedSections;
-  }) => (
-    <button
-      type="button"
-      onClick={() => toggleSection(section)}
-      className="flex items-center justify-between w-full text-lg font-semibold py-2 hover:bg-gray-50 rounded px-2"
-    >
-      <span>{title}</span>
-      {expandedSections[section] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-    </button>
-  );
+  function removeFromMap<K extends keyof typeof form>(key: K, id: string) {
+    const map = { ...(form[key] as Record<string, unknown>) };
+    delete map[id];
+    commit({ [key]: map } as Partial<typeof form>);
+  }
+
+  const sortedByNumber = (a: [string, unknown], b: [string, unknown]) => Number(a[0]) - Number(b[0]);
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Message XP Settings */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Message XP Settings" section="message" />
+    <div className="space-y-4">
+      <Section title="Message XP" description="What a message is worth, and how often it can pay out.">
+        <FieldGrid>
+          <NumberField
+            label="Base XP per message"
+            value={form.basePerMessage}
+            onChange={(v) => commit({ basePerMessage: v })}
+            min={0}
+          />
+          <NumberField
+            label="Cooldown (seconds)"
+            value={form.xpMessageCooldown}
+            onChange={(v) => commit({ xpMessageCooldown: v })}
+            min={0}
+            hint="Messages inside this window earn nothing."
+          />
+        </FieldGrid>
+      </Section>
 
-        {expandedSections.message && (
-          <div className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Base XP per Message</label>
-              <input
-                type="number"
-                value={form.basePerMessage}
-                onChange={(e) => commit({ basePerMessage: Number(e.target.value) })}
-                className="w-full px-3 py-2 border rounded"
+      <Section
+        title="Channel overrides"
+        description="Per-channel multipliers, bonuses and cooldowns for message XP."
+        defaultOpen={false}
+      >
+        <KeyedList<XpChannelConfig>
+          entries={Object.entries(form.xpChannelIds)}
+          addPlaceholder="Channel ID"
+          addLabel="Add channel"
+          empty="No channel overrides. Every channel uses the base rate."
+          onAdd={(channelId) =>
+            commit({
+              xpChannelIds: {
+                ...form.xpChannelIds,
+                [channelId]: { enabled: true, channelId, multiplier: 1, flatBonus: 0 },
+              },
+            })
+          }
+          onRemove={(id) => removeFromMap("xpChannelIds", id)}
+          renderItem={(id, cfg) => (
+            <div className="space-y-3">
+              <Toggle
+                label="Earns XP"
+                checked={cfg.enabled !== false}
+                onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { enabled: v })}
               />
+              <FieldGrid>
+                <NumberField
+                  label="Multiplier"
+                  value={cfg.multiplier ?? 1}
+                  step={0.1}
+                  min={0}
+                  onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { multiplier: v })}
+                />
+                <NumberField
+                  label="Flat bonus"
+                  value={cfg.flatBonus ?? 0}
+                  min={0}
+                  onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { flatBonus: v })}
+                />
+                <NumberField
+                  label="Cooldown override (seconds)"
+                  value={cfg.cooldownOverride ?? 0}
+                  min={0}
+                  onChange={(v) =>
+                    patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { cooldownOverride: v })
+                  }
+                  hint="0 uses the global cooldown."
+                />
+              </FieldGrid>
             </div>
+          )}
+        />
+      </Section>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">XP Message Cooldown (seconds)</label>
-              <input
-                type="number"
-                value={form.xpMessageCooldown}
-                onChange={(e) => commit({ xpMessageCooldown: Number(e.target.value) })}
-                className="w-full px-3 py-2 border rounded"
+      <Section title="Daily reward" description="What /daily pays out, and where it is announced.">
+        <FieldGrid>
+          <NumberField
+            label="Daily XP"
+            value={form.dailyXp}
+            onChange={(v) => commit({ dailyXp: v })}
+            min={0}
+          />
+          <NumberField
+            label="Daily gold"
+            value={form.dailyGold}
+            onChange={(v) => commit({ dailyGold: v })}
+            min={0}
+          />
+        </FieldGrid>
+
+        <div className="mt-4 space-y-3">
+          <Toggle
+            label="Claim automatically on first message"
+            checked={form.autoDailyEnabled}
+            onChange={(v) => commit({ autoDailyEnabled: v })}
+            hint="Members get their daily without running the command."
+          />
+          <Toggle
+            label="Reply in the channel"
+            checked={form.replyToDailyInChannel}
+            onChange={(v) => commit({ replyToDailyInChannel: v })}
+          />
+          <Toggle
+            label="Keep the reply private"
+            checked={form.replyToDailyEphemeral}
+            onChange={(v) => commit({ replyToDailyEphemeral: v })}
+            hint="Only the claimer sees the /daily response."
+          />
+        </div>
+
+        <div className="mt-4">
+          <FieldGrid>
+            <TextAreaField
+              label="Reply message"
+              value={form.replyToDailyMessage}
+              onChange={(v) => commit({ replyToDailyMessage: v })}
+              rows={2}
+              hint="{user} {xp} {gold} {xpName} {xpIcon} {goldName} {goldIcon} {streak}"
+            />
+            <TextField
+              label="Announce channel ID"
+              value={form.announceDailyInChannelId ?? ""}
+              onChange={(v) => commit({ announceDailyInChannelId: v || null })}
+              placeholder="Leave blank to skip announcing"
+              mono
+            />
+            <TextAreaField
+              label="Announce message"
+              value={form.announceDailyMessage}
+              onChange={(v) => commit({ announceDailyMessage: v })}
+              rows={2}
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
+      <Section title="Streaks" description="The bonus for claiming daily rewards on consecutive days." defaultOpen={false}>
+        <FieldGrid>
+          <NumberField
+            label="Streak multiplier"
+            value={form.streakMultiplier}
+            step={0.01}
+            min={0}
+            onChange={(v) => commit({ streakMultiplier: v })}
+            hint="Added per streak day — 0.1 is +10% a day."
+          />
+          <TextField
+            label="Announce channel ID"
+            value={form.streakAnnounceChannelId ?? ""}
+            onChange={(v) => commit({ streakAnnounceChannelId: v || null })}
+            placeholder="Optional"
+            mono
+          />
+          <TextAreaField
+            label="Announce message"
+            value={form.streakAnnounceMessage}
+            onChange={(v) => commit({ streakAnnounceMessage: v })}
+            rows={2}
+            hint="{user} {streak} {xp} {gold}"
+          />
+        </FieldGrid>
+      </Section>
+
+      <Section title="Streak milestones" description="One-off rewards at specific streak lengths." defaultOpen={false}>
+        <KeyedList<StreakReward>
+          entries={Object.entries(form.streakRewards).sort(sortedByNumber)}
+          addPlaceholder="Day count, e.g. 7"
+          addLabel="Add milestone"
+          empty="No milestones. Streaks still apply the multiplier above."
+          itemLabel={(count) => `${count}-day streak`}
+          onAdd={(raw) => {
+            const count = Number(raw);
+            if (!Number.isFinite(count) || count <= 0) return;
+            commit({
+              streakRewards: {
+                ...form.streakRewards,
+                [count]: {
+                  streakCount: count,
+                  xpBonus: 100,
+                  goldBonus: 50,
+                  message: null,
+                  channelId: null,
+                },
+              },
+            });
+          }}
+          onRemove={(id) => removeFromMap("streakRewards", id)}
+          renderItem={(id, reward) => (
+            <FieldGrid>
+              <NumberField
+                label="XP bonus"
+                value={reward.xpBonus ?? 0}
+                min={0}
+                onChange={(v) => patchMap<"streakRewards", StreakReward>("streakRewards", id, { xpBonus: v })}
               />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Channel Multipliers */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Channel XP Configuration" section="channels" />
-
-        {expandedSections.channels && (
-          <div className="space-y-4 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                const channelId = prompt("Enter Channel ID:");
-                if (channelId) {
-                  const newChannels: Record<string, XpChannelConfig> = {
-                    ...form.xpChannelIds,
-                    [channelId]: {
-                      enabled: true,
-                      channelId,
-                      multiplier: 1.0,
-                      flatBonus: 0,
-                    },
-                  };
-                  commit({ xpChannelIds: newChannels });
+              <NumberField
+                label="Gold bonus"
+                value={reward.goldBonus ?? 0}
+                min={0}
+                onChange={(v) => patchMap<"streakRewards", StreakReward>("streakRewards", id, { goldBonus: v })}
+              />
+              <TextField
+                label="Channel ID"
+                value={reward.channelId ?? ""}
+                onChange={(v) =>
+                  patchMap<"streakRewards", StreakReward>("streakRewards", id, { channelId: v || null })
                 }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Plus size={16} /> Add Channel
-            </button>
-
-            {Object.entries(form.xpChannelIds).map(([channelId, config]) => (
-              <div key={channelId} className="border rounded p-3 space-y-3 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm">{channelId}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newChannels = { ...form.xpChannelIds };
-                      delete newChannels[channelId];
-                      commit({ xpChannelIds: newChannels });
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={!!config.enabled}
-                    onChange={(e) => {
-                      const newChannels = {
-                        ...form.xpChannelIds,
-                        [channelId]: { ...config, enabled: e.target.checked },
-                      };
-                      commit({ xpChannelIds: newChannels });
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm font-medium">Enabled</label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Multiplier</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={config.multiplier ?? 1}
-                      onChange={(e) => {
-                        const newChannels = {
-                          ...form.xpChannelIds,
-                          [channelId]: { ...config, multiplier: Number(e.target.value) },
-                        };
-                        commit({ xpChannelIds: newChannels });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Flat Bonus</label>
-                    <input
-                      type="number"
-                      value={config.flatBonus ?? 0}
-                      onChange={(e) => {
-                        const newChannels = {
-                          ...form.xpChannelIds,
-                          [channelId]: { ...config, flatBonus: Number(e.target.value) },
-                        };
-                        commit({ xpChannelIds: newChannels });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Cooldown Override (seconds)</label>
-                  <input
-                    type="number"
-                    value={config.cooldownOverride ?? ""}
-                    placeholder="Leave empty for default"
-                    onChange={(e) => {
-                      const newChannels = {
-                        ...form.xpChannelIds,
-                        [channelId]: {
-                          ...config,
-                          cooldownOverride: e.target.value ? Number(e.target.value) : undefined,
-                        },
-                      };
-                      commit({ xpChannelIds: newChannels });
-                    }}
-                    className="w-full px-2 py-1 border rounded text-sm"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Daily Rewards */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Daily Rewards" section="daily" />
-
-        {expandedSections.daily && (
-          <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Daily XP</label>
-                <input
-                  type="number"
-                  value={form.dailyXp}
-                  onChange={(e) => commit({ dailyXp: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Daily Gold</label>
-                <input
-                  type="number"
-                  value={form.dailyGold}
-                  onChange={(e) => commit({ dailyGold: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={form.autoDailyEnabled}
-                  onChange={(e) => commit({ autoDailyEnabled: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm font-medium">Auto Daily Enabled</span>
-              </label>
-
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={form.replyToDailyInChannel}
-                  onChange={(e) => commit({ replyToDailyInChannel: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm font-medium">Reply to Daily in Channel</span>
-              </label>
-
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={form.replyToDailyEphemeral}
-                  onChange={(e) => commit({ replyToDailyEphemeral: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm font-medium">Reply to Daily Ephemeral</span>
-              </label>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Reply to Daily Message</label>
-              <textarea
-                value={form.replyToDailyMessage}
-                onChange={(e) => commit({ replyToDailyMessage: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border rounded text-sm"
+                placeholder="Defaults to the streak channel"
+                mono
               />
-              <p className="text-xs text-gray-500">
-                Variables: {"{xp}"}, {"{xpName}"}, {"{xpIcon}"}, {"{gold}"}, {"{goldName}"},{" "}
-                {"{goldIcon}"}, {"{streak}"}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Announce Daily in Channel ID</label>
-              <input
-                type="text"
-                value={form.announceDailyInChannelId || ""}
-                onChange={(e) => commit({ announceDailyInChannelId: e.target.value || null })}
-                placeholder="Channel ID (optional)"
-                className="w-full px-3 py-2 border rounded"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Announce Daily Message</label>
-              <textarea
-                value={form.announceDailyMessage}
-                onChange={(e) => commit({ announceDailyMessage: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border rounded text-sm"
-              />
-              <p className="text-xs text-gray-500">
-                Variables: {"{user}"}, {"{xp}"}, {"{xpName}"}, {"{xpIcon}"}, {"{gold}"},{" "}
-                {"{goldName}"}, {"{goldIcon}"}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Streak Settings */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Streak Settings" section="streak" />
-
-        {expandedSections.streak && (
-          <div className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Streak Multiplier</label>
-              <input
-                type="number"
-                step="0.01"
-                value={form.streakMultiplier}
-                onChange={(e) => commit({ streakMultiplier: Number(e.target.value) })}
-                className="w-full px-3 py-2 border rounded"
-              />
-              <p className="text-xs text-gray-500">Bonus multiplier per streak day (e.g., 0.1 = 10% per day)</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Streak Announce Channel ID</label>
-              <input
-                type="text"
-                value={form.streakAnnounceChannelId || ""}
-                onChange={(e) => commit({ streakAnnounceChannelId: e.target.value || null })}
-                placeholder="Channel ID (optional)"
-                className="w-full px-3 py-2 border rounded"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Streak Announce Message</label>
-              <textarea
-                value={form.streakAnnounceMessage}
-                onChange={(e) => commit({ streakAnnounceMessage: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border rounded text-sm"
-              />
-              <p className="text-xs text-gray-500">Variables: {"{user}"}, {"{streak}"}, {"{xp}"}, {"{gold}"}</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Streak Rewards */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Streak Milestone Rewards" section="streakRewards" />
-
-        {expandedSections.streakRewards && (
-          <div className="space-y-4 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                const streakCount = prompt("Enter streak milestone (e.g., 7 for 7-day streak):");
-                if (streakCount) {
-                  const count = Number(streakCount);
-                  const newRewards = {
-                    ...form.streakRewards,
-                    [count]: {
-                      streakCount: count,
-                      xpBonus: 100,
-                      goldBonus: 50,
-                      message: null,
-                      channelId: null,
-                    },
-                  };
-                  commit({ streakRewards: newRewards });
+              <TextField
+                label="Custom message"
+                value={reward.message ?? ""}
+                onChange={(v) =>
+                  patchMap<"streakRewards", StreakReward>("streakRewards", id, { message: v || null })
                 }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Plus size={16} /> Add Streak Reward
-            </button>
-
-            {Object.entries(form.streakRewards)
-              .sort(([a], [b]) => Number(a) - Number(b))
-              .map(([count, reward]) => (
-                <div key={count} className="border rounded p-3 space-y-3 bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">{count}-Day Streak</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newRewards = { ...form.streakRewards };
-                        delete newRewards[count];
-                        commit({ streakRewards: newRewards });
-                      }}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">XP Bonus</label>
-                      <input
-                        type="number"
-                        value={reward.xpBonus ?? 0}
-                        onChange={(e) => {
-                          const newRewards = {
-                            ...form.streakRewards,
-                            [count]: { ...reward, xpBonus: Number(e.target.value) },
-                          };
-                          commit({ streakRewards: newRewards });
-                        }}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Gold Bonus</label>
-                      <input
-                        type="number"
-                        value={reward.goldBonus ?? 0}
-                        onChange={(e) => {
-                          const newRewards = {
-                            ...form.streakRewards,
-                            [count]: { ...reward, goldBonus: Number(e.target.value) },
-                          };
-                          commit({ streakRewards: newRewards });
-                        }}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Custom Message (optional)</label>
-                    <input
-                      type="text"
-                      value={reward.message || ""}
-                      placeholder="Leave empty for default"
-                      onChange={(e) => {
-                        const newRewards = {
-                          ...form.streakRewards,
-                          [count]: { ...reward, message: e.target.value || null },
-                        };
-                        commit({ streakRewards: newRewards });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Announce Channel ID (optional)</label>
-                    <input
-                      type="text"
-                      value={reward.channelId || ""}
-                      placeholder="Leave empty for default"
-                      onChange={(e) => {
-                        const newRewards = {
-                          ...form.streakRewards,
-                          [count]: { ...reward, channelId: e.target.value || null },
-                        };
-                        commit({ streakRewards: newRewards });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
-
-      {/* Role XP Bonuses */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Role XP Bonuses" section="roleXp" />
-
-        {expandedSections.roleXp && (
-          <div className="space-y-4 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                const roleId = prompt("Enter Role ID:");
-                if (roleId) {
-                  const newRoleXp = {
-                    ...form.roleXp,
-                    [roleId]: {
-                      extraXp: 0,
-                      multiplier: 1.0,
-                      cooldownSeconds: undefined,
-                    },
-                  };
-                  commit({ roleXp: newRoleXp });
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Plus size={16} /> Add Role XP Config
-            </button>
-
-            {Object.entries(form.roleXp).map(([roleId, config]) => (
-              <div key={roleId} className="border rounded p-3 space-y-3 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm">{roleId}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newRoleXp = { ...form.roleXp };
-                      delete newRoleXp[roleId];
-                      commit({ roleXp: newRoleXp });
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Extra XP (flat)</label>
-                    <input
-                      type="number"
-                      value={config.extraXp ?? 0}
-                      onChange={(e) => {
-                        const newRoleXp = {
-                          ...form.roleXp,
-                          [roleId]: { ...config, extraXp: Number(e.target.value) },
-                        };
-                        commit({ roleXp: newRoleXp });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Multiplier</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={config.multiplier ?? 1.0}
-                      onChange={(e) => {
-                        const newRoleXp = {
-                          ...form.roleXp,
-                          [roleId]: { ...config, multiplier: Number(e.target.value) },
-                        };
-                        commit({ roleXp: newRoleXp });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Cooldown Override (seconds)</label>
-                  <input
-                    type="number"
-                    value={config.cooldownSeconds ?? ""}
-                    placeholder="Leave empty for default"
-                    onChange={(e) => {
-                      const newRoleXp = {
-                        ...form.roleXp,
-                        [roleId]: {
-                          ...config,
-                          cooldownSeconds: e.target.value ? Number(e.target.value) : undefined,
-                        },
-                      };
-                      commit({ roleXp: newRoleXp });
-                    }}
-                    className="w-full px-2 py-1 border rounded text-sm"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Role Daily Bonus */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Role Daily Bonus Overrides" section="roleDailyBonus" />
-
-        {expandedSections.roleDailyBonus && (
-          <div className="space-y-4 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                const roleId = prompt("Enter Role ID:");
-                if (roleId) {
-                  const next = {
-                    ...form.roleDailyBonus,
-                    [roleId]: {
-                      xpBonus: 0,
-                      goldBonus: 0,
-                      multiplier: 1.0,
-                    },
-                  };
-                  commit({ roleDailyBonus: next });
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Plus size={16} /> Add Role Daily Bonus
-            </button>
-
-            {Object.entries(form.roleDailyBonus).map(([roleId, config]) => (
-              <div key={roleId} className="border rounded p-3 space-y-3 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm">{roleId}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = { ...form.roleDailyBonus };
-                      delete next[roleId];
-                      commit({ roleDailyBonus: next });
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">XP Bonus</label>
-                    <input
-                      type="number"
-                      value={config.xpBonus ?? 0}
-                      onChange={(e) => {
-                        const next = {
-                          ...form.roleDailyBonus,
-                          [roleId]: { ...config, xpBonus: Number(e.target.value) },
-                        };
-                        commit({ roleDailyBonus: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Gold Bonus</label>
-                    <input
-                      type="number"
-                      value={config.goldBonus ?? 0}
-                      onChange={(e) => {
-                        const next = {
-                          ...form.roleDailyBonus,
-                          [roleId]: { ...config, goldBonus: Number(e.target.value) },
-                        };
-                        commit({ roleDailyBonus: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Multiplier</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={config.multiplier ?? 1.0}
-                      onChange={(e) => {
-                        const next = {
-                          ...form.roleDailyBonus,
-                          [roleId]: { ...config, multiplier: Number(e.target.value) },
-                        };
-                        commit({ roleDailyBonus: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Temp Roles */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Temporary Roles" section="roleTemp" />
-
-        {expandedSections.roleTemp && (
-          <div className="space-y-4 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                const roleId = prompt("Enter Role ID:");
-                if (roleId) {
-                  const next = {
-                    ...form.roleTemp,
-                    [roleId]: {
-                      defaultDurationMinutes: 60,
-                      hardExpiryat: null,
-                    },
-                  };
-                  commit({ roleTemp: next });
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Plus size={16} /> Add Temp Role Config
-            </button>
-
-            {Object.entries(form.roleTemp).map(([roleId, cfg]) => (
-              <div key={roleId} className="border rounded p-3 space-y-3 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm">{roleId}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = { ...form.roleTemp };
-                      delete next[roleId];
-                      commit({ roleTemp: next });
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Default Duration (minutes)</label>
-                    <input
-                      type="number"
-                      value={cfg.defaultDurationMinutes ?? ""}
-                      placeholder="Leave empty for none"
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        const next = {
-                          ...form.roleTemp,
-                          [roleId]: {
-                            ...cfg,
-                            defaultDurationMinutes: v === "" ? null : Number(v),
-                          },
-                        };
-                        commit({ roleTemp: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Hard Expiry (ISO datetime)</label>
-                    <input
-                      type="text"
-                      value={cfg.hardExpiryat ?? ""}
-                      placeholder="e.g. 2026-01-01T00:00:00Z (optional)"
-                      onChange={(e) => {
-                        const next = {
-                          ...form.roleTemp,
-                          [roleId]: {
-                            ...cfg,
-                            hardExpiryat: e.target.value ? e.target.value : null,
-                          },
-                        };
-                        commit({ roleTemp: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Voice Settings */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Voice XP Settings" section="voice" />
-
-        {expandedSections.voice && (
-          <div className="space-y-4 mt-4">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={form.vcEnabled}
-                onChange={(e) => commit({ vcEnabled: e.target.checked })}
-                className="w-4 h-4"
+                placeholder="Optional"
               />
-              <span className="text-sm font-medium">Enable Voice XP</span>
-            </label>
+            </FieldGrid>
+          )}
+        />
+      </Section>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Base XP per Minute</label>
-                <input
-                  type="number"
-                  value={form.vcBasePerMinute}
-                  onChange={(e) => commit({ vcBasePerMinute: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded"
-                />
-              </div>
+      <Section title="Role XP bonuses" description="Extra message XP for members holding a role." defaultOpen={false}>
+        <KeyedList<RoleXpConfig>
+          entries={Object.entries(form.roleXp)}
+          addPlaceholder="Role ID"
+          addLabel="Add role"
+          empty="No role bonuses configured."
+          onAdd={(roleId) =>
+            commit({ roleXp: { ...form.roleXp, [roleId]: { extraXp: 0, multiplier: 1 } } })
+          }
+          onRemove={(id) => removeFromMap("roleXp", id)}
+          renderItem={(id, cfg) => (
+            <FieldGrid>
+              <NumberField
+                label="Extra XP"
+                value={cfg.extraXp ?? 0}
+                min={0}
+                onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { extraXp: v })}
+              />
+              <NumberField
+                label="Multiplier"
+                value={cfg.multiplier ?? 1}
+                step={0.1}
+                min={0}
+                onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { multiplier: v })}
+              />
+              <NumberField
+                label="Cooldown (seconds)"
+                value={cfg.cooldownSeconds ?? 0}
+                min={0}
+                onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { cooldownSeconds: v })}
+                hint="The lowest cooldown among a member's roles wins."
+              />
+            </FieldGrid>
+          )}
+        />
+      </Section>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Min Minutes for XP</label>
-                <input
-                  type="number"
-                  value={form.vcMinMinutesForXp}
-                  onChange={(e) => commit({ vcMinMinutesForXp: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded"
+      <Section title="Role daily bonuses" description="Extra daily reward for members holding a role." defaultOpen={false}>
+        <KeyedList<RoleDailyBonusConfig>
+          entries={Object.entries(form.roleDailyBonus)}
+          addPlaceholder="Role ID"
+          addLabel="Add role"
+          empty="No role daily bonuses configured."
+          onAdd={(roleId) =>
+            commit({
+              roleDailyBonus: {
+                ...form.roleDailyBonus,
+                [roleId]: { xpBonus: 0, goldBonus: 0, multiplier: 1 },
+              },
+            })
+          }
+          onRemove={(id) => removeFromMap("roleDailyBonus", id)}
+          renderItem={(id, cfg) => (
+            <FieldGrid>
+              <NumberField
+                label="XP bonus"
+                value={cfg.xpBonus ?? 0}
+                min={0}
+                onChange={(v) =>
+                  patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { xpBonus: v })
+                }
+              />
+              <NumberField
+                label="Gold bonus"
+                value={cfg.goldBonus ?? 0}
+                min={0}
+                onChange={(v) =>
+                  patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { goldBonus: v })
+                }
+              />
+              <NumberField
+                label="Multiplier"
+                value={cfg.multiplier ?? 1}
+                step={0.1}
+                min={0}
+                onChange={(v) =>
+                  patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { multiplier: v })
+                }
+              />
+            </FieldGrid>
+          )}
+        />
+      </Section>
+
+      <Section title="Temporary roles" description="How long roles granted by items and rewards last." defaultOpen={false}>
+        <KeyedList<RoleTempConfig>
+          entries={Object.entries(form.roleTemp)}
+          addPlaceholder="Role ID"
+          addLabel="Add role"
+          empty="No temporary roles configured."
+          onAdd={(roleId) =>
+            commit({
+              roleTemp: { ...form.roleTemp, [roleId]: { defaultDurationMinutes: 60, hardExpiryat: null } },
+            })
+          }
+          onRemove={(id) => removeFromMap("roleTemp", id)}
+          renderItem={(id, cfg) => (
+            <FieldGrid>
+              <NumberField
+                label="Default duration (minutes)"
+                value={cfg.defaultDurationMinutes ?? 0}
+                min={0}
+                onChange={(v) =>
+                  patchMap<"roleTemp", RoleTempConfig>("roleTemp", id, { defaultDurationMinutes: v })
+                }
+              />
+              <TextField
+                label="Hard expiry"
+                value={cfg.hardExpiryat ?? ""}
+                onChange={(v) =>
+                  patchMap<"roleTemp", RoleTempConfig>("roleTemp", id, { hardExpiryat: v || null })
+                }
+                placeholder="ISO timestamp, optional"
+                mono
+                hint="Removed at this moment regardless of duration."
+              />
+            </FieldGrid>
+          )}
+        />
+      </Section>
+
+      <Section title="Voice XP" description="XP earned for time spent in voice channels." defaultOpen={false}>
+        <Toggle
+          label="Enable voice XP"
+          checked={form.vcEnabled}
+          onChange={(v) => commit({ vcEnabled: v })}
+        />
+        <div className="mt-4">
+          <FieldGrid>
+            <NumberField
+              label="XP per minute"
+              value={form.vcBasePerMinute}
+              min={0}
+              onChange={(v) => commit({ vcBasePerMinute: v })}
+            />
+            <NumberField
+              label="Minimum minutes"
+              value={form.vcMinMinutesForXp}
+              min={0}
+              onChange={(v) => commit({ vcMinMinutesForXp: v })}
+              hint="Sessions shorter than this earn nothing."
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
+      <Section title="Voice channel overrides" description="Per-channel voice rates." defaultOpen={false}>
+        <KeyedList<VcChannelConfig>
+          entries={Object.entries(form.vcChannelIds)}
+          addPlaceholder="Voice channel ID"
+          addLabel="Add channel"
+          empty="No voice channel overrides."
+          onAdd={(channelId) =>
+            commit({
+              vcChannelIds: {
+                ...form.vcChannelIds,
+                [channelId]: { enabled: true, channelId, multiplier: 1, flatBonus: 0 },
+              },
+            })
+          }
+          onRemove={(id) => removeFromMap("vcChannelIds", id)}
+          renderItem={(id, cfg) => (
+            <div className="space-y-3">
+              <Toggle
+                label="Earns XP"
+                checked={cfg.enabled !== false}
+                onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { enabled: v })}
+              />
+              <FieldGrid>
+                <NumberField
+                  label="Multiplier"
+                  value={cfg.multiplier ?? 1}
+                  step={0.1}
+                  min={0}
+                  onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { multiplier: v })}
                 />
-              </div>
+                <NumberField
+                  label="Flat bonus"
+                  value={cfg.flatBonus ?? 0}
+                  min={0}
+                  onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { flatBonus: v })}
+                />
+                <NumberField
+                  label="Minimum minutes override"
+                  value={cfg.minMinutesOverride ?? 0}
+                  min={0}
+                  onChange={(v) =>
+                    patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { minMinutesOverride: v })
+                  }
+                  hint="0 uses the global minimum."
+                />
+              </FieldGrid>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        />
+      </Section>
 
-      {/* Voice Channel Overrides */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Voice Channel Overrides" section="voiceChannels" />
-
-        {expandedSections.voiceChannels && (
-          <div className="space-y-4 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                const channelId = prompt("Enter Voice Channel ID:");
-                if (!channelId) return;
-
-                const next: Record<string, VcChannelConfig> = {
-                  ...form.vcChannelIds,
-                  [channelId]: {
-                    enabled: true,
-                    channelId,
-                    multiplier: 1.0,
-                    flatBonus: 0,
-                    minMinutesOverride: undefined,
-                  },
-                };
-                commit({ vcChannelIds: next });
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Plus size={16} /> Add Voice Channel
-            </button>
-
-            {Object.entries(form.vcChannelIds).map(([channelId, cfg]) => (
-              <div key={channelId} className="border rounded p-3 space-y-3 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm">{channelId}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = { ...form.vcChannelIds };
-                      delete next[channelId];
-                      commit({ vcChannelIds: next });
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={!!cfg.enabled}
-                    onChange={(e) => {
-                      const next = { ...form.vcChannelIds, [channelId]: { ...cfg, enabled: e.target.checked } };
-                      commit({ vcChannelIds: next });
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm font-medium">Enabled</label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Multiplier</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={cfg.multiplier ?? 1}
-                      onChange={(e) => {
-                        const next = {
-                          ...form.vcChannelIds,
-                          [channelId]: { ...cfg, multiplier: Number(e.target.value) },
-                        };
-                        commit({ vcChannelIds: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Flat Bonus / Minute</label>
-                    <input
-                      type="number"
-                      value={cfg.flatBonus ?? 0}
-                      onChange={(e) => {
-                        const next = {
-                          ...form.vcChannelIds,
-                          [channelId]: { ...cfg, flatBonus: Number(e.target.value) },
-                        };
-                        commit({ vcChannelIds: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Min Minutes Override</label>
-                  <input
-                    type="number"
-                    value={cfg.minMinutesOverride ?? ""}
-                    placeholder="Leave empty for default"
-                    onChange={(e) => {
-                      const next = {
-                        ...form.vcChannelIds,
-                        [channelId]: {
-                          ...cfg,
-                          minMinutesOverride: e.target.value ? Number(e.target.value) : undefined,
-                        },
-                      };
-                      commit({ vcChannelIds: next });
-                    }}
-                    className="w-full px-2 py-1 border rounded text-sm"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Voice Role Bonuses */}
-      <div className="border rounded-lg p-4">
-        <SectionHeader title="Voice Role XP Bonuses" section="voiceRoles" />
-
-        {expandedSections.voiceRoles && (
-          <div className="space-y-4 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                const roleId = prompt("Enter Role ID:");
-                if (!roleId) return;
-
-                const next: Record<string, VcRoleBonusConfig> = {
-                  ...form.vcRoleXpBonus,
-                  [roleId]: {
-                    extraXp: 0,
-                    multiplier: 1.0,
-                  },
-                };
-                commit({ vcRoleXpBonus: next });
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Plus size={16} /> Add Voice Role Bonus
-            </button>
-
-            {Object.entries(form.vcRoleXpBonus).map(([roleId, cfg]) => (
-              <div key={roleId} className="border rounded p-3 space-y-3 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm">{roleId}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = { ...form.vcRoleXpBonus };
-                      delete next[roleId];
-                      commit({ vcRoleXpBonus: next });
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Extra XP / Minute</label>
-                    <input
-                      type="number"
-                      value={cfg.extraXp ?? 0}
-                      onChange={(e) => {
-                        const next = {
-                          ...form.vcRoleXpBonus,
-                          [roleId]: { ...cfg, extraXp: Number(e.target.value) },
-                        };
-                        commit({ vcRoleXpBonus: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Multiplier</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={cfg.multiplier ?? 1.0}
-                      onChange={(e) => {
-                        const next = {
-                          ...form.vcRoleXpBonus,
-                          [roleId]: { ...cfg, multiplier: Number(e.target.value) },
-                        };
-                        commit({ vcRoleXpBonus: next });
-                      }}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </div>
-                </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <Section title="Voice role bonuses" description="Extra voice XP for members holding a role." defaultOpen={false}>
+        <KeyedList<VcRoleBonusConfig>
+          entries={Object.entries(form.vcRoleXpBonus)}
+          addPlaceholder="Role ID"
+          addLabel="Add role"
+          empty="No voice role bonuses configured."
+          onAdd={(roleId) =>
+            commit({ vcRoleXpBonus: { ...form.vcRoleXpBonus, [roleId]: { extraXp: 0, multiplier: 1 } } })
+          }
+          onRemove={(id) => removeFromMap("vcRoleXpBonus", id)}
+          renderItem={(id, cfg) => (
+            <FieldGrid>
+              <NumberField
+                label="Extra XP"
+                value={cfg.extraXp ?? 0}
+                min={0}
+                onChange={(v) => patchMap<"vcRoleXpBonus", VcRoleBonusConfig>("vcRoleXpBonus", id, { extraXp: v })}
+              />
+              <NumberField
+                label="Multiplier"
+                value={cfg.multiplier ?? 1}
+                step={0.1}
+                min={0}
+                onChange={(v) =>
+                  patchMap<"vcRoleXpBonus", VcRoleBonusConfig>("vcRoleXpBonus", id, { multiplier: v })
+                }
+              />
+            </FieldGrid>
+          )}
+        />
+      </Section>
     </div>
   );
 }

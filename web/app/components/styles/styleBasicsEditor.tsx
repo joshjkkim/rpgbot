@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import {
+  ColorField,
+  Field,
+  FieldGrid,
+  Section,
+  SelectField,
+  TextField,
+} from "@/app/components/ui/form";
 
 export type StyleConfig = {
   mainThemeColor?: string;
@@ -21,6 +28,11 @@ type Props = {
   value: StyleConfig | null | undefined;
   onChange: (nextStyle: StyleConfig) => void;
 };
+
+const TEMPLATES = [
+  { value: "default", label: "Default" },
+  { value: "fantasy", label: "Fantasy" },
+] as const;
 
 export default function StyleBasicsEditor({ value, onChange }: Props) {
   const style = value ?? {};
@@ -48,12 +60,6 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
     xpName: style.xp?.name ?? defaults.xpName,
   }));
 
-  const [expandedSections, setExpandedSections] = useState({
-    theme: true,
-    gold: true,
-    xp: true,
-  });
-
   useEffect(() => {
     const nextStyle = value ?? {};
     setForm({
@@ -72,185 +78,92 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
     const next = { ...form, ...partial };
     setForm(next);
 
-    const nextStyle: StyleConfig = {
+    onChange({
       ...style,
       mainThemeColor: next.mainThemeColor,
       mainTextColor: next.mainTextColor,
       template: next.template,
-      gold: {
-        ...(style.gold ?? {}),
-        icon: next.goldIcon,
-        name: next.goldName,
-      },
-      xp: {
-        ...(style.xp ?? {}),
-        icon: next.xpIcon,
-        name: next.xpName,
-      }
-    };
-
-    onChange(nextStyle);
+      gold: { ...(style.gold ?? {}), icon: next.goldIcon, name: next.goldName },
+      xp: { ...(style.xp ?? {}), icon: next.xpIcon, name: next.xpName },
+    });
   }
 
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  const SectionHeader = ({
-    title,
-    section,
-  }: {
-    title: string;
-    section: keyof typeof expandedSections;
-  }) => (
-    <button
-      type="button"
-      onClick={() => toggleSection(section)}
-      className="flex w-full items-center justify-between rounded px-2 py-2 text-lg font-semibold hover:bg-gray-50"
-    >
-      <span>{title}</span>
-      {expandedSections[section] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-    </button>
-  );
-
   return (
-    <div className="max-w-3xl space-y-6">
-      {/* Theme */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="Theme" section="theme" />
+    <div className="space-y-4">
+      <Section title="Theme" description="Colours and layout of the rendered profile card.">
+        <FieldGrid>
+          <ColorField
+            label="Main theme colour"
+            value={form.mainThemeColor}
+            onChange={(v) => commit({ mainThemeColor: v })}
+            placeholder="#00AE86"
+            hint="Embed accents and progress bars."
+          />
+          <ColorField
+            label="Main text colour"
+            value={form.mainTextColor}
+            onChange={(v) => commit({ mainTextColor: v })}
+            placeholder="#FFFFFF"
+          />
+          <SelectField
+            label="Profile template"
+            value={form.template}
+            onChange={(v) => commit({ template: v })}
+            options={TEMPLATES}
+            hint="The card layout used by /profile."
+          />
+        </FieldGrid>
+      </Section>
 
-        {expandedSections.theme && (
-          <div className="mt-4 space-y-3">
-            <label className="block text-sm font-medium">Main Theme Color</label>
+      <Section
+        title="Currency"
+        description="What your server calls its gold and XP, wherever the bot prints them."
+      >
+        <FieldGrid>
+          <TextField
+            label="Gold name"
+            value={form.goldName}
+            onChange={(v) => commit({ goldName: v })}
+            placeholder="Gold"
+          />
+          <TextField
+            label="Gold icon"
+            value={form.goldIcon}
+            onChange={(v) => commit({ goldIcon: v })}
+            placeholder="💰"
+          />
+          <TextField
+            label="XP name"
+            value={form.xpName}
+            onChange={(v) => commit({ xpName: v })}
+            placeholder="XP"
+          />
+          <TextField
+            label="XP icon"
+            value={form.xpIcon}
+            onChange={(v) => commit({ xpIcon: v })}
+            placeholder="⭐"
+          />
 
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={form.mainThemeColor}
-                onChange={(e) => commit({ mainThemeColor: e.target.value })}
-                className="h-10 w-14 cursor-pointer rounded border"
-                aria-label="Theme color picker"
-              />
-
-              <input
-                type="text"
-                value={form.mainThemeColor}
-                onChange={(e) => commit({ mainThemeColor: e.target.value })}
-                placeholder="#00AE86"
-                className="w-full rounded border px-3 py-2 text-sm"
-              />
+          <Field
+            wide
+            hint={
+              <>
+                These fill the <span className="font-mono">{"{goldName}"}</span>,{" "}
+                <span className="font-mono">{"{goldIcon}"}</span>,{" "}
+                <span className="font-mono">{"{xpName}"}</span> and{" "}
+                <span className="font-mono">{"{xpIcon}"}</span> placeholders in daily,
+                level-up and reward messages.
+              </>
+            }
+          >
+            <div className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
+              Preview: earned 50 {form.xpName} {form.xpIcon} and 20 {form.goldName}{" "}
+              {form.goldIcon}
             </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={form.mainTextColor}
-                onChange={(e) => commit({ mainTextColor: e.target.value })}
-                className="h-10 w-14 cursor-pointer rounded border"
-                aria-label="Theme color picker"
-              />
-
-              <input
-                type="text"
-                value={form.mainTextColor}
-                onChange={(e) => commit({ mainTextColor: e.target.value })}
-                placeholder="#FFFFFF"
-                className="w-full rounded border px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Template</label>
-              <select
-              value={form.template}
-              onChange={(e) => commit({ template: e.target.value })}
-              className="w-full rounded border px-3 py-2 text-sm"
-              >
-              <option value="default">Default</option>
-              <option value="fantasy">Fantasy</option>
-              </select>
-            </div>
-
-            <p className="text-xs text-gray-500">
-              Tip: use hex like <span className="font-mono">#00AE86</span>.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Gold */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="Gold" section="gold" />
-
-        {expandedSections.gold && (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Gold Icon</label>
-              <input
-                type="text"
-                value={form.goldIcon}
-                onChange={(e) => commit({ goldIcon: e.target.value })}
-                className="w-full rounded border px-3 py-2 text-sm"
-                placeholder="💰"
-              />
-              <p className="text-xs text-gray-500">Emoji or short text.</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Gold Name</label>
-              <input
-                type="text"
-                value={form.goldName}
-                onChange={(e) => commit({ goldName: e.target.value })}
-                className="w-full rounded border px-3 py-2 text-sm"
-                placeholder="Gold"
-              />
-            </div>
-
-            <div className="sm:col-span-2 rounded border bg-gray-50 p-3 text-sm">
-              Preview: <span className="mr-1">{form.goldIcon}</span>
-              <span className="font-semibold">{form.goldName}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* XP */}
-      <div className="rounded-lg border p-4">
-        <SectionHeader title="XP" section="xp" />
-
-        {expandedSections.xp && (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">XP Icon</label>
-              <input
-                type="text"
-                value={form.xpIcon}
-                onChange={(e) => commit({ xpIcon: e.target.value })}
-                className="w-full rounded border px-3 py-2 text-sm"
-                placeholder="⭐"
-              />
-              <p className="text-xs text-gray-500">Emoji or short text.</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">XP Name</label>
-              <input
-                type="text"
-                value={form.xpName}
-                onChange={(e) => commit({ xpName: e.target.value })}
-                className="w-full rounded border px-3 py-2 text-sm"
-                placeholder="XP"
-              />
-            </div>
-
-            <div className="sm:col-span-2 rounded border bg-gray-50 p-3 text-sm">
-              Preview: <span className="mr-1">{form.xpIcon}</span>
-              <span className="font-semibold">{form.xpName}</span>
-            </div>
-          </div>
-        )}
-      </div>
+          </Field>
+        </FieldGrid>
+      </Section>
     </div>
   );
 }
