@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
+/*
+ * The app is dark by design -- the dashboard shell and sidebar both paint a
+ * dark gradient, and no editor sets a background of its own.
+ *
+ * These used to flip with prefers-color-scheme, which meant a light-mode OS
+ * got --foreground: #171717 (near-black) rendered on that dark shell: the 72
+ * uncoloured labels across the editors were effectively invisible. The palette
+ * is fixed rather than responsive so the two halves cannot disagree.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+
+  --muted: #a1a1aa;
+  --border: #27272a;
+  --surface: #18181b;
+
+  --accent: #5865f2;        /* Discord blurple */
+  --accent-hover: #4752c4;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-accent: var(--accent);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
+  /* A system stack rather than a webfont: no build-time network fetch, and no
+     flash of unstyled text. globals.css used to name --font-geist-sans, which
+     the layout never loaded. */
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+/* The editors write bare `border` on inputs and cards, which resolves to a
+   light default that all but disappears on the dark shell. */
+@layer base {
+  input,
+  select,
+  textarea {
+    background-color: color-mix(in srgb, var(--surface) 85%, transparent);
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: color-mix(in srgb, var(--muted) 70%, transparent);
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    outline-offset: 1px;
+  }
+
+  *:where(.border) {
+    border-color: var(--border);
+  }
 }

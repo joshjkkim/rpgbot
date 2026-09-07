@@ -1,11 +1,47 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react" 
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { inviteUrl } from "../lib/invite"
+
+type Guild = {
+    id: string;
+    name: string;
+    icon: string | null;
+    installed: boolean;
+};
+
+/** Discord's CDN icon, or the initials it falls back to elsewhere in Discord. */
+function GuildIcon({ guild }: { guild: Guild }) {
+    if (guild.icon) {
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+                src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`}
+                alt=""
+                className="h-10 w-10 shrink-0 rounded-full object-cover"
+            />
+        );
+    }
+
+    const initials = guild.name
+        .split(/\s+/)
+        .map((word) => word[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+    return (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--border)] text-xs font-medium">
+            {initials}
+        </div>
+    );
+}
 
 export default function Dashboard() {
-    const [guilds, setGuilds] = useState<any[]>([]);
+    const [guilds, setGuilds] = useState<Guild[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
     const didFetch = useRef(false);
     const router = useRouter();
 
@@ -14,41 +50,77 @@ export default function Dashboard() {
         didFetch.current = true;
 
         async function fetchGuilds() {
-            const res = await fetch("/api/discord/guilds");
-            if (res.ok) {
-                const data = await res.json();
-                setGuilds(data);
-            } else {
-                setError("Failed to fetch guilds.");
+            try {
+                const res = await fetch("/api/discord/guilds");
+                if (!res.ok) throw new Error("Failed to load your servers.");
+                setGuilds(await res.json());
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
             }
         }
         fetchGuilds();
     }, []);
 
-    async function handleClick(guild: any) {
-        if(!guild.installed) {
-            setError("This guild is not installed.");
-            setTimeout
-            return;
-        }
-
-        router.push(`/dashboard/${guild.id}`);
+    if (loading) {
+        return <p className="text-sm text-[var(--muted)]">Loading your servers…</p>;
     }
 
+    if (error) {
+        return <p className="text-sm text-red-400">{error}</p>;
+    }
+
+    if (!guilds.length) {
+        return (
+            <p className="text-sm text-[var(--muted)]">
+                No servers found. Hermes is configured by server owners, so you will only see
+                servers you own here.
+            </p>
+        );
+    }
+
+    // Servers that already have the bot come first -- those are the actionable ones.
+    const sorted = [...guilds].sort((a, b) => Number(b.installed) - Number(a.installed));
+
     return (
-        <div className="p-4">
-            {error && <p className="text-red-500">{error}</p>}
-            <ul className="flex inline-flex flex-col overflow-y-auto max-h-[80vh]">
-                {guilds.map((guild) => (
-                    <li 
-                        onClick={() => handleClick(guild)} 
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+            {sorted.map((guild) => {
+                const invite = inviteUrl(guild.id);
+
+                return (
+                    <li
                         key={guild.id}
-                        className={`bg-gray-800 text-shadow-lg m-2 p-2 rounded-lg cursor-pointer hover:underline transition-all duration-150 ease-in-out hover:bg-gray-700 hover:scale-101 ${guild.installed ? "font-bold" : ""}`}
+                        className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3"
                     >
-                        {guild.name}
+                        <GuildIcon guild={guild} />
+
+                        <span className="min-w-0 flex-1 truncate font-medium">{guild.name}</span>
+
+                        {guild.installed ? (
+                            <button
+                                onClick={() => router.push(`/dashboard/${guild.id}`)}
+                                className="shrink-0 rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--accent-hover)]"
+                            >
+                                Configure
+                            </button>
+                        ) : invite ? (
+                            // Previously this set an error string, which left the one path
+                            // that actually installs the bot as a dead end.
+                            <a
+                                href={invite}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--background)]"
+                            >
+                                Add to Server
+                            </a>
+                        ) : (
+                            <span className="shrink-0 text-sm text-[var(--muted)]">Not installed</span>
+                        )}
                     </li>
-                ))}
-            </ul>
-        </div>
+                );
+            })}
+        </ul>
     )
 }
