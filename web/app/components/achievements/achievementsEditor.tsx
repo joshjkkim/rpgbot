@@ -34,7 +34,6 @@ export interface AchievementConfig {
 
 export type AchievementsConfig = {
   enabled: boolean;
-  progress: boolean;
   achievements: Record<string, AchievementConfig>;
   announceAllId: string | null;
   announceMessage: string | null;
@@ -69,7 +68,6 @@ export default function AchievementsEditor({ value, onChange }: Props) {
   const defaults: AchievementsConfig = useMemo(
     () => ({
       enabled: false,
-      progress: true,
       achievements: {},
       announceAllId: null,
       announceMessage: null,
@@ -160,15 +158,6 @@ export default function AchievementsEditor({ value, onChange }: Props) {
                 onChange={(e) => updateRoot({ enabled: e.target.checked })}
               />
               <span className="font-medium">Enabled</span>
-            </label>
-
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={!!local.progress}
-                onChange={(e) => updateRoot({ progress: e.target.checked })}
-              />
-              <span className="font-medium">Progress tracking</span>
             </label>
 
             <div className="space-y-2 sm:col-span-2">

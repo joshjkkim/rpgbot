@@ -32,7 +32,6 @@ export interface CombatDeathPenalty {
   goldPercent?: number;
   goldFlat?: number;
   xpPercent?: number;
-  loserGoldToWinner?: boolean;
 }
 
 export interface CombatConfig {
@@ -383,16 +382,6 @@ export default function CombatEditor({ value, onChange }: Props) {
                     onChange={(e) => updateDeathPenalty("pvpDeathPenalty", { xpPercent: safeNumber(e.target.value, 0) })}
                     min={0} max={100} step={0.1}
                   />
-                </div>
-                <div className="space-y-1 flex items-end pb-1">
-                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!local.pvpDeathPenalty?.loserGoldToWinner}
-                      onChange={(e) => updateDeathPenalty("pvpDeathPenalty", { loserGoldToWinner: e.target.checked })}
-                    />
-                    Give loser's gold to winner
-                  </label>
                 </div>
               </div>
             </div>

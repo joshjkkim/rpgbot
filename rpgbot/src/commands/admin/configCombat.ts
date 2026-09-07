@@ -99,9 +99,6 @@ export const data = new SlashCommandBuilder()
         .addNumberOption(opt =>
             opt.setName("xp_percent").setDescription("% of current XP lost on death. Default: 0").setRequired(false)
         )
-        .addBooleanOption(opt =>
-            opt.setName("loser_gold_to_winner").setDescription("If true, the gold lost by the loser is given to the winner. Default: false").setRequired(false)
-        )
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -170,7 +167,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                     {
                         name: "⚔️ PvP Death Penalty",
                         value: combat.pvpDeathPenalty
-                            ? `Gold: **${combat.pvpDeathPenalty.goldPercent ?? 0}%** + **${combat.pvpDeathPenalty.goldFlat ?? 0}** flat\nXP: **${combat.pvpDeathPenalty.xpPercent ?? 0}%**\nGold to winner: **${combat.pvpDeathPenalty.loserGoldToWinner ? "Yes" : "No"}**`
+                            ? `Gold: **${combat.pvpDeathPenalty.goldPercent ?? 0}%** + **${combat.pvpDeathPenalty.goldFlat ?? 0}** flat\nXP: **${combat.pvpDeathPenalty.xpPercent ?? 0}%**`
                             : "None",
                         inline: true,
                     },
@@ -250,22 +247,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             const goldPercent        = interaction.options.getNumber("gold_percent");
             const goldFlat           = interaction.options.getInteger("gold_flat");
             const xpPercent          = interaction.options.getNumber("xp_percent");
-            const loserGoldToWinner  = interaction.options.getBoolean("loser_gold_to_winner");
 
             combat.pvpDeathPenalty = {
                 ...(combat.pvpDeathPenalty ?? {}),
                 ...(goldPercent       !== null && { goldPercent }),
                 ...(goldFlat          !== null && { goldFlat }),
                 ...(xpPercent         !== null && { xpPercent }),
-                ...(loserGoldToWinner !== null && { loserGoldToWinner }),
             };
 
             const p = combat.pvpDeathPenalty;
             await interaction.editReply(
                 `PvP death penalty set — ` +
                 `Gold: **${p.goldPercent ?? 0}%** + **${p.goldFlat ?? 0}** flat · ` +
-                `XP: **${p.xpPercent ?? 0}%** · ` +
-                `Gold to winner: **${p.loserGoldToWinner ? "Yes" : "No"}**.`
+                `XP: **${p.xpPercent ?? 0}%**.`
             );
             break;
         }

@@ -90,7 +90,6 @@ export interface GuildConfig {
             goldPercent?: number;
             goldFlat?: number;
             xpPercent?: number;
-            loserGoldToWinner?: boolean; // if true, loser's lost gold goes to winner
         };
     },
     xp: {
@@ -126,14 +125,12 @@ export interface GuildConfig {
     },
     achievements: {
         enabled: boolean;
-        progress: boolean;
         achievements: Record<string, AchievementConfig>;
         announceAllId: string | null;
         announceMessage: string | null;
     },
     quests: {
         enabled: boolean;
-        progress: boolean;
         quests: Record<string, QuestConfig>;
         announceAllId: string | null;
         announceMessage: string | null;
@@ -226,14 +223,12 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
     },
     achievements: {
         enabled: false,
-        progress: false,
         achievements: {},
         announceAllId: null,
         announceMessage: null,
     },
     quests: {
         enabled: false,
-        progress: false,
         quests: {},
         announceAllId: null,
         announceMessage: null,

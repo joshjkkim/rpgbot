@@ -24,16 +24,6 @@ export const data = new SlashCommandBuilder()
     )
 
     .addSubcommand(sub =>
-        sub.setName("set-progress-tracking")
-        .setDescription("Enable or disable progress tracking for achievements")
-        .addBooleanOption(opt =>
-            opt.setName("enabled")
-            .setDescription("Enable or disable progress tracking")
-            .setRequired(true)
-        )
-    )
-
-    .addSubcommand(sub =>
         sub.setName("list-achievements")
         .setDescription("List all configured achievements")
     )
@@ -149,7 +139,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 .setColor(themeColor as ColorResolvable)
                 .addFields(
                     { name: "Enabled", value: config.achievements.enabled ? "✅ Yes" : "❌ No", inline: true },
-                    { name: "Progress Tracking", value: config.achievements.progress ? "✅ Yes" : "❌ No", inline: true },
                     { name: "Achievements Configured", value: achieveCount.toString(), inline: true },
                     { name: "Announce Channel", value: config.achievements.announceAllId ? `<#${config.achievements.announceAllId}>` : "None", inline: true },
                     { name: "Announce Message", value: config.achievements.announceMessage ?? "None", inline: false },
@@ -236,15 +225,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             await setGuildConfig(interaction.guildId, newConfig);
 
             await interaction.editReply({ content: `✅ Achievements have been ${enabled ? "enabled" : "disabled"}.` });
-            break;
-        }
-
-        case "set-progress-tracking": {
-            const enabled = interaction.options.getBoolean("enabled", true);
-            newConfig.achievements.progress = enabled;
-            await setGuildConfig(interaction.guildId, newConfig);
-
-            await interaction.editReply({ content: `✅ Achievement progress tracking has been ${enabled ? "enabled" : "disabled"}.` });
             break;
         }
 

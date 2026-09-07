@@ -23,16 +23,6 @@ export const data = new SlashCommandBuilder()
         )
     )
 
-    // .addSubcommand(sub =>
-    //     sub.setName("set-progress-tracking")
-    //     .setDescription("Enable or disable progress tracking for achievements")
-    //     .addBooleanOption(opt =>
-    //         opt.setName("enabled")
-    //         .setDescription("Enable or disable progress tracking")
-    //         .setRequired(true)
-    //     )
-    // )
-
     .addSubcommand(sub =>
         sub.setName("list-quests")
         .setDescription("List all configured quests")
@@ -314,14 +304,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             break;
         }
 
-        // case "set-progress-tracking": {
-        //     const enabled = interaction.options.getBoolean("enabled", true);
-        //     newConfig.quests.progress = enabled;
-        //     await setGuildConfig(interaction.guildId, newConfig);
-
-        //     await interaction.editReply({ content: `✅ Achievement progress tracking has been ${enabled ? "enabled" : "disabled"}.` });
-        //     break;
-        // }
 
         case "list-quests": {
             const quests = config.quests.quests || [];
