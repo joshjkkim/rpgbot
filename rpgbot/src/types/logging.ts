@@ -29,7 +29,8 @@ export type EventType =
     | "setstreak"
     | "startQuest"
     | "claimQuest"
-    | "giftItem";
+    | "giftItem"
+    | "duel";
 
 
 export interface LogEvent {

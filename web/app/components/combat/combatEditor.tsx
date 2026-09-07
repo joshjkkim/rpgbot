@@ -43,6 +43,15 @@ export interface CombatDeathPenalty {
   xpPercent?: number;
 }
 
+export interface CombatPvpConfig {
+  enabled?: boolean;
+  minWager?: number;
+  maxWager?: number;
+  rakePercent?: number;
+  challengeTimeoutSeconds?: number;
+  maxRounds?: number;
+}
+
 export interface CombatConfig {
   enabled: boolean;
   hpBase?: number;
@@ -60,6 +69,7 @@ export interface CombatConfig {
   enemies?: Record<string, EnemyConfig>;
   pveDeathPenalty?: CombatDeathPenalty;
   pvpDeathPenalty?: CombatDeathPenalty;
+  pvp?: CombatPvpConfig;
 }
 
 type Props = {
@@ -111,6 +121,10 @@ export default function CombatEditor({ value, onChange }: Props) {
     patch: Partial<CombatDeathPenalty>
   ) {
     updateRoot({ [which]: { ...(local[which] ?? {}), ...patch } });
+  }
+
+  function updatePvp(patch: Partial<CombatPvpConfig>) {
+    updateRoot({ pvp: { ...(local.pvp ?? {}), ...patch } });
   }
 
   function upsertEnemy(enemy: EnemyConfig) {
@@ -193,6 +207,56 @@ export default function CombatEditor({ value, onChange }: Props) {
         <Field label="Against enemies (PvE)">{penaltyFields("pveDeathPenalty")}</Field>
         <div className="mt-5">
           <Field label="Against other members (PvP)">{penaltyFields("pvpDeathPenalty")}</Field>
+        </div>
+      </Section>
+
+      <Section title="Duels" description="Auto-resolved fights between two members." defaultOpen={false}>
+        <Toggle
+          label="Enable duels"
+          checked={!!local.pvp?.enabled}
+          onChange={(v) => updatePvp({ enabled: v })}
+          hint="Members can challenge each other with /duel. Combat must also be enabled."
+        />
+
+        <div className="mt-4">
+          <FieldGrid>
+            <NumberField
+              label="Minimum wager"
+              value={local.pvp?.minWager ?? 0}
+              min={0}
+              onChange={(v) => updatePvp({ minWager: v })}
+              hint="0 allows friendly duels with nothing staked."
+            />
+            <NumberField
+              label="Maximum wager"
+              value={local.pvp?.maxWager ?? 0}
+              min={0}
+              onChange={(v) => updatePvp({ maxWager: v })}
+              hint="0 means no upper limit."
+            />
+            <NumberField
+              label="Rake (%)"
+              value={local.pvp?.rakePercent ?? 0}
+              min={0}
+              max={100}
+              step={0.5}
+              onChange={(v) => updatePvp({ rakePercent: v })}
+              hint="Cut of the pot removed from circulation. The wager itself only moves between players, so this is the part that drains gold."
+            />
+            <NumberField
+              label="Challenge timeout (seconds)"
+              value={local.pvp?.challengeTimeoutSeconds ?? 120}
+              min={15}
+              onChange={(v) => updatePvp({ challengeTimeoutSeconds: v })}
+            />
+            <NumberField
+              label="Round cap"
+              value={local.pvp?.maxRounds ?? 50}
+              min={1}
+              onChange={(v) => updatePvp({ maxRounds: v })}
+              hint="Reaching it is a draw and no gold moves — two high-defence members can otherwise trade minimum hits forever."
+            />
+          </FieldGrid>
         </div>
       </Section>
 

@@ -145,3 +145,49 @@ export interface SkillConfig {
     // e.g. a weapon item grants "power_slash" via ItemEffects.skills = ["power_slash"]
     unlockedBy: string[];  // item IDs
 }
+
+// ─── Duels (auto-resolved PvP) ────────────────────────────────────────────────
+// A duel is not an ActiveFight: there are no buttons and no turns to wait on.
+// Both stat blocks are simulated to a conclusion the moment a challenge is
+// accepted, so nothing needs to be held in memory mid-fight.
+
+export interface DuelSide {
+    /** users.id, not a profile id. */
+    userId: number;
+    discordUserId: string;
+    displayName: string;
+    stats: CombatStats;
+    startingHp: number;
+}
+
+export interface DuelRound {
+    round: number;
+    attacker: string;   // discordUserId of whoever struck
+    damage: number;
+    isCrit: boolean;
+    attackerHpAfter: number;
+    defenderHpAfter: number;
+}
+
+export interface DuelResult {
+    /** null when neither side dropped before the round cap. */
+    winnerDiscordId: string | null;
+    loserDiscordId: string | null;
+    rounds: DuelRound[];
+    challengerHp: number;
+    opponentHp: number;
+    /** True when the round cap was hit rather than someone falling. */
+    draw: boolean;
+}
+
+/** A challenge waiting on its opponent, held in memory until accepted or expired. */
+export interface PendingDuel {
+    challengerDiscordId: string;
+    opponentDiscordId: string;
+    discordGuildId: string;
+    channelId: string;
+    messageId: string;
+    wager: number;
+    createdAt: number;
+    expiresAt: number;
+}

@@ -23,7 +23,7 @@ const FEATURES = [
   },
   {
     title: "Equipment and combat",
-    body: "Nine equipment slots feeding HP, attack, defence, speed and crit. Turn-based fights against enemies you define, with configurable death penalties.",
+    body: "Nine equipment slots feeding HP, attack, defence, speed and crit. Turn-based fights against enemies you define, plus wagered duels between members \u2014 with a rake you set.",
   },
   {
     title: "Trading and gifting",

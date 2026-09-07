@@ -66,6 +66,9 @@ function buildCards(config: any): Card[] {
       lines: [
         `${count(combat.enemies)} enemy type(s)`,
         `${combat.hpBase ?? 0} base HP, +${combat.hpPerLevel ?? 0}/level`,
+        combat.pvp?.enabled
+          ? `Duels on, ${combat.pvp.rakePercent ?? 0}% rake`
+          : "Duels off",
       ],
     },
     {

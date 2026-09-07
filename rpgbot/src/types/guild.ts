@@ -92,6 +92,16 @@ export interface GuildConfig {
             goldFlat?: number;
             xpPercent?: number;
         };
+        pvp?: {
+            enabled?: boolean;
+            minWager?: number;
+            maxWager?: number;
+            /** Cut of the pot removed from circulation. The only part of a duel that is a sink. */
+            rakePercent?: number;
+            challengeTimeoutSeconds?: number;
+            /** Duels stop here and are called a draw, so two tanks cannot loop forever. */
+            maxRounds?: number;
+        };
     },
     xp: {
         basePerMessage: number;
@@ -188,7 +198,15 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         critChancePerLevel: 0.01,
         critMultiplierBase: 1.5,
         critMultiplierPerLevel: 0.1,
-        enemies: {}
+        enemies: {},
+        pvp: {
+            enabled: false,
+            minWager: 0,
+            maxWager: 0,
+            rakePercent: 0,
+            challengeTimeoutSeconds: 120,
+            maxRounds: 50,
+        },
     },
     xp: {
         basePerMessage: 5,

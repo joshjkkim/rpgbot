@@ -11,6 +11,7 @@ import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
 import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
 import { flushLogBuffer } from "./db/events.js";
 import { cleanupStaleFights } from "./player/fight.js";
+import { cleanupExpiredDuels } from "./commands/user/duel.js";
 import { closePool } from "./db/index.js";
 
 const client = new Client({
@@ -35,6 +36,7 @@ registerVoiceStateUpdate(client);
 const pruneTimer = setInterval(() => {
     void pruneCaches();
     cleanupStaleFights();
+    cleanupExpiredDuels();
 }, 5 * 60 * 1000);
 
 const flushTimer = setInterval(() => {

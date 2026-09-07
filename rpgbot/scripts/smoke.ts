@@ -25,6 +25,8 @@ import { updateInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
 import { startFight, applyAction, applyFightRewards } from "../src/player/fight.js";
+import { resolveDuel } from "../src/db/duel.js";
+import { simulateDuel, splitPot } from "../src/player/duel.js";
 import type { EnemyConfig } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
@@ -1002,6 +1004,157 @@ async function main() {
         check("fight xp paid", after.xp, "50");
         check("the write that landed first survived", after.inventory?.potion?.quantity, 1);
         check("fight counters survived", after.user_stats?.fightsWon, 1);
+    });
+
+
+    // ─── Duels ────────────────────────────────────────────────────────────────
+
+    await test("a duel moves the wager one way and takes the configured rake", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 1000);
+        await seed(fx.b, g, {}, 1000);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true, rakePercent: 10, maxRounds: 50 };
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 100n,
+            config,
+        });
+
+        check("duel resolved", outcome.success, "true");
+        if (!outcome.success) return;
+
+        // 10% of a 200 pot is 20, so the winner nets +80 and the loser -100.
+        check("rake taken from the pot", outcome.rake.toString(), "20");
+        check("payout is the pot less the rake", outcome.payout.toString(), "180");
+
+        const aGold = BigInt(await goldOf(fx.a, g));
+        const bGold = BigInt(await goldOf(fx.b, g));
+
+        check("winner is up 80", (aGold > 1000n ? aGold : bGold).toString(), "1080");
+        check("loser is down 100", (aGold < 1000n ? aGold : bGold).toString(), "900");
+        check("the rake left circulation", (aGold + bGold).toString(), "1980");
+    });
+
+    await test("a duel is refused when a stake is no longer covered", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 1000);
+        await seed(fx.b, g, {}, 10);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true };
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 100n,
+            config,
+        });
+
+        check("refused", outcome.success, "false");
+        check("challenger untouched", await goldOf(fx.a, g), "1000");
+        check("opponent untouched", await goldOf(fx.b, g), "10");
+    });
+
+    await test("a duel sees gold spent but still buffered in cache", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 1000);
+        await seed(fx.b, g, {}, 1000);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true };
+
+        // B spends almost everything, and it is still sitting in the write-back
+        // cache when the duel is accepted.
+        await updateInventory(fx.b.userId, g, {}, 50);
+        check("DB is still behind the cache", await goldOf(fx.b, g), "1000");
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 100n,
+            config,
+        });
+
+        check("refused against the real balance", outcome.success, "false");
+        check("buffered balance survived", await goldOf(fx.b, g), "50");
+    });
+
+    await test("a friendly duel settles without moving gold", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 500);
+        await seed(fx.b, g, {}, 500);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true };
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 0n,
+            config,
+        });
+
+        check("resolved", outcome.success, "true");
+        check("challenger gold unchanged", await goldOf(fx.a, g), "500");
+        check("opponent gold unchanged", await goldOf(fx.b, g), "500");
+
+        // HP still carries out, so a duel is never entirely free.
+        const after = await row(fx.a, g);
+        check("hp was written back", typeof after.user_stats?.currentHp, "number");
+    });
+
+    await test("the simulation always produces a winner or a declared draw", async () => {
+        const side = (id: string, atk: number, def: number, spd: number, hp: number) => ({
+            userId: 0,
+            discordUserId: id,
+            displayName: id,
+            stats: { maxHp: hp, atk, def, spd, critChance: 0, critMultiplier: 1 },
+            startingHp: hp,
+        });
+
+        const decisive = simulateDuel(side("a", 50, 0, 10, 100), side("b", 5, 0, 1, 30));
+        check("someone won", decisive.draw, "false");
+        check("the stronger side won", decisive.winnerDiscordId, "a");
+        check("loser is on zero", decisive.opponentHp, 0);
+
+        // Two walls: damage floors at 1 a hit, so the cap decides it.
+        const stalemate = simulateDuel(
+            side("a", 1, 999, 5, 10_000),
+            side("b", 1, 999, 5, 10_000),
+            { maxRounds: 5 }
+        );
+        check("hit the round cap", stalemate.draw, "true");
+        check("no winner on a draw", String(stalemate.winnerDiscordId), "null");
+        check("both sides still standing", stalemate.challengerHp > 0 && stalemate.opponentHp > 0, "true");
+    });
+
+    await test("the pot split never pays out more than the pot", async () => {
+        check("no rake", splitPot(200n, 0).payout.toString(), "200");
+        check("10% rake", splitPot(200n, 10).rake.toString(), "20");
+        check("fractional rake rounds down", splitPot(101n, 10).rake.toString(), "10");
+        check("a full rake leaves nothing", splitPot(200n, 100).payout.toString(), "0");
+        check("a negative rake is clamped", splitPot(200n, -5).payout.toString(), "200");
+        check("payout plus rake is the pot", (splitPot(777n, 33).payout + splitPot(777n, 33).rake).toString(), "777");
     });
 
     console.log(`\n${"─".repeat(60)}`);

@@ -99,6 +99,28 @@ export const data = new SlashCommandBuilder()
         .addNumberOption(opt =>
             opt.setName("xp_percent").setDescription("% of current XP lost on death. Default: 0").setRequired(false)
         )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("duels").setDescription("Configure /duel: auto-resolved fights between two members")
+        .addBooleanOption(opt =>
+            opt.setName("enabled").setDescription("Allow members to challenge each other").setRequired(false)
+        )
+        .addIntegerOption(opt =>
+            opt.setName("min_wager").setDescription("Smallest stake allowed. 0 permits friendly duels").setRequired(false).setMinValue(0)
+        )
+        .addIntegerOption(opt =>
+            opt.setName("max_wager").setDescription("Largest stake allowed. 0 means no limit").setRequired(false).setMinValue(0)
+        )
+        .addNumberOption(opt =>
+            opt.setName("rake_percent").setDescription("Cut of the pot removed from circulation. The only part that drains gold").setRequired(false).setMinValue(0).setMaxValue(100)
+        )
+        .addIntegerOption(opt =>
+            opt.setName("timeout_seconds").setDescription("How long a challenge waits for an answer. Default: 120").setRequired(false).setMinValue(15)
+        )
+        .addIntegerOption(opt =>
+            opt.setName("max_rounds").setDescription("Rounds before a duel is called a draw. Default: 50").setRequired(false).setMinValue(1)
+        )
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -260,6 +282,36 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 `PvP death penalty set — ` +
                 `Gold: **${p.goldPercent ?? 0}%** + **${p.goldFlat ?? 0}** flat · ` +
                 `XP: **${p.xpPercent ?? 0}%**.`
+            );
+            break;
+        }
+
+        case "duels": {
+            const enabled        = interaction.options.getBoolean("enabled");
+            const minWager       = interaction.options.getInteger("min_wager");
+            const maxWager       = interaction.options.getInteger("max_wager");
+            const rakePercent    = interaction.options.getNumber("rake_percent");
+            const timeoutSeconds = interaction.options.getInteger("timeout_seconds");
+            const maxRounds      = interaction.options.getInteger("max_rounds");
+
+            combat.pvp = {
+                ...(combat.pvp ?? {}),
+                ...(enabled        !== null && { enabled }),
+                ...(minWager       !== null && { minWager }),
+                ...(maxWager       !== null && { maxWager }),
+                ...(rakePercent    !== null && { rakePercent }),
+                ...(timeoutSeconds !== null && { challengeTimeoutSeconds: timeoutSeconds }),
+                ...(maxRounds      !== null && { maxRounds }),
+            };
+
+            const d = combat.pvp;
+            await interaction.editReply(
+                `Duels ${d.enabled ? "**enabled**" : "**disabled**"} — ` +
+                `wager **${d.minWager ?? 0}**\u2013**${d.maxWager ? d.maxWager : "\u221e"}** \u00b7 ` +
+                `rake **${d.rakePercent ?? 0}%** \u00b7 ` +
+                `challenge times out after **${d.challengeTimeoutSeconds ?? 120}s** \u00b7 ` +
+                `draw after **${d.maxRounds ?? 50}** rounds.` +
+                (d.enabled && !combat.enabled ? "\n\n\u26a0\ufe0f Combat itself is disabled, so /duel will still refuse." : "")
             );
             break;
         }
