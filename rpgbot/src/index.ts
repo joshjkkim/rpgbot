@@ -14,11 +14,16 @@ import { cleanupStaleFights } from "./player/fight.js";
 import { cleanupExpiredDuels } from "./commands/user/duel.js";
 import { closePool } from "./db/index.js";
 
+// MessageContent is deliberately NOT requested. XP is awarded per message
+// event, never from what the message says -- nothing in this codebase reads
+// `message.content`. Asking for it anyway would make the invite prompt look
+// invasive and would force a justification during Discord's verification review
+// at 100 servers, for a permission we do not use. Keep it out unless a feature
+// genuinely needs to read message text.
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates,
   ],
@@ -57,11 +62,11 @@ if (!token) {
 
 let shuttingDown = false;
 
-async function shutdown(signal: string) {
+async function shutdown(reason: string, exitCode = 0) {
     if (shuttingDown) return;
     shuttingDown = true;
 
-    console.log(`Received ${signal}, flushing caches before exit...`);
+    console.log(`${reason}, flushing caches before exit...`);
 
     clearInterval(pruneTimer);
     clearInterval(flushTimer);
@@ -69,7 +74,7 @@ async function shutdown(signal: string) {
     // Don't hang forever if the DB is unreachable.
     const timeout = setTimeout(() => {
         console.error("Shutdown flush timed out after 10s, exiting anyway.");
-        process.exit(1);
+        process.exit(exitCode || 1);
     }, 10_000);
     timeout.unref();
 
@@ -86,10 +91,31 @@ async function shutdown(signal: string) {
     await closePool().catch(() => null);
 
     console.log("Shutdown complete.");
-    process.exit(0);
+    process.exit(exitCode);
 }
 
-process.on("SIGINT", () => void shutdown("SIGINT"));
-process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("Received SIGINT"));
+process.on("SIGTERM", () => void shutdown("Received SIGTERM"));
+
+// ─── Crash paths ──────────────────────────────────────────────────────────────
+// A signal is the *polite* way this process dies; it is not the likely one. An
+// unhandled rejection or a thrown exception terminates Node without touching
+// the handlers above, which silently discarded up to 30s of everyone's buffered
+// XP and gold on every crash. Route those through the same flush.
+//
+// Both exit non-zero so a supervisor (Docker restart policy, systemd) treats it
+// as a failure and restarts, rather than seeing a clean exit and staying down.
+// The process is not trusted after either event -- we flush and leave, never
+// continue running on a corrupt state.
+
+process.on("unhandledRejection", (reason) => {
+    console.error("Unhandled promise rejection:", reason);
+    void shutdown("Unhandled rejection", 1);
+});
+
+process.on("uncaughtException", (err) => {
+    console.error("Uncaught exception:", err);
+    void shutdown("Uncaught exception", 1);
+});
 
 client.login(token);

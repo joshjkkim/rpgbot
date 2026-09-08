@@ -8,8 +8,11 @@
     "dev:bot": "npm --workspace rpgbot run dev",
     "dev:bot:watch": "npm --workspace rpgbot run dev:watch",
     "deploy-test-commands": "npm --workspace rpgbot run deploy-test-commands",
+    "deploy-commands": "npm --workspace rpgbot run deploy-commands",
+    "clear-test-commands": "npm --workspace rpgbot run clear-test-commands",
     "dev:web": "npm --workspace web run dev",
-    "build": "npm -ws run build"
+    "build": "npm -ws run build",
+    "start:bot": "npm --workspace rpgbot run start"
   },
   "devDependencies": {
     "@types/twemoji-parser": "^13.1.4"

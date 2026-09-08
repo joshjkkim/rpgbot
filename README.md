@@ -35,10 +35,12 @@ npm install          # installs both workspaces
 In the [Discord developer portal](https://discord.com/developers/applications):
 
 1. **New Application** → **Bot** → **Reset Token**, and copy the token.
-2. Under **Bot → Privileged Gateway Intents**, enable **Server Members Intent**
-   and **Message Content Intent**. The bot requests `GuildMembers` and
-   `MessageContent` (`rpgbot/src/index.ts`) and will fail to log in without
-   them — message XP and voice XP both depend on these.
+2. Under **Bot → Privileged Gateway Intents**, enable **Server Members Intent**.
+   The bot requests `GuildMembers` (`rpgbot/src/index.ts`) and will fail to log
+   in without it — role multipliers and voice XP both need member data.
+   **Leave Message Content off.** Nothing reads `message.content`; XP is awarded
+   per message *event*. Requesting it would make the invite prompt look invasive
+   and would need justifying during verification at 100 servers.
 3. Under **OAuth2 → URL Generator**, pick scopes `bot` and
    `applications.commands`, and permissions **Send Messages**, **Embed Links**,
    **Attach Files** (profile cards are rendered images), **Read Message
@@ -107,18 +109,29 @@ Every `.env*` file is gitignored except the `.env.example` files.
 All commands below are run **from the repo root**.
 
 ```bash
-npm run deploy-test-commands   # register slash commands (see below)
+npm run deploy-test-commands   # register slash commands to your test server
+npm run deploy-commands        # ...or register them globally, for real users
 npm run dev:bot                # start the bot  (tsx src/index.ts)
 npm run dev:bot:watch          # ...or restart it automatically on every save
 npm run dev:web                # start the dashboard on :3000
 ```
 
-**When to re-run `deploy-test-commands`:** only when a command's *definition*
-changes — its name, description, options, or a new command added to
-`commandList` in `rpgbot/src/commands/index.ts`. Editing the code that *handles*
-a command needs nothing but a bot restart. It registers guild-scoped commands to
-`SERVER_ID`, which appear instantly; global registration would take up to an
-hour.
+**When to re-run a deploy:** only when a command's *definition* changes — its
+name, description, options, or a new command added to `commandList` in
+`rpgbot/src/commands/index.ts`. Editing the code that *handles* a command needs
+nothing but a bot restart.
+
+**Which scope:** `deploy-test-commands` registers guild-scoped commands to
+`SERVER_ID` and they appear instantly — use it while developing.
+`deploy-commands` registers globally, which is what anyone who invites the bot
+gets, and takes up to an hour to propagate.
+
+A command registered in *both* scopes appears twice in your test server. Once
+you have deployed globally, clear the guild copies:
+
+```bash
+npm run clear-test-commands
+```
 
 `dev:bot` does not reload, so restart it after a change. `dev:bot:watch`
 restarts on save instead: `tsx watch` sends `SIGTERM` and waits for the process
@@ -223,5 +236,6 @@ web/
   run after the pool was already built against an empty `DATABASE_URL`.
 - **Slash commands not updating?** Re-run `deploy-test-commands`, and confirm
   `SERVER_ID` is the server you are actually testing in.
-- **Bot won't log in / no XP from messages?** Check the two privileged intents
-  are still enabled in the developer portal.
+- **Bot won't log in / no XP from messages?** Check that **Server Members
+  Intent** is still enabled in the developer portal. Message Content is not
+  used and does not need to be on.

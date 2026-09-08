@@ -1,4 +1,4 @@
-import type { Client } from "discord.js";
+import type { Client, Interaction } from "discord.js";
 import { Events } from "discord.js";
 import { commands } from "../commands/index.js";
 import { MessageFlags } from "discord.js";
@@ -80,13 +80,36 @@ export function registerInteractionCreate(client: Client) {
 
         } catch (err) {
             console.error("Error handling interaction:", err);
-            if (interaction.isRepliable()) {
-
-            await interaction.reply({
-                content: "There was an error while handling that interaction.",
-                flags: MessageFlags.Ephemeral,
-            }).catch(() => null);
-            }
+            await reportInteractionError(interaction);
         }
     });
+}
+
+/**
+ * Surfaces a handler error to the user.
+ *
+ * Nearly every handler dispatched above defers first, and `reply()` throws on an
+ * interaction that is already deferred or replied. That threw inside the catch,
+ * was swallowed by `.catch(() => null)`, and left the user looking at a spinner
+ * that never resolved -- an error the user could see reported as no response at
+ * all. Pick the call that matches the interaction's actual state.
+ */
+async function reportInteractionError(interaction: Interaction) {
+    if (!interaction.isRepliable()) return;
+
+    const content = "There was an error while handling that interaction.";
+
+    try {
+        if (interaction.deferred) {
+            // Deferred but not yet answered: the spinner is waiting on an edit.
+            await interaction.editReply({ content });
+        } else if (interaction.replied) {
+            await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
+        } else {
+            await interaction.reply({ content, flags: MessageFlags.Ephemeral });
+        }
+    } catch (err) {
+        // The token can be expired or already consumed; nothing left to do.
+        console.error("Failed to report interaction error to the user:", err);
+    }
 }
