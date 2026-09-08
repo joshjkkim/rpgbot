@@ -1,0 +1,24 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Restart on crash. The bot exits non-zero on an unhandled rejection or an
+    # uncaught exception (see src/index.ts) specifically so this brings it back;
+    # without a restart policy those handlers just make the outage tidier.
+    restart: unless-stopped
+    init: true
+
+    # Compose sends SIGTERM, waits, then SIGKILLs. The shutdown handler flushes
+    # the write-back cache with its own 10s timeout, so give it more than that
+    # -- the default 10s can cut the flush off partway and lose buffered XP.
+    stop_grace_period: 20s
+
+    env_file:
+      - rpgbot/.env
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

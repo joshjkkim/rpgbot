@@ -7,11 +7,11 @@ import { calculateTotalXpForLevel } from "../../leveling/levels.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile, UserStats } from "../../types/userprofile.js";
 import { AttachmentBuilder } from "discord.js";
-import { createCanvas, loadImage, GlobalFonts, type CanvasRenderingContext2D } from "@napi-rs/canvas";
-GlobalFonts.registerFromPath("assets/fonts/Inter-Regular.ttf", "Inter");
-GlobalFonts.registerFromPath("assets/fonts/Inter-SemiBold.ttf", "InterSemi");
-GlobalFonts.registerFromPath("assets/fonts/Inter-Bold.ttf", "InterBold");
+import { createCanvas, loadImage, type CanvasRenderingContext2D } from "@napi-rs/canvas";
+import { registerCardFonts } from "../../ui/canvas/fonts.js";
 import { drawTextWithEmojis } from "../../ui/canvas/drawEmojis.js";
+
+registerCardFonts();
 import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
 
 function roundRectPath(ctx: any, x: number, y: number, w: number, h: number, r: number) {

@@ -1,0 +1,17 @@
+# Everything the image builds for itself or must never contain.
+node_modules
+**/node_modules
+**/dist
+web/.next
+.git
+.VSCodeCounter
+
+# Secrets. The image takes configuration from the environment at run time.
+.env
+**/.env
+**/.env.*
+!**/.env.example
+
+*.log
+**/*.tsbuildinfo
+rpgbot/canvas-test.png

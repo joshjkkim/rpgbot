@@ -191,6 +191,53 @@ version.
 
 ---
 
+## Deploying
+
+The bot is packaged as a Docker image. `node:22-slim` (Debian/glibc) rather than
+Alpine, because `@napi-rs/canvas` ships prebuilt native binaries and the glibc
+ones are the well-trodden path.
+
+```bash
+cp rpgbot/.env.example rpgbot/.env   # fill in, then:
+docker compose up -d --build
+docker compose logs -f bot
+```
+
+The compose file is deliberately boring, and portable — the same Dockerfile runs
+on Fly, Railway, Render, or a plain VPS.
+
+Two settings there are load-bearing, not defaults:
+
+- **`restart: unless-stopped`.** The bot exits non-zero on an unhandled
+  rejection or an uncaught exception. That is only useful if something brings it
+  back up.
+- **`stop_grace_period: 20s`.** On `SIGTERM` the bot flushes the write-back
+  cache, with its own 10s internal timeout. Compose's default grace period is
+  10s, which can cut that flush off partway and lose buffered XP and gold. Any
+  other host needs the same treatment (`kill_timeout` on Fly,
+  `TimeoutStopSec` on systemd).
+
+Slash commands are **not** registered by the container. Registration is a
+separate, occasional action against Discord's API — run it from your machine
+when a command definition changes:
+
+```bash
+npm run deploy-commands      # global; up to an hour to propagate
+```
+
+### Applying a migration
+
+Schema changes are applied by hand, in order, before the deploy that needs them:
+
+```bash
+psql "$DATABASE_URL" -f rpgbot/db/migrations/001_performance_indexes.sql
+```
+
+`001` uses `CREATE INDEX CONCURRENTLY`, so it is safe to run while the bot is
+up. **It is not yet applied to production.**
+
+---
+
 ## Layout
 
 ```
