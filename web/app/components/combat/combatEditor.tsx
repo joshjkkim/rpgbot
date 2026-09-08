@@ -50,6 +50,7 @@ export interface CombatPvpConfig {
   rakePercent?: number;
   challengeTimeoutSeconds?: number;
   maxRounds?: number;
+  cooldownSeconds?: number;
 }
 
 export interface CombatConfig {
@@ -248,6 +249,13 @@ export default function CombatEditor({ value, onChange }: Props) {
               value={local.pvp?.challengeTimeoutSeconds ?? 120}
               min={15}
               onChange={(v) => updatePvp({ challengeTimeoutSeconds: v })}
+            />
+            <NumberField
+              label="Cooldown (seconds)"
+              value={local.pvp?.cooldownSeconds ?? 0}
+              min={0}
+              onChange={(v) => updatePvp({ cooldownSeconds: v })}
+              hint="How long a member waits after finishing a duel. 0 disables it — without one, a stronger member can re-challenge a weaker one repeatedly, and HP carries over between duels."
             />
             <NumberField
               label="Round cap"

@@ -6,7 +6,7 @@ import {
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { resolveDuel } from "../../db/duel.js";
+import { cooldownRemaining, resolveDuel } from "../../db/duel.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import type { DuelResult, PendingDuel } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
@@ -190,16 +190,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    // A cheap pre-check so an obviously unaffordable challenge is refused before
-    // anyone is pinged. The balance that actually decides is read under lock in
-    // resolveDuel(), because either side can spend while this sits unanswered.
-    if (wager > 0) {
-        const { user: challengerUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
-        const { profile } = await getOrCreateProfile({ userId: challengerUser.id, guildId: dbGuild.id });
-        if (BigInt(profile.gold ?? 0) < BigInt(wager)) {
-            await interaction.editReply({ content: "You do not have enough gold for that wager." });
-            return;
-        }
+    // Cheap pre-checks so an obviously doomed challenge is refused before anyone
+    // is pinged. Both are re-checked under lock in resolveDuel(), because either
+    // side can spend gold or finish another duel while this sits unanswered.
+    const { user: challengerUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
+    const { profile } = await getOrCreateProfile({ userId: challengerUser.id, guildId: dbGuild.id });
+
+    const wait = cooldownRemaining(profile.user_stats ?? null, pvp.cooldownSeconds ?? 0, Date.now());
+    if (wait > 0) {
+        await interaction.editReply({
+            content: `You need to wait ${wait}s before duelling again.`,
+        });
+        return;
+    }
+
+    if (wager > 0 && BigInt(profile.gold ?? 0) < BigInt(wager)) {
+        await interaction.editReply({ content: "You do not have enough gold for that wager." });
+        return;
     }
 
     const timeoutMs = Math.max(15, pvp.challengeTimeoutSeconds ?? 120) * 1000;

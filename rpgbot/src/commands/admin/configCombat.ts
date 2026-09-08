@@ -121,6 +121,9 @@ export const data = new SlashCommandBuilder()
         .addIntegerOption(opt =>
             opt.setName("max_rounds").setDescription("Rounds before a duel is called a draw. Default: 50").setRequired(false).setMinValue(1)
         )
+        .addIntegerOption(opt =>
+            opt.setName("cooldown_seconds").setDescription("Wait between duels per member. 0 disables the cooldown").setRequired(false).setMinValue(0)
+        )
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -293,6 +296,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             const rakePercent    = interaction.options.getNumber("rake_percent");
             const timeoutSeconds = interaction.options.getInteger("timeout_seconds");
             const maxRounds      = interaction.options.getInteger("max_rounds");
+            const cooldown       = interaction.options.getInteger("cooldown_seconds");
 
             combat.pvp = {
                 ...(combat.pvp ?? {}),
@@ -302,6 +306,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 ...(rakePercent    !== null && { rakePercent }),
                 ...(timeoutSeconds !== null && { challengeTimeoutSeconds: timeoutSeconds }),
                 ...(maxRounds      !== null && { maxRounds }),
+                ...(cooldown       !== null && { cooldownSeconds: cooldown }),
             };
 
             const d = combat.pvp;
@@ -310,7 +315,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 `wager **${d.minWager ?? 0}**\u2013**${d.maxWager ? d.maxWager : "\u221e"}** \u00b7 ` +
                 `rake **${d.rakePercent ?? 0}%** \u00b7 ` +
                 `challenge times out after **${d.challengeTimeoutSeconds ?? 120}s** \u00b7 ` +
-                `draw after **${d.maxRounds ?? 50}** rounds.` +
+                `draw after **${d.maxRounds ?? 50}** rounds \u00b7 ` +
+                `cooldown **${d.cooldownSeconds ? `${d.cooldownSeconds}s` : "none"}**.` +
                 (d.enabled && !combat.enabled ? "\n\n\u26a0\ufe0f Combat itself is disabled, so /duel will still refuse." : "")
             );
             break;

@@ -101,6 +101,8 @@ export interface GuildConfig {
             challengeTimeoutSeconds?: number;
             /** Duels stop here and are called a draw, so two tanks cannot loop forever. */
             maxRounds?: number;
+            /** How long a member must wait after finishing a duel before starting another. */
+            cooldownSeconds?: number;
         };
     },
     xp: {
@@ -206,6 +208,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
             rakePercent: 0,
             challengeTimeoutSeconds: 120,
             maxRounds: 50,
+            cooldownSeconds: 0,
         },
     },
     xp: {

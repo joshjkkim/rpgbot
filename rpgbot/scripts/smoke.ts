@@ -1157,6 +1157,80 @@ async function main() {
         check("payout plus rake is the pot", (splitPot(777n, 33).payout + splitPot(777n, 33).rake).toString(), "777");
     });
 
+
+    await test("the duel cooldown blocks a rematch until it lapses", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 1000);
+        await seed(fx.b, g, {}, 1000);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true, cooldownSeconds: 300 };
+
+        const duel = () => resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 50n,
+            config,
+        });
+
+        const first = await duel();
+        check("first duel resolved", first.success, "true");
+
+        const second = await duel();
+        check("rematch refused", second.success, "false");
+        if (!second.success) {
+            check("refusal names the wait", /\d+s left/.test(second.message), "true");
+        }
+
+        // Only one payout happened, so the pot did not move twice.
+        const total = BigInt(await goldOf(fx.a, g)) + BigInt(await goldOf(fx.b, g));
+        check("gold moved exactly once", total.toString(), "2000");
+
+        // Age the stored timestamp past the window; the rematch is allowed again.
+        await query(
+            `UPDATE user_guild_profiles
+             SET user_stats = jsonb_set(user_stats, '{lastDuelAt}', to_jsonb($3::text))
+             WHERE guild_id = $1 AND user_id = ANY($2::bigint[])`,
+            [g, [fx.a.userId, fx.b.userId], new Date(Date.now() - 600_000).toISOString()]
+        );
+        userGuildProfileCache.clear();
+
+        const third = await duel();
+        check("allowed once the cooldown lapsed", third.success, "true");
+    });
+
+    await test("a duel records who won and when", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 500);
+        await seed(fx.b, g, {}, 500);
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true };
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 0n,
+            config,
+        });
+        check("resolved", outcome.success, "true");
+
+        const a = (await row(fx.a, g)).user_stats as any;
+        const b = (await row(fx.b, g)).user_stats as any;
+
+        check("both sides stamped", Boolean(a.lastDuelAt && b.lastDuelAt), "true");
+        check("exactly one win recorded", (a.duelsWon ?? 0) + (b.duelsWon ?? 0), 1);
+        check("exactly one loss recorded", (a.duelsLost ?? 0) + (b.duelsLost ?? 0), 1);
+    });
+
     console.log(`\n${"─".repeat(60)}`);
     console.log(`${passed} passed, ${failed} failed`);
     await closePool();

@@ -25,6 +25,11 @@ export interface UserStats {
     fightsLost: number;
     totalDamageDealt: number;
     totalDamageTaken: number;
+
+    /** ISO timestamp of the last duel this member finished, for the duel cooldown. */
+    lastDuelAt?: string | null;
+    duelsWon?: number;
+    duelsLost?: number;
 }
 export interface item {
     id: string;

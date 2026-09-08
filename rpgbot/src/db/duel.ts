@@ -7,6 +7,24 @@ import type { DuelResult, DuelSide } from "../types/combat.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
 
+/** Seconds still to wait, or 0 when the member is free to duel. */
+export function cooldownRemaining(
+    stats: DbUserGuildProfile["user_stats"] | null,
+    cooldownSeconds: number,
+    now: number
+): number {
+    if (cooldownSeconds <= 0) return 0;
+
+    const last = stats?.lastDuelAt;
+    if (!last) return 0;
+
+    const lastMs = Date.parse(last);
+    if (!Number.isFinite(lastMs)) return 0;
+
+    const readyAt = lastMs + cooldownSeconds * 1000;
+    return readyAt <= now ? 0 : Math.ceil((readyAt - now) / 1000);
+}
+
 export type DuelOutcome =
     | {
           success: true;
@@ -129,6 +147,27 @@ export async function resolveDuel(opts: {
                 return { success: false, message: "Both players need a profile in this server first." };
             }
 
+            // Cooldown is checked here rather than only in the command, so two
+            // challenges accepted at the same moment cannot both get through.
+            const cooldownSeconds = pvp.cooldownSeconds ?? 0;
+            const now = Date.now();
+
+            const challengerWait = cooldownRemaining(challengerRow.user_stats, cooldownSeconds, now);
+            if (challengerWait > 0) {
+                return {
+                    success: false,
+                    message: `The challenger has ${challengerWait}s left before they can duel again.`,
+                };
+            }
+
+            const opponentWait = cooldownRemaining(opponentRow.user_stats, cooldownSeconds, now);
+            if (opponentWait > 0) {
+                return {
+                    success: false,
+                    message: `You have ${opponentWait}s left before you can duel again.`,
+                };
+            }
+
             // Re-check the stakes against the locked balances: the challenge may
             // have been sitting unanswered while either side spent their gold.
             if (BigInt(challengerRow.gold ?? 0) < wager) {
@@ -188,10 +227,27 @@ export async function resolveDuel(opts: {
             }
 
             // HP carries out of the duel either way, so a won fight still costs
-            // something and /daily's heal stays worth having.
+            // something and /daily's heal stays worth having. The timestamp is
+            // written for both sides regardless of outcome -- a draw still used
+            // up the duel.
+            const finishedAt = new Date(now).toISOString();
+            const winnerUserId = result.winnerDiscordId === challenger.discordUserId
+                ? challenger.userId
+                : result.winnerDiscordId === opponent.discordUserId
+                    ? opponent.userId
+                    : null;
+
             for (const row of [challengerRow, opponentRow]) {
                 const stats = { ...(row.user_stats ?? {}) } as Record<string, unknown>;
                 stats.currentHp = hpByUser.get(row.user_id) ?? 0;
+                stats.lastDuelAt = finishedAt;
+
+                if (winnerUserId !== null) {
+                    const won = row.user_id === winnerUserId;
+                    const key = won ? "duelsWon" : "duelsLost";
+                    stats[key] = ((stats[key] as number) ?? 0) + 1;
+                }
+
                 await client.query(
                     `UPDATE user_guild_profiles SET user_stats = $2, updated_at = NOW() WHERE id = $1`,
                     [row.id, JSON.stringify(stats)]
