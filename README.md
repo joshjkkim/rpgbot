@@ -64,11 +64,12 @@ Changes to an already-deployed database go in `rpgbot/db/migrations/` as
 numbered files, never by editing `schema.sql` in place:
 
 ```bash
-psql "$DATABASE_URL" -f rpgbot/db/migrations/001_performance_indexes.sql
+cd rpgbot && ./scripts/migrate.sh db/migrations/001_performance_indexes.sql
 ```
 
-(`001` is not yet applied to production. It uses `CREATE INDEX CONCURRENTLY`,
-so it is safe to run while the bot is up.)
+Use the script rather than calling `psql` directly — see
+[Applying a migration](#applying-a-migration) for why. `001` is already applied
+to production.
 
 ### 4. Fill in the env files
 
@@ -155,6 +156,7 @@ Discord. It runs against an **isolated scratch schema**, not your real data.
 # One-time (or whenever schema.sql changes): build the scratch schema.
 cd rpgbot
 set -a; . .env; set +a          # export DATABASE_URL for the script
+                                # (requires DATABASE_URL to be quoted -- below)
 ./scripts/setup-test-db.sh
 
 # Then, from anywhere in the repo:
@@ -230,11 +232,28 @@ npm run deploy-commands      # global; up to an hour to propagate
 Schema changes are applied by hand, in order, before the deploy that needs them:
 
 ```bash
-psql "$DATABASE_URL" -f rpgbot/db/migrations/001_performance_indexes.sql
+cd rpgbot
+./scripts/migrate.sh db/migrations/001_performance_indexes.sql
 ```
 
-`001` uses `CREATE INDEX CONCURRENTLY`, so it is safe to run while the bot is
-up. **It is not yet applied to production.**
+Use the script, not bare `psql`. `DATABASE_URL` points at Neon's **pooled**
+endpoint (`-pooler`), which is PgBouncer in transaction pooling mode, and
+`CREATE INDEX CONCURRENTLY` cannot run inside a transaction block. Applied
+through the pooler a migration fails — or worse, leaves an `INVALID` index that
+the planner silently ignores, so the query stays slow and nothing looks broken.
+`migrate.sh` strips `-pooler` and talks to the direct endpoint, the same
+substitution `setup-test-db.sh` makes.
+
+It reads `DATABASE_URL` from `rpgbot/.env` itself if the variable is not already
+exported, so there is no need to source that file first.
+
+`001` is applied to production (2026-09-06). Verify no index landed invalid:
+
+```bash
+psql "$DATABASE_URL" -c \
+  "SELECT c.relname FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+   WHERE NOT i.indisvalid;"
+```
 
 ---
 
@@ -277,6 +296,16 @@ web/
 - **Neon pooled endpoints reject `search_path`** as a startup parameter, so
   `setup-test-db.sh` strips `-pooler` from the URL and points the tests at the
   direct endpoint.
+- **Quote `DATABASE_URL` in `.env`.** A Neon connection string ends in
+  `?sslmode=require&channel_binding=require`. Unquoted, that `&` makes
+  `set -a; . .env; set +a` set the variable to the *empty string* in bash (it
+  backgrounds the assignment) and abort with a parse error in zsh — so
+  `setup-test-db.sh` runs against no database at all while looking like a
+  connection problem. `dotenv` parses the file correctly regardless, so the bot
+  itself is unaffected and only the shell scripts break.
+- **Migrations must not go through the pooler.** Use `scripts/migrate.sh`;
+  `CREATE INDEX CONCURRENTLY` cannot run in the transaction block PgBouncer
+  puts it in.
 - **`loadTestEnv.ts` must be the first import in a test script.** `src/db/index.ts`
   builds its `Pool` at module-evaluation time, and ESM evaluates imports before
   the importing module's body — calling `dotenv` inside the script itself would
