@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 import { inviteUrl } from "../lib/invite"
 
 type Guild = {
@@ -50,14 +51,34 @@ export default function Dashboard() {
         didFetch.current = true;
 
         async function fetchGuilds() {
+            // Set when re-authorising. The redirect is a navigation, so the
+            // spinner has to stay up rather than flashing "no servers found"
+            // against the empty list on the way out.
+            let redirecting = false;
+
             try {
                 const res = await fetch("/api/discord/guilds");
+
+                // Discord stopped accepting the token (revoked, or a refresh that
+                // failed). Re-authorising is silent for an app the user has
+                // already approved, so send them through it rather than showing
+                // an error they cannot act on.
+                if (res.status === 401) {
+                    redirecting = true;
+                    signIn("discord");
+                    return;
+                }
+
+                if (res.status === 503) {
+                    throw new Error("Discord is not responding right now. Try again in a moment.");
+                }
+
                 if (!res.ok) throw new Error("Failed to load your servers.");
                 setGuilds(await res.json());
             } catch (err: any) {
                 setError(err.message);
             } finally {
-                setLoading(false);
+                if (!redirecting) setLoading(false);
             }
         }
         fetchGuilds();
