@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import { registerMessageCreate } from "./events/messageCreate.js";
 import { registerGuildCreate } from "./events/guildCreate.js";
+import { registerGuildDelete } from "./events/guildDelete.js";
 import { registerInteractionCreate } from "./events/interactionCreate.js";
 import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
 import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
@@ -35,6 +36,7 @@ client.once(Events.ClientReady, () => {
 
 registerMessageCreate(client);
 registerGuildCreate(client);
+registerGuildDelete(client);
 registerInteractionCreate(client);
 registerVoiceStateUpdate(client);
 

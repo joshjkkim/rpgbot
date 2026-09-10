@@ -60,16 +60,22 @@ comment of `rpgbot/db/schema.sql`: Discord snowflakes are `BIGINT`, and XP/gold
 are `BIGINT` that come back from `pg` as **strings** and get `BigInt()`'d in the
 bot. Don't "simplify" them to `INTEGER`.
 
-Changes to an already-deployed database go in `rpgbot/db/migrations/` as
-numbered files, never by editing `schema.sql` in place:
+Then apply every migration in `rpgbot/db/migrations/`, in order — a fresh
+database needs them too, not just a deployed one:
 
 ```bash
-cd rpgbot && ./scripts/migrate.sh db/migrations/001_performance_indexes.sql
+cd rpgbot
+./scripts/migrate.sh db/migrations/001_performance_indexes.sql
+./scripts/migrate.sh db/migrations/002_guild_removed_at.sql
 ```
 
 Use the script rather than calling `psql` directly — see
-[Applying a migration](#applying-a-migration) for why. `001` is already applied
-to production.
+[Applying a migration](#applying-a-migration) for why.
+
+`schema.sql` carries every *column* the code expects, so the bot runs against a
+database built from it alone; the migrations are what add the indexes that keep
+it fast. Changes to an already-deployed database go in `migrations/` as numbered
+files, never by editing `schema.sql` in place.
 
 ### 4. Fill in the env files
 
@@ -247,7 +253,12 @@ substitution `setup-test-db.sh` makes.
 It reads `DATABASE_URL` from `rpgbot/.env` itself if the variable is not already
 exported, so there is no need to source that file first.
 
-`001` is applied to production (2026-09-06). Verify no index landed invalid:
+**Applied to production:** `001` (2026-09-06). **Pending:** `002`, which adds
+`guilds.removed_at` — the bot writes that column on every guild upsert, so it
+must be applied *before* the deploy that carries the `guildDelete` handler, or
+every guild write starts failing.
+
+After `001`, verify no index landed invalid:
 
 ```bash
 psql "$DATABASE_URL" -c \

@@ -34,9 +34,14 @@ export async function GET() {
 
   const botInstalledRes = guildIds.length
     ? await dbQuery<{ discord_guild_id: string }>(
+        // `removed_at IS NULL` matters: guild rows are kept after the bot is
+        // kicked so nobody loses their progression, so a row's existence alone
+        // no longer means the bot is in the server. Without this the dashboard
+        // offers "Configure" for a server the bot has left.
         `SELECT discord_guild_id
         FROM guilds
-        WHERE discord_guild_id = ANY($1::bigint[])`,
+        WHERE discord_guild_id = ANY($1::bigint[])
+          AND removed_at IS NULL`,
         [guildIds]
       )
     : { rows: [] as { discord_guild_id: string }[] };

@@ -65,7 +65,12 @@ CREATE TABLE IF NOT EXISTS public.guilds (
     name             TEXT,
     icon_url         TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    config           JSONB       DEFAULT '{}'::jsonb
+    config           JSONB       DEFAULT '{}'::jsonb,
+    -- Set when the bot is removed from the server, cleared when it rejoins.
+    -- Removal is soft so a kick does not cascade away every member's
+    -- progression; the dashboard reads this to tell a live install from a dead
+    -- one. Added to a deployed database by migrations/002.
+    removed_at       TIMESTAMPTZ
 );
 
 -- ─── user_guild_profiles ─────────────────────────────────────────────────────

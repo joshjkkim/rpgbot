@@ -10,6 +10,8 @@ export interface DbGuild {
     icon_url: string | null;
     created_at: string;
     config: GuildConfig | null;
+    /** Set while the bot is not in the guild; cleared when it rejoins. */
+    removed_at: string | null;
 }
 
 export interface RoleXpConfig {
