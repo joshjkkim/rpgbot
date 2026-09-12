@@ -3,6 +3,10 @@ import { requireGuildOwner } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 import { validateGuildConfig } from "@/app/lib/validateConfig";
 
+// 401 = sign in again, 403 = signed in but not this server's owner,
+// 503 = Discord did not answer. All three used to be reported as "forbidden".
+const AUTH_ERRORS = { 401: "unauthorized", 403: "forbidden", 503: "discord_unavailable" } as const;
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -10,7 +14,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
     const { guildId } = await params;
 
     const auth = await requireGuildOwner(guildId);
-    if (!auth.ok) return NextResponse.json({ error: "forbidden" }, { status: auth.status });
+    if (!auth.ok) {
+        return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
+    }
 
     // `version` is a hash of the stored config. The client sends it back on save
     // so a write can be rejected if anything changed in the meantime -- see POST.
@@ -38,7 +44,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     const { guildId } = await params;
 
     const auth = await requireGuildOwner(guildId);
-    if (!auth.ok) return NextResponse.json({ error: "forbidden" }, { status: auth.status });
+    if (!auth.ok) {
+        return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
+    }
 
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object") {

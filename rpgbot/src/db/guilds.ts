@@ -20,7 +20,12 @@ export async function upsertGuild(args: UpsertGuildArgs): Promise<DbGuild> {
         ON CONFLICT (discord_guild_id)
         DO UPDATE SET
         name = COALESCE(EXCLUDED.name, guilds.name),
-        icon_url = COALESCE(EXCLUDED.icon_url, guilds.icon_url)
+        icon_url = COALESCE(EXCLUDED.icon_url, guilds.icon_url),
+        -- Anything that upserts a guild is proof the bot is in it: the join
+        -- handler, or any command running there. Clearing the flag here covers
+        -- a rejoin the GuildCreate event missed (the bot being added while it
+        -- was offline, for one).
+        removed_at = NULL
         RETURNING *;
         `,
         [discordGuildId, name ?? null, iconUrl ?? null]
@@ -162,4 +167,21 @@ export async function getGuildConfig(guildId: string): Promise<{guild: DbGuild, 
 
     const config = mergeConfig(guild.config);
     return { guild, config };
+}
+
+/**
+ * Flags a guild as no longer having the bot in it, without deleting anything.
+ *
+ * The row and every profile hanging off it stay put -- see migration 002. The
+ * dashboard uses this to stop offering a dead install as configurable.
+ */
+export async function markGuildRemoved(discordGuildId: string): Promise<void> {
+    await query(
+        `UPDATE guilds SET removed_at = NOW() WHERE discord_guild_id = $1`,
+        [discordGuildId]
+    );
+
+    // The cached config outlives the guild by up to 10 minutes otherwise, and
+    // would be handed straight back if the bot is re-added in that window.
+    guildConfigCache.delete(discordGuildId);
 }

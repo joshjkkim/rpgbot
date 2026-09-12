@@ -8,7 +8,8 @@ workspace repo. Both halves talk to the same Postgres database.
 | `rpgbot/` | The Discord bot (discord.js 14, TypeScript, run with `tsx`) | Node process |
 | `web/` | Config dashboard (Next.js 16, NextAuth via Discord OAuth) | http://localhost:3000 |
 
-Past work is logged in [DEVLOG.md](./DEVLOG.md).
+Deploying, migrations and what-to-check-when-it-breaks live in
+[OPERATIONS.md](./OPERATIONS.md). Past work is logged in [DEVLOG.md](./DEVLOG.md).
 
 ---
 
@@ -54,22 +55,35 @@ In the [Discord developer portal](https://discord.com/developers/applications):
 psql "$DATABASE_URL" -f rpgbot/db/schema.sql
 ```
 
-That builds all five tables — `users`, `guilds`, `user_guild_profiles`,
-`trades`, `events` — from scratch. Schema notes worth knowing are in the header
-comment of `rpgbot/db/schema.sql`: Discord snowflakes are `BIGINT`, and XP/gold
-are `BIGINT` that come back from `pg` as **strings** and get `BigInt()`'d in the
-bot. Don't "simplify" them to `INTEGER`.
+That builds the five data tables — `users`, `guilds`, `user_guild_profiles`,
+`trades`, `events` — plus `schema_migrations`, the ledger `migrate.sh` keeps.
+Schema notes worth knowing are in the header comment of `rpgbot/db/schema.sql`:
+Discord snowflakes are `BIGINT`, and XP/gold are `BIGINT` that come back from
+`pg` as **strings** and get `BigInt()`'d in the bot. Don't "simplify" them to
+`INTEGER`.
 
-Changes to an already-deployed database go in `rpgbot/db/migrations/` as
-numbered files, never by editing `schema.sql` in place:
+Then apply every migration — a fresh database needs them too, not just a
+deployed one:
 
 ```bash
-cd rpgbot && ./scripts/migrate.sh db/migrations/001_performance_indexes.sql
+cd rpgbot
+./scripts/migrate.sh --all       # applies everything pending, in order
+./scripts/migrate.sh --status    # what is applied and what is not
 ```
 
 Use the script rather than calling `psql` directly — see
-[Applying a migration](#applying-a-migration) for why. `001` is already applied
-to production.
+[Applying a migration](#applying-a-migration) for why.
+
+Finally, confirm the database is actually in the shape the code expects:
+
+```bash
+npm run doctor
+```
+
+`schema.sql` carries every *column* the code expects, so the bot runs against a
+database built from it alone; the migrations are what add the indexes that keep
+it fast. Changes to an already-deployed database go in `migrations/` as numbered
+files, never by editing `schema.sql` in place.
 
 ### 4. Fill in the env files
 
@@ -174,11 +188,37 @@ tick. It does **not** cover anything that needs a Discord connection — command
 interactions, trading UI, and canvas rendering all have to be exercised by
 running the bot in your test server.
 
-Typecheck without emitting:
+Typecheck without emitting — both workspaces:
 
 ```bash
-cd rpgbot && npx tsc --noEmit
+npm run typecheck
 ```
+
+For the bot this runs `tsc -p tsconfig.scripts.json`, which covers `src` **and**
+`scripts`. The build config (`tsconfig.json`) deliberately excludes `scripts/`,
+since smoke and doctor are run with `tsx` and never shipped in the image — the
+side effect was that nothing typechecked them at all until someone ran them.
+
+Check a database rather than the code:
+
+```bash
+npm run doctor          # read-only; prints which database it opened
+```
+
+### CI
+
+`.github/workflows/ci.yml` runs on every push and pull request:
+
+| Job | What it proves |
+| --- | --- |
+| **Typecheck, lint and build** | Both workspaces compile; the dashboard builds |
+| **Smoke tests** | The persistence suite, against a throwaway Postgres |
+| **Schema and migrations** | `schema.sql` and `db/migrations/` agree on every column; every migration is idempotent; the documented setup sequence works; `doctor` passes on the result *and* fails on a database missing a migration |
+| **Docker image builds** | The Dockerfile is the deploy path, so a break in it is a break in the deploy |
+
+The schema job is the one worth understanding: everything in `db/` is applied by
+hand against a real database, so without it nothing exercises that path until
+you are doing it to production.
 
 ---
 
@@ -229,12 +269,20 @@ npm run deploy-commands      # global; up to an hour to propagate
 
 ### Applying a migration
 
-Schema changes are applied by hand, in order, before the deploy that needs them:
+Schema changes are applied by hand, in order, **before** the deploy that needs
+them. Full procedure in [OPERATIONS.md](./OPERATIONS.md); the short version:
 
 ```bash
 cd rpgbot
-./scripts/migrate.sh db/migrations/001_performance_indexes.sql
+./scripts/migrate.sh --status    # what is pending
+./scripts/migrate.sh --all       # apply it
+npm run doctor                   # confirm, and check for INVALID indexes
 ```
+
+Which migrations are live is recorded in the `schema_migrations` table, not in
+a comment somebody has to remember to update. `migrate.sh` also stores a
+checksum of each file as applied, so editing an already-applied migration is
+refused rather than silently diverging from what the database contains.
 
 Use the script, not bare `psql`. `DATABASE_URL` points at Neon's **pooled**
 endpoint (`-pooler`), which is PgBouncer in transaction pooling mode, and
@@ -247,13 +295,10 @@ substitution `setup-test-db.sh` makes.
 It reads `DATABASE_URL` from `rpgbot/.env` itself if the variable is not already
 exported, so there is no need to source that file first.
 
-`001` is applied to production (2026-09-06). Verify no index landed invalid:
-
-```bash
-psql "$DATABASE_URL" -c \
-  "SELECT c.relname FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
-   WHERE NOT i.indisvalid;"
-```
+**Order matters, and the failure is not graceful.** `guilds.removed_at` is
+written by *every* `upsertGuild()` call, so a bot deployed ahead of migration
+`002` would not have broken guild removal — it would have broken every guild
+write in every server. `doctor` checks for exactly this before you deploy.
 
 ---
 
@@ -276,6 +321,9 @@ rpgbot/
     migrations/     numbered, applied by hand to live databases
   scripts/
     smoke.ts             persistence smoke tests
+    doctor.ts            read-only preflight: env, schema, migrations, indexes
+    migrate.sh           applies migrations, keeps the schema_migrations ledger
+    check-schema-drift.sh  schema.sql vs migrations, on a throwaway Postgres
     loadTestEnv.ts       loads .env then .env.test, before any db import
     setup-test-db.sh     (re)creates the scratch schema
 web/
@@ -284,6 +332,8 @@ web/
                           achievements, combat, styles, logging, logs)
     api/auth/             NextAuth Discord provider
     components/           one folder per config section
+.github/
+  workflows/ci.yml    typecheck, lint, build, smoke, schema, Docker
 ```
 
 ---

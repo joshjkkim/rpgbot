@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { requireGuildOwner } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 
+// 401 = sign in again, 403 = signed in but not this server's owner,
+// 503 = Discord did not answer. All three used to be reported as "forbidden".
+const AUTH_ERRORS = { 401: "unauthorized", 403: "forbidden", 503: "discord_unavailable" } as const;
+
 export async function GET(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
-    console.log("Fetching logs for guildId:", guildId);
 
     const auth = await requireGuildOwner(guildId);
-    console.log("Authorization result:", auth);
-    if (!auth.ok) return NextResponse.json({ error: "forbidden" }, { status: auth.status });
+    if (!auth.ok) {
+        return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
+    }
 
     const res = await dbQuery<{ config: any }>(
         `SELECT * FROM events WHERE discord_guild_id = $1 ORDER BY timestamp DESC LIMIT 50`,

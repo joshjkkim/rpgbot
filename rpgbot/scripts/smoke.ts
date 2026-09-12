@@ -15,7 +15,7 @@
 // MUST be first: it loads DATABASE_URL before db/index.ts builds its Pool.
 import "./loadTestEnv.js";
 import { upsertUser } from "../src/db/users.js";
-import { upsertGuild, setGuildConfig, mergeConfig, getGuildByDiscordId } from "../src/db/guilds.js";
+import { upsertGuild, setGuildConfig, mergeConfig, getGuildByDiscordId, markGuildRemoved } from "../src/db/guilds.js";
 import { addMessageXp, grantDailyXp, getUserGuildProfile, upsertUserGuildProfile } from "../src/db/userGuildProfiles.js";
 import { getOrCreateProfile, flushProfileCacheToDb } from "../src/cache/profileService.js";
 import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache } from "../src/cache/caches.js";
@@ -82,6 +82,15 @@ async function reset(): Promise<{ userId: number; guildId: number; config: Guild
 
     userGuildProfileCache.clear();
     return { userId: user.id, guildId: guild.id, config };
+}
+
+/** How many profiles the guild has, straight from Postgres. */
+async function profileCount(guildId: number): Promise<string> {
+    const res = await query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM user_guild_profiles WHERE guild_id = $1`,
+        [guildId]
+    );
+    return res.rows[0]!.count;
 }
 
 /** Reads xp/gold straight from Postgres, bypassing the cache entirely. */
@@ -1229,6 +1238,46 @@ async function main() {
         check("both sides stamped", Boolean(a.lastDuelAt && b.lastDuelAt), "true");
         check("exactly one win recorded", (a.duelsWon ?? 0) + (b.duelsWon ?? 0), 1);
         check("exactly one loss recorded", (a.duelsLost ?? 0) + (b.duelsLost ?? 0), 1);
+    });
+
+    await test("being removed from a guild keeps every profile intact", async () => {
+        const { userId, guildId, config } = await reset();
+
+        await addMessageXp({ userId, guildId, config });
+        await flushDirtyProfiles(true);
+
+        // Counted before and after rather than asserted as a fixed number:
+        // earlier tests leave their own profiles in this guild.
+        const profilesBefore = await profileCount(guildId);
+
+        await markGuildRemoved(TEST_DISCORD_GUILD);
+
+        const guild = await getGuildByDiscordId(TEST_DISCORD_GUILD);
+        check("guild row survives the removal", Boolean(guild), "true");
+        check("removal is stamped", Boolean(guild?.removed_at), "true");
+
+        // The whole point of a soft delete: a kick must not cascade the guild's
+        // progression away, because kicking and re-adding the bot is a normal
+        // thing for a server admin to do.
+        check("every profile is still there", await profileCount(guildId), profilesBefore);
+        check("and still holds its xp", await xpInDb(userId, guildId), 10);
+    });
+
+    await test("re-adding the bot clears the removal and restores the config", async () => {
+        const { guildId } = await reset();
+
+        const before = mergeConfig((await getGuildByDiscordId(TEST_DISCORD_GUILD))!.config);
+        before.xp.basePerMessage = 77;
+        await setGuildConfig(TEST_DISCORD_GUILD, before);
+
+        await markGuildRemoved(TEST_DISCORD_GUILD);
+
+        // What the GuildCreate handler does on a rejoin.
+        const rejoined = await upsertGuild({ discordGuildId: TEST_DISCORD_GUILD, name: "smoke-test-guild" });
+
+        check("same guild row, not a new one", rejoined.id, guildId);
+        check("no longer flagged as removed", rejoined.removed_at, null);
+        check("the server's settings came back", mergeConfig(rejoined.config).xp.basePerMessage, 77);
     });
 
     console.log(`\n${"─".repeat(60)}`);

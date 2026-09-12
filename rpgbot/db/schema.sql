@@ -65,7 +65,12 @@ CREATE TABLE IF NOT EXISTS public.guilds (
     name             TEXT,
     icon_url         TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    config           JSONB       DEFAULT '{}'::jsonb
+    config           JSONB       DEFAULT '{}'::jsonb,
+    -- Set when the bot is removed from the server, cleared when it rejoins.
+    -- Removal is soft so a kick does not cascade away every member's
+    -- progression; the dashboard reads this to tell a live install from a dead
+    -- one. Added to a deployed database by migrations/002.
+    removed_at       TIMESTAMPTZ
 );
 
 -- ─── user_guild_profiles ─────────────────────────────────────────────────────
@@ -169,5 +174,21 @@ CREATE INDEX IF NOT EXISTS idx_events_user_created_at
     ON public.events (user_id, "timestamp" DESC);
 CREATE INDEX IF NOT EXISTS idx_events_category_type
     ON public.events (category, event_type);
+
+-- ─── schema_migrations ───────────────────────────────────────────────────────
+-- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
+-- answer that is not somebody's memory. One row per applied migration, keyed
+-- by filename-without-.sql, with a checksum of the file as applied -- editing
+-- an already-applied migration is then caught instead of silently diverging
+-- from what the database actually contains.
+--
+-- Created here so a database built from this file starts with the ledger, and
+-- again by migrate.sh so one that predates it picks the ledger up.
+
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+    version    TEXT        PRIMARY KEY,
+    checksum   TEXT        NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 COMMIT;

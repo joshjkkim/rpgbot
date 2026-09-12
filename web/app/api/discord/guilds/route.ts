@@ -1,42 +1,33 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/auth";
+import { fetchUserGuilds, type DiscordGuild } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 
-type DiscordGuild = {
-  id: string;
-  name: string;
-  icon: string | null;
-  owner: boolean;
-  permissions: string;
-}
-
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  const accessToken = (session as any)?.accessToken as string | undefined;
+  const result = await fetchUserGuilds();
 
-  if (!accessToken) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!result.ok) {
+    // 401 tells the client to send the user back through sign-in; 503 tells it
+    // to try again later. Reporting both as 500 made an expired login -- which
+    // every user hits after a week -- indistinguishable from a Discord outage.
+    return NextResponse.json(
+      { error: result.status === 401 ? "unauthorized" : "discord_unavailable" },
+      { status: result.status }
+    );
   }
 
-  const res = await fetch("https://discord.com/api/users/@me/guilds", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    return NextResponse.json({ error: "discord_error" }, { status: 500 });
-  }
-
-  const guilds = await res.json();
-  const ownerGuilds = guilds.filter((guild: DiscordGuild) => guild.owner);
-  const guildIds = ownerGuilds.map((g: DiscordGuild) => g.id);
+  const ownerGuilds = result.guilds.filter((guild) => guild.owner);
+  const guildIds = ownerGuilds.map((g) => g.id);
 
   const botInstalledRes = guildIds.length
     ? await dbQuery<{ discord_guild_id: string }>(
+        // `removed_at IS NULL` matters: guild rows are kept after the bot is
+        // kicked so nobody loses their progression, so a row's existence alone
+        // no longer means the bot is in the server. Without this the dashboard
+        // offers "Configure" for a server the bot has left.
         `SELECT discord_guild_id
         FROM guilds
-        WHERE discord_guild_id = ANY($1::bigint[])`,
+        WHERE discord_guild_id = ANY($1::bigint[])
+          AND removed_at IS NULL`,
         [guildIds]
       )
     : { rows: [] as { discord_guild_id: string }[] };

@@ -1,0 +1,14 @@
+{
+  // The build tsconfig compiles `src` into dist/ and deliberately excludes
+  // scripts/ -- smoke.ts and doctor.ts are run with tsx and never shipped in
+  // the image. The side effect was that nothing typechecked them at all: a
+  // type error there surfaced only when someone ran the script.
+  //
+  // This config typechecks both, and emits nothing.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src", "scripts"]
+}

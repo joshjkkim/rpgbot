@@ -1,6 +1,19 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react";
+import { signIn } from "next-auth/react";
+
+
+/**
+ * True when the response means the Discord session is gone. The caller stops
+ * what it is doing: re-authorising navigates away, so there is no state worth
+ * updating afterwards.
+ */
+function handledExpiredSession(res: Response) {
+    if (res.status !== 401) return false;
+    signIn("discord");
+    return true;
+}
 
 export function useGuildConfig(guildId: string) {
     const [config, setConfig] = useState<any>(null);
@@ -18,8 +31,21 @@ export function useGuildConfig(guildId: string) {
         setLoading(true);
         setError(null);
 
+        // See dashboard.tsx: a re-auth redirect must not drop the loading state
+        // and leave the editor rendering a config it never received.
+        let redirecting = false;
+
         try {
             const res = await fetch(`/api/discord/guilds/${guildId}/config`, { cache: "no-store" });
+            if (handledExpiredSession(res)) {
+                redirecting = true;
+                return;
+            }
+
+            if (res.status === 503) {
+                throw new Error("Discord is not responding right now. Try again in a moment.");
+            }
+
             if (!res.ok) throw new Error(`GET failed: ${res.status}`);
 
             const data = await res.json();
@@ -30,7 +56,7 @@ export function useGuildConfig(guildId: string) {
         } catch (err: any) {
             setError(err.message);
         } finally {
-            setLoading(false);
+            if (!redirecting) setLoading(false);
         }
     }
 
@@ -47,6 +73,8 @@ export function useGuildConfig(guildId: string) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ config: toSave, version }),
             });
+
+            if (handledExpiredSession(res)) return false;
 
             if (res.status === 409) {
                 // Someone -- or the bot -- wrote first. Pull the current config

@@ -1,0 +1,200 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # ── Static checks ───────────────────────────────────────────────────────────
+  check:
+    name: Typecheck, lint and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # tsconfig.scripts.json, not tsconfig.json: the build config excludes
+      # scripts/, so smoke.ts and doctor.ts would otherwise go unchecked.
+      - name: Typecheck the bot (src and scripts)
+        working-directory: rpgbot
+        run: npm run typecheck
+
+      - name: Typecheck the dashboard
+        working-directory: web
+        run: npx tsc --noEmit
+
+      # Advisory, not blocking. The dashboard currently has 37 pre-existing
+      # `@typescript-eslint/no-explicit-any` errors, mostly untyped config
+      # objects in the editors. Making this required today would mean CI is red
+      # on every run from the start, which trains everyone to ignore it. Clear
+      # the backlog, then drop continue-on-error.
+      - name: Lint the dashboard (advisory)
+        working-directory: web
+        continue-on-error: true
+        run: npx eslint
+
+      - name: Build the bot
+        run: npm --workspace rpgbot run build
+
+      # next build reads the environment at build time. These are placeholders:
+      # every route that actually talks to Discord or Postgres is dynamic and
+      # runs at request time, so nothing here reaches a real service.
+      - name: Build the dashboard
+        working-directory: web
+        env:
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-placeholder-not-a-real-secret
+          DISCORD_CLIENT_ID: "0"
+          DISCORD_CLIENT_SECRET: ci-placeholder
+          NEXT_PUBLIC_DISCORD_CLIENT_ID: "0"
+        run: npm run build
+
+  # ── Persistence smoke tests ─────────────────────────────────────────────────
+  # The suite runs against a scratch schema, exactly as it does locally -- the
+  # only difference is that the database is a throwaway container instead of a
+  # scratch schema inside Neon.
+  smoke:
+    name: Smoke tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create the scratch schema
+        working-directory: rpgbot
+        run: ./scripts/setup-test-db.sh
+
+      - name: Run the smoke suite
+        run: npm --workspace rpgbot run smoke
+
+  # ── The database setup path, end to end ─────────────────────────────────────
+  # Everything in db/ is applied by hand against a real database, which means
+  # nothing else exercises it. This job runs the documented sequence against a
+  # throwaway Postgres: schema.sql, then migrate.sh, then doctor -- the same
+  # three commands OPERATIONS.md tells you to run on a new database.
+  schema:
+    name: Schema and migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # A database built from schema.sql alone must have the same columns as one
+      # built from schema.sql + every migration. See the script's header for the
+      # bug this catches.
+      - name: schema.sql and migrations must agree
+        working-directory: rpgbot
+        run: ./scripts/check-schema-drift.sh
+
+      - name: Build a database the documented way
+        working-directory: rpgbot
+        run: |
+          psql -d postgres -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ci_setup;"
+          psql -d ci_setup  -v ON_ERROR_STOP=1 -q -f db/schema.sql
+          DATABASE_URL="postgres://postgres:postgres@localhost:5432/ci_setup" \
+            ./scripts/migrate.sh --all
+
+      # doctor is what gates a real deploy, so a change that breaks it should
+      # fail here rather than the next time someone is mid-deploy.
+      - name: Preflight doctor must pass on it
+        working-directory: rpgbot
+        env:
+          DISCORD_TOKEN: ci-placeholder
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/ci_setup
+        run: npm run doctor
+
+      - name: ...and report a database that is behind the code
+        working-directory: rpgbot
+        env:
+          DISCORD_TOKEN: ci-placeholder
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/ci_setup
+        run: |
+          # Undo migration 002 and confirm doctor refuses the deploy. A check
+          # that cannot fail is not a check.
+          psql -d ci_setup -v ON_ERROR_STOP=1 -q \
+            -c "ALTER TABLE guilds DROP COLUMN removed_at;"
+          if npm run doctor; then
+            echo "doctor passed against a database missing guilds.removed_at" >&2
+            exit 1
+          fi
+          echo "doctor correctly refused."
+
+  # ── The image that actually ships ───────────────────────────────────────────
+  # The Dockerfile is the deploy path, so a break in it is a break in the
+  # deploy. Built, never pushed.
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
