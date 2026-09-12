@@ -6,25 +6,6 @@ this file is about the running system.
 
 ---
 
-## The one-time step this repo is waiting on
-
-The production database had migrations `001` and `002` applied by hand, before
-`scripts/migrate.sh` kept a ledger. Tell the ledger about them **once**, so
-`--status` reports the truth instead of claiming both are pending:
-
-```bash
-cd rpgbot
-./scripts/migrate.sh --mark-applied db/migrations/001_performance_indexes.sql
-./scripts/migrate.sh --mark-applied db/migrations/002_guild_removed_at.sql
-./scripts/migrate.sh --status        # both should read "applied"
-```
-
-`--mark-applied` records a migration **without running it**. It is correct here
-because both are genuinely in the database already, and it is the wrong tool
-for anything else.
-
----
-
 ## Before every deploy
 
 ```bash
