@@ -1,0 +1,27 @@
+# The Discord bot. The dashboard deploys separately (Vercel, root directory `web`).
+#
+# Run exactly ONE machine (`fly deploy --ha=false`, `fly scale count 1`). The
+# write-back cache flushes absolute values, so two instances overwrite each
+# other's XP and gold.
+#
+# Secrets, not env here: `fly secrets set DISCORD_TOKEN=... DATABASE_URL=...`
+
+app = "rpgbot"
+primary_region = "ord"   # nearest to Neon's us-east-2
+
+# The bot flushes buffered XP/gold on SIGTERM with a 10s internal timeout.
+# Fly's default 5s would cut that off; same reason compose sets 20s.
+kill_signal = "SIGTERM"
+kill_timeout = 20
+
+[build]
+  dockerfile = "Dockerfile"
+
+# No [http_service]: the bot listens on nothing, and that block's
+# auto_stop_machines would stop it as idle.
+
+# @napi-rs/canvas renders profile cards; 256MB risks an OOM kill mid-buffer.
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
