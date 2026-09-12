@@ -14,6 +14,13 @@ import { flushLogBuffer } from "./db/events.js";
 import { cleanupStaleFights } from "./player/fight.js";
 import { cleanupExpiredDuels } from "./commands/user/duel.js";
 import { closePool } from "./db/index.js";
+import { assertBotEnv } from "./env.js";
+
+// Refuse to start on missing configuration, before a single event handler is
+// registered. An unset DATABASE_URL does not throw -- pg falls back to
+// localhost -- so without this the bot comes up, logs in, and silently fails
+// every write. See src/env.ts.
+assertBotEnv();
 
 // MessageContent is deliberately NOT requested. XP is awarded per message
 // event, never from what the message says -- nothing in this codebase reads
@@ -51,10 +58,8 @@ const flushTimer = setInterval(() => {
     void flushLogBuffer();
 }, 30 * 1000);
 
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-  throw new Error("DISCORD_TOKEN is not set in environment");
-}
+// Non-null: assertBotEnv() above has already exited if this is unset.
+const token = process.env.DISCORD_TOKEN!;
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 // Up to 30s of XP and gold lives only in the write-back cache at any moment.

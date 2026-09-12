@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
+    "typecheck": "tsc -p tsconfig.scripts.json",
     "build": "tsc",
     "deploy-commands": "tsx src/deploy-commands.ts --global",
     "deploy-test-commands": "tsx src/deploy-commands.ts --guild",
     "clear-test-commands": "tsx src/deploy-commands.ts --guild --clear",
     "smoke": "tsx scripts/smoke.ts",
+    "doctor": "tsx scripts/doctor.ts",
+    "migrate": "./scripts/migrate.sh --all",
+    "migrate:status": "./scripts/migrate.sh --status",
     "start": "node dist/index.js"
   },
   "keywords": [],

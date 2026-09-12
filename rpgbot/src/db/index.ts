@@ -5,6 +5,19 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// A pooled connection can die while it is sitting idle -- a hosted Postgres
+// recycling it, a network blip, Neon suspending a branch. `pg` reports that by
+// emitting `error` on the Pool, and an EventEmitter with no `error` listener
+// throws. That reaches process.on("uncaughtException") in index.ts, which
+// flushes and exits non-zero, so the restart policy brings the bot back: an
+// idle socket closing somewhere in a data centre restarts the whole bot.
+//
+// It is not an error that needs handling. `pg` has already discarded the dead
+// client, and the next query checks out a fresh one. Log it and carry on.
+pool.on("error", (err) => {
+  console.error("Idle Postgres client errored (pool recovered):", err.message);
+});
+
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params: any[] = []

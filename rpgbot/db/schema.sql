@@ -175,4 +175,20 @@ CREATE INDEX IF NOT EXISTS idx_events_user_created_at
 CREATE INDEX IF NOT EXISTS idx_events_category_type
     ON public.events (category, event_type);
 
+-- ─── schema_migrations ───────────────────────────────────────────────────────
+-- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
+-- answer that is not somebody's memory. One row per applied migration, keyed
+-- by filename-without-.sql, with a checksum of the file as applied -- editing
+-- an already-applied migration is then caught instead of silently diverging
+-- from what the database actually contains.
+--
+-- Created here so a database built from this file starts with the ledger, and
+-- again by migrate.sh so one that predates it picks the ledger up.
+
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+    version    TEXT        PRIMARY KEY,
+    checksum   TEXT        NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 COMMIT;

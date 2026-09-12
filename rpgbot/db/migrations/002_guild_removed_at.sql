@@ -1,7 +1,8 @@
 -- 002: track when the bot was removed from a guild.
 --
--- Not applied to production yet. Apply with:
---   cd rpgbot && ./scripts/migrate.sh db/migrations/002_guild_removed_at.sql
+-- Applied to production 2026-09-11. Whether a migration is live is recorded in
+-- the schema_migrations ledger, not in this comment -- check with:
+--   cd rpgbot && ./scripts/migrate.sh --status
 --
 -- Removal is soft. Deleting the row would cascade away every profile, and a
 -- server that kicks the bot and re-adds it an hour later -- during a permissions
