@@ -27,6 +27,7 @@ import { purchaseItem } from "../src/db/shop.js";
 import { startFight, applyAction, applyFightRewards } from "../src/player/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
+import { databaseUrlProblem } from "../src/env.js";
 import type { EnemyConfig } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
@@ -1278,6 +1279,19 @@ async function main() {
         check("same guild row, not a new one", rejoined.id, guildId);
         check("no longer flagged as removed", rejoined.removed_at, null);
         check("the server's settings came back", mergeConfig(rejoined.config).xp.basePerMessage, 77);
+    });
+
+    await test("a DATABASE_URL pasted with its .env quotes is refused at startup", async () => {
+        const url = "postgresql://u:secret@ep-x-pooler.c-2.us-east-2.aws.neon.tech/db?sslmode=require&channel_binding=require";
+
+        check("bare postgresql:// accepted", databaseUrlProblem(url), null);
+        check("bare postgres:// accepted", databaseUrlProblem("postgres://u:p@localhost:5432/rpgbot"), null);
+        check("double-quoted refused", databaseUrlProblem(`"${url}"`) !== null, true);
+        check("single-quoted refused", databaseUrlProblem(`'${url}'`) !== null, true);
+        check("leading whitespace refused (pg reads it as host `base` too)", databaseUrlProblem(` ${url}`) !== null, true);
+        check("trailing newline accepted (pg ignores it)", databaseUrlProblem(`${url}\n`), null);
+        check("wrong scheme refused", databaseUrlProblem("mysql://u:p@localhost/rpgbot") !== null, true);
+        check("error never echoes the password", databaseUrlProblem(`"${url}"`)!.includes("secret"), false);
     });
 
     console.log(`\n${"─".repeat(60)}`);

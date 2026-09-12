@@ -20,7 +20,7 @@
 import "dotenv/config";
 import { readdirSync } from "node:fs";
 import { Pool } from "pg";
-import { REQUIRED_ENV, missingEnv } from "../src/env.js";
+import { REQUIRED_ENV, missingEnv, databaseUrlProblem } from "../src/env.js";
 
 const MIGRATIONS_DIR = new URL("../db/migrations/", import.meta.url);
 
@@ -80,6 +80,13 @@ async function main() {
         process.exit(1);
     }
     pass("required environment variables set", REQUIRED_ENV.join(", "));
+
+    const urlProblem = databaseUrlProblem(process.env.DATABASE_URL!);
+    if (urlProblem) {
+        fail(urlProblem, "Quote it in rpgbot/.env; give the bare value in a host's secret settings.");
+        console.log(`\n${RED}${failed} check(s) failed.${OFF}\n`);
+        process.exit(1);
+    }
 
     const url = process.env.DATABASE_URL!;
 

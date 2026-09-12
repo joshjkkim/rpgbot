@@ -75,6 +75,36 @@ that kills the process without a clean `SIGTERM` — `docker kill`, an OOM kill,
 host yanking the instance — loses it. That is the cost of the write-back cache
 and it is bounded at 30s by the flush timer.
 
+### On Fly
+
+`fly.toml` at the repo root carries the settings above (`kill_timeout = 20`, no
+HTTP service, 512MB). Build from the repo root, not `rpgbot/` — the Dockerfile
+needs the root lockfile.
+
+```bash
+fly secrets set -a rpgbot DISCORD_TOKEN='...' DATABASE_URL='postgresql://...'
+fly deploy --ha=false
+fly machine list -a rpgbot        # exactly one machine
+```
+
+Each of these was learned the hard way:
+
+- **Secrets, not the launch form.** Environment variables typed into the
+  dashboard's launch form never reached the machine; the bot exited 78
+  (`Cannot start: required environment variables are not set`) until they were
+  set as secrets.
+- **Bare values, no quotes.** The `'...'` above is shell quoting and is
+  stripped. Quotes pasted into the dashboard's secret box are kept, and `pg`
+  reads `"postgresql://…` as host `base` — every query fails with
+  `ENOTFOUND base`. The bot now refuses such a value at startup.
+- **One machine.** A launch without `--ha=false` adds a standby machine. Destroy
+  it: the write-back cache flushes absolute values, so two instances overwrite
+  each other's XP and gold, and a network split can start the standby while the
+  primary is still running.
+- **"Suspended" after a crash loop.** Fly stops restarting a machine that keeps
+  failing, and a later deploy does not start it again:
+  `fly machine start <id> -a rpgbot`.
+
 Slash commands are **not** registered by the container. That is a separate,
 occasional action against Discord's API, run by hand when a command's
 *definition* changes:
