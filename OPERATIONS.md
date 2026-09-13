@@ -170,9 +170,44 @@ instance holds its own pool, so the real connection count is instances × max.
 
 ---
 
+## Crash alerts
+
+The bot posts to a Discord webhook when it dies from an uncaught exception or an
+unhandled rejection. Without it the only trace is a log line nobody is watching,
+and the first signal that anything broke is a member saying the bot is down.
+
+Create a webhook in the channel you want alerted (**Edit Channel →
+Integrations → Webhooks**), then:
+
+```bash
+fly secrets set -a rpgbot ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/...
+npm run alert:test          # posts a test message; run it against the same value
+```
+
+`npm run alert:test` also runs the formatting self-check, so it is safe to run
+with the variable unset — it just skips the live post.
+
+Worth knowing:
+
+- **Unset means silent, not broken.** `ALERT_WEBHOOK_URL` is deliberately not in
+  `REQUIRED_ENV`: a missing alert channel is not a reason to refuse to start.
+  The startup log says `Crash alerts: on.` or `off` so you can tell which you got.
+- **The alert goes out before the shutdown flush.** `shutdown()` ends in
+  `process.exit()`, which would kill an in-flight request. It is capped at 3s
+  and can never reject, so it cannot cost the flush its 10s.
+- **It does not cover the dashboard.** Vercel functions are a separate process
+  on a separate host; their errors land in Vercel's logs. Sentry is still the
+  answer there if it turns out to matter.
+- **It does not cover a bot that is up but wrong.** A hung gateway connection or
+  a database that stopped answering is not a crash, and nothing alerts on it.
+
+---
+
 ## When something is wrong
 
-**Bot is offline / crash-looping.** `docker compose logs --tail=200 bot`. It
+**Bot is offline / crash-looping.** Check the alert channel first — a crash
+posts its stack trace there. Then `fly logs -a rpgbot`, or
+`docker compose logs --tail=200 bot` locally. It
 exits non-zero on purpose, so a loop means it is failing at startup. Exit code
 78 is a configuration problem and the log names the missing variable. Check the
 **Server Members Intent** is still enabled in the developer portal — the bot
@@ -288,9 +323,9 @@ Record the date you last did this here:
 
 Worth knowing before launch, all of them deliberate gaps rather than oversights:
 
-- **No error monitoring.** Nothing reports a crash anywhere. Today the first
-  signal is a user saying the bot is down. Sentry in `index.ts` and in the
-  dashboard is the obvious fix.
+- **No error monitoring beyond crashes.** The bot posts a crash to Discord (see
+  above), but nothing groups errors, tracks releases, or reports anything from
+  the dashboard. Sentry is the fix if the webhook stops being enough.
 - **No healthcheck.** The bot exposes no HTTP endpoint, so `docker compose ps`
   reports the process is running, not that it is connected to Discord and to
   Postgres. Most hosts want an endpoint to probe.
