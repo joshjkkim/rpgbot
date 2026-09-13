@@ -22,6 +22,10 @@ export function useGuildConfig(guildId: string) {
     // Hash of the config as loaded. Sent back on save so the server can reject
     // the write if the bot or another editor changed it in the meantime.
     const [version, setVersion] = useState<string | null>(null);
+    // The config exactly as it was last loaded or saved, serialised. Edits are
+    // made by replacing `config`, so comparing against this is what "unsaved
+    // changes" means -- there is no other record of the baseline.
+    const saved = useRef<string | null>(null);
     const did = useRef<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
     const [saving, setSaving] = useState<boolean>(false);
@@ -49,6 +53,7 @@ export function useGuildConfig(guildId: string) {
             if (!res.ok) throw new Error(`GET failed: ${res.status}`);
 
             const data = await res.json();
+            saved.current = JSON.stringify(data.config);
             setConfig(data.config);
             setDbGuildId(data.id);
             setGuild({ name: data.name ?? null, iconUrl: data.iconUrl ?? null });
@@ -109,5 +114,13 @@ export function useGuildConfig(guildId: string) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [guildId]);
 
-    return { config, setConfig, dbGuildId, guild, version, loading, saving, error, refresh, save };
+    // Cheap enough at every render: these configs are a few KB, and the 1MB
+    // server-side cap is the ceiling.
+    // ponytail: string compare, so an editor that rebuilt a section with its
+    // keys in a different order would read as dirty without a real change. The
+    // editors all spread (`{...prev, xp: next}`), which preserves order, and
+    // the cost of being wrong is one redundant save. Normalise if that changes.
+    const dirty = saved.current !== null && JSON.stringify(config) !== saved.current;
+
+    return { config, setConfig, dbGuildId, guild, version, loading, saving, dirty, error, refresh, save };
 }

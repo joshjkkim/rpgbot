@@ -5,7 +5,7 @@ import ConfigPage from "@/app/components/configPage";
 import XpBasicsEditor from "@/app/components/xp/xpBasicsEditor";
 
 export default function XpPageClient({ guildId }: { guildId: string }) {
-  const { config, setConfig, loading, saving, error, save } = useGuildConfig(guildId);
+  const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
 
   const xp = config?.xp ?? null;
 
@@ -16,7 +16,7 @@ export default function XpPageClient({ guildId }: { guildId: string }) {
       loading={loading}
       saving={saving}
       error={error}
-      canSave={Boolean(config)}
+      dirty={dirty}
       onSave={() => save(config)}
       rawSection={xp}
     >

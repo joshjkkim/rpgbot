@@ -15,6 +15,7 @@
     "typecheck": "npm --workspace rpgbot run typecheck && npm --workspace web exec -- tsc --noEmit",
     "smoke": "npm --workspace rpgbot run smoke",
     "doctor": "npm --workspace rpgbot run doctor",
+    "alert:test": "npm --workspace rpgbot run alert:test",
     "migrate": "npm --workspace rpgbot run migrate",
     "migrate:status": "npm --workspace rpgbot run migrate:status",
     "start:bot": "npm --workspace rpgbot run start"

@@ -13,6 +13,7 @@
     "clear-test-commands": "tsx src/deploy-commands.ts --guild --clear",
     "smoke": "tsx scripts/smoke.ts",
     "doctor": "tsx scripts/doctor.ts",
+    "alert:test": "tsx src/alert.ts",
     "migrate": "./scripts/migrate.sh --all",
     "migrate:status": "./scripts/migrate.sh --status",
     "start": "node dist/index.js"

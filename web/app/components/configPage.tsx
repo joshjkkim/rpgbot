@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ConfigDisplay from "./configDisplay";
 
 /**
@@ -17,7 +17,7 @@ export default function ConfigPage({
   loading,
   saving,
   error,
-  canSave,
+  dirty,
   onSave,
   rawSection,
   children,
@@ -27,13 +27,50 @@ export default function ConfigPage({
   loading: boolean;
   saving: boolean;
   error: string | null;
-  canSave: boolean;
+  /** Whether the config differs from the last loaded or saved version. */
+  dirty: boolean;
   onSave: () => void | Promise<unknown>;
   /** The slice of config shown under "raw JSON", if any. */
   rawSection?: unknown;
   children: React.ReactNode;
 }) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  // Leaving with unsaved edits used to discard them without a word: the edits
+  // live in React state and nothing persists them until Save. `beforeunload`
+  // covers a closed tab or a reload; it does not fire for a sidebar link,
+  // because App Router navigation is client-side and exposes no event to hook
+  // -- so catch the click that starts it, in the capture phase, before Next's
+  // own Link handler runs.
+  useEffect(() => {
+    if (!dirty) return;
+
+    const onUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // Older Safari ignores preventDefault alone.
+    };
+
+    const onClick = (e: MouseEvent) => {
+      // Leave modified clicks alone: those open a new tab, this one stays put.
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      const link = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!link || link.target === "_blank" || link.href === window.location.href) return;
+
+      if (!window.confirm("You have unsaved changes. Leave this page and discard them?")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener("beforeunload", onUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [dirty]);
 
   async function handleSave() {
     const ok = await onSave();
@@ -51,12 +88,14 @@ export default function ConfigPage({
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          {savedAt && !saving && (
+          {dirty ? (
+            <span className="text-xs text-amber-400">Unsaved changes</span>
+          ) : savedAt && !saving ? (
             <span className="text-xs text-[var(--muted)]">Saved</span>
-          )}
+          ) : null}
           <button
             className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={!canSave || loading || saving}
+            disabled={!dirty || loading || saving}
             onClick={handleSave}
           >
             {saving ? "Saving…" : "Save changes"}

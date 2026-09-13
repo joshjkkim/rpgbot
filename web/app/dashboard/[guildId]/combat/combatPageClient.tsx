@@ -5,7 +5,7 @@ import ConfigPage from "@/app/components/configPage";
 import CombatEditor from "@/app/components/combat/combatEditor";
 
 export default function CombatPageClient({ guildId }: { guildId: string }) {
-  const { config, setConfig, loading, saving, error, save } = useGuildConfig(guildId);
+  const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
 
   const combat = config?.combat ?? null;
 
@@ -16,7 +16,7 @@ export default function CombatPageClient({ guildId }: { guildId: string }) {
       loading={loading}
       saving={saving}
       error={error}
-      canSave={Boolean(config)}
+      dirty={dirty}
       onSave={() => save(config)}
       rawSection={combat}
     >

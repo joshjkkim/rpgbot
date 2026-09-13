@@ -15,6 +15,7 @@ import { cleanupStaleFights } from "./player/fight.js";
 import { cleanupExpiredDuels } from "./commands/user/duel.js";
 import { closePool } from "./db/index.js";
 import { assertBotEnv } from "./env.js";
+import { alertsEnabled, crashMessage, postAlert } from "./alert.js";
 
 // Refuse to start on missing configuration, before a single event handler is
 // registered. An unset DATABASE_URL does not throw -- pg falls back to
@@ -39,6 +40,9 @@ const client = new Client({
 
 client.once(Events.ClientReady, () => {
     console.log(`Logged in as ${client.user?.tag}!`);
+    console.log(alertsEnabled()
+        ? "Crash alerts: on."
+        : "Crash alerts: off (ALERT_WEBHOOK_URL unset).");
 });
 
 registerMessageCreate(client);
@@ -115,14 +119,15 @@ process.on("SIGTERM", () => void shutdown("Received SIGTERM"));
 // The process is not trusted after either event -- we flush and leave, never
 // continue running on a corrupt state.
 
-process.on("unhandledRejection", (reason) => {
-    console.error("Unhandled promise rejection:", reason);
-    void shutdown("Unhandled rejection", 1);
-});
+// The alert goes out *before* the flush, not after: shutdown() ends in
+// process.exit(), which would kill an in-flight request. It is capped at 3s and
+// can never reject, so it cannot cost us the flush. See src/alert.ts.
+function crashed(reason: string, detail: unknown) {
+    console.error(`${reason}:`, detail);
+    void postAlert(crashMessage(reason, detail)).finally(() => shutdown(reason, 1));
+}
 
-process.on("uncaughtException", (err) => {
-    console.error("Uncaught exception:", err);
-    void shutdown("Uncaught exception", 1);
-});
+process.on("unhandledRejection", (reason) => crashed("Unhandled rejection", reason));
+process.on("uncaughtException", (err) => crashed("Uncaught exception", err));
 
 client.login(token);

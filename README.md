@@ -102,6 +102,7 @@ cp web/.env.example  web/.env.local
 | `CLIENT_ID` | Application ID |
 | `SERVER_ID` | Test server ID — where `deploy-test-commands` registers commands |
 | `DATABASE_URL` | Postgres connection string |
+| `ALERT_WEBHOOK_URL` | Optional — Discord webhook that receives crash alerts (`npm run alert:test`) |
 
 `web/.env.local`:
 
