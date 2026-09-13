@@ -45,7 +45,7 @@ function Header() {
 
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-      <span className="font-semibold tracking-tight">Hermes</span>
+      <span className="font-semibold tracking-tight">rpgbot</span>
 
       {session ? (
         <div className="flex items-center gap-3">
@@ -91,7 +91,7 @@ export default function Home() {
             Turn your Discord server into an RPG
           </h1>
           <p className="mt-5 text-lg text-[var(--muted)] leading-relaxed">
-            Hermes gives your members levels to climb, gold to earn and spend, gear to
+            rpgbot gives your members levels to climb, gold to earn and spend, gear to
             equip and enemies to fight — and gives you a dashboard to tune every number
             behind it, without touching a config file.
           </p>

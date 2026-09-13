@@ -3,26 +3,26 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 const description =
-  "Hermes is a Discord RPG bot: message and voice XP, levels with role rewards, " +
+  "rpgbot is a Discord RPG bot: message and voice XP, levels with role rewards, " +
   "daily streaks, a shop with equipment and consumables, player trading, quests, " +
   "achievements and turn-based combat -- all configurable from a web dashboard.";
 
 export const metadata: Metadata = {
   title: {
-    default: "Hermes — Discord RPG bot",
-    template: "%s · Hermes",
+    default: "rpgbot — Discord RPG bot",
+    template: "%s · rpgbot",
   },
   description,
-  applicationName: "Hermes",
+  applicationName: "rpgbot",
   openGraph: {
-    title: "Hermes — Discord RPG bot",
+    title: "rpgbot — Discord RPG bot",
     description,
-    siteName: "Hermes",
+    siteName: "rpgbot",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hermes — Discord RPG bot",
+    title: "rpgbot — Discord RPG bot",
     description,
   },
 };
