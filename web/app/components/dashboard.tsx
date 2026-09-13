@@ -95,7 +95,7 @@ export default function Dashboard() {
     if (!guilds.length) {
         return (
             <p className="text-sm text-[var(--muted)]">
-                No servers found. Hermes is configured by server owners, so you will only see
+                No servers found. rpgbot is configured by server owners, so you will only see
                 servers you own here.
             </p>
         );
