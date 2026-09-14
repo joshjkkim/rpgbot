@@ -112,7 +112,11 @@ export default function Dashboard() {
                 return (
                     <li
                         key={guild.id}
-                        className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3"
+                        className={`flex items-center gap-3 rounded-xl border bg-[var(--surface)]/90 p-3 transition ${
+                            guild.installed
+                                ? "border-[var(--accent)]/30 hover:-translate-y-0.5 hover:border-[var(--accent)]/60"
+                                : "border-[var(--border)] opacity-80 hover:opacity-100"
+                        }`}
                     >
                         <GuildIcon guild={guild} />
 
@@ -121,7 +125,7 @@ export default function Dashboard() {
                         {guild.installed ? (
                             <button
                                 onClick={() => router.push(`/dashboard/${guild.id}`)}
-                                className="shrink-0 rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--accent-hover)]"
+                                className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
                             >
                                 Configure
                             </button>

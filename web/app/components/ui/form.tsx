@@ -29,7 +29,7 @@ export function Section({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/90">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -345,7 +345,7 @@ export function KeyedList<T>({
           type="button"
           onClick={add}
           disabled={!draft.trim()}
-          className="shrink-0 rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {addLabel}
         </button>

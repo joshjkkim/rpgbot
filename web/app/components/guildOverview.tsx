@@ -1,7 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { Coins, FileText, Palette, ScrollText, Sparkles, Swords, TrendingUp, Trophy } from "lucide-react";
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
+
+const ICONS = {
+  xp: Sparkles,
+  levels: TrendingUp,
+  shop: Coins,
+  combat: Swords,
+  quests: ScrollText,
+  achievements: Trophy,
+  styles: Palette,
+  logging: FileText,
+} as const;
 
 function count(record: unknown): number {
   return record && typeof record === "object" ? Object.keys(record).length : 0;
@@ -110,16 +122,19 @@ function buildCards(config: any): Card[] {
   ];
 }
 
-function StatusDot({ enabled }: { enabled: boolean | null }) {
+function StatusPill({ enabled }: { enabled: boolean | null }) {
   if (enabled === null) return null;
 
   return (
     <span
-      title={enabled ? "Enabled" : "Disabled"}
-      className={`h-2 w-2 shrink-0 rounded-full ${
-        enabled ? "bg-emerald-400" : "bg-[var(--border)]"
+      className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+        enabled
+          ? "bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-[var(--accent)]/40"
+          : "bg-white/[0.04] text-[var(--muted)] ring-1 ring-[var(--border)]"
       }`}
-    />
+    >
+      {enabled ? "On" : "Off"}
+    </span>
   );
 }
 
@@ -142,15 +157,19 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-4 border-b border-[var(--border)] pb-5">
+      <header className="flex items-center gap-4 rounded-2xl border border-[var(--accent)]/25 bg-[var(--surface)]/90 p-5 shadow-[0_20px_60px_-30px_var(--accent)]">
         {guild.iconUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={guild.iconUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
+          <img
+            src={guild.iconUrl}
+            alt=""
+            className="h-14 w-14 rounded-full object-cover ring-2 ring-[var(--accent)]/50 ring-offset-2 ring-offset-[var(--surface)]"
+          />
         ) : (
-          <div className="h-14 w-14 rounded-full bg-[var(--border)]" />
+          <div className="h-14 w-14 rounded-full bg-[var(--border)] ring-2 ring-[var(--accent)]/50 ring-offset-2 ring-offset-[var(--surface)]" />
         )}
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">
+          <h1 className="truncate text-2xl font-bold tracking-tight">
             {guild.name ?? "Server"}
           </h1>
           <p className="mt-0.5 font-mono text-xs text-[var(--muted)]">{guildId}</p>
@@ -158,15 +177,20 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
+        {cards.map((card) => {
+          const Icon = ICONS[card.href as keyof typeof ICONS];
+          return (
           <Link
             key={card.href}
             href={`/dashboard/${guildId}/${card.href}`}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--accent)]"
+            className="group rounded-xl border border-[var(--border)] bg-[var(--surface)]/90 p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)]/60"
           >
-            <div className="flex items-center gap-2">
-              <StatusDot enabled={card.enabled} />
-              <h2 className="font-medium">{card.title}</h2>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)]/12 text-[var(--accent)] ring-1 ring-[var(--accent)]/25 transition group-hover:bg-[var(--accent)]/20">
+                <Icon size={16} />
+              </span>
+              <h2 className="font-semibold">{card.title}</h2>
+              <StatusPill enabled={card.enabled} />
             </div>
             <ul className="mt-2 space-y-1">
               {card.lines.map((line) => (
@@ -176,7 +200,8 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
               ))}
             </ul>
           </Link>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
