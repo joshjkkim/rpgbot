@@ -8,7 +8,7 @@
 # `public`. Dropping it cannot touch real data.
 set -euo pipefail
 
-SCHEMA="${TEST_SCHEMA:-rpgbot_test}"
+SCHEMA="${TEST_SCHEMA:-havocish_test}"
 
 if [ -z "${DATABASE_URL:-}" ]; then
     echo "DATABASE_URL is not set. Export it, or run: set -a; . .env; set +a" >&2
@@ -47,8 +47,8 @@ umask 077
 printf 'DATABASE_URL=%s\n' "$TEST_URL" > "$ENV_FILE"
 
 echo
-echo "Ready. Scratch connection string written to rpgbot/.env.test"
+echo "Ready. Scratch connection string written to havocish/.env.test"
 echo "Run the smoke tests with:"
 echo
-echo "  npm --workspace rpgbot run smoke"
+echo "  npm --workspace havocish run smoke"
 echo

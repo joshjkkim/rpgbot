@@ -1,11 +1,11 @@
 -- ============================================================================
--- rpgbot database schema
+-- havocish database schema
 -- ============================================================================
 -- Canonical definition of the Postgres schema the bot and web dashboard expect.
 -- Generated from the live database (Postgres 17) and kept in the repo so the
 -- database can be rebuilt from scratch.
 --
---   Fresh setup:  psql "$DATABASE_URL" -f rpgbot/db/schema.sql
+--   Fresh setup:  psql "$DATABASE_URL" -f havocish/db/schema.sql
 --
 -- Snowflake IDs (discord_user_id, discord_guild_id) are stored as BIGINT, not
 -- text -- pg returns them as JS strings, which is what the DbUser / DbGuild

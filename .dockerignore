@@ -14,7 +14,7 @@ web/.next
 
 *.log
 **/*.tsbuildinfo
-rpgbot/canvas-test.png
+havocish/canvas-test.png
 
 # CI config is never part of the image.
 .github

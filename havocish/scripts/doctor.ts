@@ -1,7 +1,7 @@
 /**
  * Preflight check for a database the bot is about to run against.
  *
- *   npm --workspace rpgbot run doctor
+ *   npm --workspace havocish run doctor
  *
  * Run it before a deploy, after a migration, and first thing when something is
  * wrong in production. It answers, in order, the questions that actually go
@@ -68,7 +68,7 @@ function fail(label: string, detail = "") {
 }
 
 async function main() {
-    console.log("\nrpgbot doctor\n");
+    console.log("\nhavocish doctor\n");
 
     // ─── Configuration ────────────────────────────────────────────────────────
     console.log("Configuration");
@@ -83,7 +83,7 @@ async function main() {
 
     const urlProblem = databaseUrlProblem(process.env.DATABASE_URL!);
     if (urlProblem) {
-        fail(urlProblem, "Quote it in rpgbot/.env; give the bare value in a host's secret settings.");
+        fail(urlProblem, "Quote it in havocish/.env; give the bare value in a host's secret settings.");
         console.log(`\n${RED}${failed} check(s) failed.${OFF}\n`);
         process.exit(1);
     }
@@ -91,7 +91,7 @@ async function main() {
     const url = process.env.DATABASE_URL!;
 
     // Say out loud which database this is about to open. `import "dotenv/config"`
-    // above means an unset DATABASE_URL falls back to rpgbot/.env -- which on a
+    // above means an unset DATABASE_URL falls back to havocish/.env -- which on a
     // developer machine is production. Every query below is a read, but the
     // operator should still never have to guess what they just pointed this at.
     pass("target", describeTarget(url));
@@ -147,7 +147,7 @@ async function main() {
             fail(
                 `${table}.${column} is MISSING (migration ${since} not applied)`,
                 "The code writes this column unconditionally. Do not deploy until it exists:\n" +
-                "        cd rpgbot && ./scripts/migrate.sh --all"
+                "        cd havocish && ./scripts/migrate.sh --all"
             );
         }
     }
@@ -175,7 +175,7 @@ async function main() {
 
         if (pending.length) {
             fail(`${pending.length} migration(s) pending: ${pending.join(", ")}`,
-                 "cd rpgbot && ./scripts/migrate.sh --all");
+                 "cd havocish && ./scripts/migrate.sh --all");
         } else {
             pass(`all ${onDisk.length} migration(s) applied`, onDisk.join(", "));
         }

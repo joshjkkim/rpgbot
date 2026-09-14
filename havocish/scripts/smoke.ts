@@ -8,7 +8,7 @@
  *
  * Run against a SCRATCH database, never production:
  *
- *   npm --workspace rpgbot run smoke
+ *   npm --workspace havocish run smoke
  *
  * See scripts/setup-test-db.sh for creating the scratch schema.
  */
@@ -1285,12 +1285,12 @@ async function main() {
         const url = "postgresql://u:secret@ep-x-pooler.c-2.us-east-2.aws.neon.tech/db?sslmode=require&channel_binding=require";
 
         check("bare postgresql:// accepted", databaseUrlProblem(url), null);
-        check("bare postgres:// accepted", databaseUrlProblem("postgres://u:p@localhost:5432/rpgbot"), null);
+        check("bare postgres:// accepted", databaseUrlProblem("postgres://u:p@localhost:5432/havocish"), null);
         check("double-quoted refused", databaseUrlProblem(`"${url}"`) !== null, true);
         check("single-quoted refused", databaseUrlProblem(`'${url}'`) !== null, true);
         check("leading whitespace refused (pg reads it as host `base` too)", databaseUrlProblem(` ${url}`) !== null, true);
         check("trailing newline accepted (pg ignores it)", databaseUrlProblem(`${url}\n`), null);
-        check("wrong scheme refused", databaseUrlProblem("mysql://u:p@localhost/rpgbot") !== null, true);
+        check("wrong scheme refused", databaseUrlProblem("mysql://u:p@localhost/havocish") !== null, true);
         check("error never echoes the password", databaseUrlProblem(`"${url}"`)!.includes("secret"), false);
     });
 

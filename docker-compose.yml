@@ -15,7 +15,7 @@ services:
     stop_grace_period: 20s
 
     env_file:
-      - rpgbot/.env
+      - havocish/.env
 
     logging:
       driver: json-file

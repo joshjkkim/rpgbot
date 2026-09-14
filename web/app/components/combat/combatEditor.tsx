@@ -12,7 +12,7 @@ import {
   Toggle,
 } from "@/app/components/ui/form";
 
-// ─── Types (mirrored from rpgbot) ─────────────────────────────────────────────
+// ─── Types (mirrored from havocish) ─────────────────────────────────────────────
 
 export interface EnemyDrop {
   itemId: string;

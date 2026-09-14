@@ -68,7 +68,7 @@ function Wordmark() {
       <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-[var(--accent)]/40">
         <Swords size={16} />
       </span>
-      rpgbot
+      havocish
     </span>
   );
 }
@@ -169,7 +169,7 @@ export default function Home() {
               </span>
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-[var(--muted)]">
-              rpgbot gives your members levels to climb, gold to earn and spend, gear to
+              havocish gives your members levels to climb, gold to earn and spend, gear to
               equip and enemies to fight — and gives you a dashboard to tune every number
               behind it, without touching a config file.
             </p>

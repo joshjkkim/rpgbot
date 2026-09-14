@@ -10,7 +10,7 @@
  * is fixed rather than responsive so the two halves cannot disagree.
  *
  * The values are lifted from the profile card the bot renders
- * (rpgbot/src/commands/user/profile.ts): navy gradient, faint grid, teal
+ * (havocish/src/commands/user/profile.ts): navy gradient, faint grid, teal
  * accent glow. The card is what members actually see, so the dashboard should
  * look like the same product.
  */

@@ -27,7 +27,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MIGRATIONS_DIR="$HERE/../db/migrations"
 
 # ─── Resolve DATABASE_URL ─────────────────────────────────────────────────────
-# Read rpgbot/.env directly rather than telling the caller to
+# Read havocish/.env directly rather than telling the caller to
 # `set -a; . .env; set +a`. A Neon connection string contains `&`, so an
 # unquoted value makes that idiom set DATABASE_URL to the empty string in bash
 # and abort with a parse error in zsh -- a failure that looks like a database
@@ -38,11 +38,11 @@ if [ -z "${DATABASE_URL:-}" ] && [ -f "$HERE/../.env" ]; then
         | tail -n 1 \
         | sed -e 's/^"//' -e "s/^'//" -e 's/"[[:space:]]*$//' -e "s/'[[:space:]]*\$//"
     )"
-    [ -n "$DATABASE_URL" ] && echo "Using DATABASE_URL from rpgbot/.env"
+    [ -n "$DATABASE_URL" ] && echo "Using DATABASE_URL from havocish/.env"
 fi
 
 if [ -z "${DATABASE_URL:-}" ]; then
-    echo "DATABASE_URL is not set, and rpgbot/.env has no usable value." >&2
+    echo "DATABASE_URL is not set, and havocish/.env has no usable value." >&2
     exit 78
 fi
 
@@ -212,7 +212,7 @@ post_apply_note() {
     echo
     echo "Verify nothing landed INVALID (a failed CONCURRENTLY index build does):"
     echo
-    echo "  npm --workspace rpgbot run doctor"
+    echo "  npm --workspace havocish run doctor"
     echo
 }
 

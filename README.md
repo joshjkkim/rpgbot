@@ -1,11 +1,11 @@
-# rpgbot
+# havocish
 
 A Discord RPG/leveling bot plus a Next.js dashboard for configuring it, in one npm
 workspace repo. Both halves talk to the same Postgres database.
 
 | Workspace | What it is | Runs on |
 | --- | --- | --- |
-| `rpgbot/` | The Discord bot (discord.js 14, TypeScript, run with `tsx`) | Node process |
+| `havocish/` | The Discord bot (discord.js 14, TypeScript, run with `tsx`) | Node process |
 | `web/` | Config dashboard (Next.js 16, NextAuth via Discord OAuth) | http://localhost:3000 |
 
 Deploying, migrations and what-to-check-when-it-breaks live in
@@ -37,7 +37,7 @@ In the [Discord developer portal](https://discord.com/developers/applications):
 
 1. **New Application** → **Bot** → **Reset Token**, and copy the token.
 2. Under **Bot → Privileged Gateway Intents**, enable **Server Members Intent**.
-   The bot requests `GuildMembers` (`rpgbot/src/index.ts`) and will fail to log
+   The bot requests `GuildMembers` (`havocish/src/index.ts`) and will fail to log
    in without it — role multipliers and voice XP both need member data.
    **Leave Message Content off.** Nothing reads `message.content`; XP is awarded
    per message *event*. Requesting it would make the invite prompt look invasive
@@ -52,12 +52,12 @@ In the [Discord developer portal](https://discord.com/developers/applications):
 ### 3. Create the database
 
 ```bash
-psql "$DATABASE_URL" -f rpgbot/db/schema.sql
+psql "$DATABASE_URL" -f havocish/db/schema.sql
 ```
 
 That builds the five data tables — `users`, `guilds`, `user_guild_profiles`,
 `trades`, `events` — plus `schema_migrations`, the ledger `migrate.sh` keeps.
-Schema notes worth knowing are in the header comment of `rpgbot/db/schema.sql`:
+Schema notes worth knowing are in the header comment of `havocish/db/schema.sql`:
 Discord snowflakes are `BIGINT`, and XP/gold are `BIGINT` that come back from
 `pg` as **strings** and get `BigInt()`'d in the bot. Don't "simplify" them to
 `INTEGER`.
@@ -66,7 +66,7 @@ Then apply every migration — a fresh database needs them too, not just a
 deployed one:
 
 ```bash
-cd rpgbot
+cd havocish
 ./scripts/migrate.sh --all       # applies everything pending, in order
 ./scripts/migrate.sh --status    # what is applied and what is not
 ```
@@ -90,11 +90,11 @@ files, never by editing `schema.sql` in place.
 Both workspaces have their own. Copy the examples and fill them in:
 
 ```bash
-cp rpgbot/.env.example rpgbot/.env
+cp havocish/.env.example havocish/.env
 cp web/.env.example  web/.env.local
 ```
 
-`rpgbot/.env`:
+`havocish/.env`:
 
 | Variable | Notes |
 | --- | --- |
@@ -134,7 +134,7 @@ npm run dev:web                # start the dashboard on :3000
 
 **When to re-run a deploy:** only when a command's *definition* changes — its
 name, description, options, or a new command added to `commandList` in
-`rpgbot/src/commands/index.ts`. Editing the code that *handles* a command needs
+`havocish/src/commands/index.ts`. Editing the code that *handles* a command needs
 nothing but a bot restart.
 
 **Which scope:** `deploy-test-commands` registers guild-scoped commands to
@@ -169,18 +169,18 @@ Discord. It runs against an **isolated scratch schema**, not your real data.
 
 ```bash
 # One-time (or whenever schema.sql changes): build the scratch schema.
-cd rpgbot
+cd havocish
 set -a; . .env; set +a          # export DATABASE_URL for the script
                                 # (requires DATABASE_URL to be quoted -- below)
 ./scripts/setup-test-db.sh
 
 # Then, from anywhere in the repo:
-npm --workspace rpgbot run smoke
+npm --workspace havocish run smoke
 ```
 
-`setup-test-db.sh` drops and recreates a `rpgbot_test` schema inside the same
+`setup-test-db.sh` drops and recreates a `havocish_test` schema inside the same
 database, applies `schema.sql` into it, and writes a scratch connection string
-to the gitignored `rpgbot/.env.test`. The suite refuses to run if
+to the gitignored `havocish/.env.test`. The suite refuses to run if
 `current_schema()` is `public`, so it cannot hit production rows.
 
 What it covers: XP write-back buffering, the stale-cache reload path, forced
@@ -229,7 +229,7 @@ you are doing it to production.
 npm run build     # builds both workspaces (tsc for the bot, next build for web)
 ```
 
-The bot compiles to `rpgbot/dist/`; `node dist/index.js` runs the compiled
+The bot compiles to `havocish/dist/`; `node dist/index.js` runs the compiled
 version.
 
 ---
@@ -241,7 +241,7 @@ Alpine, because `@napi-rs/canvas` ships prebuilt native binaries and the glibc
 ones are the well-trodden path.
 
 ```bash
-cp rpgbot/.env.example rpgbot/.env   # fill in, then:
+cp havocish/.env.example havocish/.env   # fill in, then:
 docker compose up -d --build
 docker compose logs -f bot
 ```
@@ -274,7 +274,7 @@ Schema changes are applied by hand, in order, **before** the deploy that needs
 them. Full procedure in [OPERATIONS.md](./OPERATIONS.md); the short version:
 
 ```bash
-cd rpgbot
+cd havocish
 ./scripts/migrate.sh --status    # what is pending
 ./scripts/migrate.sh --all       # apply it
 npm run doctor                   # confirm, and check for INVALID indexes
@@ -293,7 +293,7 @@ the planner silently ignores, so the query stays slow and nothing looks broken.
 `migrate.sh` strips `-pooler` and talks to the direct endpoint, the same
 substitution `setup-test-db.sh` makes.
 
-It reads `DATABASE_URL` from `rpgbot/.env` itself if the variable is not already
+It reads `DATABASE_URL` from `havocish/.env` itself if the variable is not already
 exported, so there is no need to source that file first.
 
 **Order matters, and the failure is not graceful.** `guilds.removed_at` is
@@ -306,7 +306,7 @@ write in every server. `doctor` checks for exactly this before you deploy.
 ## Layout
 
 ```
-rpgbot/
+havocish/
   src/
     index.ts        entrypoint: client, intents, timers, graceful shutdown
     commands/       slash commands — user/ and admin/, registered in index.ts
@@ -341,9 +341,9 @@ web/
 
 ## Gotchas
 
-- **`npm --workspace rpgbot run smoke`** — the workspace name comes right after
-  `--workspace`. `npm --workspace run rpgbot smoke` reads `run` as the workspace
-  name and fails with `Unknown command: "rpgbot"`.
+- **`npm --workspace havocish run smoke`** — the workspace name comes right after
+  `--workspace`. `npm --workspace run havocish smoke` reads `run` as the workspace
+  name and fails with `Unknown command: "havocish"`.
 - **Neon pooled endpoints reject `search_path`** as a startup parameter, so
   `setup-test-db.sh` strips `-pooler` from the URL and points the tests at the
   direct endpoint.

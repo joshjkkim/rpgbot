@@ -32,8 +32,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCHEMA_SQL="$HERE/../db/schema.sql"
 MIGRATIONS_DIR="$HERE/../db/migrations"
 
-BASE_DB="${BASE_DB:-rpgbot_drift_base}"
-FULL_DB="${FULL_DB:-rpgbot_drift_full}"
+BASE_DB="${BASE_DB:-havocish_drift_base}"
+FULL_DB="${FULL_DB:-havocish_drift_full}"
 
 host="${PGHOST:-localhost}"
 if [ "$host" != "localhost" ] && [ "$host" != "127.0.0.1" ] && [ "${ALLOW_REMOTE:-0}" != "1" ]; then
