@@ -6,7 +6,7 @@
 #
 # Secrets, not env here: `fly secrets set DISCORD_TOKEN=... DATABASE_URL=...`
 
-app = "rpgbot"
+app = "rpgbot-eilynw"   # `rpgbot` belongs to someone else; Fly apps cannot be renamed
 primary_region = "ord"   # nearest to Neon's us-east-2
 
 # The bot flushes buffered XP/gold on SIGTERM with a 10s internal timeout.

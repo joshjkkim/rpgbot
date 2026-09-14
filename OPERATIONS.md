@@ -82,9 +82,9 @@ HTTP service, 512MB). Build from the repo root, not `rpgbot/` — the Dockerfile
 needs the root lockfile.
 
 ```bash
-fly secrets set -a rpgbot DISCORD_TOKEN='...' DATABASE_URL='postgresql://...'
+fly secrets set -a rpgbot-eilynw DISCORD_TOKEN='...' DATABASE_URL='postgresql://...'
 fly deploy --ha=false
-fly machine list -a rpgbot        # exactly one machine
+fly machine list -a rpgbot-eilynw        # exactly one machine
 ```
 
 Each of these was learned the hard way:
@@ -103,7 +103,7 @@ Each of these was learned the hard way:
   primary is still running.
 - **"Suspended" after a crash loop.** Fly stops restarting a machine that keeps
   failing, and a later deploy does not start it again:
-  `fly machine start <id> -a rpgbot`.
+  `fly machine start <id> -a rpgbot-eilynw`.
 
 Slash commands are **not** registered by the container. That is a separate,
 occasional action against Discord's API, run by hand when a command's
@@ -180,7 +180,7 @@ Create a webhook in the channel you want alerted (**Edit Channel →
 Integrations → Webhooks**), then:
 
 ```bash
-fly secrets set -a rpgbot ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/...
+fly secrets set -a rpgbot-eilynw ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/...
 npm run alert:test          # posts a test message; run it against the same value
 ```
 
@@ -206,7 +206,7 @@ Worth knowing:
 ## When something is wrong
 
 **Bot is offline / crash-looping.** Check the alert channel first — a crash
-posts its stack trace there. Then `fly logs -a rpgbot`, or
+posts its stack trace there. Then `fly logs -a rpgbot-eilynw`, or
 `docker compose logs --tail=200 bot` locally. It
 exits non-zero on purpose, so a loop means it is failing at startup. Exit code
 78 is a configuration problem and the log names the missing variable. Check the
@@ -258,7 +258,8 @@ day. A backup nobody has restored is a belief, not a backup.
 
 Run this once before advertising, and again whenever the retention window
 changes. It touches nothing: it restores into a *new branch*, which is a
-separate endpoint that production never reads.
+separate endpoint that production never reads. The SQL below is also in
+`rpgbot/db/restore-drill.sql`, ready to paste.
 
 **1. Snapshot production.** In the Neon SQL Editor, on the production branch:
 
@@ -273,11 +274,13 @@ SELECT now() AS taken_at,
        (SELECT coalesce(sum(gold), 0) FROM public.user_guild_profiles) AS total_gold;
 ```
 
-Write the row down. Also pick one real profile to look for later:
+Write the row down. Also pick one real profile to look for later — one older
+than the restore point, or it will be missing or different in the branch:
 
 ```sql
 SELECT id, user_id, guild_id, xp, level, gold, updated_at
 FROM public.user_guild_profiles
+WHERE updated_at < now() - interval '2 hours'
 ORDER BY updated_at DESC
 LIMIT 1;
 ```
@@ -305,7 +308,7 @@ WHERE id = <the id from step 1>;
 
 **4. Know how you would cut over.** Nothing to run here, just be sure of it: a
 real recovery means pointing `DATABASE_URL` at the restored branch — `fly
-secrets set -a rpgbot DATABASE_URL=...`, the same variable on Vercel, redeploy
+secrets set -a rpgbot-eilynw DATABASE_URL=...`, the same variable on Vercel, redeploy
 both — or promoting the branch to primary in the console. The bot holds up to
 30s of unflushed XP in memory, so restart it *after* the cutover, not before.
 
@@ -314,7 +317,7 @@ branch left behind keeps consuming storage against the project.
 
 Record the date you last did this here:
 
-    Last restore drill: never
+    Last restore drill: 2026-09-13 — passed
 
 
 ---
