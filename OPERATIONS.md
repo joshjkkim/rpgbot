@@ -38,7 +38,7 @@ migration 002 would not have broken guild removal, it would have broken **every
 guild write in every server**. Assume the next column is the same.
 
 ```bash
-cd rpgbot
+cd havocish
 ./scripts/migrate.sh --status     # what is pending
 ./scripts/migrate.sh --all        # apply it
 npm run doctor                    # confirm
@@ -78,7 +78,7 @@ and it is bounded at 30s by the flush timer.
 ### On Fly
 
 `fly.toml` at the repo root carries the settings above (`kill_timeout = 20`, no
-HTTP service, 512MB). Build from the repo root, not `rpgbot/` — the Dockerfile
+HTTP service, 512MB). Build from the repo root, not `havocish/` — the Dockerfile
 needs the root lockfile.
 
 ```bash
@@ -259,7 +259,7 @@ day. A backup nobody has restored is a belief, not a backup.
 Run this once before advertising, and again whenever the retention window
 changes. It touches nothing: it restores into a *new branch*, which is a
 separate endpoint that production never reads. The SQL below is also in
-`rpgbot/db/restore-drill.sql`, ready to paste.
+`havocish/db/restore-drill.sql`, ready to paste.
 
 **1. Snapshot production.** In the Neon SQL Editor, on the production branch:
 

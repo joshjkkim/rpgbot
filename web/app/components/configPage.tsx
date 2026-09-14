@@ -94,7 +94,7 @@ export default function ConfigPage({
             <span className="text-xs text-[var(--muted)]">Saved</span>
           ) : null}
           <button
-            className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
             disabled={!dirty || loading || saving}
             onClick={handleSave}
           >

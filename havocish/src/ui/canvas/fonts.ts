@@ -9,7 +9,7 @@ import { GlobalFonts } from "@napi-rs/canvas";
 //
 //   1. The paths were relative ("assets/fonts/..."), which resolves against the
 //      process CWD, not this file. Starting the bot from the repo root instead
-//      of rpgbot/ -- or from any WORKDIR in a container -- looked for the fonts
+//      of havocish/ -- or from any WORKDIR in a container -- looked for the fonts
 //      in a directory that has none.
 //   2. `registerFromPath` returns null on a missing file rather than throwing,
 //      so a failed registration produced no error at all. Canvas then fell back
@@ -17,7 +17,7 @@ import { GlobalFonts } from "@napi-rs/canvas";
 //      with 300+ system families, blank boxes in a slim image with none.
 //
 // Resolving from this module's own location fixes (1) for both `tsx src/` and
-// `node dist/` -- dist mirrors src, so the depth up to rpgbot/ is the same --
+// `node dist/` -- dist mirrors src, so the depth up to havocish/ is the same --
 // and checking the return value fixes (2).
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FONT_DIR = join(HERE, "..", "..", "..", "assets", "fonts");
@@ -53,7 +53,7 @@ export function registerCardFonts(): void {
     if (failed.length > 0) {
         throw new Error(
             `Could not register profile-card fonts: ${failed.join(", ")}. ` +
-            `Expected the .ttf files in ${FONT_DIR} -- see rpgbot/assets/fonts/README.md.`
+            `Expected the .ttf files in ${FONT_DIR} -- see havocish/assets/fonts/README.md.`
         );
     }
 

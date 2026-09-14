@@ -32,7 +32,7 @@ jobs:
       # tsconfig.scripts.json, not tsconfig.json: the build config excludes
       # scripts/, so smoke.ts and doctor.ts would otherwise go unchecked.
       - name: Typecheck the bot (src and scripts)
-        working-directory: rpgbot
+        working-directory: havocish
         run: npm run typecheck
 
       - name: Typecheck the dashboard
@@ -50,7 +50,7 @@ jobs:
         run: npx eslint
 
       - name: Build the bot
-        run: npm --workspace rpgbot run build
+        run: npm --workspace havocish run build
 
       # next build reads the environment at build time. These are placeholders:
       # every route that actually talks to Discord or Postgres is dynamic and
@@ -100,11 +100,11 @@ jobs:
       - run: npm ci
 
       - name: Create the scratch schema
-        working-directory: rpgbot
+        working-directory: havocish
         run: ./scripts/setup-test-db.sh
 
       - name: Run the smoke suite
-        run: npm --workspace rpgbot run smoke
+        run: npm --workspace havocish run smoke
 
   # ── The database setup path, end to end ─────────────────────────────────────
   # Everything in db/ is applied by hand against a real database, which means
@@ -147,11 +147,11 @@ jobs:
       # built from schema.sql + every migration. See the script's header for the
       # bug this catches.
       - name: schema.sql and migrations must agree
-        working-directory: rpgbot
+        working-directory: havocish
         run: ./scripts/check-schema-drift.sh
 
       - name: Build a database the documented way
-        working-directory: rpgbot
+        working-directory: havocish
         run: |
           psql -d postgres -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ci_setup;"
           psql -d ci_setup  -v ON_ERROR_STOP=1 -q -f db/schema.sql
@@ -161,14 +161,14 @@ jobs:
       # doctor is what gates a real deploy, so a change that breaks it should
       # fail here rather than the next time someone is mid-deploy.
       - name: Preflight doctor must pass on it
-        working-directory: rpgbot
+        working-directory: havocish
         env:
           DISCORD_TOKEN: ci-placeholder
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/ci_setup
         run: npm run doctor
 
       - name: ...and report a database that is behind the code
-        working-directory: rpgbot
+        working-directory: havocish
         env:
           DISCORD_TOKEN: ci-placeholder
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/ci_setup

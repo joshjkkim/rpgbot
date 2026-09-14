@@ -1,24 +1,24 @@
 {
   "private": true,
   "workspaces": [
-    "rpgbot",
+    "havocish",
     "web"
   ],
   "scripts": {
-    "dev:bot": "npm --workspace rpgbot run dev",
-    "dev:bot:watch": "npm --workspace rpgbot run dev:watch",
-    "deploy-test-commands": "npm --workspace rpgbot run deploy-test-commands",
-    "deploy-commands": "npm --workspace rpgbot run deploy-commands",
-    "clear-test-commands": "npm --workspace rpgbot run clear-test-commands",
+    "dev:bot": "npm --workspace havocish run dev",
+    "dev:bot:watch": "npm --workspace havocish run dev:watch",
+    "deploy-test-commands": "npm --workspace havocish run deploy-test-commands",
+    "deploy-commands": "npm --workspace havocish run deploy-commands",
+    "clear-test-commands": "npm --workspace havocish run clear-test-commands",
     "dev:web": "npm --workspace web run dev",
     "build": "npm -ws run build",
-    "typecheck": "npm --workspace rpgbot run typecheck && npm --workspace web exec -- tsc --noEmit",
-    "smoke": "npm --workspace rpgbot run smoke",
-    "doctor": "npm --workspace rpgbot run doctor",
-    "alert:test": "npm --workspace rpgbot run alert:test",
-    "migrate": "npm --workspace rpgbot run migrate",
-    "migrate:status": "npm --workspace rpgbot run migrate:status",
-    "start:bot": "npm --workspace rpgbot run start"
+    "typecheck": "npm --workspace havocish run typecheck && npm --workspace web exec -- tsc --noEmit",
+    "smoke": "npm --workspace havocish run smoke",
+    "doctor": "npm --workspace havocish run doctor",
+    "alert:test": "npm --workspace havocish run alert:test",
+    "migrate": "npm --workspace havocish run migrate",
+    "migrate:status": "npm --workspace havocish run migrate:status",
+    "start:bot": "npm --workspace havocish run start"
   },
   "devDependencies": {
     "@types/twemoji-parser": "^13.1.4"

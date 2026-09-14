@@ -3,26 +3,26 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 const description =
-  "rpgbot is a Discord RPG bot: message and voice XP, levels with role rewards, " +
+  "havocish is a Discord RPG bot: message and voice XP, levels with role rewards, " +
   "daily streaks, a shop with equipment and consumables, player trading, quests, " +
   "achievements and turn-based combat -- all configurable from a web dashboard.";
 
 export const metadata: Metadata = {
   title: {
-    default: "rpgbot — Discord RPG bot",
-    template: "%s · rpgbot",
+    default: "havocish — Discord RPG bot",
+    template: "%s · havocish",
   },
   description,
-  applicationName: "rpgbot",
+  applicationName: "havocish",
   openGraph: {
-    title: "rpgbot — Discord RPG bot",
+    title: "havocish — Discord RPG bot",
     description,
-    siteName: "rpgbot",
+    siteName: "havocish",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "rpgbot — Discord RPG bot",
+    title: "havocish — Discord RPG bot",
     description,
   },
 };

@@ -13,7 +13,7 @@
  * Create the webhook in the target channel's Integrations settings, then
  * `fly secrets set ALERT_WEBHOOK_URL=...` (bare, no quotes -- see OPERATIONS.md).
  *
- * Verify it end to end with `npm --workspace rpgbot run alert:test`.
+ * Verify it end to end with `npm --workspace havocish run alert:test`.
  */
 
 import { strict as assert } from "node:assert";
@@ -29,7 +29,7 @@ export function crashMessage(reason: string, detail: unknown): string {
         : typeof detail === "string" ? detail
         : safeStringify(detail);
 
-    return `🔴 **rpgbot crashed** — ${reason}\n\`\`\`\n${text.slice(0, MAX_DETAIL)}\n\`\`\``;
+    return `🔴 **havocish crashed** — ${reason}\n\`\`\`\n${text.slice(0, MAX_DETAIL)}\n\`\`\``;
 }
 
 /** String(x), except objects get their shape shown instead of "[object Object]". */
@@ -73,7 +73,7 @@ export async function postAlert(content: string): Promise<void> {
 /** True when alerting is wired up, for the startup log line. */
 export const alertsEnabled = (): boolean => Boolean(process.env.ALERT_WEBHOOK_URL?.trim());
 
-// ─── Self-check: `npm --workspace rpgbot run alert:test` ──────────────────────
+// ─── Self-check: `npm --workspace havocish run alert:test` ──────────────────────
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     await import("dotenv/config");
 

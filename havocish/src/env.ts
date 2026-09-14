@@ -66,9 +66,9 @@ export function assertBotEnv(): void {
     }
     if (urlProblem) console.error(`\nCannot start: ${urlProblem}`);
     console.error(
-        "\nCopy rpgbot/.env.example to rpgbot/.env and fill it in, or set these in\n" +
+        "\nCopy havocish/.env.example to havocish/.env and fill it in, or set these in\n" +
         "the environment the container runs with. See README.md.\n\n" +
-        "Quotes belong in rpgbot/.env only. There, DATABASE_URL must be quoted: a\n" +
+        "Quotes belong in havocish/.env only. There, DATABASE_URL must be quoted: a\n" +
         "hosted connection string contains `&`, which an unquoted value turns into\n" +
         "an empty string under `set -a; . .env; set +a`. In a host's secret settings\n" +
         "(Fly, Vercel), give the bare value -- quotes there become part of it.\n"
