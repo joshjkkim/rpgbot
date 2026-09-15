@@ -9,7 +9,6 @@ export async function getOrCreateDbUser(opts: { discordUserId: string; username?
     const now = Date.now();
 
     if (cached && !isStale(cached.lastRefreshed, USER_CACHE_TTL_MS)) {
-        console.log(`Cache hit for user ${opts.discordUserId}`);
         const toReturn: CachedUserId = {
             user: cached.user,
             lastRefreshed: cached.lastRefreshed,

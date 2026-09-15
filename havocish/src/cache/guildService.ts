@@ -9,7 +9,6 @@ export async function getOrCreateGuildConfig(opts: { discordGuildId: string; }):
     const now = Date.now();
 
     if (cached && !isStale(cached.lastLoaded, GUILD_CONFIG_TTL_MS)) {
-        console.log(`Cache hit for guild ${opts.discordGuildId}`);
         const toReturn: CachedGuildConfig = {
             guild: cached.guild,
             config: cached.config,
