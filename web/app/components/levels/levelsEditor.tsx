@@ -12,6 +12,14 @@ import {
   TextAreaField,
   TextField,
 } from "@/app/components/ui/form";
+import LevelCurveChart from "@/app/components/levels/levelCurveChart";
+import {
+  CURVE_HINTS,
+  CURVE_PARAMS,
+  normalizeCurveParams,
+  suggestedCurveParams,
+  type CurveType,
+} from "@/app/lib/levelCurve";
 
 export interface LevelAction {
   type: "assignRole" | "removeRole" | "sendMessage";
@@ -24,7 +32,7 @@ export type LevelsConfig = {
   maxLevel: number | null;
   announceLevelUpInChannelId: string | null;
   announceLevelUpMessage: string;
-  curveType: "linear" | "exponential" | "polynomial" | "logarithmic";
+  curveType: CurveType;
   curveParams: Record<string, number>;
   xpOverrides: Record<number, number>;
   levelActions: Record<number, LevelAction[]>;
@@ -41,13 +49,6 @@ const CURVES = [
   { value: "polynomial" as const, label: "Polynomial" },
   { value: "logarithmic" as const, label: "Logarithmic" },
 ];
-
-const CURVE_HINTS: Record<LevelsConfig["curveType"], string> = {
-  linear: "total ≈ base + perLevel × level",
-  exponential: "total ≈ base × growth^(level − 1)",
-  polynomial: "total ≈ a × level^power + b",
-  logarithmic: "total ≈ a × ln(level + b) + c",
-};
 
 const ACTION_TYPES = [
   { value: "assignRole" as const, label: "Assign role" },
@@ -75,6 +76,11 @@ function dropRetiredActions(config: LevelsConfig): LevelsConfig {
   return { ...config, levelActions };
 }
 
+function fromStored(config: LevelsConfig): LevelsConfig {
+  const cleaned = dropRetiredActions(config);
+  return { ...cleaned, curveParams: normalizeCurveParams(cleaned.curveType, cleaned.curveParams) };
+}
+
 export default function LevelsEditor({ value, onChange }: Props) {
   const defaults: LevelsConfig = useMemo(
     () => ({
@@ -82,17 +88,17 @@ export default function LevelsEditor({ value, onChange }: Props) {
       announceLevelUpInChannelId: null,
       announceLevelUpMessage: "🎉 {user} reached level {level}!",
       curveType: "linear",
-      curveParams: { base: 100, perLevel: 50 },
+      curveParams: { rate: 100 },
       xpOverrides: {},
       levelActions: {},
     }),
     []
   );
 
-  const [local, setLocal] = useState<LevelsConfig>(dropRetiredActions(value ?? defaults));
+  const [local, setLocal] = useState<LevelsConfig>(fromStored(value ?? defaults));
 
   useEffect(() => {
-    setLocal(dropRetiredActions(value ?? defaults));
+    setLocal(fromStored(value ?? defaults));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(value)]);
 
@@ -103,21 +109,6 @@ export default function LevelsEditor({ value, onChange }: Props) {
 
   function updateRoot(patch: Partial<LevelsConfig>) {
     commit({ ...local, ...patch });
-  }
-
-  function suggestedParams(curveType: LevelsConfig["curveType"]): Record<string, number> {
-    switch (curveType) {
-      case "linear":
-        return { base: 100, perLevel: 50 };
-      case "exponential":
-        return { base: 100, growth: 1.15 };
-      case "polynomial":
-        return { a: 10, power: 2, b: 0 };
-      case "logarithmic":
-        return { a: 200, b: 1, c: 0 };
-      default:
-        return {};
-    }
   }
 
   function setLevelActions(level: string, actions: LevelAction[]) {
@@ -173,7 +164,7 @@ export default function LevelsEditor({ value, onChange }: Props) {
           <SelectField
             label="Curve"
             value={local.curveType}
-            onChange={(v) => commit({ ...local, curveType: v, curveParams: suggestedParams(v) })}
+            onChange={(v) => commit({ ...local, curveType: v, curveParams: suggestedCurveParams(v) })}
             options={CURVES}
             hint={`Changing this resets the parameters. ${CURVE_HINTS[local.curveType]}`}
           />
@@ -181,18 +172,23 @@ export default function LevelsEditor({ value, onChange }: Props) {
 
         <div className="mt-4">
           <FieldGrid>
-            {Object.entries(local.curveParams ?? {}).map(([param, val]) => (
+            {(CURVE_PARAMS[local.curveType] ?? []).map((spec) => (
               <NumberField
-                key={param}
-                label={param}
-                value={val}
-                step={0.01}
+                key={spec.key}
+                label={spec.label}
+                value={local.curveParams?.[spec.key] ?? spec.fallback}
+                step={spec.step}
+                min={spec.min}
                 onChange={(v) =>
-                  updateRoot({ curveParams: { ...(local.curveParams ?? {}), [param]: v } })
+                  updateRoot({ curveParams: { ...(local.curveParams ?? {}), [spec.key]: v } })
                 }
               />
             ))}
           </FieldGrid>
+        </div>
+
+        <div className="mt-6">
+          <LevelCurveChart levels={local} />
         </div>
       </Section>
 
