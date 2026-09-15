@@ -112,20 +112,20 @@ export default function Dashboard() {
                 return (
                     <li
                         key={guild.id}
-                        className={`flex items-center gap-3 rounded-xl border bg-[var(--surface)]/90 p-3 transition ${
+                        className={`frame flex items-center gap-3 p-3 transition-colors ${
                             guild.installed
-                                ? "border-[var(--accent)]/30 hover:-translate-y-0.5 hover:border-[var(--accent)]/60"
+                                ? "hover:border-[var(--accent)]"
                                 : "border-[var(--border)] opacity-80 hover:opacity-100"
                         }`}
                     >
                         <GuildIcon guild={guild} />
 
-                        <span className="min-w-0 flex-1 truncate font-medium">{guild.name}</span>
+                        <span className="min-w-0 flex-1 truncate font-display">{guild.name}</span>
 
                         {guild.installed ? (
                             <button
                                 onClick={() => router.push(`/dashboard/${guild.id}`)}
-                                className="shrink-0 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)]"
+                                className="btn shrink-0 px-3 py-1.5 text-sm"
                             >
                                 Configure
                             </button>
@@ -136,7 +136,7 @@ export default function Dashboard() {
                                 href={invite}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--background)]"
+                                className="btn btn-stone shrink-0 px-3 py-1.5 text-sm"
                             >
                                 Add to Server
                             </a>

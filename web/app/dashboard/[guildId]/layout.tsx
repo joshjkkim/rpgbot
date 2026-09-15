@@ -27,7 +27,7 @@ export default async function GuildLayout({ children, params }: { children: Reac
     const guild = res.rows[0] ?? null;
 
     return (
-        <div className="min-h-screen grid grid-cols-[240px_1fr] bg-[var(--background)]">
+        <div className="min-h-screen grid grid-cols-[240px_1fr]">
             <Sidebar
                 guildId={guildId}
                 guildName={guild?.name ?? null}

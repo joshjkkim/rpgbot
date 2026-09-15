@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -57,15 +58,13 @@ const FEATURES = [
   },
 ];
 
-const primaryButton =
-  "rounded-lg bg-[var(--accent)] font-semibold text-[var(--accent-ink)] shadow-[0_0_24px_-6px_var(--accent)] transition hover:-translate-y-px hover:bg-[var(--accent-hover)]";
-const ghostButton =
-  "rounded-lg border border-[var(--border)] bg-[var(--surface)]/60 font-medium transition hover:border-[var(--accent)]/60 hover:bg-[var(--surface-2)]";
+const primaryButton = "btn";
+const ghostButton = "btn btn-stone";
 
 function Wordmark() {
   return (
-    <span className="flex items-center gap-2 font-bold tracking-tight">
-      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--accent)]/15 text-[var(--accent)] ring-1 ring-[var(--accent)]/40">
+    <span className="flex items-center gap-2.5 font-display text-xl text-[var(--gold)] [text-shadow:0_1px_0_#000]">
+      <span className="slot h-8 w-8">
         <Swords size={16} />
       </span>
       havocish
@@ -102,48 +101,81 @@ function Header() {
   );
 }
 
-/** A static stand-in for the card `/profile` renders, in the same colours. */
-function ProfileCardPreview() {
+// Chat channel and item quality colours, muted to sit with the rest of the page.
+const SYSTEM = "text-[#d6c77a]";
+const GUILD = "text-[#8fc27a]";
+const DUEL = "text-[#d19a5b]";
+const UNCOMMON = "text-[#7fb86a]";
+const RARE = "text-[#6c95d0]";
+const EPIC = "text-[#a584cc]";
+const NAMED = "text-[var(--gold)]";
+
+/** Each line is [text, colour?] runs; the line's own colour covers uncoloured runs. */
+const FEED: Array<{ tone: string; parts: Array<[string, string?]> }> = [
+  { tone: SYSTEM, parts: [["Aria has reached level 12!"]] },
+  { tone: GUILD, parts: [["[Guild] Brakka: anyone up for a dungeon run?"]] },
+  { tone: "", parts: [["Tovin receives loot: "], ["[Ironbark Maul]", RARE], ["."]] },
+  { tone: SYSTEM, parts: [["Mirelle has earned the achievement "], ["[Chatterbox]", NAMED], ["!"]] },
+  { tone: DUEL, parts: [["Osric has defeated Brakka in a duel. 50 gold changes hands."]] },
+  { tone: SYSTEM, parts: [["Quest complete: "], ["[Daily: Say Something]", NAMED], [". +120 XP"]] },
+  { tone: "", parts: [["Wren buys "], ["[Minor Healing Draught]", UNCOMMON], [" for 25 gold."]] },
+  { tone: GUILD, parts: [["[Guild] Aria: day 7 of the streak, not breaking it now"]] },
+  { tone: "", parts: [["Brakka trades "], ["[Cloak of the Wandering Fox]", EPIC], [" to Wren."]] },
+  { tone: SYSTEM, parts: [["Tovin has reached level 20 and is now a Veteran!"]] },
+];
+
+const VISIBLE_LINES = 9;
+
+/**
+ * An MMO chat frame with server life scrolling past -- levels, loot, duels,
+ * quests and trades. Decorative: the feature list below says the same in words.
+ */
+function WorldFeed() {
+  // Starts at a fixed offset so the server render and the first client render agree.
+  const [start, setStart] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(() => setStart((s) => s + 1), 2400);
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <div className="relative mx-auto w-full max-w-md rotate-[-1.5deg] rounded-2xl border border-[var(--accent)]/25 bg-[var(--surface)]/95 p-5 text-left shadow-[0_20px_60px_-20px_var(--accent)]">
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--accent)] to-[#0b5c49] text-xl font-bold text-[var(--accent-ink)] ring-2 ring-[var(--accent)]/50 ring-offset-2 ring-offset-[var(--surface)]">
-          A
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">Aria the Bold</div>
-          <div className="text-xs text-[var(--muted)]">Rank #3 in Tavern of Legends</div>
-        </div>
-        <div className="rounded-lg border border-[var(--accent)]/50 bg-[var(--accent)]/15 px-3 py-1 text-center">
-          <div className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Level</div>
-          <div className="text-lg font-bold leading-tight text-[var(--accent)]">12</div>
-        </div>
-      </div>
-
-      <div className="mt-5">
-        <div className="mb-1.5 flex justify-between text-xs text-[var(--muted)]">
-          <span>⭐ 3,420 / 5,000 XP</span>
-          <span>68%</span>
-        </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.08]">
-          <div className="h-full w-[68%] rounded-full bg-gradient-to-r from-[var(--accent)]/70 to-[var(--accent)] shadow-[0_0_12px_var(--accent)]" />
-        </div>
-      </div>
-
-      <div className="mt-5 grid grid-cols-3 gap-2 text-center text-sm">
-        {[
-          ["💰", "1,240", "Gold"],
-          ["🔥", "7 days", "Streak"],
-          ["⚔️", "38", "Attack"],
-        ].map(([icon, value, label]) => (
-          <div key={label} className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-2">
-            <div className="font-semibold">
-              {icon} {value}
-            </div>
-            <div className="text-[11px] text-[var(--muted)]">{label}</div>
-          </div>
+    <div className="frame mx-auto w-full max-w-md text-left">
+      <div className="flex items-end gap-1 border-b border-[var(--border)] px-3 pt-2">
+        {["General", "Guild", "Loot"].map((tab, i) => (
+          <span
+            key={tab}
+            className={`rounded-t-sm border border-b-0 px-2.5 py-1 font-display text-xs ${
+              i === 0
+                ? "border-[var(--border-bright)] bg-black/40 text-[var(--gold)]"
+                : "border-transparent text-[var(--muted)]"
+            }`}
+          >
+            {tab}
+          </span>
         ))}
+        <span className="ml-auto pb-1.5 text-[11px] text-[var(--muted)]">Tavern of Legends</span>
       </div>
+
+      <ul
+        aria-hidden
+        className="flex h-56 flex-col justify-end overflow-hidden bg-black/35 px-3 py-2 text-[13px] leading-6 [text-shadow:0_1px_0_#000]"
+      >
+        {Array.from({ length: VISIBLE_LINES }, (_, i) => start + i).map((n) => {
+          const line = FEED[n % FEED.length];
+          return (
+            // Keyed by position in the endless stream, so only the newest line mounts and animates.
+            <li key={n} className={`feed-line ${line.tone}`}>
+              {line.parts.map(([text, colour], j) => (
+                <span key={j} className={colour}>
+                  {text}
+                </span>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -159,14 +191,13 @@ export default function Home() {
       <main className="flex-1">
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-14 pb-20 lg:grid-cols-[1.1fr_1fr] lg:pt-20">
           <div className="text-center lg:text-left">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-3 py-1 text-xs font-medium text-[var(--accent)]">
-              ⭐ Level up your community
+            <span className="font-display text-sm uppercase tracking-[0.2em] text-[var(--accent)]">
+              Level up your community
             </span>
-            <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-6xl">
+            <h1 className="mt-4 text-4xl leading-tight sm:text-6xl">
               Turn your Discord server into an{" "}
-              <span className="bg-gradient-to-r from-[var(--accent)] to-[var(--gold)] bg-clip-text text-transparent">
-                RPG
-              </span>
+              {/* A muted legendary orange. */}
+              <span className="text-[#d0894a]">RPG</span>
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-[var(--muted)]">
               havocish gives your members levels to climb, gold to earn and spend, gear to
@@ -196,23 +227,23 @@ export default function Home() {
             )}
           </div>
 
-          <ProfileCardPreview />
+          <WorldFeed />
         </section>
 
         <section className="mx-auto max-w-6xl px-6 pb-24">
-          <h2 className="mb-6 text-center text-sm font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+          <h2 className="mb-6 text-center text-sm uppercase tracking-[0.2em] text-[var(--accent)]">
             Everything a campaign needs
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="group rounded-xl border border-[var(--border)] bg-[var(--surface)]/80 p-5 transition hover:-translate-y-0.5 hover:border-[var(--accent)]/50"
+                className="frame group p-5 transition-colors hover:border-[var(--accent)]"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)]/12 text-[var(--accent)] ring-1 ring-[var(--accent)]/25 transition group-hover:bg-[var(--accent)]/20">
+                <span className="slot h-9 w-9 transition-colors group-hover:text-[var(--gold)]">
                   <f.icon size={18} />
                 </span>
-                <h3 className="mt-3 font-semibold">{f.title}</h3>
+                <h3 className="mt-3 text-lg">{f.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{f.body}</p>
               </div>
             ))}
