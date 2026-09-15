@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { Marcellus } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
+
+// The heading serif, standing in for the default WoW UI's Friz Quadrata.
+// next/font downloads it at build time and serves it from this app.
+const display = Marcellus({ weight: "400", subsets: ["latin"], variable: "--font-marcellus" });
 
 const description =
   "havocish is a Discord RPG bot: message and voice XP, levels with role rewards, " +
@@ -29,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={display.variable}>
       <body>
         <Providers>{children}</Providers>
       </body>

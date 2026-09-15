@@ -13,7 +13,7 @@ import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
  */
 
 const inputClass =
-  "w-full rounded-md border px-3 py-2 text-sm transition-colors";
+  "w-full rounded-sm border px-3 py-2 text-sm transition-colors";
 
 export function Section({
   title,
@@ -29,15 +29,15 @@ export function Section({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/90">
+    <section className="frame">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 rounded-lg px-4 py-3 text-left transition-colors hover:bg-white/5"
+        className="flex w-full items-center justify-between gap-4 rounded-sm px-4 py-3 text-left transition-colors hover:bg-[var(--accent)]/5"
       >
         <span>
-          <span className="font-medium">{title}</span>
+          <span className="font-display text-[15px]">{title}</span>
           {description && (
             <span className="mt-0.5 block text-xs font-normal text-[var(--muted)]">
               {description}
@@ -281,7 +281,7 @@ export function Toggle({
 /** Shown in place of a list when nothing has been configured yet. */
 export function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <p className="rounded-md border border-dashed border-[var(--border)] p-4 text-center text-sm text-[var(--muted)]">
+    <p className="rounded-sm border border-dashed border-[var(--border)] p-4 text-center text-sm text-[var(--muted)]">
       {children}
     </p>
   );
@@ -345,7 +345,7 @@ export function KeyedList<T>({
           type="button"
           onClick={add}
           disabled={!draft.trim()}
-          className="shrink-0 rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="btn shrink-0 px-3 py-2 text-sm"
         >
           {addLabel}
         </button>
@@ -358,7 +358,7 @@ export function KeyedList<T>({
           {entries.map(([key, value]) => (
             <div
               key={key}
-              className="rounded-md border border-[var(--border)] bg-[var(--background)] p-3"
+              className="rounded-sm border border-[var(--border)] bg-black/30 p-3"
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="truncate text-sm font-medium">

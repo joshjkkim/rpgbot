@@ -81,7 +81,7 @@ export default function ConfigPage({
     <main className="mx-auto max-w-5xl space-y-5">
       <header className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-2xl">{title}</h1>
           {description && (
             <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
           )}
@@ -94,7 +94,7 @@ export default function ConfigPage({
             <span className="text-xs text-[var(--muted)]">Saved</span>
           ) : null}
           <button
-            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-ink)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn px-4 py-2 text-sm"
             disabled={!dirty || loading || saving}
             onClick={handleSave}
           >
@@ -118,7 +118,7 @@ export default function ConfigPage({
       {!loading && children}
 
       {!loading && rawSection !== undefined && (
-        <details className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+        <details className="frame p-4">
           <summary className="cursor-pointer text-sm font-medium text-[var(--muted)]">
             Raw JSON
           </summary>

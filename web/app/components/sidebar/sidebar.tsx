@@ -49,7 +49,7 @@ function NavSection({ section, guildId }: { section: typeof sections[0]; guildId
         <div className="mb-4">
             <button
                 onClick={() => setOpen((v) => !v)}
-                className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+                className="flex w-full items-center justify-between px-2 py-1.5 font-display text-xs uppercase tracking-[0.15em] text-[var(--accent)]/80 transition-colors hover:text-[var(--gold)]"
             >
                 <span>{section.label}</span>
                 {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -66,9 +66,9 @@ function NavSection({ section, guildId }: { section: typeof sections[0]; guildId
                                 key={t.label}
                                 href={href}
                                 aria-current={active ? "page" : undefined}
-                                className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${
+                                className={`flex items-center gap-2.5 rounded-sm border px-2.5 py-1.5 text-sm transition-colors ${
                                     active
-                                        ? "border-[var(--accent)]/40 bg-[var(--accent)]/12 font-medium text-[var(--accent)]"
+                                        ? "border-[var(--border-bright)] bg-[var(--accent)]/10 text-[var(--gold)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.6)]"
                                         : "border-transparent text-[var(--muted)] hover:bg-white/[0.04] hover:text-[var(--foreground)]"
                                 }`}
                             >
@@ -93,7 +93,7 @@ export default function Sidebar({
     guildIconUrl?: string | null;
 }) {
     return (
-        <aside className="border-r border-[var(--border)] bg-[var(--surface)]/85 p-4 backdrop-blur">
+        <aside className="border-r border-[var(--border-bright)]/60 bg-[linear-gradient(180deg,var(--surface-2),var(--surface))] p-4 shadow-[inset_-1px_0_0_#000]">
             <Link
                 href="/dashboard"
                 className="mb-5 inline-flex items-center gap-1.5 text-xs text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
@@ -102,20 +102,20 @@ export default function Sidebar({
                 All servers
             </Link>
 
-            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--background)]/60 p-2.5">
+            <div className="frame mb-6 flex items-center gap-2.5 p-2.5">
                 {guildIconUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={guildIconUrl}
                         alt=""
-                        className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-[var(--accent)]/50"
+                        className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-bright)] object-cover shadow-[0_0_0_1px_#000]"
                     />
                 ) : (
-                    <div className="h-9 w-9 shrink-0 rounded-full bg-[var(--border)] ring-2 ring-[var(--accent)]/50" />
+                    <div className="h-9 w-9 shrink-0 rounded-full border border-[var(--border-bright)] bg-[var(--border)] shadow-[0_0_0_1px_#000]" />
                 )}
                 <div className="min-w-0">
                     {/* Falls back to the id when the bot has not recorded a name yet. */}
-                    <div className="truncate text-sm font-semibold">{guildName ?? guildId}</div>
+                    <div className="truncate font-display text-sm text-[var(--gold)]">{guildName ?? guildId}</div>
                     <div className="text-[11px] text-[var(--muted)]">Server settings</div>
                 </div>
             </div>
