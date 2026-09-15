@@ -61,6 +61,12 @@ const FEATURES = [
 const primaryButton = "btn";
 const ghostButton = "btn btn-stone";
 
+/** Where to go after signing in: a same-site ?callbackUrl path, else the dashboard. */
+function afterSignIn() {
+  const next = new URLSearchParams(window.location.search).get("callbackUrl");
+  return next && /^\/(?![/\\])/.test(next) ? next : "/dashboard";
+}
+
 function Wordmark() {
   return (
     <span className="flex items-center gap-2.5 font-display text-xl text-[var(--gold)] [text-shadow:0_1px_0_#000]">
@@ -93,7 +99,7 @@ function Header() {
           </button>
         </div>
       ) : (
-        <button onClick={() => signIn("discord")} className={`${primaryButton} px-3 py-1.5 text-sm`}>
+        <button onClick={() => signIn("discord", { callbackUrl: afterSignIn() })} className={`${primaryButton} px-3 py-1.5 text-sm`}>
           Sign in with Discord
         </button>
       )}
@@ -212,7 +218,7 @@ export default function Home() {
                 </a>
               )}
               <button
-                onClick={() => (session ? (window.location.href = "/dashboard") : signIn("discord"))}
+                onClick={() => (session ? (window.location.href = "/dashboard") : signIn("discord", { callbackUrl: afterSignIn() }))}
                 className={`${ghostButton} px-5 py-2.5`}
               >
                 {session ? "Open dashboard" : "Sign in with Discord"}

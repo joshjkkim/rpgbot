@@ -9,6 +9,7 @@ import { MessageFlags } from "discord.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import type { QuestConfig, UserQuestState } from "../../types/quest.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
+import { ownerSetupRows } from "../../ui/dashboardLinks.js";
 
 function formatProgress(state: any, def: any) {
   const cur = typeof state?.progress === "number" ? state.progress : 0;
@@ -330,7 +331,10 @@ export async function handleQuestsStartModal(interaction: ModalSubmitInteraction
   let pending = cached.pendingChanges ?? ({} as PendingProfileChanges);
 
   if (!config.quests?.enabled) {
-    await interaction.editReply({ content: "Quests are disabled in this server." });
+    await interaction.editReply({
+      content: "The quest board is empty. No quests are on offer here yet.",
+      components: ownerSetupRows(interaction, "quests", "Set up quests on the dashboard"),
+    });
     return;
   }
 
@@ -424,7 +428,10 @@ export async function handleQuestsClaimModal(interaction: ModalSubmitInteraction
   let pending = cached.pendingChanges ?? ({} as PendingProfileChanges);
 
   if (!config.quests?.enabled) {
-    await interaction.editReply({ content: "Quests are disabled in this server." });
+    await interaction.editReply({
+      content: "The quest board is empty. No quests are on offer here yet.",
+      components: ownerSetupRows(interaction, "quests", "Set up quests on the dashboard"),
+    });
     return;
   }
 

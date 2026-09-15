@@ -1,4 +1,11 @@
 import { StringSelectMenuInteraction, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from "discord.js";
+import { dashboardButton, isOwner, type DashboardPage } from "../dashboardLinks.js";
+
+// Panel categories and the dashboard page that edits each one.
+const PANEL_PAGES: Record<string, DashboardPage> = {
+    xp: "xp", daily: "xp", vc: "xp", streaks: "xp",
+    levels: "levels", shop: "shop", styles: "styles", logging: "logging",
+};
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 
 const PANEL_SELECT_ID = "config-panel:main";
@@ -453,6 +460,13 @@ export async function handleConfigPanelSelect(interaction: StringSelectMenuInter
             ]
             break;
         }
+    }
+
+    // Discord allows five rows and the select menu takes one, so only add the
+    // link while the buttons still fit in the other four.
+    const page = choice ? PANEL_PAGES[choice] : undefined;
+    if (page && isOwner(interaction) && Math.ceil((buttons.length + 1) / 5) <= 4) {
+        buttons.push(dashboardButton(interaction.guildId, page, "Edit on dashboard"));
     }
 
     const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
