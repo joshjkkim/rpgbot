@@ -1,0 +1,222 @@
+{
+  "id": "classic-fantasy",
+  "name": "Classic Fantasy",
+  "description": "A tavern-and-dungeon starter: potions and gear in the shop, five enemies from cave slimes to an ashen wyrm, repeatable quests and milestone achievements.",
+  "content": {
+    "shop": {
+      "categories": {
+        "apothecary": { "id": "apothecary", "name": "Apothecary", "icon": "🧪", "description": "Draughts and scrolls, used with /use.", "sortOrder": 0 },
+        "armoury": { "id": "armoury", "name": "Armoury", "icon": "⚔️", "description": "Weapons and armour to equip.", "sortOrder": 1 },
+        "curios": { "id": "curios", "name": "Curios", "icon": "💍", "description": "Charms, sashes and oddities.", "sortOrder": 2 }
+      },
+      "items": {
+        "minor-healing-draught": {
+          "id": "minor-healing-draught", "name": "Minor Healing Draught", "emoji": "🧪", "rarity": "common",
+          "description": "Tastes of mint and regret.", "categoryId": "apothecary",
+          "price": 25, "sellPrice": 10, "permanent": false, "tradeable": true,
+          "actions": { "0": { "type": "giveStat", "statId": "health", "amount": 50 } }
+        },
+        "greater-healing-draught": {
+          "id": "greater-healing-draught", "name": "Greater Healing Draught", "emoji": "⚗️", "rarity": "uncommon",
+          "description": "Brewed by someone who knew what they were doing.", "categoryId": "apothecary",
+          "price": 90, "sellPrice": 35, "minLevel": 15, "permanent": false, "tradeable": true,
+          "actions": { "0": { "type": "giveStat", "statId": "health", "amount": 200 } }
+        },
+        "scroll-of-insight": {
+          "id": "scroll-of-insight", "name": "Scroll of Insight", "emoji": "📜", "rarity": "uncommon",
+          "description": "Reading it counts as studying.", "categoryId": "apothecary",
+          "price": 120, "sellPrice": 40, "permanent": false, "tradeable": true,
+          "actions": { "0": { "type": "giveStat", "statId": "xp", "amount": 150 } }
+        },
+        "leather-cap": {
+          "id": "leather-cap", "name": "Leather Cap", "emoji": "🪖", "rarity": "common",
+          "description": "Better than nothing. Slightly.", "categoryId": "armoury",
+          "price": 60, "sellPrice": 20, "equipable": true, "equipSlot": "head", "permanent": true, "tradeable": true,
+          "effects": { "stats": { "def": 2, "hp": 10 } }
+        },
+        "travelers-boots": {
+          "id": "travelers-boots", "name": "Traveler's Boots", "emoji": "🥾", "rarity": "common",
+          "description": "Broken in on a hundred roads.", "categoryId": "armoury",
+          "price": 60, "sellPrice": 20, "equipable": true, "equipSlot": "feet", "permanent": true, "tradeable": true,
+          "effects": { "stats": { "spd": 3 } }
+        },
+        "iron-sword": {
+          "id": "iron-sword", "name": "Iron Sword", "emoji": "🗡️", "rarity": "uncommon",
+          "description": "Heavy, honest, and sharp enough.", "categoryId": "armoury",
+          "price": 250, "sellPrice": 90, "minLevel": 5, "equipable": true, "equipSlot": "weapon", "permanent": true, "tradeable": true,
+          "effects": { "stats": { "atk": 8 } }
+        },
+        "oak-shield": {
+          "id": "oak-shield", "name": "Oak Shield", "emoji": "🛡️", "rarity": "uncommon",
+          "description": "Stops arrows. Mostly.", "categoryId": "armoury",
+          "price": 220, "sellPrice": 80, "minLevel": 5, "equipable": true, "equipSlot": "shield", "permanent": true, "tradeable": true,
+          "effects": { "stats": { "def": 6, "hp": 20 } }
+        },
+        "knights-chainmail": {
+          "id": "knights-chainmail", "name": "Knight's Chainmail", "emoji": "⛓️", "rarity": "rare",
+          "description": "Loud on stairs, quiet in a fight.", "categoryId": "armoury",
+          "price": 900, "sellPrice": 300, "minLevel": 20, "equipable": true, "equipSlot": "body", "permanent": true, "tradeable": true,
+          "effects": { "stats": { "def": 15, "hp": 60, "spd": -1 } }
+        },
+        "runed-blade": {
+          "id": "runed-blade", "name": "Runed Blade", "emoji": "⚔️", "rarity": "epic",
+          "description": "The runes hum when something wicked is near.", "categoryId": "armoury",
+          "price": 2500, "sellPrice": 800, "minLevel": 30, "equipable": true, "equipSlot": "weapon", "permanent": true, "tradeable": true,
+          "effects": { "stats": { "atk": 20, "crit": 3 } }
+        },
+        "lucky-charm": {
+          "id": "lucky-charm", "name": "Lucky Charm", "emoji": "🍀", "rarity": "rare",
+          "description": "Found in a clover patch. Probably.", "categoryId": "curios",
+          "price": 600, "sellPrice": 200, "minLevel": 10, "equipable": true, "equipSlot": "accessory", "permanent": true, "tradeable": true,
+          "effects": { "boosts": { "goldMultiplier": 1.1 } }
+        },
+        "wanderers-sash": {
+          "id": "wanderers-sash", "name": "Wanderer's Sash", "emoji": "🎗️", "rarity": "uncommon",
+          "description": "Worn by those who never quite settle down.", "categoryId": "curios",
+          "price": 400, "sellPrice": 100, "equipable": true, "equipSlot": "aura", "permanent": true, "tradeable": true,
+          "effects": { "cosmetic": { "title": "the Wanderer", "nameEmoji": "🧭" } }
+        },
+        "wolf-pelt": {
+          "id": "wolf-pelt", "name": "Wolf Pelt", "emoji": "🐺", "rarity": "poor",
+          "description": "Still smells like wolf.", "categoryId": "curios",
+          "price": 0, "sellPrice": 15, "hidden": true, "permanent": false, "tradeable": true
+        },
+        "troll-hide-cloak": {
+          "id": "troll-hide-cloak", "name": "Troll-Hide Cloak", "emoji": "🧥", "rarity": "epic",
+          "description": "Warm, sturdy, and deeply unfashionable.", "categoryId": "armoury",
+          "price": 0, "sellPrice": 450, "minLevel": 22, "hidden": true, "equipable": true, "equipSlot": "body", "permanent": true, "tradeable": true,
+          "effects": { "stats": { "def": 12, "hp": 120, "spd": -2 } }
+        },
+        "dragonscale-mantle": {
+          "id": "dragonscale-mantle", "name": "Dragonscale Mantle", "emoji": "🐉", "rarity": "legendary",
+          "description": "Still warm.", "categoryId": "curios",
+          "price": 0, "sellPrice": 2000, "minLevel": 35, "hidden": true, "equipable": true, "equipSlot": "aura", "permanent": true, "tradeable": true,
+          "effects": {
+            "stats": { "atk": 8, "def": 8, "hp": 80 },
+            "boosts": { "xpMultiplier": 1.15 },
+            "cosmetic": { "title": "Dragonslayer" }
+          }
+        }
+      }
+    },
+    "combat": {
+      "enemies": {
+        "cave-slime": {
+          "id": "cave-slime", "name": "Cave Slime", "emoji": "🟢",
+          "hp": 30, "atk": 8, "def": 2, "spd": 3, "critChance": 0, "critMultiplier": 1.5,
+          "minLevel": 1, "maxLevel": 6, "xpReward": 15, "goldReward": 8,
+          "drops": [{ "itemId": "minor-healing-draught", "chance": 0.2, "quantity": 1 }]
+        },
+        "grey-wolf": {
+          "id": "grey-wolf", "name": "Grey Wolf", "emoji": "🐺",
+          "hp": 90, "atk": 24, "def": 8, "spd": 14, "critChance": 5, "critMultiplier": 1.5,
+          "minLevel": 5, "maxLevel": 15, "xpReward": 40, "goldReward": 20,
+          "drops": [
+            { "itemId": "wolf-pelt", "chance": 0.5, "quantity": 1 },
+            { "itemId": "travelers-boots", "chance": 0.05, "quantity": 1 }
+          ]
+        },
+        "roadside-bandit": {
+          "id": "roadside-bandit", "name": "Roadside Bandit", "emoji": "🥷",
+          "hp": 200, "atk": 45, "def": 15, "spd": 20, "critChance": 8, "critMultiplier": 1.5,
+          "minLevel": 12, "maxLevel": 25, "xpReward": 90, "goldReward": 60,
+          "drops": [
+            { "itemId": "minor-healing-draught", "chance": 0.3, "quantity": 1 },
+            { "itemId": "iron-sword", "chance": 0.06, "quantity": 1 }
+          ]
+        },
+        "bridge-troll": {
+          "id": "bridge-troll", "name": "Bridge Troll", "emoji": "🧌",
+          "hp": 420, "atk": 62, "def": 30, "spd": 10, "critChance": 5, "critMultiplier": 1.75,
+          "minLevel": 22, "maxLevel": 40, "xpReward": 220, "goldReward": 140,
+          "drops": [
+            { "itemId": "greater-healing-draught", "chance": 0.25, "quantity": 1 },
+            { "itemId": "troll-hide-cloak", "chance": 0.05, "quantity": 1 }
+          ]
+        },
+        "ashen-wyrm": {
+          "id": "ashen-wyrm", "name": "Ashen Wyrm", "emoji": "🐉",
+          "hp": 900, "atk": 95, "def": 45, "spd": 30, "critChance": 10, "critMultiplier": 2,
+          "minLevel": 35, "maxLevel": null, "xpReward": 600, "goldReward": 400,
+          "drops": [
+            { "itemId": "greater-healing-draught", "chance": 0.5, "quantity": 2 },
+            { "itemId": "dragonscale-mantle", "chance": 0.02, "quantity": 1 }
+          ]
+        }
+      }
+    },
+    "quests": {
+      "quests": {
+        "tavern-talk": {
+          "id": "tavern-talk", "name": "Tavern Talk", "description": "Share 25 messages with the realm.",
+          "conditions": { "type": "messages", "target": 25 },
+          "reward": { "0": { "xp": 75, "gold": 30 } },
+          "active": true, "cooldown": 86400
+        },
+        "keeper-of-the-flame": {
+          "id": "keeper-of-the-flame", "name": "Keeper of the Flame", "description": "Claim your daily reward 5 times.",
+          "conditions": { "type": "dailyClaim", "target": 5 },
+          "reward": { "0": { "gold": 120 }, "1": { "itemId": "greater-healing-draught", "quantity": 1 } },
+          "active": true, "cooldown": 604800
+        },
+        "market-day": {
+          "id": "market-day", "name": "Market Day", "description": "Spend 300 gold at the shop.",
+          "conditions": { "type": "spendGold", "target": 300 },
+          "reward": { "0": { "xp": 150 }, "1": { "itemId": "minor-healing-draught", "quantity": 3 } },
+          "active": true, "cooldown": 604800
+        },
+        "the-long-road": {
+          "id": "the-long-road", "name": "The Long Road", "description": "Earn 1,000 XP.",
+          "conditions": { "type": "earnXp", "target": 1000 },
+          "reward": { "0": { "gold": 200 }, "1": { "itemId": "scroll-of-insight", "quantity": 1 } },
+          "active": true, "cooldown": 604800
+        }
+      }
+    },
+    "achievements": {
+      "achievements": {
+        "first-blood": {
+          "id": "first-blood", "name": "First Blood", "description": "Win your first fight.", "category": "misc",
+          "conditions": { "type": "stat", "statKey": "fightsWon", "operator": ">=", "value": 1 },
+          "reward": { "gold": 25 }
+        },
+        "monster-hunter": {
+          "id": "monster-hunter", "name": "Monster Hunter", "description": "Defeat 50 enemies.", "category": "misc",
+          "conditions": { "type": "stat", "statKey": "enemiesDefeated", "operator": ">=", "value": 50 },
+          "reward": { "gold": 300 }
+        },
+        "apprentice-adventurer": {
+          "id": "apprentice-adventurer", "name": "Apprentice Adventurer", "description": "Reach level 10.", "category": "xp",
+          "conditions": { "type": "level", "operator": ">=", "value": 10 },
+          "reward": { "gold": 100 }
+        },
+        "veteran-of-the-realm": {
+          "id": "veteran-of-the-realm", "name": "Veteran of the Realm", "description": "Reach level 25.", "category": "xp",
+          "conditions": { "type": "level", "operator": ">=", "value": 25 },
+          "reward": { "itemId": "lucky-charm", "quantity": 1 }
+        },
+        "unbroken": {
+          "id": "unbroken", "name": "Unbroken", "description": "Keep a 7-day daily streak.", "category": "daily",
+          "conditions": { "type": "streak", "operator": ">=", "value": 7 },
+          "reward": { "gold": 150 }
+        },
+        "big-spender": {
+          "id": "big-spender", "name": "Big Spender", "description": "Spend 5,000 gold.", "category": "economy",
+          "conditions": { "type": "stat", "statKey": "goldSpent", "operator": ">=", "value": 5000 },
+          "reward": { "xp": 500 }
+        },
+        "chatterbox": {
+          "id": "chatterbox", "name": "Chatterbox", "description": "Send 1,000 messages.", "category": "social",
+          "conditions": { "type": "stat", "statKey": "messagesSent", "operator": ">=", "value": 1000 },
+          "reward": { "gold": 200 }
+        },
+        "dragons-hoard": {
+          "id": "dragons-hoard", "name": "Dragon's Hoard", "description": "Hold 10,000 gold at once.", "category": "economy",
+          "conditions": { "type": "gold", "operator": ">=", "value": 10000 },
+          "secret": true,
+          "reward": { "xp": 1000 }
+        }
+      }
+    }
+  }
+}

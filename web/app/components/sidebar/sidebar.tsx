@@ -10,6 +10,7 @@ import {
     Coins,
     FileText,
     LayoutGrid,
+    Package,
     Palette,
     ScrollText,
     Sparkles,
@@ -23,6 +24,7 @@ const sections = [
         label: "Settings",
         tabs: [
             { href: "", label: "Overview", icon: LayoutGrid },
+            { href: "presets", label: "Starter packs", icon: Package },
             { href: "styles", label: "Style", icon: Palette },
             { href: "xp", label: "XP", icon: Sparkles },
             { href: "shop", label: "Economy", icon: Coins },
