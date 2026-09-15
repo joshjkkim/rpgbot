@@ -1,4 +1,5 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { type AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { autocompleteOwnedItems } from "../../ui/autocomplete.js";
 import { equipItemFromInventory } from "../../player/inventory.js";
 
 export const data = new SlashCommandBuilder()
@@ -7,8 +8,9 @@ export const data = new SlashCommandBuilder()
     
     .addStringOption(option =>
         option.setName("item_id")
-            .setDescription("The item id to equip")
+            .setDescription("The item to equip")
             .setRequired(true)
+            .setAutocomplete(true)
     )
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -28,4 +30,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     } else {
         await interaction.editReply({ content: res.message });
     }
+}
+
+export async function autocomplete(interaction: AutocompleteInteraction) {
+    await autocompleteOwnedItems(interaction, (def) => !!def?.equipable);
 }

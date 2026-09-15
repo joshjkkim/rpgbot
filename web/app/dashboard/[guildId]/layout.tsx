@@ -10,7 +10,10 @@ export default async function GuildLayout({ children, params }: { children: Reac
 
     const session = await getServerSession(authOptions);
     if (!session) {
-        redirect("/");
+        // Remember the server so a link from Discord lands there after sign-in.
+        // ponytail: layouts can't see the child path, so /shop links land on the
+        // server overview instead; add middleware if that ever matters.
+        redirect(`/?callbackUrl=${encodeURIComponent(`/dashboard/${guildId}`)}`);
     }
 
     // The config API enforces this too, but without it here the sidebar would

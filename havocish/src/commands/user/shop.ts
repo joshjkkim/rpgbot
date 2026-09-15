@@ -5,6 +5,7 @@ import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { purchaseItem } from "../../db/shop.js";
+import { ownerSetupRows } from "../../ui/dashboardLinks.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../../player/achievements.js";
@@ -80,8 +81,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if (Object.keys(categories).length === 0) {
             embed.addFields({
                 name: "No Categories",
-                value: "No shop categories have been configured yet.",
+                value: "The shelves are bare. Nothing has been stocked yet.",
             });
+            components = ownerSetupRows(interaction, "shop", "Stock the shop on the dashboard");
         } else {
             for (const [categoryId, category] of Object.entries(categories)) {
                 const count = itemsByCategoryCount[categoryId] || 0;
@@ -102,13 +104,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 );
             }
 
-            embed.setFooter({ text: "Tip: Use /use <itemId> after buying to activate consumables." });
+            embed.setFooter({ text: "Tip: after buying, use consumables with /use and start typing the item's name." });
         }
     } else {
         embed.addFields({
-            name: "Shop Disabled",
-            value: "The shop is currently disabled in this server.",
+            name: "Shop Closed",
+            value: "The shopkeeper hasn't opened for business yet.",
         });
+        components = ownerSetupRows(interaction, "shop", "Open the shop on the dashboard");
     }
 
     if (buttons.length > 0) {

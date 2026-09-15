@@ -1,4 +1,5 @@
 import {
+    type AutocompleteInteraction,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonInteraction,
@@ -15,6 +16,7 @@ import { getOrCreateProfile } from "../../cache/profileService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { acceptTrade, cancelTrade, createTrade, denyTrade, viewTrades } from "../../db/trade.js";
+import { respondFiltered } from "../../ui/autocomplete.js";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -67,8 +69,9 @@ export const data = new SlashCommandBuilder()
             .setDescription("Accept a trade offer")
             .addStringOption(opt =>
                 opt.setName("trade_id")
-                    .setDescription("The trade ID to accept")
+                    .setDescription("The trade to accept")
                     .setRequired(true)
+                    .setAutocomplete(true)
             )
     )
 
@@ -77,8 +80,9 @@ export const data = new SlashCommandBuilder()
             .setDescription("Deny an inbound trade offer")
             .addStringOption(opt =>
                 opt.setName("trade_id")
-                    .setDescription("The trade ID to deny")
+                    .setDescription("The trade to deny")
                     .setRequired(true)
+                    .setAutocomplete(true)
             )
     )
 
@@ -87,8 +91,9 @@ export const data = new SlashCommandBuilder()
             .setDescription("Cancel one of your outbound trade offers")
             .addStringOption(opt =>
                 opt.setName("trade_id")
-                    .setDescription("The trade ID to cancel")
+                    .setDescription("The trade to cancel")
                     .setRequired(true)
+                    .setAutocomplete(true)
             )
     );
 
@@ -365,4 +370,37 @@ export async function handleTradeOfferModal(interaction: ModalSubmitInteraction)
     } else {
         await interaction.editReply({ content: "Failed to create trade offer. Make sure both parties have the required items and gold." });
     }
+}
+
+// ─── Autocomplete ───────────────────────────────────────────────────────────
+
+function describeSide(items: Record<string, number> | null, gold: string | null) {
+    const count = Object.values(items ?? {}).reduce((n, q) => n + q, 0);
+    const parts = [count ? `${count} item${count === 1 ? "" : "s"}` : "", Number(gold) ? `${gold} gold` : ""].filter(Boolean);
+    return parts.join(" + ") || "nothing";
+}
+
+/** Pending trades: offers sent to you for accept/deny, offers you sent for cancel. */
+export async function autocomplete(interaction: AutocompleteInteraction) {
+    if (!interaction.guildId) return interaction.respond([]);
+
+    const outbound = interaction.options.getSubcommand() === "cancel";
+    const { user } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
+    const { guild } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+    const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
+
+    const trades = await viewTrades({
+        guildId: String(guild.id),
+        status: "pending",
+        ...(outbound ? { askerId: String(profile.id) } : { receiverId: String(profile.id) }),
+    });
+
+    const choices = (trades || []).map((t) => {
+        const otherId = outbound ? t.receiver_discord_id : t.asker_discord_id;
+        const other = interaction.guild?.members.cache.get(otherId)?.displayName ?? "a member";
+        const offer = `${describeSide(t.asker_items, t.asker_gold)} for ${describeSide(t.receiver_items, t.receiver_gold)}`;
+        return { name: `${outbound ? "To" : "From"} ${other}: ${offer}`, value: t.id };
+    });
+
+    await respondFiltered(interaction, choices);
 }

@@ -1,5 +1,6 @@
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { handleViewInventory, handleClearInventory, handleRemoveItem, handleGiveItem } from "../../player/inventory.js";
+import { autocompleteShopItems } from "../../ui/autocomplete.js";
 
 export const data = new SlashCommandBuilder()
     .setName("admin-inv")
@@ -33,8 +34,9 @@ export const data = new SlashCommandBuilder()
             )
             .addStringOption(option =>
                 option.setName("item_id")
-                    .setDescription("The ID of the item to remove")
+                    .setDescription("The item to remove")
                     .setRequired(true)
+                    .setAutocomplete(true)
             )
             .addIntegerOption(option =>
                 option.setName("quantity")
@@ -52,8 +54,9 @@ export const data = new SlashCommandBuilder()
             )
             .addStringOption(option =>
                 option.setName("item_id")
-                    .setDescription("The ID of the item to give")
+                    .setDescription("The item to give")
                     .setRequired(true)
+                    .setAutocomplete(true)
             )
             .addIntegerOption(option =>
                 option.setName("quantity")
@@ -102,3 +105,5 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             await interaction.reply({ content: "Unknown subcommand.", flags: MessageFlags.Ephemeral });
     }
 }
+
+export const autocomplete = autocompleteShopItems;

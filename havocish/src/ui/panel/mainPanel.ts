@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { dashboardButton, isOwner } from "../dashboardLinks.js";
 
 const PANEL_SELECT_ID = "config-panel:main";
 
@@ -96,6 +97,7 @@ export async function sendConfigPanel(interaction: ChatInputCommandInteraction) 
         .setCustomId("config-panel:refresh")
         .setLabel("Refresh")
         .setStyle(ButtonStyle.Secondary),
+        ...(isOwner(interaction) ? [dashboardButton(interaction.guildId!, undefined, "Edit on dashboard")] : []),
     );
 
     await interaction.editReply({

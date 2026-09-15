@@ -1,4 +1,5 @@
-import { ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { type AutocompleteInteraction, ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { autocompleteOwnedItems } from "../../ui/autocomplete.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -16,8 +17,9 @@ export const data = new SlashCommandBuilder()
     
     .addStringOption(option =>
         option.setName("item_id")
-            .setDescription("The item id to gift")
+            .setDescription("The item to gift")
             .setRequired(true)
+            .setAutocomplete(true)
     )
 
     .addIntegerOption(option =>
@@ -74,4 +76,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     } else {
         await interaction.editReply({ content: res.message });
     }
+}
+
+export async function autocomplete(interaction: AutocompleteInteraction) {
+    await autocompleteOwnedItems(interaction);
 }

@@ -18,6 +18,11 @@ export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
         try {
 
+            if (interaction.isAutocomplete()) {
+                await commands.get(interaction.commandName)?.autocomplete?.(interaction);
+                return;
+            }
+
             if (interaction.isChatInputCommand()) {
 
                 const command = commands.get(interaction.commandName);

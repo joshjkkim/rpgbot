@@ -6,6 +6,7 @@ import {
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
+import { ownerSetupRows } from "../../ui/dashboardLinks.js";
 import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
 import {
     COMBAT_ACTIONS, applyAction, applyFightRewards,
@@ -196,7 +197,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         enemy = pickRandomEnemy(config, profile.level ?? 1);
         if (!enemy) {
             await interaction.reply({
-                content: "There are no enemies available for your level. Ask an admin to add some with `/config-enemy add`.",
+                content: "No foes roam at your level yet.",
+                components: ownerSetupRows(interaction, "combat", "Add enemies on the dashboard"),
                 flags: MessageFlags.Ephemeral,
             });
             return;
