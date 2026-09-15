@@ -13,6 +13,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import ItemTooltip, { RARITIES, type ItemRarity } from "./itemTooltip";
 
 type EquipSlot =
   | "head" | "body" | "legs" | "feet" | "hands"
@@ -76,6 +77,7 @@ export interface shopItemConfig {
   name: string;
   emoji?: string;
   description?: string;
+  rarity?: ItemRarity;
   categoryId: string;
   equipable?: boolean;
   equipSlot?: EquipSlot;
@@ -373,313 +375,326 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
               upsertItem({ ...item, effects: { ...effects, ...p } });
 
             return (
-              <div className="space-y-4">
-                <FieldGrid>
-                  <TextField label="Name" value={item.name} onChange={(v) => upsertItem({ ...item, name: v })} />
-                  <TextField
-                    label="Emoji"
-                    value={item.emoji ?? ""}
-                    onChange={(v) => upsertItem({ ...item, emoji: v })}
-                  />
-                  <SelectField
-                    label="Category"
-                    value={item.categoryId ?? ""}
-                    onChange={(v) => upsertItem({ ...item, categoryId: v })}
-                    options={categoryOptions}
-                  />
-                  <NumberField
-                    label="Price"
-                    value={item.price ?? 0}
-                    min={0}
-                    onChange={(v) => upsertItem({ ...item, price: v })}
-                  />
-                  <TextAreaField
-                    label="Description"
-                    value={item.description ?? ""}
-                    onChange={(v) => upsertItem({ ...item, description: v })}
-                    rows={2}
-                  />
-                </FieldGrid>
-
-                <Field label="Availability">
-                  <FieldGrid>
-                    <NumberField
-                      label="Sell price"
-                      value={item.sellPrice ?? 0}
-                      min={0}
-                      onChange={(v) => upsertItem({ ...item, sellPrice: v > 0 ? v : null })}
-                      hint="0 means it cannot be sold back."
-                    />
-                    <NumberField
-                      label="Minimum level"
-                      value={item.minLevel ?? 0}
-                      min={0}
-                      onChange={(v) => upsertItem({ ...item, minLevel: v })}
-                    />
-                    <NumberField
-                      label="Stock"
-                      value={item.stock ?? 0}
-                      min={0}
-                      onChange={(v) => upsertItem({ ...item, stock: v > 0 ? v : null })}
-                      hint="0 means unlimited."
-                    />
-                    <NumberField
-                      label="Max per member"
-                      value={item.maxPerUser ?? 0}
-                      min={0}
-                      onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
-                      hint="0 means no cap."
-                    />
-                    <TextField
-                      wide
-                      label="Required role IDs"
-                      value={toCsv(item.requiresRoleIds)}
-                      onChange={(v) => upsertItem({ ...item, requiresRoleIds: fromCsv(v) })}
-                      placeholder="Comma-separated, blank for anyone"
-                      mono
-                    />
-                  </FieldGrid>
-                </Field>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Toggle label="Hidden" checked={!!item.hidden} onChange={(v) => upsertItem({ ...item, hidden: v })} />
-                  <Toggle
-                    label="Permanent"
-                    checked={!!item.permanent}
-                    onChange={(v) => upsertItem({ ...item, permanent: v })}
-                    hint="Not consumed when used."
-                  />
-                  <Toggle
-                    label="Tradeable"
-                    checked={!!item.tradeable}
-                    onChange={(v) => upsertItem({ ...item, tradeable: v })}
-                  />
-                  <Toggle
-                    label="Equipable"
-                    checked={!!item.equipable}
-                    onChange={(v) => upsertItem({ ...item, equipable: v })}
-                  />
+              <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+                <div className="lg:sticky lg:top-4 lg:order-last">
+                  <ItemTooltip item={item} />
                 </div>
 
-                {item.equipable && (
+                <div className="space-y-4">
                   <FieldGrid>
+                    <TextField label="Name" value={item.name} onChange={(v) => upsertItem({ ...item, name: v })} />
+                    <TextField
+                      label="Emoji"
+                      value={item.emoji ?? ""}
+                      onChange={(v) => upsertItem({ ...item, emoji: v })}
+                    />
                     <SelectField
-                      label="Equipment slot"
-                      value={item.equipSlot ?? "accessory"}
-                      onChange={(v) => upsertItem({ ...item, equipSlot: v })}
-                      options={EQUIP_SLOTS}
+                      label="Rarity"
+                      value={item.rarity ?? "common"}
+                      onChange={(v) => upsertItem({ ...item, rarity: v })}
+                      options={RARITIES}
+                      hint="Only colours the name."
+                    />
+                    <SelectField
+                      label="Category"
+                      value={item.categoryId ?? ""}
+                      onChange={(v) => upsertItem({ ...item, categoryId: v })}
+                      options={categoryOptions}
+                    />
+                    <NumberField
+                      label="Price"
+                      value={item.price ?? 0}
+                      min={0}
+                      onChange={(v) => upsertItem({ ...item, price: v })}
+                    />
+                    <TextAreaField
+                      label="Description"
+                      value={item.description ?? ""}
+                      onChange={(v) => upsertItem({ ...item, description: v })}
+                      rows={2}
                     />
                   </FieldGrid>
-                )}
 
-                <Field label="Equipped stat bonuses">
-                  <FieldGrid>
-                    {(["hp", "atk", "def", "spd", "crit"] as const).map((stat) => (
+                  <Field label="Availability">
+                    <FieldGrid>
                       <NumberField
-                        key={stat}
-                        label={stat.toUpperCase()}
-                        value={effects.stats?.[stat] ?? 0}
-                        step={stat === "crit" ? 0.01 : 1}
-                        onChange={(v) => patchEffects({ stats: { ...(effects.stats ?? {}), [stat]: v } })}
+                        label="Sell price"
+                        value={item.sellPrice ?? 0}
+                        min={0}
+                        onChange={(v) => upsertItem({ ...item, sellPrice: v > 0 ? v : null })}
+                        hint="0 means it cannot be sold back."
                       />
-                    ))}
-                  </FieldGrid>
-                </Field>
+                      <NumberField
+                        label="Minimum level"
+                        value={item.minLevel ?? 0}
+                        min={0}
+                        onChange={(v) => upsertItem({ ...item, minLevel: v })}
+                      />
+                      <NumberField
+                        label="Stock"
+                        value={item.stock ?? 0}
+                        min={0}
+                        onChange={(v) => upsertItem({ ...item, stock: v > 0 ? v : null })}
+                        hint="0 means unlimited."
+                      />
+                      <NumberField
+                        label="Max per member"
+                        value={item.maxPerUser ?? 0}
+                        min={0}
+                        onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
+                        hint="0 means no cap."
+                      />
+                      <TextField
+                        wide
+                        label="Required role IDs"
+                        value={toCsv(item.requiresRoleIds)}
+                        onChange={(v) => upsertItem({ ...item, requiresRoleIds: fromCsv(v) })}
+                        placeholder="Comma-separated, blank for anyone"
+                        mono
+                      />
+                    </FieldGrid>
+                  </Field>
 
-                <Field label="Boosts">
-                  <FieldGrid>
-                    <NumberField
-                      label="XP multiplier"
-                      value={effects.boosts?.xpMultiplier ?? 1}
-                      step={0.1}
-                      min={0}
-                      onChange={(v) =>
-                        patchEffects({ boosts: { ...(effects.boosts ?? {}), xpMultiplier: v } })
-                      }
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Toggle label="Hidden" checked={!!item.hidden} onChange={(v) => upsertItem({ ...item, hidden: v })} />
+                    <Toggle
+                      label="Permanent"
+                      checked={!!item.permanent}
+                      onChange={(v) => upsertItem({ ...item, permanent: v })}
+                      hint="Not consumed when used."
                     />
-                    <NumberField
-                      label="Gold multiplier"
-                      value={effects.boosts?.goldMultiplier ?? 1}
-                      step={0.1}
-                      min={0}
-                      onChange={(v) =>
-                        patchEffects({ boosts: { ...(effects.boosts ?? {}), goldMultiplier: v } })
-                      }
+                    <Toggle
+                      label="Tradeable"
+                      checked={!!item.tradeable}
+                      onChange={(v) => upsertItem({ ...item, tradeable: v })}
                     />
-                  </FieldGrid>
-                </Field>
-
-                <Field label="Cosmetic">
-                  <FieldGrid>
-                    <TextField
-                      label="Title"
-                      value={effects.cosmetic?.title ?? ""}
-                      onChange={(v) => patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), title: v } })}
+                    <Toggle
+                      label="Equipable"
+                      checked={!!item.equipable}
+                      onChange={(v) => upsertItem({ ...item, equipable: v })}
                     />
-                    <TextField
-                      label="Name emoji"
-                      value={effects.cosmetic?.nameEmoji ?? ""}
-                      onChange={(v) =>
-                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), nameEmoji: v } })
-                      }
-                    />
-                    <TextField
-                      label="Accent hex"
-                      value={effects.cosmetic?.accentHex ?? ""}
-                      onChange={(v) =>
-                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), accentHex: v } })
-                      }
-                      placeholder="#00AE86"
-                      mono
-                    />
-                    <TextField
-                      label="Text hex"
-                      value={effects.cosmetic?.textHex ?? ""}
-                      onChange={(v) =>
-                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), textHex: v } })
-                      }
-                      placeholder="#FFFFFF"
-                      mono
-                    />
-                    <SelectField
-                      label="Font"
-                      value={effects.cosmetic?.fontPreset ?? "inter"}
-                      onChange={(v) =>
-                        patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), fontPreset: v } })
-                      }
-                      options={FONT_PRESETS}
-                    />
-                    <TextField
-                      label="Unlocks quest IDs"
-                      value={toCsv(effects.quest?.canStartQuestIds)}
-                      onChange={(v) => patchEffects({ quest: { canStartQuestIds: fromCsv(v) } })}
-                      placeholder="Comma-separated"
-                      mono
-                    />
-                  </FieldGrid>
-                </Field>
-
-                <Field label="Actions on use">
-                  <div className="space-y-3">
-                    {actionKeys.length === 0 && (
-                      <p className="text-xs text-[var(--muted)]">
-                        Nothing happens when this item is used.
-                      </p>
-                    )}
-
-                    {actionKeys.map((key) => {
-                      const action = actions[key] ?? { type: "sendMessage" as const };
-                      const patch = (p: Partial<shopItemAction>) =>
-                        upsertItem({ ...item, actions: { ...actions, [key]: { ...action, ...p } } });
-
-                      return (
-                        <div
-                          key={key}
-                          className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
-                        >
-                          <div className="mb-3 flex items-center justify-between">
-                            <span className="text-xs text-[var(--muted)]">Action {key}</span>
-                            <button
-                              type="button"
-                              aria-label="Remove action"
-                              onClick={() => {
-                                const next = { ...actions };
-                                delete next[key];
-                                upsertItem({ ...item, actions: next });
-                              }}
-                              className="text-[var(--muted)] transition-colors hover:text-red-400"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-
-                          <FieldGrid>
-                            <SelectField
-                              label="Type"
-                              value={action.type}
-                              onChange={(v) => patch({ type: v })}
-                              options={ITEM_ACTION_TYPES}
-                            />
-
-                            {(action.type === "assignRole" || action.type === "removeRole") && (
-                              <TextField
-                                label="Role ID"
-                                value={action.roleId ?? ""}
-                                onChange={(v) => patch({ roleId: v })}
-                                mono
-                              />
-                            )}
-
-                            {action.type === "sendMessage" && (
-                              <>
-                                <TextField
-                                  label="Channel ID"
-                                  value={action.channelId ?? ""}
-                                  onChange={(v) => patch({ channelId: v })}
-                                  mono
-                                />
-                                <TextField
-                                  wide
-                                  label="Message"
-                                  value={action.message ?? ""}
-                                  onChange={(v) => patch({ message: v })}
-                                />
-                              </>
-                            )}
-
-                            {action.type === "giveStat" && (
-                              <>
-                                <TextField
-                                  label="Stat ID"
-                                  value={action.statId ?? ""}
-                                  onChange={(v) => patch({ statId: v })}
-                                  placeholder="gold, xp or health"
-                                  mono
-                                />
-                                <NumberField
-                                  label="Amount"
-                                  value={action.amount ?? 0}
-                                  onChange={(v) => patch({ amount: v })}
-                                />
-                              </>
-                            )}
-
-                            {action.type === "giveItem" && (
-                              <>
-                                <TextField
-                                  label="Item ID"
-                                  value={action.itemId ?? ""}
-                                  onChange={(v) => patch({ itemId: v })}
-                                  mono
-                                />
-                                <NumberField
-                                  label="Quantity"
-                                  value={action.quantity ?? 1}
-                                  min={1}
-                                  onChange={(v) => patch({ quantity: v })}
-                                />
-                              </>
-                            )}
-                          </FieldGrid>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nextKey = actionKeys.length ? Math.max(...actionKeys) + 1 : 0;
-                        upsertItem({
-                          ...item,
-                          actions: { ...actions, [nextKey]: { type: "sendMessage", message: "" } },
-                        });
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
-                    >
-                      <Plus size={14} /> Add action
-                    </button>
                   </div>
-                </Field>
+
+                  {item.equipable && (
+                    <FieldGrid>
+                      <SelectField
+                        label="Equipment slot"
+                        value={item.equipSlot ?? "accessory"}
+                        onChange={(v) => upsertItem({ ...item, equipSlot: v })}
+                        options={EQUIP_SLOTS}
+                      />
+                    </FieldGrid>
+                  )}
+
+                  <Field label="Equipped stat bonuses">
+                    <FieldGrid>
+                      {(["hp", "atk", "def", "spd", "crit"] as const).map((stat) => (
+                        <NumberField
+                          key={stat}
+                          label={stat.toUpperCase()}
+                          value={effects.stats?.[stat] ?? 0}
+                          step={stat === "crit" ? 0.01 : 1}
+                          onChange={(v) => patchEffects({ stats: { ...(effects.stats ?? {}), [stat]: v } })}
+                        />
+                      ))}
+                    </FieldGrid>
+                  </Field>
+
+                  <Field label="Boosts">
+                    <FieldGrid>
+                      <NumberField
+                        label="XP multiplier"
+                        value={effects.boosts?.xpMultiplier ?? 1}
+                        step={0.1}
+                        min={0}
+                        onChange={(v) =>
+                          patchEffects({ boosts: { ...(effects.boosts ?? {}), xpMultiplier: v } })
+                        }
+                      />
+                      <NumberField
+                        label="Gold multiplier"
+                        value={effects.boosts?.goldMultiplier ?? 1}
+                        step={0.1}
+                        min={0}
+                        onChange={(v) =>
+                          patchEffects({ boosts: { ...(effects.boosts ?? {}), goldMultiplier: v } })
+                        }
+                      />
+                    </FieldGrid>
+                  </Field>
+
+                  <Field label="Cosmetic">
+                    <FieldGrid>
+                      <TextField
+                        label="Title"
+                        value={effects.cosmetic?.title ?? ""}
+                        onChange={(v) => patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), title: v } })}
+                      />
+                      <TextField
+                        label="Name emoji"
+                        value={effects.cosmetic?.nameEmoji ?? ""}
+                        onChange={(v) =>
+                          patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), nameEmoji: v } })
+                        }
+                      />
+                      <TextField
+                        label="Accent hex"
+                        value={effects.cosmetic?.accentHex ?? ""}
+                        onChange={(v) =>
+                          patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), accentHex: v } })
+                        }
+                        placeholder="#00AE86"
+                        mono
+                      />
+                      <TextField
+                        label="Text hex"
+                        value={effects.cosmetic?.textHex ?? ""}
+                        onChange={(v) =>
+                          patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), textHex: v } })
+                        }
+                        placeholder="#FFFFFF"
+                        mono
+                      />
+                      <SelectField
+                        label="Font"
+                        value={effects.cosmetic?.fontPreset ?? "inter"}
+                        onChange={(v) =>
+                          patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), fontPreset: v } })
+                        }
+                        options={FONT_PRESETS}
+                      />
+                      <TextField
+                        label="Unlocks quest IDs"
+                        value={toCsv(effects.quest?.canStartQuestIds)}
+                        onChange={(v) => patchEffects({ quest: { canStartQuestIds: fromCsv(v) } })}
+                        placeholder="Comma-separated"
+                        mono
+                      />
+                    </FieldGrid>
+                  </Field>
+
+                  <Field label="Actions on use">
+                    <div className="space-y-3">
+                      {actionKeys.length === 0 && (
+                        <p className="text-xs text-[var(--muted)]">
+                          Nothing happens when this item is used.
+                        </p>
+                      )}
+
+                      {actionKeys.map((key) => {
+                        const action = actions[key] ?? { type: "sendMessage" as const };
+                        const patch = (p: Partial<shopItemAction>) =>
+                          upsertItem({ ...item, actions: { ...actions, [key]: { ...action, ...p } } });
+
+                        return (
+                          <div
+                            key={key}
+                            className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
+                          >
+                            <div className="mb-3 flex items-center justify-between">
+                              <span className="text-xs text-[var(--muted)]">Action {key}</span>
+                              <button
+                                type="button"
+                                aria-label="Remove action"
+                                onClick={() => {
+                                  const next = { ...actions };
+                                  delete next[key];
+                                  upsertItem({ ...item, actions: next });
+                                }}
+                                className="text-[var(--muted)] transition-colors hover:text-red-400"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+
+                            <FieldGrid>
+                              <SelectField
+                                label="Type"
+                                value={action.type}
+                                onChange={(v) => patch({ type: v })}
+                                options={ITEM_ACTION_TYPES}
+                              />
+
+                              {(action.type === "assignRole" || action.type === "removeRole") && (
+                                <TextField
+                                  label="Role ID"
+                                  value={action.roleId ?? ""}
+                                  onChange={(v) => patch({ roleId: v })}
+                                  mono
+                                />
+                              )}
+
+                              {action.type === "sendMessage" && (
+                                <>
+                                  <TextField
+                                    label="Channel ID"
+                                    value={action.channelId ?? ""}
+                                    onChange={(v) => patch({ channelId: v })}
+                                    mono
+                                  />
+                                  <TextField
+                                    wide
+                                    label="Message"
+                                    value={action.message ?? ""}
+                                    onChange={(v) => patch({ message: v })}
+                                  />
+                                </>
+                              )}
+
+                              {action.type === "giveStat" && (
+                                <>
+                                  <TextField
+                                    label="Stat ID"
+                                    value={action.statId ?? ""}
+                                    onChange={(v) => patch({ statId: v })}
+                                    placeholder="gold, xp or health"
+                                    mono
+                                  />
+                                  <NumberField
+                                    label="Amount"
+                                    value={action.amount ?? 0}
+                                    onChange={(v) => patch({ amount: v })}
+                                  />
+                                </>
+                              )}
+
+                              {action.type === "giveItem" && (
+                                <>
+                                  <TextField
+                                    label="Item ID"
+                                    value={action.itemId ?? ""}
+                                    onChange={(v) => patch({ itemId: v })}
+                                    mono
+                                  />
+                                  <NumberField
+                                    label="Quantity"
+                                    value={action.quantity ?? 1}
+                                    min={1}
+                                    onChange={(v) => patch({ quantity: v })}
+                                  />
+                                </>
+                              )}
+                            </FieldGrid>
+                          </div>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextKey = actionKeys.length ? Math.max(...actionKeys) + 1 : 0;
+                          upsertItem({
+                            ...item,
+                            actions: { ...actions, [nextKey]: { type: "sendMessage", message: "" } },
+                          });
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+                      >
+                        <Plus size={14} /> Add action
+                      </button>
+                    </div>
+                  </Field>
+                </div>
               </div>
             );
           }}
