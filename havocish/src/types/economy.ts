@@ -22,6 +22,9 @@ export interface shopItemAction {
 
 export type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";
 
+// Only colours the item name; the bot does not treat rarities differently.
+export type ItemRarity = "poor" | "common" | "uncommon" | "rare" | "epic" | "legendary";
+
 export type ItemEffects = {
   cosmetic?: {
     accentHex?: string;     // aura / accent
@@ -50,6 +53,7 @@ export interface shopItemConfig {
     name: string;
     emoji?: string;
     description?: string;
+    rarity?: ItemRarity;
 
     categoryId: string;
 
