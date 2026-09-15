@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Coins, FileText, Palette, ScrollText, Sparkles, Swords, TrendingUp, Trophy } from "lucide-react";
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
+import QuestLog from "@/app/components/questLog";
 
 const ICONS = {
   xp: Sparkles,
@@ -174,6 +175,8 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
           <p className="mt-0.5 font-mono text-xs text-[var(--muted)]">{guildId}</p>
         </div>
       </header>
+
+      <QuestLog guildId={guildId} config={config} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => {
