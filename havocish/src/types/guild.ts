@@ -198,8 +198,9 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         defensePerLevel: 1,
         speedBase: 5,
         speedPerLevel: 1,
-        critChanceBase: 0.05,
-        critChancePerLevel: 0.01,
+        // Percentage points (combat rolls against 0-100), so 5 means a 5% chance.
+        critChanceBase: 5,
+        critChancePerLevel: 0.5,
         critMultiplierBase: 1.5,
         critMultiplierPerLevel: 0.1,
         enemies: {},
