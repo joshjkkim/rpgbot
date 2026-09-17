@@ -4,7 +4,7 @@ import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
-import type { ChatInputCommandInteraction } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
 import type { item } from "../types/userprofile.js";
@@ -216,7 +216,7 @@ export async function handleGiveItem(interaction: ChatInputCommandInteraction, t
     );
 }   
 
-export async function useItemFromInventory(interaction: ChatInputCommandInteraction, itemId: string, quantity: number): Promise<{success: boolean, message: string}> {
+export async function useItemFromInventory(interaction: ChatInputCommandInteraction | ButtonInteraction, itemId: string, quantity: number): Promise<{success: boolean, message: string}> {
     if(interaction.guild === null) {
         return { success: false, message: "This command can only be used in a server." };
     }
@@ -481,7 +481,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
 
     return { success: true, message: `Successfully used ${quantity} of item \`${itemId}\`.` };
 }
-export async function equipItemFromInventory(interaction: ChatInputCommandInteraction,  itemId?: string, slot?: EquipSlot,): Promise<{ success: boolean; message: string }> {
+export async function equipItemFromInventory(interaction: ChatInputCommandInteraction | ButtonInteraction,  itemId?: string, slot?: EquipSlot,): Promise<{ success: boolean; message: string }> {
     if(interaction.guild === null) {
         return { success: false, message: "This command can only be used in a server." };
     }
@@ -550,7 +550,7 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
 
     const currentEquipped = profile.equips?.[item.equipSlot];
     if (currentEquipped === itemId) {
-        return { success: false, message: `Item with ID \`${itemId}\` is already equipped in the \`${slot}\` slot.` };
+        return { success: false, message: `Item with ID \`${itemId}\` is already equipped in the \`${item.equipSlot}\` slot.` };
     } else if (currentEquipped) {
         if (inventory[currentEquipped]) {
             inventory[currentEquipped].quantity += 1;
