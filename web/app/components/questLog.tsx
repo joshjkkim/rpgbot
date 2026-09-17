@@ -89,12 +89,17 @@ export default function QuestLog({ guildId, config }: { guildId: string; config:
 
   return (
     <section className="frame p-4">
-      <h2>
-        Quest Log{" "}
-        <span className="font-sans text-sm tabular-nums text-[var(--muted)]">
-          ({done}/{quests.length})
-        </span>
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2>
+          Quest Log{" "}
+          <span className="font-sans text-sm tabular-nums text-[var(--muted)]">
+            ({done}/{quests.length})
+          </span>
+        </h2>
+        <Link href={`/dashboard/${guildId}/presets`} className="btn btn-stone px-3 py-1.5 text-sm">
+          Use a starter pack
+        </Link>
+      </div>
 
       <ul className="mt-2 grid gap-x-6 sm:grid-cols-2">
         {quests.map((q) => (
