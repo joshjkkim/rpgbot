@@ -32,6 +32,7 @@ import type { EnemyConfig } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
+import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
 
@@ -1292,6 +1293,42 @@ async function main() {
         check("trailing newline accepted (pg ignores it)", databaseUrlProblem(`${url}\n`), null);
         check("wrong scheme refused", databaseUrlProblem("mysql://u:p@localhost/havocish") !== null, true);
         check("error never echoes the password", databaseUrlProblem(`"${url}"`)!.includes("secret"), false);
+    });
+
+    await test("an item card reads the same lines as the dashboard tooltip", async () => {
+        const sword: shopItemConfig = {
+            id: "blade", name: "Ashfang Blade", rarity: "epic", categoryId: "weapons",
+            price: 1200, sellPrice: 300, equipable: true, equipSlot: "weapon",
+            minLevel: 10, maxPerUser: 1, description: "Still remembers the fire.",
+            effects: { stats: { atk: 12, crit: 5 }, boosts: { goldMultiplier: 1.1 } },
+        };
+        const lines = itemCardLines(sword).map(l => l.text);
+
+        check("name leads", lines[0], "Ashfang Blade");
+        check("unique cap", lines.includes("Unique"), true);
+        check("slot is capitalised", lines.includes("Weapon"), true);
+        check("stats are signed", lines.includes("+12 Attack"), true);
+        check("crit reads as an equip line", lines.includes("Equip: +5% critical strike chance."), true);
+        check("gold boost as a percentage", lines.includes("Equip: Fights award 10% more gold."), true);
+        check("flavour text is quoted", lines.includes('"Still remembers the fire."'), true);
+        check("level requirement", lines.includes("Requires Level 10"), true);
+        check("sell price", lines.includes("Sell Price: 300 gold"), true);
+
+        // A 1.0 multiplier is not a bonus, so it must not show as one.
+        const inert: shopItemConfig = {
+            id: "rock", name: "Rock", categoryId: "misc", price: 1,
+            effects: { stats: { atk: 5 }, boosts: { xpMultiplier: 1 } },
+        };
+        const inertLines = itemCardLines(inert).map(l => l.text);
+        check("no line for a 1x multiplier", inertLines.some(l => l.includes("award")), false);
+        // Equip bonuses are read off equipped items, so on anything else they do nothing.
+        check("warns that stats on unequipable items are dead", inertLines.includes("Not equipable, so these bonuses never apply."), true);
+
+        const useOnly: shopItemConfig = {
+            id: "potion", name: "Potion", categoryId: "misc", price: 1,
+            actions: { 0: { type: "giveStat", statId: "hp", amount: 25 } },
+        };
+        check("actions read as use lines", itemCardLines(useOnly).map(l => l.text).includes("Use: Gives 25 hp."), true);
     });
 
     console.log(`\n${"─".repeat(60)}`);

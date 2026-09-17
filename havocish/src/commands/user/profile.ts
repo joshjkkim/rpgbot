@@ -10,6 +10,10 @@ import { AttachmentBuilder } from "discord.js";
 import { createCanvas, loadImage, type CanvasRenderingContext2D } from "@napi-rs/canvas";
 import { registerCardFonts } from "../../ui/canvas/fonts.js";
 import { drawTextWithEmojis } from "../../ui/canvas/drawEmojis.js";
+import {
+    BLACK_WALNUT, DARK_BARK, BARK, STONE_BORDER, STONE_DIM, STONE_FAINT,
+    PARCHMENT, PARCHMENT_DIM, PARCHMENT_FAINT,
+} from "../../ui/canvas/theme.js";
 
 registerCardFonts();
 import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
@@ -1025,18 +1029,8 @@ export async function buildFantasyProfileCard(
     const textColor = config.style.mainTextColor || "#FFFFFF";
     const tc = hexToRgb(textColor);
 
-    // ── Fixed neutral anchors (never theme-tinted) ────────────────────────────
-    const BLACK_WALNUT  = "#0A0806";
-    const DARK_BARK     = "#17110A";   // outer background
-    const BARK          = "#201609";   // inner card fill
-    const STONE_BORDER  = "#8A7A62";   // structural borders — warm stone, not gold
-    const STONE_DIM     = "rgba(138,122,98,0.35)";
-    const STONE_FAINT   = "rgba(138,122,98,0.12)";
-
-    // Parchment cream — always the same warm ivory for text/structural lines
-    const PARCHMENT     = "#D4C9AE";
-    const PARCHMENT_DIM = "rgba(212,201,174,0.5)";
-    const PARCHMENT_FAINT = "rgba(212,201,174,0.15)";
+    // Fixed neutral anchors (never theme-tinted) live in ui/canvas/theme.ts, so
+    // the item card and anything else drawn later share this exact palette.
 
     // ── Accent shorthands (used sparingly) ────────────────────────────────────
     const ACCENT        = accent;

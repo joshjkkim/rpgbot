@@ -13,6 +13,7 @@ import * as shop from "./user/shop.js";
 import * as inventory from "./user/inventory.js";
 import * as adminInventory from "./admin/adminInventory.js";
 import * as use from "./user/use.js";
+import * as item from "./user/item.js";
 import * as configLogging from "./admin/configLogging.js";
 import * as configAchievements from "./admin/configAchievements.js";
 import * as configQuests from "./admin/configQuests.js"
@@ -44,6 +45,7 @@ export const commandList = [
     inventory.data,
     adminInventory.data,
     use.data,
+    item.data,
     configLogging.data,
     configAchievements.data,
     configQuests.data,
@@ -76,6 +78,7 @@ export const commands = new Map<string, any>([
     [inventory.data.name, inventory],
     [adminInventory.data.name, adminInventory],
     [use.data.name, use],
+    [item.data.name, item],
     [configLogging.data.name, configLogging],
     [configAchievements.data.name, configAchievements],
     [configQuests.data.name, configQuests],

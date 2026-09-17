@@ -14,6 +14,8 @@ import {
 } from "../../player/fight.js";
 import type { ActiveFight, EnemyConfig, FightEndSummary } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
+import type { shopItemConfig } from "../../types/economy.js";
+import { renderItemCard } from "../../ui/canvas/itemCard.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
 
@@ -113,6 +115,29 @@ function buildEndEmbed(
 
     embed.setFooter({ text: `${playerDisplayName}'s fight` });
     return embed;
+}
+
+// Discord will show more, but a wall of tooltips buries the fight log.
+const MAX_LOOT_CARDS = 3;
+
+/**
+ * Tooltip images for whatever the enemy dropped, so loot arrives as an item
+ * rather than a line of text. Rewards are already written to the profile by the
+ * time this runs, so a card that fails to render must not take the reward
+ * message down with it.
+ */
+async function lootCards(summary: FightEndSummary, config: GuildConfig) {
+    const dropped = summary.itemsDropped
+        .map(drop => config.shop?.items?.[drop.itemId])
+        .filter((item): item is shopItemConfig => !!item)
+        .slice(0, MAX_LOOT_CARDS);
+
+    try {
+        return await Promise.all(dropped.map(renderItemCard));
+    } catch (err) {
+        console.error("Failed to render loot cards:", err);
+        return [];
+    }
 }
 
 function buildActionRow(disabled = false): ActionRowBuilder<ButtonBuilder> {
@@ -290,7 +315,11 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
         const endEmbed = buildEndEmbed(
             updatedFight, summary, config, interaction.user.displayName, result.log,
         );
-        await interaction.editReply({ embeds: [endEmbed], components: [] });
+        await interaction.editReply({
+            embeds: [endEmbed],
+            components: [],
+            files: await lootCards(summary, config),
+        });
         return;
     }
 
