@@ -1,26 +1,17 @@
-import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable } from "discord.js";
-import { EmbedBuilder, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ModalSubmitInteraction, GuildMember } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, GuildMember, ContainerBuilder, SectionBuilder, TextDisplayBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { purchaseItem } from "../../db/shop.js";
 import { ownerSetupRows } from "../../ui/dashboardLinks.js";
+import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../../player/achievements.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
-
-function chunkButtons(buttons: ButtonBuilder[], size = 5) {
-  const rows: ActionRowBuilder<ButtonBuilder>[] = [];
-  for (let i = 0; i < buttons.length; i += size) {
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      ...buttons.slice(i, i + size)
-    );
-    rows.push(row);
-  }
-  return rows;
-}
+import type { GuildConfig } from "../../types/guild.js";
 
 export const data = new SlashCommandBuilder()
     .setName("shop")
@@ -35,267 +26,153 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+    await interaction.editReply({
+        components: await renderShop(interaction, "home", "", 0),
+        flags: MessageFlags.IsComponentsV2,
+    });
+}
+
+/** The front counter (`view` "home") or one category's shelf. */
+async function renderShop(interaction: ChatInputCommandInteraction | ButtonInteraction, view: "home" | "category", categoryId: string, page: number, status?: string) {
     const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
-
-    const { guild: dbGuild, config } = await getOrCreateGuildConfig({
-        discordGuildId: interaction.guildId,
-    });
-
-    const { profile } = await getOrCreateProfile({
-        userId: dbUser.id,
-        guildId: dbGuild.id,
-    });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
+    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
 
     const goldIcon = config.style.gold.icon || "💰";
-    const themeColor = (config.style.mainThemeColor || "#00AE86") as ColorResolvable;
+    const balance = `You have **${profile.gold || 0} ${goldIcon}**.`;
+    const container = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
+    if (status) container.addTextDisplayComponents(t => t.setContent(`-# ${status}`));
 
-    const embed = new EmbedBuilder()
-        .setTitle(`🛒 ${interaction.guild?.name} Shop`)
-        .setColor(themeColor)
-        .setDescription(
-            [
-                `You currently have **${profile.gold || 0} ${goldIcon}**.`,
-                "",
-                "Use the buttons below to browse different shop categories.",
-            ].join("\n")
-        );
+    const categories = config.shop?.categories ?? {};
+    const category = categories[categoryId];
 
-    const buttons: ButtonBuilder[] = [];
-    let components: ActionRowBuilder<ButtonBuilder>[] = [];
-
-    if (config.shop?.enabled) {
-        const categories = config.shop.categories || {};
-        const items = config.shop.items || {};
-
-        const itemsByCategoryCount: Record<string, number> = {};
-        for (const item of Object.values(items)) {
-            if (item.hidden) continue;
-            itemsByCategoryCount[item.categoryId] =
-                (itemsByCategoryCount[item.categoryId] || 0) + 1;
-        }
-
-        if (Object.keys(categories).length === 0) {
-            embed.addFields({
-                name: "No Categories",
-                value: "The shelves are bare. Nothing has been stocked yet.",
-            });
-            components = ownerSetupRows(interaction, "shop", "Stock the shop on the dashboard");
-        } else {
-            for (const [categoryId, category] of Object.entries(categories)) {
-                const count = itemsByCategoryCount[categoryId] || 0;
-                const icon = category.icon || "📦";
-
-                embed.addFields({
-                    name: `${icon} ${category.name}`,
-                    value:
-                        (category.description || "_No description provided._") +
-                        `\n**Items:** ${count}`,
-                });
-
-                buttons.push(
-                    new ButtonBuilder()
-                        .setCustomId(`shop:category:${categoryId}`)
-                        .setLabel(category.name)
-                        .setStyle(ButtonStyle.Primary)
-                );
-            }
-
-            embed.setFooter({ text: "Tip: after buying, use consumables with /use and start typing the item's name." });
-        }
-    } else {
-        embed.addFields({
-            name: "Shop Closed",
-            value: "The shopkeeper hasn't opened for business yet.",
-        });
-        components = ownerSetupRows(interaction, "shop", "Open the shop on the dashboard");
+    if (view === "category" && category && config.shop?.enabled) {
+        return renderCategory(container, config, categoryId, page, balance);
     }
 
-    if (buttons.length > 0) {
-        components = chunkButtons(buttons);
+    container.addTextDisplayComponents(t => t.setContent(`## 🛒 ${interaction.guild?.name ?? "Server"} Shop\n${balance}`));
+
+    if (!config.shop?.enabled) {
+        container.addTextDisplayComponents(t => t.setContent("**Shop Closed**\nThe shopkeeper hasn't opened for business yet."));
+        return [container, ...ownerSetupRows(interaction, "shop", "Open the shop on the dashboard")];
     }
 
-    await interaction.editReply({ embeds: [embed], components });
+    if (Object.keys(categories).length === 0) {
+        container.addTextDisplayComponents(t => t.setContent("The shelves are bare. Nothing has been stocked yet."));
+        return [container, ...ownerSetupRows(interaction, "shop", "Stock the shop on the dashboard")];
+    }
+
+    const items = Object.values(config.shop.items ?? {});
+    const list = Object.entries(categories);
+    const shelf = pageOf(list, page);
+
+    container.addSeparatorComponents(s => s);
+    for (const [id, cat] of shelf.items) {
+        const count = items.filter(i => i.categoryId === id && !i.hidden).length;
+        container.addSectionComponents(new SectionBuilder()
+            .addTextDisplayComponents(t => t.setContent(
+                `**${cat.icon || "📦"} ${cat.name}** · ${count} item${count === 1 ? "" : "s"}` +
+                (cat.description ? `\n-# ${cat.description}` : "")
+            ))
+            .setButtonAccessory(b => b
+                .setCustomId(`shop:category:${id}:0`)
+                .setLabel("Browse")
+                .setStyle(ButtonStyle.Primary)));
+    }
+
+    const pager = pagerButtons(p => `shop:home::${p}`, shelf.page, shelf.pages);
+    return pager.length ? [container, new ActionRowBuilder<ButtonBuilder>().addComponents(...pager)] : [container];
 }
 
-
-export async function handleMainShopButton(interaction: ButtonInteraction) {
-    if (!interaction.customId.startsWith("shop:")) return;
-
-    if (!interaction.inGuild() || !interaction.guildId) {
-        await interaction.reply({
-            content: "This interaction can only be used in a server.",
-            flags: MessageFlags.Ephemeral,
-        });
-        return;
-    }
-
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-    const [, action, categoryId] = interaction.customId.split(":");
-
-    if (action !== "category" || !categoryId) {
-        await interaction.editReply({
-            content: "Invalid shop category.",
-        });
-        return;
-    }
-
-    const { guild: dbGuild, config } = await getOrCreateGuildConfig({
-        discordGuildId: interaction.guildId,
-    });
-
-    const category = config.shop?.categories?.[categoryId];
-    if (!category) {
-        await interaction.editReply({
-            content: "This category does not exist.",
-        });
-        return;
-    }
-
+function renderCategory(container: ContainerBuilder, config: GuildConfig, categoryId: string, page: number, balance: string) {
     const goldIcon = config.style.gold.icon || "💰";
-    const themeColor = (config.style.mainThemeColor || "#00AE86") as ColorResolvable;
+    const category = config.shop!.categories![categoryId]!;
+    const items = Object.values(config.shop!.items ?? {}).filter(i => i.categoryId === categoryId && !i.hidden);
+    const shelf = pageOf(items, page);
 
-    const embed = new EmbedBuilder()
-        .setTitle(`${category.icon || "📦"} ${category.name}`)
-        .setColor(themeColor)
-        .setDescription(
-            [
-                category.description || "_No description provided._",
-                "",
-                "Use the **Buy an Item** button below and enter the item ID + quantity.",
-            ].join("\n")
-        );
+    container
+        .addTextDisplayComponents(t => t.setContent(
+            `## ${category.icon || "📦"} ${category.name}\n` +
+            (category.description ? `${category.description}\n` : "") +
+            balance
+        ))
+        .addSeparatorComponents(s => s);
 
-    const items = config.shop?.items || {};
-    const categoryItems = Object.values(items).filter(
-        (item) => item.categoryId === categoryId && item.hidden !== true
+    if (items.length === 0) {
+        container.addTextDisplayComponents(t => t.setContent("_Nothing on this shelf yet._"));
+    }
+
+    for (const item of shelf.items) {
+        const soldOut = item.stock === 0;
+        const details = [
+            item.stock != null ? `Stock: ${item.stock}` : "",
+            item.minLevel ? `Level ${item.minLevel}+` : "",
+            item.requiresRoleIds?.length ? "Role required" : "",
+        ].filter(Boolean).join(" · ");
+
+        container.addSectionComponents(new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                `**${item.emoji || "•"} ${item.name}**` +
+                (item.description ? `\n-# ${item.description.length > 150 ? item.description.slice(0, 147) + "..." : item.description}` : "") +
+                (details ? `\n-# ${details}` : "")
+            ))
+            .setButtonAccessory(b => b
+                .setCustomId(`shop:buy:${categoryId}:${shelf.page}:${item.id}`)
+                .setLabel(soldOut ? "Sold out" : `Buy · ${item.price} ${goldIcon}`)
+                .setStyle(ButtonStyle.Success)
+                .setDisabled(soldOut)));
+    }
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        ...pagerButtons(p => `shop:category:${categoryId}:${p}`, shelf.page, shelf.pages),
+        new ButtonBuilder()
+            .setCustomId("shop:home::0")
+            .setLabel("Back")
+            .setStyle(ButtonStyle.Secondary),
     );
 
-    if (categoryItems.length === 0) {
-        embed.addFields({
-            name: "No Items",
-            value: "There are no items in this category yet.",
-        });
-    } else {
-        for (const item of categoryItems) {
-            const stockLabel =
-                item.stock === null || item.stock === undefined
-                    ? "∞"
-                    : item.stock.toString();
+    return [container, row];
+}
 
-            const requirements: string[] = [];
+export async function handleShopButton(interaction: ButtonInteraction) {
+    // shop:home::{page} | shop:category:{categoryId}:{page} | shop:buy:{categoryId}:{page}:{itemId}
+    const [, action, categoryId = "", pageStr, ...rest] = interaction.customId.split(":");
 
-            if (item.minLevel) {
-                requirements.push(`Level ${item.minLevel}+`);
-            }
-            if (item.requiresRoleIds && item.requiresRoleIds.length > 0) {
-                requirements.push(`${item.requiresRoleIds.length} role(s) required`);
-            }
-
-            embed.addFields({
-                name: `${item.emoji || "•"} ${item.name} \`[${item.id}]\``,
-                value: [
-                    item.description || "_No description._",
-                    "",
-                    `**Price:** ${item.price} ${goldIcon}`,
-                    `**Stock:** ${stockLabel}`,
-                    requirements.length > 0
-                        ? `**Requires:** ${requirements.join(" • ")}`
-                        : "",
-                ]
-                    .filter(Boolean)
-                    .join("\n"),
-            });
-        }
+    if (!interaction.inGuild() || !interaction.guildId) {
+        await interaction.reply({ content: "This interaction can only be used in a server.", flags: MessageFlags.Ephemeral });
+        return;
     }
 
-    embed.setFooter({ text: `Category ID: ${categoryId}` });
+    // Menus from before this layout used shop:category:{id} (new message) and a typed-ID modal.
+    if (pageStr === undefined) {
+        await interaction.reply({ content: "This menu has expired. Run /shop again.", flags: MessageFlags.Ephemeral });
+        return;
+    }
 
-    const buttons = [
-        new ButtonBuilder()
-            .setCustomId(`shop:buy:${categoryId}`)
-            .setLabel("Buy an Item")
-            .setStyle(ButtonStyle.Primary),
-    ];
+    await interaction.deferUpdate();
+
+    const status = action === "buy" ? await buyItem(interaction, rest.join(":"), 1) : undefined;
+    const view = action === "home" ? "home" : "category";
 
     await interaction.editReply({
-        embeds: [embed],
-        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(buttons)],
+        components: await renderShop(interaction, view, categoryId, Number(pageStr), status),
+        flags: MessageFlags.IsComponentsV2,
     });
 }
 
-
-export async function handleBuyItemButton(interaction: ButtonInteraction) {
-    if (!interaction.customId.startsWith("shop:buy:")) return;
-
-    if (!interaction.inGuild() || !interaction.guildId) {
-        await interaction.reply({ content: "This interaction can only be used in a server.", flags: MessageFlags.Ephemeral });
-        return;
-    }
-
-    const [, , categoryId] = interaction.customId.split(":");
-
-    if (!categoryId) {
-        await interaction.reply({ content: "Invalid shop category.", flags: MessageFlags.Ephemeral });
-        return;
-    }
-
-    const modal = new ModalBuilder()
-        .setCustomId(`shop:purchase:item`)
-        .setTitle("Purchase Item");
-
-    const itemIdInput = new TextInputBuilder()
-        .setCustomId("shop-purchase-item-id-input")
-        .setLabel("Item ID to Purchase")
-        .setPlaceholder("e.g. sword_of_power")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true);
-
-    const quantityIdInput = new TextInputBuilder()
-        .setCustomId("shop-purchase-quantity-input")
-        .setLabel("Quantity to Purchase")
-        .setPlaceholder("e.g. 1")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true);
-
-    const itemIdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(itemIdInput);
-    const quantityIdRow = new ActionRowBuilder<TextInputBuilder>().addComponents(quantityIdInput);
-
-    modal.addComponents(itemIdRow, quantityIdRow); 
-
-    await interaction.showModal(modal);
-}
-
-export async function handlePurchaseItemModal(interaction: ModalSubmitInteraction) {
-    if (interaction.customId !== "shop:purchase:item") return;
-
-    if (!interaction.inGuild() || !interaction.guildId) {
-        await interaction.reply({ content: "This interaction can only be used in a server.", flags: MessageFlags.Ephemeral });
-        return;
-    }
-
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-    const itemId = interaction.fields.getTextInputValue("shop-purchase-item-id-input");
-    const quantityStr = interaction.fields.getTextInputValue("shop-purchase-quantity-input");
-    const quantity = parseInt(quantityStr, 10);
-
-    if (isNaN(quantity) || quantity <= 0) {
-        await interaction.editReply({ content: "Invalid quantity specified."});
-        return;
-    }
-
+/** Buys `quantity` of `itemId` for the clicking user and returns a status line. */
+async function buyItem(interaction: ButtonInteraction, itemId: string, quantity: number): Promise<string> {
     const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
 
-    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
 
     // Ensures the profile row exists; purchaseItem locks it rather than reading
     // anything from this snapshot.
@@ -309,16 +186,14 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
     // against locked rows inside purchaseItem.
     const configItem = config.shop?.items?.[itemId];
     if (!configItem) {
-        await interaction.editReply({ content: "This item does not exist."});
-        return;
+        return "❌ This item does not exist.";
     }
 
     if (configItem.requiresRoleIds && configItem.requiresRoleIds.length > 0) {
         const member = await interaction.guild?.members.fetch(interaction.user.id);
         const hasRequiredRole = configItem.requiresRoleIds.some(roleId => member?.roles.cache.has(roleId));
         if (!hasRequiredRole) {
-            await interaction.editReply({ content: "You do not have the required role to purchase this item."});
-            return;
+            return "❌ You do not have the required role to purchase this item.";
         }
     }
 
@@ -331,8 +206,7 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
     });
 
     if (!purchase.success) {
-        await interaction.editReply({ content: purchase.message });
-        return;
+        return `❌ ${purchase.message}`;
     }
 
     const item = purchase.item;
@@ -359,7 +233,7 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
     if (ach.unlocked.length || ach.rewards?.messages?.length || ach.rewards?.grantedRoles?.length) {
         await applyAchievementSideEffects({
             client: interaction.client,
-            discordGuildId: interaction.guildId,
+            discordGuildId: interaction.guildId!,
             discordUserId: interaction.user.id,
             member: interaction.member instanceof GuildMember ? interaction.member : null,
             channelIdHint: interaction.channelId,
@@ -368,8 +242,6 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
             rewards: ach.rewards ? { grantedRoles: ach.rewards.grantedRoles, messages: ach.rewards.messages } : null,
         });
     }
-
-    await interaction.editReply({ content: `You have purchased **${quantity} x ${item.name}** for **${item.price * quantity} ${config.style.gold.icon || "💰"}**!` });
 
     await updateUserStats(dbUser.id, dbGuild.id, {
         itemsPurchased: (prof2.user_stats?.itemsPurchased ?? 0) + quantity,
@@ -390,4 +262,5 @@ export async function handlePurchaseItemModal(interaction: ModalSubmitInteractio
         timestamp: new Date(),
     }, config);
 
+    return `✅ Bought **${quantity} × ${item.name}** for **${price} ${config.style.gold.icon || "💰"}**.`;
 }

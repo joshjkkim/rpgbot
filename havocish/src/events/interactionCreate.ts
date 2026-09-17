@@ -5,7 +5,7 @@ import { MessageFlags } from "discord.js";
 import { handleConfigPanelSelect } from "../ui/panel/panelSelection.js";
 import { handleConfigPanelButton } from "../ui/panel/panelButton.js";
 import { handleConfigPanelModalSubmit } from "../ui/panel/panelModal.js";
-import { handleBuyItemButton, handleMainShopButton, handlePurchaseItemModal } from "../commands/user/shop.js";
+import { handleShopButton } from "../commands/user/shop.js";
 import { handleProfileButton } from "../commands/user/profile.js";
 import { handleInventoryButton } from "../commands/user/inventory.js";
 import { handleQuestsButton, handleQuestsClaimModal, handleQuestsStartModal } from "../commands/user/quests.js";
@@ -43,10 +43,8 @@ export function registerInteractionCreate(client: Client) {
             if (interaction.isButton()) {
                 if (interaction.customId.startsWith("config-panel:")) {
                     await handleConfigPanelButton(interaction);
-                }else if (interaction.customId.startsWith("shop:buy")) {
-                    await handleBuyItemButton(interaction);
                 } else if (interaction.customId.startsWith("shop:")) {
-                    await handleMainShopButton(interaction);
+                    await handleShopButton(interaction);
                 } else if (interaction.customId.startsWith("profile:")) {
                     await handleProfileButton(interaction);
                 } else if (interaction.customId.startsWith("quests:")) {
@@ -67,8 +65,6 @@ export function registerInteractionCreate(client: Client) {
             if (interaction.isModalSubmit()) {
                 if (interaction.customId.startsWith("config-panel:")) {
                     await handleConfigPanelModalSubmit(interaction);
-                } else if (interaction.customId.startsWith("shop:")) {
-                    await handlePurchaseItemModal(interaction);
                 } else if (interaction.customId.startsWith("quests:")) {
                     if(interaction.customId.startsWith("quests:modal:start")) {
                         await handleQuestsStartModal(interaction);
