@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { REST, Routes } from "discord.js";
+import { ApplicationIntegrationType, InteractionContextType, REST, Routes } from "discord.js";
 import { commandList } from "./commands/index.js";
 
 // Two registration scopes, picked by argv:
@@ -47,7 +47,14 @@ export async function main() {
         : Routes.applicationGuildCommands(clientId!, serverId!);
 
     const scope = global ? "global" : `guild ${serverId}`;
-    const body = clear ? [] : commandList.map((cmd) => cmd.toJSON());
+    // Server installs only. With User Install on, Discord would offer these
+    // commands in servers the bot never joined, where interaction.guild is null
+    // and every command fails with "only be used in a server".
+    const body = clear ? [] : commandList.map((cmd) => ({
+        ...cmd.toJSON(),
+        integration_types: [ApplicationIntegrationType.GuildInstall],
+        contexts: [InteractionContextType.Guild],
+    }));
 
     try {
         console.log(
