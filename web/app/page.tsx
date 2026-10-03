@@ -260,6 +260,11 @@ export default function Home() {
       <footer className="border-t border-[var(--border)] px-6 py-6 text-center text-sm text-[var(--muted)]">
         Configure everything from the dashboard, or with <code className="font-mono">/config-*</code>{" "}
         commands in Discord.
+        <div className="mt-3">
+          <a href="/legal/terms" className="hover:text-[var(--accent)]">Terms of Service</a>
+          {" · "}
+          <a href="/legal/privacy" className="hover:text-[var(--accent)]">Privacy Policy</a>
+        </div>
       </footer>
     </div>
   );
