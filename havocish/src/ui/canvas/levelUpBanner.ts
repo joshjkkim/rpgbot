@@ -28,8 +28,11 @@ export async function renderLevelUpBanner(args: {
     name: string;
     avatarUrl: string;
     level: number;
+    /** The server's theme colour; tints the label and number like the profile card. */
+    accent?: string;
 }): Promise<AttachmentBuilder> {
     registerCardFonts();
+    const accent = args.accent || GOLD;
 
     const canvas = createCanvas(WIDTH * SCALE, HEIGHT * SCALE);
     const ctx = canvas.getContext("2d");
@@ -53,7 +56,7 @@ export async function renderLevelUpBanner(args: {
     ctx.fillStyle = PARCHMENT_DIM;
     ctx.font = "12px InterSemi";
     ctx.fillText("LEVEL", right, 52);
-    ctx.fillStyle = GOLD;
+    ctx.fillStyle = accent;
     ctx.font = "48px InterBold";
     ctx.fillText(String(args.level), right, 100);
     const levelWidth = Math.max(ctx.measureText(String(args.level)).width, 40);
@@ -69,7 +72,7 @@ export async function renderLevelUpBanner(args: {
     ctx.stroke();
 
     const textX = cx + AVATAR_R + 22;
-    ctx.fillStyle = GOLD;
+    ctx.fillStyle = accent;
     ctx.font = "12px InterSemi";
     ctx.fillText("LEVEL UP", textX, 60);
 

@@ -90,6 +90,7 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
           name: member?.displayName ?? user.displayName,
           avatarUrl: (member ?? user).displayAvatarURL({ extension: "png", size: 256 }),
           level: newLevel,
+          accent: config.style.mainThemeColor,
         });
       })().catch((err) => {
         console.error("Failed to render level-up banner:", err);
