@@ -4,7 +4,7 @@ import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
-import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
 import type { item } from "../types/userprofile.js";
@@ -595,4 +595,44 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
     });
 
     return { success: true, message: `Successfully equipped item \`${itemId}\` in the \`${item.equipSlot}\` slot.` };
+}
+/**
+ * Sells one copy of an item for its sellPrice. Equipping moves an item out of
+ * the inventory into equips, so a worn item can never be sold from here.
+ */
+export async function sellItemFromInventory(interaction: ButtonInteraction | StringSelectMenuInteraction, itemId: string): Promise<{ success: boolean; message: string }> {
+    if (!interaction.guild) {
+        return { success: false, message: "This command can only be used in a server." };
+    }
+
+    const { user: dbUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
+    const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const p = cached.profile;
+
+    // No awaits from here to the commit, so two quick clicks cannot both sell the last copy.
+    const owned = p.inventory?.[itemId];
+    if (!owned || owned.quantity <= 0) {
+        return { success: false, message: "You don't have that item anymore." };
+    }
+    const price = config.shop?.items?.[itemId]?.sellPrice ?? 0;
+    if (price <= 0) {
+        return { success: false, message: `${owned.name} can't be sold.` };
+    }
+
+    const baseline = { xp: p.xp, gold: p.gold };
+    owned.quantity -= 1;
+    if (owned.quantity <= 0) delete p.inventory[itemId];
+    p.gold = (BigInt(p.gold) + BigInt(price)).toString();
+
+    commitProfileChanges({
+        userId: dbUser.id,
+        guildId: dbGuild.id,
+        profile: p,
+        changes: { ...(cached.pendingChanges ?? {}), inventory: p.inventory, gold: p.gold },
+        baseline,
+    });
+
+    const goldIcon = config.style.gold.icon || "💰";
+    return { success: true, message: `Sold ${owned.emoji ? owned.emoji + " " : ""}${owned.name} for ${price} ${goldIcon}.` };
 }

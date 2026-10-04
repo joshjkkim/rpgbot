@@ -35,6 +35,8 @@ export function registerInteractionCreate(client: Client) {
             if (interaction.isStringSelectMenu()) {
                 if (interaction.customId.startsWith("config-panel:")) {
                     await handleConfigPanelSelect(interaction);
+                } else if (interaction.customId.startsWith("inventory:")) {
+                    await handleInventoryButton(interaction);
                 }
 
                 return;
