@@ -1,3 +1,5 @@
+import { loadImage } from "@napi-rs/canvas";
+
 /**
  * The classic look, shared by everything the bot draws.
  *
@@ -90,4 +92,27 @@ export function drawPanelFrame(ctx: any, w: number, h: number) {
     ctx.strokeStyle = STONE_BORDER;
     ctx.lineWidth = 1.5;
     ctx.stroke();
+}
+
+/** Draws a Discord avatar cover-fitted into a circle. Throws if the fetch fails. */
+export async function drawAvatarCircle(ctx: any, url: string, cx: number, cy: number, radius: number) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch avatar: ${res.status}`);
+  const arr = await res.arrayBuffer();
+  const img = await loadImage(Buffer.from(arr));
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  // cover-fit crop into circle
+  const size = radius * 2;
+  const scale = Math.max(size / img.width, size / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+
+  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+  ctx.restore();
 }

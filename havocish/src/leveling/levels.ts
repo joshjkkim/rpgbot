@@ -1,5 +1,6 @@
 import type { GuildConfig } from "../types/guild.js";
 import { Client, GuildMember } from "discord.js";
+import { renderLevelUpBanner } from "../ui/canvas/levelUpBanner.js";
 
 interface HandleLevelUpArgs {
   client: Client;
@@ -82,7 +83,20 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
         .replace("{user}", `<@${userId}>`)
         .replace("{level}", newLevel.toString());
 
-      await channel.send(announceMessage);
+      // The banner is decoration: if it fails to render, the text still goes out.
+      const banner = await (async () => {
+        const user = member?.user ?? await client.users.fetch(userId);
+        return renderLevelUpBanner({
+          name: member?.displayName ?? user.displayName,
+          avatarUrl: (member ?? user).displayAvatarURL({ extension: "png", size: 256 }),
+          level: newLevel,
+        });
+      })().catch((err) => {
+        console.error("Failed to render level-up banner:", err);
+        return null;
+      });
+
+      await channel.send({ content: announceMessage, files: banner ? [banner] : [] });
     }
   }
 

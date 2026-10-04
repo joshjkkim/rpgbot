@@ -7,12 +7,12 @@ import { calculateTotalXpForLevel } from "../../leveling/levels.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile, UserStats } from "../../types/userprofile.js";
 import { AttachmentBuilder } from "discord.js";
-import { createCanvas, loadImage, type CanvasRenderingContext2D } from "@napi-rs/canvas";
+import { createCanvas, type CanvasRenderingContext2D } from "@napi-rs/canvas";
 import { registerCardFonts } from "../../ui/canvas/fonts.js";
 import { drawTextWithEmojis } from "../../ui/canvas/drawEmojis.js";
 import {
     BLACK_WALNUT, DARK_BARK, BARK, STONE_BORDER, STONE_DIM, STONE_FAINT,
-    PARCHMENT, PARCHMENT_DIM, PARCHMENT_FAINT,
+    PARCHMENT, PARCHMENT_DIM, PARCHMENT_FAINT, drawAvatarCircle,
 } from "../../ui/canvas/theme.js";
 
 registerCardFonts();
@@ -27,28 +27,6 @@ function roundRectPath(ctx: any, x: number, y: number, w: number, h: number, r: 
   ctx.arcTo(x, y + h, x, y, radius);
   ctx.arcTo(x, y, x + w, y, radius);
   ctx.closePath();
-}
-
-async function drawAvatarCircle(ctx: any, url: string, cx: number, cy: number, radius: number) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch avatar: ${res.status}`);
-  const arr = await res.arrayBuffer();
-  const img = await loadImage(Buffer.from(arr));
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
-
-  // cover-fit crop into circle
-  const size = radius * 2;
-  const scale = Math.max(size / img.width, size / img.height);
-  const w = img.width * scale;
-  const h = img.height * scale;
-
-  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
-  ctx.restore();
 }
 
 export const data = new SlashCommandBuilder()
