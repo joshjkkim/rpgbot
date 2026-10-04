@@ -17,7 +17,8 @@ import "./loadTestEnv.js";
 import { upsertUser } from "../src/db/users.js";
 import { upsertGuild, setGuildConfig, mergeConfig, getGuildByDiscordId, markGuildRemoved } from "../src/db/guilds.js";
 import { addMessageXp, grantDailyXp, getUserGuildProfile, upsertUserGuildProfile } from "../src/db/userGuildProfiles.js";
-import { getOrCreateProfile, flushProfileCacheToDb } from "../src/cache/profileService.js";
+import { getOrCreateProfile, flushProfileCacheToDb, profileEvents } from "../src/cache/profileService.js";
+import { calculateTotalXpForLevel } from "../src/leveling/levels.js";
 import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache } from "../src/cache/caches.js";
 import { query, closePool } from "../src/db/index.js";
 import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trade.js";
@@ -1293,6 +1294,31 @@ async function main() {
         check("trailing newline accepted (pg ignores it)", databaseUrlProblem(`${url}\n`), null);
         check("wrong scheme refused", databaseUrlProblem("mysql://u:p@localhost/havocish") !== null, true);
         check("error never echoes the password", databaseUrlProblem(`"${url}"`)!.includes("secret"), false);
+    });
+
+    await test("every level-up fires once, from whatever XP source", async () => {
+        const { userId, guildId, config } = await reset();
+        const fired: Array<{ fromLevel: number; toLevel: number }> = [];
+        const listener = (e: { fromLevel: number; toLevel: number }) => fired.push(e);
+        profileEvents.on("levelUp", listener);
+        try {
+            const start = (await getOrCreateProfile({ userId, guildId })).profile.level;
+            await addMessageXp({ userId, guildId, config, amount: calculateTotalXpForLevel(3, config) });
+            check("one event for a jump", fired.length, 1);
+            check("it spans every level crossed", `${fired[0]?.fromLevel}->${fired[0]?.toLevel}`, `${start}->3`);
+
+            await addMessageXp({ userId, guildId, config, amount: 1 });
+            check("XP without a new level fires nothing", fired.length, 1);
+
+            // A reload is not a level-up.
+            await flushDirtyProfiles(true);
+            userGuildProfileCache.delete(profileKey(guildId, userId));
+            await getOrCreateProfile({ userId, guildId });
+            await addMessageXp({ userId, guildId, config, amount: 1 });
+            check("reloading the profile fires nothing", fired.length, 1);
+        } finally {
+            profileEvents.off("levelUp", listener);
+        }
     });
 
     await test("an item card reads the same lines as the dashboard tooltip", async () => {

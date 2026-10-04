@@ -1,8 +1,17 @@
+import { EventEmitter } from "node:events";
 import { upsertUserGuildProfile } from "../db/userGuildProfiles.js";
 import { query } from "../db/index.js";
 import { isStale, userGuildProfileCache, profileKey } from "./caches.js";
 import type { CachedUserGuildProfile, PendingProfileChanges } from "../types/cache.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
+
+/**
+ * Emits "levelUp" ({ userId, guildId, fromLevel, toLevel }, DB ids) whenever a
+ * commit raises a profile's level. Every XP source commits through
+ * commitProfileChanges, so this is the one place a level-up can be noticed;
+ * index.ts turns it into handleLevelUp.
+ */
+export const profileEvents = new EventEmitter();
 
 const PROFILE_CONFIG_TTL_MS = 30 * 1000;
 
@@ -72,6 +81,8 @@ export async function getOrCreateProfile(opts: { userId: number; guildId: number
         dirty: Boolean(stillPending),
         lastWroteToDb: current?.lastWroteToDb,
         lastLoaded: Date.now(),
+        // A reload is not a level-up: seed from what is already stored.
+        announcedLevel: current?.announcedLevel ?? profile.level,
     };
 
     userGuildProfileCache.set(key, fresh);
@@ -272,6 +283,13 @@ export function commitProfileChanges(opts: {
 
     const mergedProfile = { ...profile, ...merged } as DbUserGuildProfile;
 
+    // Writers mutate the cached profile object in place, so its level is already
+    // the new one by now; compare against the level last announced instead.
+    const fromLevel = current?.announcedLevel ?? mergedProfile.level;
+    if (mergedProfile.level > fromLevel) {
+        profileEvents.emit("levelUp", { userId, guildId, fromLevel, toLevel: mergedProfile.level });
+    }
+
     userGuildProfileCache.set(key, {
         profile: mergedProfile,
         pendingChanges: Object.keys(merged).length > 0 ? merged : undefined,
@@ -281,6 +299,7 @@ export function commitProfileChanges(opts: {
         // write-throttle window it just closed.
         lastWroteToDb: current?.lastWroteToDb,
         lastLoaded: Date.now(),
+        announcedLevel: mergedProfile.level,
     });
 
     return mergedProfile;

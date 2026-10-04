@@ -9,6 +9,7 @@ import { registerGuildCreate } from "./events/guildCreate.js";
 import { registerGuildDelete } from "./events/guildDelete.js";
 import { registerInteractionCreate } from "./events/interactionCreate.js";
 import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
+import { registerLevelUps } from "./events/levelUp.js";
 import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
 import { flushLogBuffer } from "./db/events.js";
 import { cleanupStaleFights } from "./player/fight.js";
@@ -50,6 +51,7 @@ registerGuildCreate(client);
 registerGuildDelete(client);
 registerInteractionCreate(client);
 registerVoiceStateUpdate(client);
+registerLevelUps(client);
 
 const pruneTimer = setInterval(() => {
     void pruneCaches();
