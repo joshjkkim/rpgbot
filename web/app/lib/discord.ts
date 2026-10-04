@@ -76,3 +76,38 @@ export async function requireGuildOwner(discordGuildId: string) {
 
     return { ok: true as const, status: 200 as const };
 }
+
+export type GuildMeta = {
+    channels: { id: string; name: string; type: number; position: number }[];
+    roles: { id: string; name: string; position: number }[];
+};
+
+/**
+ * The server's channels and roles, for the pickers. Listing them needs the bot,
+ * not the signed-in user, so this uses DISCORD_BOT_TOKEN. Returns null when the
+ * token is unset or the bot is not in the server; the pickers then fall back to
+ * typing an ID. Callers must have checked ownership already.
+ */
+export async function fetchGuildMeta(discordGuildId: string): Promise<GuildMeta | null> {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return null;
+
+    const get = (path: string) => fetch(`https://discord.com/api/v10/guilds/${discordGuildId}/${path}`, {
+        headers: { Authorization: `Bot ${token}` },
+        cache: "no-store",
+    }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+    const [channels, roles] = await Promise.all([get("channels"), get("roles")]);
+    if (!Array.isArray(channels) || !Array.isArray(roles)) return null;
+
+    return {
+        channels: channels
+            .map((c) => ({ id: c.id, name: c.name, type: c.type, position: c.position }))
+            .sort((a, b) => a.position - b.position),
+        roles: roles
+            // @everyone shares the guild's id, and bot-managed roles cannot be granted.
+            .filter((r) => r.id !== discordGuildId && !r.managed)
+            .map((r) => ({ id: r.id, name: r.name, position: r.position }))
+            .sort((a, b) => b.position - a.position),
+    };
+}

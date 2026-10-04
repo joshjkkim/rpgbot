@@ -12,6 +12,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
 
 export interface AchievementCondition {
   type: "stat" | "level" | "xp" | "gold" | "streak";
@@ -51,6 +52,8 @@ export type AchievementsConfig = {
 };
 
 type Props = {
+  /** Shop items, so item fields can be dropdowns. */
+  shopItems: Record<string, { name?: string; emoji?: string }>;
   value: AchievementsConfig | null | undefined;
   onChange: (next: AchievementsConfig) => void;
 };
@@ -81,7 +84,7 @@ const OPERATORS = [
   { value: "!=" as const, label: "not (!=)" },
 ];
 
-export default function AchievementsEditor({ value, onChange }: Props) {
+export default function AchievementsEditor({ value, onChange, shopItems }: Props) {
   const defaults: AchievementsConfig = useMemo(
     () => ({ enabled: false, achievements: {}, announceAllId: null, announceMessage: null }),
     []
@@ -128,12 +131,11 @@ export default function AchievementsEditor({ value, onChange }: Props) {
         />
         <div className="mt-4">
           <FieldGrid>
-            <TextField
-              label="Announce channel ID"
+            <ChannelField
+              label="Announce channel"
               value={local.announceAllId ?? ""}
               onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
-              placeholder="Leave blank to skip announcing"
-              mono
+              emptyLabel="Don't announce"
             />
             <TextAreaField
               label="Announce message"
@@ -246,12 +248,11 @@ export default function AchievementsEditor({ value, onChange }: Props) {
                       min={0}
                       onChange={(v) => patchReward({ gold: v || undefined })}
                     />
-                    <TextField
-                      label="Item ID"
+                    <ItemField items={shopItems}
+                      label="Item"
                       value={reward.itemId ?? ""}
                       onChange={(v) => patchReward({ itemId: v || undefined })}
-                      placeholder="Must exist in the shop"
-                      mono
+                      emptyLabel="Choose an item"
                     />
                     <NumberField
                       label="Quantity"
@@ -259,17 +260,15 @@ export default function AchievementsEditor({ value, onChange }: Props) {
                       min={1}
                       onChange={(v) => patchReward({ quantity: v })}
                     />
-                    <TextField
-                      label="Role ID"
+                    <RoleField
+                      label="Role"
                       value={reward.roleId ?? ""}
                       onChange={(v) => patchReward({ roleId: v || undefined })}
-                      mono
                     />
-                    <TextField
-                      label="Message channel ID"
+                    <ChannelField
+                      label="Message channel"
                       value={reward.channelId ?? ""}
                       onChange={(v) => patchReward({ channelId: v || undefined })}
-                      mono
                     />
                     <TextField
                       wide
@@ -282,12 +281,11 @@ export default function AchievementsEditor({ value, onChange }: Props) {
                 </Field>
 
                 <FieldGrid>
-                  <TextField
-                    label="Override channel ID"
+                  <ChannelField
+                    label="Override channel"
                     value={a.overrideChannelId ?? ""}
                     onChange={(v) => upsert({ ...a, overrideChannelId: v.trim() || null })}
-                    placeholder="Defaults to the announce channel"
-                    mono
+                    emptyLabel="Announce channel (default)"
                   />
                   <TextField
                     label="Override announcement"

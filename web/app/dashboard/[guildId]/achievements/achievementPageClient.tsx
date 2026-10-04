@@ -23,6 +23,7 @@ export default function AchievementsPageClient({ guildId }: { guildId: string })
       {config && (
         <AchievementsEditor
           value={achievements}
+          shopItems={config.shop?.items ?? {}}
           onChange={(next: any) => setConfig((prev: any) => ({ ...prev, achievements: next }))}
         />
       )}

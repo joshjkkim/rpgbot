@@ -11,6 +11,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import { ItemField } from "@/app/components/ui/pickers";
 
 // ─── Types (mirrored from havocish) ─────────────────────────────────────────────
 
@@ -74,6 +75,8 @@ export interface CombatConfig {
 }
 
 type Props = {
+  /** Shop items, so item fields can be dropdowns. */
+  shopItems: Record<string, { name?: string; emoji?: string }>;
   value: CombatConfig | null | undefined;
   onChange: (next: CombatConfig) => void;
 };
@@ -98,7 +101,7 @@ const STATS: Array<{
   },
 ];
 
-export default function CombatEditor({ value, onChange }: Props) {
+export default function CombatEditor({ value, onChange, shopItems }: Props) {
   const defaults: CombatConfig = useMemo(() => ({ enabled: false, enemies: {} }), []);
 
   const [local, setLocal] = useState<CombatConfig>(value ?? defaults);
@@ -384,12 +387,11 @@ export default function CombatEditor({ value, onChange }: Props) {
                         </div>
 
                         <FieldGrid>
-                          <TextField
-                            label="Item ID"
+                          <ItemField items={shopItems}
+                            label="Item"
                             value={drop.itemId}
                             onChange={(v) => patchDrop({ itemId: v })}
-                            placeholder="Must exist in the shop"
-                            mono
+                            emptyLabel="Choose an item"
                           />
                           <NumberField
                             label="Chance"
