@@ -3,7 +3,7 @@ import { AttachmentBuilder } from "discord.js";
 import { registerCardFonts } from "./fonts.js";
 import { drawTextWithEmojis } from "./drawEmojis.js";
 import {
-    GOLD, PARCHMENT, PARCHMENT_DIM, STONE_BORDER, STONE_DIM, drawAvatarCircle, drawPanelFrame,
+    GOLD, PARCHMENT, PARCHMENT_DIM, STONE_BORDER, STONE_DIM, drawAvatarCircle, drawPanelFrame, roundRectPath,
 } from "./theme.js";
 
 const WIDTH = 560;       // logical pixels; rendered at 2x like the item card
@@ -39,6 +39,19 @@ export async function renderLevelUpBanner(args: {
     ctx.scale(SCALE, SCALE);
 
     drawPanelFrame(ctx, WIDTH, HEIGHT);
+
+    // Theme glow and border, at the same strengths the default profile card uses.
+    const n = parseInt(accent.replace("#", ""), 16);
+    const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+    const glow = ctx.createRadialGradient(PAD + AVATAR_R, HEIGHT / 2, 0, PAD + AVATAR_R, HEIGHT / 2, WIDTH * 0.6);
+    glow.addColorStop(0, `rgba(${rgb},0.16)`);
+    glow.addColorStop(1, "transparent");
+    ctx.fillStyle = glow;
+    roundRectPath(ctx, 10.5, 10.5, WIDTH - 21, HEIGHT - 21, 4);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${rgb},0.45)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
     // Avatar, ringed in stone. A failed fetch leaves an empty ring rather than no banner.
     const cx = PAD + AVATAR_R;
