@@ -9,6 +9,8 @@ interface HandleLevelUpArgs {
   member?: GuildMember | null;
   config: GuildConfig;
   newLevel: number;
+  /** The level before this level-up. Rewards run for every level crossed, not just the last. */
+  fromLevel?: number;
 }
 
 export function calculateTotalXpForLevel(level: number, guildConfig: GuildConfig): number {
@@ -74,6 +76,7 @@ export function calculateLevelFromXp(xp: number, guildConfig: GuildConfig): numb
 
 export async function handleLevelUp(args: HandleLevelUpArgs) {
   const { client, guildId, userId, member, config, newLevel } = args;
+  const fromLevel = args.fromLevel ?? newLevel - 1;
 
   const levelChannelId = config.levels.announceLevelUpInChannelId;
   if (levelChannelId) {
@@ -101,29 +104,27 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
     }
   }
 
-  const levelActions = config.levels.levelActions[newLevel];
+  for (let level = fromLevel + 1; level <= newLevel; level++) {
+    for (const action of config.levels.levelActions[level] ?? []) {
+      if (action.type === "assignRole" && action.roleId) {
+        if (!member) continue;
+        console.log(`Assigning role ${action.roleId} to user ${userId}`);
+        await member.roles.add(action.roleId).catch((err: string) => {
+          console.error("Failed to assign role:", err);
+        });
+      } else if (action.type === "removeRole" && action.roleId) {
+        if (!member) continue;
+        await member.roles.remove(action.roleId).catch((err: string) => {
+          console.error("Failed to remove role:", err);
+        });
+      } else if (action.type === "sendMessage" && action.message) {
+        const targetChannelId = action.channelId ?? config.levels.announceLevelUpInChannelId;
+        if (!targetChannelId) continue;
 
-  if (!levelActions) return;
-
-  for (const action of levelActions) {
-    if (action.type === "assignRole" && action.roleId) {
-      if (!member) continue;
-      console.log(`Assigning role ${action.roleId} to user ${userId}`);
-      await member.roles.add(action.roleId).catch((err: string) => {
-        console.error("Failed to assign role:", err);
-      });
-    } else if (action.type === "removeRole" && action.roleId) {
-      if (!member) continue;
-      await member.roles.remove(action.roleId).catch((err: string) => {
-        console.error("Failed to remove role:", err);
-      });
-    } else if (action.type === "sendMessage" && action.message) {
-      const targetChannelId = action.channelId ?? config.levels.announceLevelUpInChannelId;
-      if (!targetChannelId) continue;
-
-      const channel = await client.channels.fetch(targetChannelId).catch(() => null);
-      if (channel && channel.isTextBased() && channel.isSendable()) {
-        await channel.send(action.message.replace("{user}", `<@${userId}>`));
+        const channel = await client.channels.fetch(targetChannelId).catch(() => null);
+        if (channel && channel.isTextBased() && channel.isSendable()) {
+          await channel.send(action.message.replace("{user}", `<@${userId}>`));
+        }
       }
     }
   }

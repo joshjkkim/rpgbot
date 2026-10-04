@@ -3,7 +3,6 @@ import { SlashCommandBuilder } from "discord.js";
 import { grantDailyXp } from "../../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { MessageFlags } from "discord.js";
-import { handleLevelUp } from "../../leveling/levels.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 
@@ -32,7 +31,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         avatarUrl: interaction.user.displayAvatarURL(),
     });
  
-    const { profile, granted, rewardXp, rewardGold, levelUp, hpRestored, streakReward, increasedStreak } = await grantDailyXp({
+    const { profile, granted, rewardXp, rewardGold, hpRestored, streakReward, increasedStreak } = await grantDailyXp({
         userId: user.id,
         guildId: dbGuild.id,
         config,
@@ -74,19 +73,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         } else {
             await interaction.editReply({
                 content: `✅ Daily claimed! +${rewardXp} ${config.style.xp.icon || "⭐"} ${config.style.xp.name || "XP"}, +${rewardGold} ${config.style.gold.icon || "💰"} ${config.style.gold.name || "Gold"} (Streak: ${profile.streak_count})${healNote}`
-            });
-        }
-
-        const member = interaction.guild?.members.cache.get(interaction.user.id) ?? (await interaction.guild?.members.fetch(interaction.user.id).catch(() => null));
-
-        if (levelUp) {
-            handleLevelUp({
-                client: interaction.client,
-                guildId: dbGuild.discord_guild_id,
-                userId: user.discord_user_id,
-                member: member ?? null,
-                config, 
-                newLevel: profile.level,
             });
         }
 

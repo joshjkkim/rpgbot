@@ -51,4 +51,6 @@ export interface CachedUserGuildProfile {
     dirty?: boolean;
     lastWroteToDb?: number | undefined;
     lastLoaded: number;
+    /** The level last level-up was fired for; commitProfileChanges compares against it. */
+    announcedLevel?: number;
 }

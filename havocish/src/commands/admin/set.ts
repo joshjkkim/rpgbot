@@ -114,7 +114,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 return;
             }
 
-            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
+            userGuildProfileCache.delete(profileKey(dbGuild.id, dbUser.id));
 
             await interaction.reply({ content: `✅ Set XP of <@${dbUser.discord_user_id}> to **${amount}** (level **${newLevel}**).`, flags: MessageFlags.Ephemeral });
             break;
@@ -145,7 +145,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 return;
             }
 
-            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
+            userGuildProfileCache.delete(profileKey(dbGuild.id, dbUser.id));
 
             await interaction.reply({ content: `✅ Set level of <@${dbUser.discord_user_id}> to **${level}** (XP **${xp}**).`, flags: MessageFlags.Ephemeral });
             break;
@@ -168,7 +168,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 return;
             }
 
-            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
+            userGuildProfileCache.delete(profileKey(dbGuild.id, dbUser.id));
 
             await interaction.reply({ content: `✅ Set gold of <@${dbUser.discord_user_id}> to **${amount}**.`, flags: MessageFlags.Ephemeral });
             break;
@@ -191,7 +191,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 return;
             }
 
-            userGuildProfileCache.delete(profileKey(dbUser.id, dbGuild.id));
+            userGuildProfileCache.delete(profileKey(dbGuild.id, dbUser.id));
 
             await interaction.reply({ content: `✅ Set streak count of <@${dbUser.discord_user_id}> to **${count}**.`, flags: MessageFlags.Ephemeral });
             break;

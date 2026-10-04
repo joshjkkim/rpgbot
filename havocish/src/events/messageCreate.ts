@@ -1,7 +1,6 @@
 import { Client, Events } from "discord.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { addMessageXp, grantDailyXp } from "../db/userGuildProfiles.js";
-import { handleLevelUp } from "../leveling/levels.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 
 export function registerMessageCreate(client: Client) {
@@ -26,7 +25,7 @@ export function registerMessageCreate(client: Client) {
       if (!member) return;
       const roleIds = member?.roles.cache.map(role => role.id) ?? [];
 
-      let {profile, gave, levelUp} = await addMessageXp({
+      let {profile, gave} = await addMessageXp({
         client: message.client,
         member,
         userId: user.id,
@@ -38,21 +37,10 @@ export function registerMessageCreate(client: Client) {
         roleIds,
       });
 
-      if (levelUp) {
-        handleLevelUp({
-          client: message.client,
-          guildId: guild.discord_guild_id,
-          userId: user.discord_user_id,
-          member: message.member,
-          config,
-          newLevel: profile.level,
-        });
-      }
 
       let granted = false;
       let rewardXp: number | undefined = undefined;
       let rewardGold: number | undefined = undefined;
-      let dailyLevelUp = false;
       if (config.xp.autoDailyEnabled) {
         const dailyResult = await grantDailyXp({
           client: message.client,
@@ -69,20 +57,9 @@ export function registerMessageCreate(client: Client) {
         rewardXp = dailyResult.rewardXp;
         rewardGold = dailyResult.rewardGold;
         profile = dailyResult.profile;
-        dailyLevelUp = dailyResult.levelUp;
         const streakReward = dailyResult.streakReward;
         const increasedStreak = dailyResult.increasedStreak;
 
-        if (dailyLevelUp && !levelUp) {
-          handleLevelUp({
-            client: message.client,
-            guildId: guild.discord_guild_id,
-            userId: user.discord_user_id,
-            member: message.member,
-            config,
-            newLevel: profile.level,
-          });
-        }
 
         if (increasedStreak && config.xp.streakAnnounceChannelId) {
           const channel = await message.client.channels.fetch(config.xp.streakAnnounceChannelId).catch(() => null);
