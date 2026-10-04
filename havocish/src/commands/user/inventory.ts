@@ -1,8 +1,8 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, ContainerBuilder, MessageFlags, SectionBuilder, SlashCommandBuilder, TextDisplayBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, ContainerBuilder, MessageFlags, SectionBuilder, SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction, TextDisplayBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { equipItemFromInventory, useItemFromInventory } from "../../player/inventory.js";
+import { equipItemFromInventory, sellItemFromInventory, useItemFromInventory } from "../../player/inventory.js";
 import { calculateStats, resolveCurrentHp, formatStats } from "../../player/combat.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 import type { EquipSlot } from "../../types/economy.js";
@@ -123,7 +123,22 @@ function renderInventory({ ownerId, ownerName, canAct, profile, config, page, st
             .setStyle(ButtonStyle.Secondary),
     );
 
-    return [container, row];
+    // A section holds one button, already taken by Equip/Use, so selling is a menu.
+    const sellable = canAct ? view.items.filter(([itemId]) => (shopItems[itemId]?.sellPrice ?? 0) > 0) : [];
+    if (sellable.length === 0) return [container, row];
+
+    const sell = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`inventory:sell:${ownerId}:${view.page}`)
+            .setPlaceholder("💰 Sell an item…")
+            .addOptions(sellable.map(([itemId, item]) => ({
+                label: `${item.name} (×${item.quantity})`.slice(0, 100),
+                description: `Sell one for ${shopItems[itemId]!.sellPrice} ${config.style.gold.name || "gold"}`,
+                value: itemId,
+            }))),
+    );
+
+    return [container, sell, row];
 }
 
 function renderGear({ ownerId, ownerName, canAct, profile, config, page, status }: View) {
@@ -193,11 +208,12 @@ function renderGear({ ownerId, ownerName, canAct, profile, config, page, status 
 
 // ─── Buttons ──────────────────────────────────────────────────────────────────
 
-export async function handleInventoryButton(interaction: ButtonInteraction) {
+export async function handleInventoryButton(interaction: ButtonInteraction | StringSelectMenuInteraction) {
     // inventory:{page|gear}:{ownerId}:{page}
     // inventory:{use|equip|unequip}:{ownerId}:{page}:{itemId|slot}
+    // inventory:sell:{ownerId}:{page}  (select menu; the item is the chosen value)
     const [, action, ownerId, pageStr, ...rest] = interaction.customId.split(":");
-    const target = rest.join(":");
+    const target = interaction.isStringSelectMenu() ? interaction.values[0] ?? "" : rest.join(":");
 
     // Menus from before this layout carried a profile id here, not a Discord id.
     if (!interaction.guildId || !ownerId || !/^\d{17,20}$/.test(ownerId)) {
@@ -210,9 +226,11 @@ export async function handleInventoryButton(interaction: ButtonInteraction) {
     const canAct = ownerId === interaction.user.id;
     let status: string | undefined;
 
-    if (action === "use" || action === "equip" || action === "unequip") {
+    if (action === "use" || action === "equip" || action === "unequip" || action === "sell") {
         if (!canAct) return;
-        const res = action === "use" ? await useItemFromInventory(interaction, target, 1)
+        const res = action === "sell" ? await sellItemFromInventory(interaction, target)
+            : interaction.isStringSelectMenu() ? { success: false, message: "Unknown menu." }
+            : action === "use" ? await useItemFromInventory(interaction, target, 1)
             : action === "equip" ? await equipItemFromInventory(interaction, target)
             : await equipItemFromInventory(interaction, "", target as EquipSlot);
         status = `${res.success ? "✅" : "❌"} ${res.message}`;

@@ -22,7 +22,7 @@ import { calculateTotalXpForLevel } from "../src/leveling/levels.js";
 import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache } from "../src/cache/caches.js";
 import { query, closePool } from "../src/db/index.js";
 import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trade.js";
-import { updateInventory } from "../src/player/inventory.js";
+import { updateInventory, sellItemFromInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
 import { startFight, applyAction, applyFightRewards } from "../src/player/fight.js";
@@ -1319,6 +1319,37 @@ async function main() {
         } finally {
             profileEvents.off("levelUp", listener);
         }
+    });
+
+    await test("selling an item pays its sell price and stops at the last copy", async () => {
+        const { userId, guildId, config } = await reset();
+        config.shop.items = {
+            ...config.shop.items,
+            gem: { id: "gem", name: "Gem", categoryId: "misc", price: 50, sellPrice: 20 },
+            junk: { id: "junk", name: "Junk", categoryId: "misc", price: 5 },
+        };
+        await setGuildConfig(TEST_DISCORD_GUILD, config);
+        guildConfigCache.clear();
+
+        await updateInventory(userId, guildId, {
+            gem: { id: "gem", name: "Gem", emoji: "", description: "", quantity: 2 },
+            junk: { id: "junk", name: "Junk", emoji: "", description: "", quantity: 1 },
+        });
+        const interaction = { guild: { id: TEST_DISCORD_GUILD }, user: { id: TEST_DISCORD_USER } } as any;
+
+        check("first sale succeeds", (await sellItemFromInventory(interaction, "gem")).success, true);
+        check("second sale succeeds", (await sellItemFromInventory(interaction, "gem")).success, true);
+        check("no third copy to sell", (await sellItemFromInventory(interaction, "gem")).success, false);
+        check("an item without a sell price is refused", (await sellItemFromInventory(interaction, "junk")).success, false);
+
+        const { profile } = await getOrCreateProfile({ userId, guildId });
+        check("paid twice", profile.gold, "40");
+        check("the last copy left the bag", profile.inventory["gem"] === undefined, true);
+        check("unsellable item kept", profile.inventory["junk"]?.quantity, 1);
+
+        await flushDirtyProfiles(true);
+        const row = await query<{ gold: string }>(`SELECT gold FROM user_guild_profiles WHERE user_id = $1 AND guild_id = $2`, [userId, guildId]);
+        check("gold persisted", row.rows[0]?.gold, "40");
     });
 
     await test("an item card reads the same lines as the dashboard tooltip", async () => {
