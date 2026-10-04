@@ -10,6 +10,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import { ChannelField } from "@/app/components/ui/pickers";
 
 type RoleXpConfig = {
   extraXp?: number;
@@ -315,12 +316,11 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
               rows={2}
               hint="{user} {xp} {gold} {xpName} {xpIcon} {goldName} {goldIcon} {streak}"
             />
-            <TextField
-              label="Announce channel ID"
+            <ChannelField
+              label="Announce channel"
               value={form.announceDailyInChannelId ?? ""}
               onChange={(v) => commit({ announceDailyInChannelId: v || null })}
-              placeholder="Leave blank to skip announcing"
-              mono
+              emptyLabel="Don't announce"
             />
             <TextAreaField
               label="Announce message"
@@ -342,12 +342,11 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
             onChange={(v) => commit({ streakMultiplier: v })}
             hint="Added per streak day — 0.1 is +10% a day."
           />
-          <TextField
-            label="Announce channel ID"
+          <ChannelField
+            label="Announce channel"
             value={form.streakAnnounceChannelId ?? ""}
             onChange={(v) => commit({ streakAnnounceChannelId: v || null })}
-            placeholder="Optional"
-            mono
+            emptyLabel="Don't announce"
           />
           <TextAreaField
             label="Announce message"
@@ -397,14 +396,13 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
                 min={0}
                 onChange={(v) => patchMap<"streakRewards", StreakReward>("streakRewards", id, { goldBonus: v })}
               />
-              <TextField
-                label="Channel ID"
+              <ChannelField
+                label="Channel"
                 value={reward.channelId ?? ""}
                 onChange={(v) =>
                   patchMap<"streakRewards", StreakReward>("streakRewards", id, { channelId: v || null })
                 }
-                placeholder="Defaults to the streak channel"
-                mono
+                emptyLabel="Streak channel (default)"
               />
               <TextField
                 label="Custom message"

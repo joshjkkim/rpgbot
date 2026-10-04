@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/auth";
-import { requireGuildOwner } from "@/app/lib/discord";
+import { fetchGuildMeta, requireGuildOwner } from "@/app/lib/discord";
+import { GuildMetaProvider } from "@/app/components/ui/pickers";
 import { dbQuery } from "@/app/lib/db";
 import Sidebar from "@/app/components/sidebar/sidebar";
 
@@ -23,10 +24,13 @@ export default async function GuildLayout({ children, params }: { children: Reac
         redirect("/dashboard");
     }
 
-    const res = await dbQuery<{ name: string | null; icon_url: string | null }>(
-        `SELECT name, icon_url FROM guilds WHERE discord_guild_id = $1`,
-        [guildId]
-    );
+    const [res, meta] = await Promise.all([
+        dbQuery<{ name: string | null; icon_url: string | null }>(
+            `SELECT name, icon_url FROM guilds WHERE discord_guild_id = $1`,
+            [guildId]
+        ),
+        fetchGuildMeta(guildId),
+    ]);
     const guild = res.rows[0] ?? null;
 
     return (
@@ -36,7 +40,7 @@ export default async function GuildLayout({ children, params }: { children: Reac
                 guildName={guild?.name ?? null}
                 guildIconUrl={guild?.icon_url ?? null}
             />
-            <main className="p-8">{children}</main>
+            <main className="p-8"><GuildMetaProvider value={meta}>{children}</GuildMetaProvider></main>
         </div>
     );
 }

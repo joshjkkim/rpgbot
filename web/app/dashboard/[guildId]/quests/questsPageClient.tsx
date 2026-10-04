@@ -23,6 +23,7 @@ export default function QuestsPageClient({ guildId }: { guildId: string }) {
       {config && (
         <QuestsBasicsEditor
           value={quests}
+          shopItems={config.shop?.items ?? {}}
           onChange={(next: any) => setConfig((prev: any) => ({ ...prev, quests: next }))}
         />
       )}

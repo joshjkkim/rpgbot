@@ -20,6 +20,7 @@ import {
   suggestedCurveParams,
   type CurveType,
 } from "@/app/lib/levelCurve";
+import { ChannelField, RoleField } from "@/app/components/ui/pickers";
 
 export interface LevelAction {
   type: "assignRole" | "removeRole" | "sendMessage";
@@ -142,12 +143,11 @@ export default function LevelsEditor({ value, onChange }: Props) {
             onChange={(v) => updateRoot({ maxLevel: v > 0 ? v : null })}
             hint="0 means no cap."
           />
-          <TextField
-            label="Announce channel ID"
+          <ChannelField
+            label="Announce channel"
             value={local.announceLevelUpInChannelId ?? ""}
             onChange={(v) => updateRoot({ announceLevelUpInChannelId: v.trim() || null })}
-            placeholder="Leave blank to reply in place"
-            mono
+            emptyLabel="Don't announce"
           />
           <TextAreaField
             label="Level-up message"
@@ -289,8 +289,8 @@ export default function LevelsEditor({ value, onChange }: Props) {
                     />
 
                     {(action.type === "assignRole" || action.type === "removeRole") && (
-                      <TextField
-                        label="Role ID"
+                      <RoleField
+                        label="Role"
                         value={action.roleId ?? ""}
                         onChange={(v) =>
                           setLevelActions(
@@ -298,14 +298,13 @@ export default function LevelsEditor({ value, onChange }: Props) {
                             actions.map((a, i) => (i === index ? { ...a, roleId: v } : a))
                           )
                         }
-                        mono
                       />
                     )}
 
                     {action.type === "sendMessage" && (
                       <>
-                        <TextField
-                          label="Channel ID"
+                        <ChannelField
+                          label="Channel"
                           value={action.channelId ?? ""}
                           onChange={(v) =>
                             setLevelActions(
@@ -313,8 +312,7 @@ export default function LevelsEditor({ value, onChange }: Props) {
                               actions.map((a, i) => (i === index ? { ...a, channelId: v } : a))
                             )
                           }
-                          placeholder="Defaults to the announce channel"
-                          mono
+                          emptyLabel="Announce channel (default)"
                         />
                         <TextField
                           wide

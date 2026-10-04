@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Field, FieldGrid, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
+import { Field, FieldGrid, Section, SelectField, Toggle } from "@/app/components/ui/form";
+import { ChannelField } from "@/app/components/ui/pickers";
 
 export type EventCategory =
   | "economy"
@@ -92,12 +93,11 @@ export default function LoggingEditor({ value, onChange }: Props) {
           onChange={(v) => updateRoot({ enabled: v })}
         />
         <div className="mt-4">
-          <TextField
-            label="Main channel ID"
+          <ChannelField
+            label="Main channel"
             value={local.mainChannelId ?? ""}
             onChange={(v) => updateRoot({ mainChannelId: v.trim() || null })}
-            placeholder="Leave blank for none"
-            mono
+            emptyLabel="None"
             hint="Categories set to “Use main channel” are sent here."
           />
         </div>
@@ -136,13 +136,12 @@ export default function LoggingEditor({ value, onChange }: Props) {
                   />
 
                   {mode === "override" && (
-                    <TextField
+                    <ChannelField
                       wide
-                      label="Channel ID"
+                      label="Channel"
                       value={typeof v === "string" ? v : ""}
                       onChange={(next) => setCategoryValue(key, next)}
-                      placeholder="Blank falls back to the main channel"
-                      mono
+                      emptyLabel="Main channel (default)"
                     />
                   )}
                 </FieldGrid>

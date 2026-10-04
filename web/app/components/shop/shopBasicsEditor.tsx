@@ -14,6 +14,7 @@ import {
   Toggle,
 } from "@/app/components/ui/form";
 import ItemTooltip, { RARITIES, type ItemRarity } from "./itemTooltip";
+import { ChannelField, ItemField, RoleField, RolesField } from "@/app/components/ui/pickers";
 
 type EquipSlot =
   | "head" | "body" | "legs" | "feet" | "hands"
@@ -269,12 +270,11 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
               min={0}
               onChange={(v) => updateGifting({ levelReq: v })}
             />
-            <TextField
-              label="Gift announce channel ID"
+            <ChannelField
+              label="Gift announce channel"
               value={local.gifting?.announceChannel ?? ""}
               onChange={(v) => updateGifting({ announceChannel: v.trim() || null })}
-              placeholder="Leave blank to skip announcing"
-              mono
+              emptyLabel="Don't announce"
             />
             <TextAreaField
               label="Gift message"
@@ -323,12 +323,10 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                   value={category.sortOrder ?? 0}
                   onChange={(v) => upsertCategory({ ...category, sortOrder: v })}
                 />
-                <TextField
-                  label="Required role IDs"
-                  value={toCsv(category.roleRequiredIds)}
-                  onChange={(v) => upsertCategory({ ...category, roleRequiredIds: fromCsv(v) })}
-                  placeholder="Comma-separated, blank for anyone"
-                  mono
+                <RolesField
+                  label="Required roles"
+                  value={category.roleRequiredIds ?? []}
+                  onChange={(v) => upsertCategory({ ...category, roleRequiredIds: v })}
                 />
                 <TextAreaField
                   label="Description"
@@ -444,13 +442,11 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                         onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
                         hint="0 means no cap."
                       />
-                      <TextField
+                      <RolesField
                         wide
-                        label="Required role IDs"
-                        value={toCsv(item.requiresRoleIds)}
-                        onChange={(v) => upsertItem({ ...item, requiresRoleIds: fromCsv(v) })}
-                        placeholder="Comma-separated, blank for anyone"
-                        mono
+                        label="Required roles"
+                        value={item.requiresRoleIds ?? []}
+                        onChange={(v) => upsertItem({ ...item, requiresRoleIds: v })}
                       />
                     </FieldGrid>
                   </Field>
@@ -616,21 +612,19 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                               />
 
                               {(action.type === "assignRole" || action.type === "removeRole") && (
-                                <TextField
-                                  label="Role ID"
+                                <RoleField
+                                  label="Role"
                                   value={action.roleId ?? ""}
                                   onChange={(v) => patch({ roleId: v })}
-                                  mono
                                 />
                               )}
 
                               {action.type === "sendMessage" && (
                                 <>
-                                  <TextField
-                                    label="Channel ID"
+                                  <ChannelField
+                                    label="Channel"
                                     value={action.channelId ?? ""}
                                     onChange={(v) => patch({ channelId: v })}
-                                    mono
                                   />
                                   <TextField
                                     wide
@@ -660,11 +654,10 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
 
                               {action.type === "giveItem" && (
                                 <>
-                                  <TextField
-                                    label="Item ID"
+                                  <ItemField items={local.items ?? {}}
+                                    label="Item"
                                     value={action.itemId ?? ""}
                                     onChange={(v) => patch({ itemId: v })}
-                                    mono
                                   />
                                   <NumberField
                                     label="Quantity"

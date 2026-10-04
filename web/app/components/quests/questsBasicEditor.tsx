@@ -13,6 +13,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
 
 export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim";
 
@@ -57,6 +58,8 @@ export type QuestsConfig = {
 };
 
 type Props = {
+  /** Shop items, so item fields can be dropdowns. */
+  shopItems: Record<string, { name?: string; emoji?: string }>;
   value: QuestsConfig | null | undefined;
   onChange: (next: QuestsConfig) => void;
 };
@@ -109,7 +112,7 @@ function normalizeQuests(raw: Record<string, any> | undefined): Record<string, Q
   return out;
 }
 
-export default function QuestsBasicEditor({ value, onChange }: Props) {
+export default function QuestsBasicEditor({ value, onChange, shopItems }: Props) {
   const [local, setLocal] = useState<QuestsConfig>(() => ({
     ...(value ?? {}),
     quests: normalizeQuests(value?.quests),
@@ -167,12 +170,11 @@ export default function QuestsBasicEditor({ value, onChange }: Props) {
 
         <div className="mt-4">
           <FieldGrid>
-            <TextField
-              label="Announce channel ID"
+            <ChannelField
+              label="Announce channel"
               value={local.announceAllId ?? ""}
               onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
-              placeholder="Leave blank to skip announcing"
-              mono
+              emptyLabel="Don't announce"
             />
             <TextField
               label="Announce message"
@@ -285,12 +287,11 @@ export default function QuestsBasicEditor({ value, onChange }: Props) {
                     />
                   )}
 
-                  <TextField
-                    label="Override channel ID"
+                  <ChannelField
+                    label="Override channel"
                     value={quest.overrideChannelId ?? ""}
                     onChange={(v) => upsertQuest({ ...quest, overrideChannelId: v.trim() || null })}
-                    placeholder="Defaults to the announce channel"
-                    mono
+                    emptyLabel="Announce channel (default)"
                   />
                   <TextField
                     label="Completion message"
@@ -349,12 +350,11 @@ export default function QuestsBasicEditor({ value, onChange }: Props) {
                               min={0}
                               onChange={(v) => patch({ gold: v || undefined })}
                             />
-                            <TextField
-                              label="Item ID"
+                            <ItemField items={shopItems}
+                              label="Item"
                               value={reward.itemId ?? ""}
                               onChange={(v) => patch({ itemId: v || undefined })}
-                              placeholder="Must exist in the shop"
-                              mono
+                              emptyLabel="Choose an item"
                             />
                             <NumberField
                               label="Quantity"
@@ -362,17 +362,15 @@ export default function QuestsBasicEditor({ value, onChange }: Props) {
                               min={1}
                               onChange={(v) => patch({ quantity: v })}
                             />
-                            <TextField
-                              label="Role ID"
+                            <RoleField
+                              label="Role"
                               value={reward.roleId ?? ""}
                               onChange={(v) => patch({ roleId: v || undefined })}
-                              mono
                             />
-                            <TextField
-                              label="Message channel ID"
+                            <ChannelField
+                              label="Message channel"
                               value={reward.channelId ?? ""}
                               onChange={(v) => patch({ channelId: v || undefined })}
-                              mono
                             />
                             <TextField
                               wide
