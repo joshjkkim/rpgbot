@@ -305,9 +305,15 @@ export function KeyedList<T>({
   empty,
   itemLabel,
   renderItem,
+  addOptions,
 }: {
   entries: Array<[string, T]>;
   addPlaceholder: string;
+  /**
+   * Choices for the key (channels, roles). When given, adding is a dropdown
+   * instead of a typed ID, and entries are labelled by name.
+   */
+  addOptions?: ReadonlyArray<{ id: string; name: string }> | null;
   addLabel?: string;
   /** Given the key typed by the user; the caller builds the default entry. */
   onAdd: (key: string) => void;
@@ -328,19 +334,30 @@ export function KeyedList<T>({
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input
-          type="text"
-          value={draft}
-          placeholder={addPlaceholder}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add();
-            }
-          }}
-          className={`${inputClass} font-mono`}
-        />
+        {addOptions ? (
+          <select value={draft} onChange={(e) => setDraft(e.target.value)} className={inputClass}>
+            <option value="">{addPlaceholder.replace(/ ID$/, "")}…</option>
+            {addOptions
+              .filter((o) => !entries.some(([key]) => key === o.id))
+              .map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={draft}
+            placeholder={addPlaceholder}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+            className={`${inputClass} font-mono`}
+          />
+        )}
         <button
           type="button"
           onClick={add}
@@ -362,7 +379,9 @@ export function KeyedList<T>({
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="truncate text-sm font-medium">
-                  {itemLabel ? itemLabel(key, value) : <span className="font-mono">{key}</span>}
+                  {itemLabel ? itemLabel(key, value)
+                    : addOptions ? (addOptions.find((o) => o.id === key)?.name ?? <span className="font-mono">Unknown ({key})</span>)
+                    : <span className="font-mono">{key}</span>}
                 </span>
                 <button
                   type="button"

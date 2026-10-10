@@ -10,7 +10,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
-import { ChannelField } from "@/app/components/ui/pickers";
+import { ChannelField, useChannelOptions, useRoleOptions } from "@/app/components/ui/pickers";
 
 type RoleXpConfig = {
   extraXp?: number;
@@ -137,6 +137,9 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
   });
 
   const [form, setForm] = useState(() => read(xp));
+  const channelOptions = useChannelOptions();
+  const voiceOptions = useChannelOptions(true);
+  const roleOptions = useRoleOptions();
 
   useEffect(() => {
     setForm(read(value ?? {}));
@@ -224,6 +227,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         <KeyedList<XpChannelConfig>
           entries={Object.entries(form.xpChannelIds)}
           addPlaceholder="Channel ID"
+          addOptions={channelOptions}
           addLabel="Add channel"
           empty="No channel overrides. Every channel uses the base rate."
           onAdd={(channelId) =>
@@ -421,6 +425,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         <KeyedList<RoleXpConfig>
           entries={Object.entries(form.roleXp)}
           addPlaceholder="Role ID"
+          addOptions={roleOptions}
           addLabel="Add role"
           empty="No role bonuses configured."
           onAdd={(roleId) =>
@@ -458,6 +463,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         <KeyedList<RoleDailyBonusConfig>
           entries={Object.entries(form.roleDailyBonus)}
           addPlaceholder="Role ID"
+          addOptions={roleOptions}
           addLabel="Add role"
           empty="No role daily bonuses configured."
           onAdd={(roleId) =>
@@ -505,6 +511,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         <KeyedList<RoleTempConfig>
           entries={Object.entries(form.roleTemp)}
           addPlaceholder="Role ID"
+          addOptions={roleOptions}
           addLabel="Add role"
           empty="No temporary roles configured."
           onAdd={(roleId) =>
@@ -567,6 +574,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         <KeyedList<VcChannelConfig>
           entries={Object.entries(form.vcChannelIds)}
           addPlaceholder="Voice channel ID"
+          addOptions={voiceOptions}
           addLabel="Add channel"
           empty="No voice channel overrides."
           onAdd={(channelId) =>
@@ -618,6 +626,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         <KeyedList<VcRoleBonusConfig>
           entries={Object.entries(form.vcRoleXpBonus)}
           addPlaceholder="Role ID"
+          addOptions={roleOptions}
           addLabel="Add role"
           empty="No voice role bonuses configured."
           onAdd={(roleId) =>
