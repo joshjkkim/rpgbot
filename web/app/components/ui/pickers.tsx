@@ -55,19 +55,27 @@ function Picker({
   );
 }
 
-export function ChannelField({ voice, ...props }: PickerProps & { voice?: boolean }) {
+/** The server's text (or voice) channels as picker options; null when unavailable. */
+export function useChannelOptions(voice?: boolean) {
   const meta = useContext(GuildMetaContext);
   const types = voice ? VOICE_TYPES : TEXT_TYPES;
-  const options = meta?.channels
+  return meta?.channels
     .filter((c) => types.has(c.type))
     .map((c) => ({ id: c.id, name: voice ? `🔊 ${c.name}` : `#${c.name}` })) ?? null;
-  return <Picker {...props} options={options} unknownLabel="Channel" />;
+}
+
+/** The server's roles as picker options; null when unavailable. */
+export function useRoleOptions() {
+  const meta = useContext(GuildMetaContext);
+  return meta?.roles.map((r) => ({ id: r.id, name: `@${r.name}` })) ?? null;
+}
+
+export function ChannelField({ voice, ...props }: PickerProps & { voice?: boolean }) {
+  return <Picker {...props} options={useChannelOptions(voice)} unknownLabel="Channel" />;
 }
 
 export function RoleField(props: PickerProps) {
-  const meta = useContext(GuildMetaContext);
-  const options = meta?.roles.map((r) => ({ id: r.id, name: `@${r.name}` })) ?? null;
-  return <Picker {...props} options={options} unknownLabel="Role" />;
+  return <Picker {...props} options={useRoleOptions()} unknownLabel="Role" />;
 }
 
 /** Shop items by name. Needs no Discord access: the items come from the config. */
