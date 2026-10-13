@@ -3,6 +3,7 @@ import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { addMessageXp, grantDailyXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { maybeSpawnEncounter } from "../player/encounters.js";
+import { maybeSpawnBoss } from "../player/bosses.js";
 
 export function registerMessageCreate(client: Client) {
   client.on(Events.MessageCreate, async (message) => {
@@ -43,6 +44,8 @@ export function registerMessageCreate(client: Client) {
       if (gave) {
         await maybeSpawnEncounter(message, config, profile.level ?? 1)
           .catch((err) => console.error("Encounter spawn failed:", err));
+        await maybeSpawnBoss(message, config)
+          .catch((err) => console.error("Boss spawn failed:", err));
       }
 
       let granted = false;

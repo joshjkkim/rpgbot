@@ -30,6 +30,12 @@ export interface EnemyConfig {
     xpReward: number;
     goldReward: number;
     drops: EnemyDrop[];
+
+    /**
+     * A world boss: fought by the whole server at once (player/bosses.ts), never
+     * by /fight or random encounters. Its XP and gold are the pool split by damage.
+     */
+    boss?: boolean;
 }
 
 // ─── In-memory fight state ────────────────────────────────────────────────────

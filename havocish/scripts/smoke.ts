@@ -25,7 +25,7 @@ import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trad
 import { updateInventory, sellItemFromInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
-import { startFight, applyAction, applyFightRewards } from "../src/player/fight.js";
+import { startFight, applyAction, applyFightRewards, clearActiveFight } from "../src/player/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
 import { databaseUrlProblem } from "../src/env.js";
@@ -34,6 +34,7 @@ import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
+import { handleBossButton, liveBoss, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1441,6 +1442,56 @@ async function main() {
         check("the other is turned away", replies.length, 1);
         await click();
         check("a late click finds it gone", replies.length, 2);
+    });
+
+    await test("world bosses split rewards by damage and fall exactly once", async () => {
+        const boss = {
+            id: "dragon", name: "Dragon", emoji: "🐉", hp: 30, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+            minLevel: 0, maxLevel: null, xpReward: 1000, goldReward: 200, boss: true,
+            drops: [{ itemId: "scale", chance: 0.5, quantity: 1 }],
+        };
+        const fighters = new Map([
+            ["a", { username: "a", damage: 90, taken: 0, hits: 3 }],
+            ["b", { username: "b", damage: 10, taken: 0, hits: 1 }],
+            ["c", { username: "c", damage: 0.1, taken: 0, hits: 1 }],
+        ]);
+        const pay = Object.fromEntries(splitBossRewards(boss, fighters, () => 0.1).map(p => [p.discordUserId, p]));
+        check("most damage, most XP", pay.a?.xp, 899);
+        check("a share of the gold", pay.b?.gold, 20);
+        check("a single hit still pays the floor", pay.c?.xp, 50);
+        check("only the top damage dealer rolls drops", `${pay.a?.drops.length}/${pay.b?.drops.length}`, "1/0");
+
+        // A live boss: two clicks attack at once with a cooldown in place. The
+        // encounter test above left this member mid-fight, which blocks attacking.
+        const { userId, guildId, config } = await reset();
+        clearActiveFight(TEST_DISCORD_USER, TEST_DISCORD_GUILD);
+        const xpBefore = BigInt((await getOrCreateProfile({ userId, guildId })).profile.xp);
+        config.combat.enabled = true;
+        config.combat.enemies = { dragon: boss };
+        config.combat.bosses = { attackCooldownSeconds: 60 };
+        await setGuildConfig(TEST_DISCORD_GUILD, config);
+        guildConfigCache.clear();
+
+        const edits: unknown[] = [];
+        const channel = { send: async () => ({ id: "boss-1", edit: async (p: unknown) => { edits.push(p); return null; } }) } as any;
+        const live = await spawnBoss(channel, TEST_DISCORD_GUILD, config, { ...boss, hp: 1 });
+        const replies: string[] = [];
+        const attack = () => handleBossButton({
+            inCachedGuild: () => true,
+            message: { id: "boss-1" },
+            user: { id: TEST_DISCORD_USER, username: "smoke-test", displayAvatarURL: () => "" },
+            member: { displayName: "smoke-test" },
+            guildId: TEST_DISCORD_GUILD,
+            reply: async (p: { content: string }) => { replies.push(p.content); },
+        } as any);
+        await Promise.all([attack(), attack()]);
+        check("one killing blow", replies.filter(r => r.includes("killing blow")).length, 1);
+        check("the other click is held back", replies.length, 2);
+        check("the boss is gone", liveBoss(TEST_DISCORD_GUILD), null);
+        check("the message shows it fell", JSON.stringify(edits.at(-1)).includes("has fallen"), true);
+        check("the fighter's damage counted", live.fighters.get(TEST_DISCORD_USER)?.damage, 1);
+        const xpAfter = BigInt((await getOrCreateProfile({ userId, guildId })).profile.xp);
+        check("the whole pool went to the only fighter", (xpAfter - xpBefore).toString(), "1000");
     });
 
     console.log(`\n${"─".repeat(60)}`);

@@ -230,6 +230,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     if (enemyIdOpt) {
         enemy = config.combat.enemies?.[enemyIdOpt] ?? null;
+        if (enemy?.boss) {
+            await interaction.reply({
+                content: `**${enemy.emoji} ${enemy.name}** is a world boss. It takes the whole server, and only appears as a boss.`,
+                flags: MessageFlags.Ephemeral,
+            });
+            return;
+        }
         if (!enemy) {
             await interaction.reply({
                 content: `No enemy found with ID \`${enemyIdOpt}\`. Use \`/config-enemy show\` to see available enemies.`,

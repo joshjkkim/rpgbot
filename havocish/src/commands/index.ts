@@ -28,6 +28,7 @@ import * as configCombat from "./admin/configCombat.js"
 import * as configEnemy from "./admin/configEnemy.js"
 import * as fight from "./user/fight.js"
 import * as duel from "./user/duel.js"
+import * as boss from "./user/boss.js"
 
 export const commandList = [
     daily.data,
@@ -60,6 +61,7 @@ export const commandList = [
     configEnemy.data,
     fight.data,
     duel.data,
+    boss.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -93,4 +95,5 @@ export const commands = new Map<string, any>([
     [configEnemy.data.name, configEnemy],
     [fight.data.name, fight],
     [duel.data.name, duel],
+    [boss.data.name, boss],
 ])
