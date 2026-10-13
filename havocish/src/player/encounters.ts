@@ -2,6 +2,7 @@ import type { ButtonInteraction, ColorResolvable, Message } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from "discord.js";
 import type { EnemyConfig } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
+import { canPost } from "./canPost.js";
 import { pickRandomEnemy, startFight } from "./fight.js";
 import { buildActionRow, buildStartEmbed, readyToFight } from "../commands/user/fight.js";
 
@@ -36,7 +37,7 @@ export async function maybeSpawnEncounter(message: Message<true>, config: GuildC
 
     // Matched to whoever's chatting, so the enemy suits the people likely to be around.
     const enemy = pickRandomEnemy(config, authorLevel);
-    if (!enemy || !message.channel.isSendable()) return;
+    if (!enemy || !canPost(message)) return;
     lastSpawnAt.set(message.guildId, now);
 
     const fleeSeconds = enc.fleeSeconds ?? DEFAULTS.fleeSeconds;

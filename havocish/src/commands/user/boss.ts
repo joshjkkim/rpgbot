@@ -40,7 +40,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             : "There are no world bosses yet. Mark an enemy as a world boss on the dashboard (Combat → Enemies).");
     }
     if (!enemy.boss) return void await fail(`**${enemy.emoji} ${enemy.name}** isn't a world boss. Mark it as one on the dashboard first.`);
-    if (!interaction.channel?.isSendable()) return void await fail("I can't post in this channel.");
+    // Replying to a command needs no channel permissions; posting the boss does.
+    const needed = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks];
+    if (!interaction.channel?.isSendable() || !interaction.appPermissions.has(needed)) {
+        return void await fail("I can't post here. Give the havocish role **View Channel**, **Send Messages** and **Embed Links** in this channel, then try again.");
+    }
 
     await interaction.reply({ content: `Summoning **${enemy.emoji} ${enemy.name}**…`, flags: MessageFlags.Ephemeral });
     await spawnBoss(interaction.channel, interaction.guildId, config, enemy);

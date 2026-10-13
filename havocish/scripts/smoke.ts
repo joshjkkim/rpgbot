@@ -1404,14 +1404,18 @@ async function main() {
         guildConfigCache.clear();
 
         const sent: unknown[] = [];
-        const message = (guildId: string, channelId: string) => ({
+        const message = (guildId: string, channelId: string, canSend = true) => ({
             guildId, channelId,
+            guild: { members: { me: {} } },
             channel: {
                 isSendable: () => true,
+                permissionsFor: () => ({ has: () => canSend }),
                 send: async (payload: unknown) => { sent.push(payload); return { id: `enc-${sent.length}`, edit: async () => null }; },
             },
         }) as any;
 
+        await maybeSpawnEncounter(message(TEST_DISCORD_GUILD, "c1", false), config, 1);
+        check("a channel the bot can't post in is skipped", sent.length, 0);
         await maybeSpawnEncounter(message(TEST_DISCORD_GUILD, "c1"), config, 1);
         check("a 100% roll spawns", sent.length, 1);
         await maybeSpawnEncounter(message(TEST_DISCORD_GUILD, "c1"), config, 1);
