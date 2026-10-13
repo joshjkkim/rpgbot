@@ -1,62 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeftRight,
-  Flame,
-  IdCard,
-  ScrollText,
-  Sparkles,
-  Store,
-  Swords,
-  TrendingUp,
-} from "lucide-react";
 import { inviteUrl } from "./lib/invite";
+import { FIREFLIES, SCENE, STARS, WINDOWS } from "./scene";
+import { FLAME_FRAMES, PALETTE, SPRITES, type SpriteName } from "./sprites";
 
-const FEATURES = [
+// Real output from the bot's renderers, shown at the size Discord shows them (`show`, in px).
+const SHOWCASE = [
   {
-    icon: Sparkles,
-    title: "XP that fits your server",
-    body: "Earn XP from messages and time in voice. Per-channel multipliers, flat bonuses and cooldown overrides, plus role-based rates for boosters and staff.",
+    src: "/showcase/profile.png", w: 1100, h: 420, show: 560,
+    title: "Every member gets a character",
+    body: "/profile draws a card with their level, gold and streak, in your server's colours and currency names.",
   },
   {
-    icon: TrendingUp,
-    title: "Levels with real rewards",
-    body: "Four progression curves, per-level XP overrides, and actions that fire on level-up — assign a role, strip a role, or announce it in a channel you pick.",
+    src: "/showcase/levelup.png", w: 1120, h: 280, show: 560,
+    title: "Level-ups people notice",
+    body: "Chatting, voice, fights and quests all give XP. Each level-up posts a banner, and can hand out a role.",
   },
   {
-    icon: Flame,
-    title: "Dailies and streaks",
-    body: "Daily XP and gold with a streak multiplier that compounds, and milestone rewards at whatever day counts you choose.",
-  },
-  {
-    icon: Store,
-    title: "A shop worth spending in",
-    body: "Categories, stock limits, per-user caps, role and level gates. Items can grant roles, restore health, hand out stats, or give other items.",
-  },
-  {
-    icon: Swords,
-    title: "Equipment and combat",
-    body: "Nine equipment slots feeding HP, attack, defence, speed and crit. Turn-based fights against enemies you define, plus wagered duels between members — with a rake you set.",
-  },
-  {
-    icon: ArrowLeftRight,
-    title: "Trading and gifting",
-    body: "Players swap items and gold through offers that are re-checked at accept time, so nothing duplicates and nothing oversells.",
-  },
-  {
-    icon: ScrollText,
-    title: "Quests and achievements",
-    body: "Objectives that track message, XP, daily and combat activity, with cooldowns, repeatability, and rewards that announce where you want them.",
-  },
-  {
-    icon: IdCard,
-    title: "Profile cards",
-    body: "Rendered profile images with progress bars, equipment, combat stats and your server's own colours, icons and currency names.",
+    src: "/showcase/item.png", w: 840, h: 432, show: 360,
+    title: "Gear you design",
+    body: "Stock the shop with your own weapons, armour and potions. Members buy, equip, trade and sell them.",
   },
 ];
+
+const ALSO: Array<[SpriteName, string]> = [
+  ["skull", "Turn-based fights against enemies you write"],
+  ["swords", "Duels between members, with gold on the line"],
+  ["scroll", "Quests and achievements with custom rewards"],
+  ["coin", "Daily rewards with streak bonuses"],
+  ["chest", "Trading and gifting between players"],
+  ["potion", "Per-channel and per-role XP rates"],
+];
+
+/** Character-grid pixel art as SVG rects; see sprites.ts. */
+function Pixels({ grid, x = 0, y = 0 }: { grid: string[]; x?: number; y?: number }) {
+  return grid.flatMap((row, py) =>
+    [...row].map((ch, px) =>
+      ch === "." ? null : <rect key={`${px},${py}`} x={x + px} y={y + py} width={1} height={1} fill={PALETTE[ch]} />,
+    ),
+  );
+}
+
+function Sprite({ name, size = 36 }: { name: SpriteName; size?: number }) {
+  return (
+    <svg viewBox="0 0 12 12" width={size} height={size} shapeRendering="crispEdges" aria-hidden className="shrink-0">
+      <Pixels grid={SPRITES[name]} />
+    </svg>
+  );
+}
+
+// The campfire scene's size and where its fire sits, matching public/campfire.png.
+const CAMP = { w: 320, h: 90, fireX: 160, ground: 70 };
 
 const primaryButton = "btn";
 const ghostButton = "btn btn-stone";
@@ -70,9 +66,8 @@ function afterSignIn() {
 function Wordmark() {
   return (
     <span className="flex items-center gap-2.5 font-display text-xl text-[var(--gold)] [text-shadow:0_1px_0_#000]">
-      <span className="slot h-8 w-8">
-        <Swords size={16} />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a 64px pixel-art PNG */}
+      <img src="/logo.png" alt="" width={32} height={32} className="[image-rendering:pixelated]" />
       havocish
     </span>
   );
@@ -107,111 +102,52 @@ function Header() {
   );
 }
 
-// Chat channel and item quality colours, muted to sit with the rest of the page.
-const SYSTEM = "text-[#d6c77a]";
-const GUILD = "text-[#8fc27a]";
-const DUEL = "text-[#d19a5b]";
-const UNCOMMON = "text-[#7fb86a]";
-const RARE = "text-[#6c95d0]";
-const EPIC = "text-[#a584cc]";
-const NAMED = "text-[var(--gold)]";
-
-/** Each line is [text, colour?] runs; the line's own colour covers uncoloured runs. */
-const FEED: Array<{ tone: string; parts: Array<[string, string?]> }> = [
-  { tone: SYSTEM, parts: [["Aria has reached level 12!"]] },
-  { tone: GUILD, parts: [["[Guild] Brakka: anyone up for a dungeon run?"]] },
-  { tone: "", parts: [["Tovin receives loot: "], ["[Ironbark Maul]", RARE], ["."]] },
-  { tone: SYSTEM, parts: [["Mirelle has earned the achievement "], ["[Chatterbox]", NAMED], ["!"]] },
-  { tone: DUEL, parts: [["Osric has defeated Brakka in a duel. 50 gold changes hands."]] },
-  { tone: SYSTEM, parts: [["Quest complete: "], ["[Daily: Say Something]", NAMED], [". +120 XP"]] },
-  { tone: "", parts: [["Wren buys "], ["[Minor Healing Draught]", UNCOMMON], [" for 25 gold."]] },
-  { tone: GUILD, parts: [["[Guild] Aria: day 7 of the streak, not breaking it now"]] },
-  { tone: "", parts: [["Brakka trades "], ["[Cloak of the Wandering Fox]", EPIC], [" to Wren."]] },
-  { tone: SYSTEM, parts: [["Tovin has reached level 20 and is now a Veteran!"]] },
-];
-
-const VISIBLE_LINES = 9;
-
-/**
- * An MMO chat frame with server life scrolling past -- levels, loot, duels,
- * quests and trades. Decorative: the feature list below says the same in words.
- */
-function WorldFeed() {
-  // Starts at a fixed offset so the server render and the first client render agree.
-  const [start, setStart] = useState(0);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setStart((s) => s + 1), 2400);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="frame mx-auto w-full max-w-md text-left">
-      <div className="flex items-end gap-1 border-b border-[var(--border)] px-3 pt-2">
-        {["General", "Guild", "Loot"].map((tab, i) => (
-          <span
-            key={tab}
-            className={`rounded-t-sm border border-b-0 px-2.5 py-1 font-display text-xs ${
-              i === 0
-                ? "border-[var(--border-bright)] bg-black/40 text-[var(--gold)]"
-                : "border-transparent text-[var(--muted)]"
-            }`}
-          >
-            {tab}
-          </span>
-        ))}
-        <span className="ml-auto pb-1.5 text-[11px] text-[var(--muted)]">Tavern of Legends</span>
-      </div>
-
-      <ul
-        aria-hidden
-        className="flex h-56 flex-col justify-end overflow-hidden bg-black/35 px-3 py-2 text-[13px] leading-6 [text-shadow:0_1px_0_#000]"
-      >
-        {Array.from({ length: VISIBLE_LINES }, (_, i) => start + i).map((n) => {
-          const line = FEED[n % FEED.length];
-          return (
-            // Keyed by position in the endless stream, so only the newest line mounts and animates.
-            <li key={n} className={`feed-line ${line.tone}`}>
-              {line.parts.map(([text, colour], j) => (
-                <span key={j} className={colour}>
-                  {text}
-                </span>
-              ))}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 export default function Home() {
   const { data: session } = useSession();
   const invite = inviteUrl();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    // The page is the ground below the hero's cliff: it starts at the scene's foreground
+    // colour and darkens to the campfire's ground, so scrolling reads as one landscape.
+    <div className="min-h-screen flex flex-col bg-[linear-gradient(#0f0b0e,#0a0807)]">
       <Header />
 
       <main className="flex-1">
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-14 pb-20 lg:grid-cols-[1.1fr_1fr] lg:pt-20">
-          <div className="text-center lg:text-left">
-            <span className="font-display text-sm uppercase tracking-[0.2em] text-[var(--accent)]">
-              Level up your community
-            </span>
-            <h1 className="mt-4 text-4xl leading-tight sm:text-6xl">
-              Turn your Discord server into an{" "}
-              {/* A muted legendary orange. */}
-              <span className="text-[#d0894a]">RPG</span>
+        <section className="relative isolate overflow-hidden">
+          {/* Pixel-art dusk scene, drawn at 400x150 and scaled up without smoothing. The SVG
+              crops like object-cover, so the animated pixels stay on their spots in the art. */}
+          <svg
+            viewBox={`0 0 ${SCENE.w} ${SCENE.h}`} preserveAspectRatio="xMidYMax slice" aria-hidden
+            className="absolute inset-0 -z-10 h-full w-full"
+          >
+            <image href="/scene.png" width={SCENE.w} height={SCENE.h} style={{ imageRendering: "pixelated" }} />
+            {STARS.map(([x, y], i) => (
+              <rect key={`s${i}`} x={x} y={y} width={1} height={1} fill="#e9dcb4" className="scene-twinkle"
+                style={{ animationDelay: `${(i * 1.3) % 5}s`, animationDuration: `${3 + (i % 4)}s` }} />
+            ))}
+            {WINDOWS.map(([x, y], i) => (
+              <rect key={`w${i}`} x={x} y={y} width={1} height={1} fill="#e0a84a" className="scene-flicker"
+                style={{ animationDelay: `${i * 0.7}s` }} />
+            ))}
+            {FIREFLIES.map(([x, y], i) => (
+              <rect key={`f${i}`} x={x} y={y} width={1} height={1} fill={i % 2 ? "#7a5a2c" : "#c99a4a"} className="scene-firefly"
+                style={{ animationDelay: `${(i * 0.9) % 7}s`, animationDuration: `${6 + (i % 3)}s` }} />
+            ))}
+            <g transform="rotate(14 60 8)">
+              <rect x={60} y={8} width={6} height={1} fill="#efe3bd" className="scene-shooting" />
+            </g>
+          </svg>
+
+          <div className="mx-auto max-w-3xl px-6 pt-16 pb-56 text-center sm:pt-24 sm:pb-72">
+            <h1 className="text-4xl leading-tight sm:text-6xl">
+              Turn your Discord server into an RPG
             </h1>
-            <p className="mt-5 text-lg leading-relaxed text-[var(--muted)]">
-              havocish gives your members levels to climb, gold to earn and spend, gear to
-              equip and enemies to fight — and gives you a dashboard to tune every number
-              behind it, without touching a config file.
+            <p className="mt-5 text-lg leading-relaxed text-[var(--foreground)]/80 [text-shadow:0_1px_2px_#000]">
+              Your members level up by chatting, earn gold, fight enemies and collect gear.
+              You set it all up from a dashboard.
             </p>
 
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               {invite && (
                 <a href={invite} target="_blank" rel="noreferrer" className={`${primaryButton} px-5 py-2.5`}>
                   Add to Server
@@ -232,27 +168,73 @@ export default function Home() {
               </p>
             )}
           </div>
-
-          <WorldFeed />
         </section>
 
-        <section className="mx-auto max-w-6xl px-6 pb-24">
-          <h2 className="mb-6 text-center text-sm uppercase tracking-[0.2em] text-[var(--accent)]">
-            Everything a campaign needs
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="frame group p-5 transition-colors hover:border-[var(--accent)]"
-              >
-                <span className="slot h-9 w-9 transition-colors group-hover:text-[var(--gold)]">
-                  <f.icon size={18} />
-                </span>
-                <h3 className="mt-3 text-lg">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{f.body}</p>
+        <section className="mx-auto max-w-5xl space-y-16 px-6 pt-8 pb-20">
+          {SHOWCASE.map((f, i) => (
+            <div key={f.src} className="grid items-center gap-6 md:grid-cols-2 md:gap-10">
+              {/* eslint-disable-next-line @next/next/no-img-element -- static PNGs, nothing to optimise */}
+              <img
+                src={f.src} width={f.w} height={f.h} alt={f.title} loading="lazy"
+                style={{ maxWidth: f.show }}
+                className={`mx-auto h-auto w-full ${i % 2 ? "md:order-2" : ""}`}
+              />
+              <div>
+                <h2 className="text-2xl">{f.title}</h2>
+                <p className="mt-2 leading-relaxed text-[var(--muted)]">{f.body}</p>
               </div>
+            </div>
+          ))}
+        </section>
+
+        <section className="mx-auto max-w-5xl px-6 pb-16">
+          <h2 className="text-2xl">Also in the box</h2>
+          <ul className="mt-6 grid gap-x-10 gap-y-4 text-[var(--muted)] sm:grid-cols-2">
+            {ALSO.map(([sprite, line]) => (
+              <li key={line} className="flex items-center gap-4">
+                <Sprite name={sprite} />
+                {line}
+              </li>
             ))}
+          </ul>
+        </section>
+
+        {/* The page ends at a campfire, answering the castle at the top. */}
+        <section className="relative isolate overflow-hidden">
+          <svg
+            viewBox={`0 0 ${CAMP.w} ${CAMP.h}`} preserveAspectRatio="xMidYMax slice" aria-hidden
+            className="absolute inset-0 -z-10 h-full w-full"
+          >
+            <image href="/campfire.png" width={CAMP.w} height={CAMP.h} style={{ imageRendering: "pixelated" }} />
+            {FLAME_FRAMES.map((grid, i) => (
+              <g key={i} className="scene-flame" style={{ animationDelay: `${(i * 0.45).toFixed(2)}s` }}>
+                <Pixels grid={grid} x={CAMP.fireX - 3} y={CAMP.ground - 12} />
+              </g>
+            ))}
+            {[0, 1, 2, 3, 4].map((i) => (
+              <rect key={i} x={CAMP.fireX - 2 + ((i * 3) % 5)} y={CAMP.ground - 13} width={1} height={1}
+                fill={i % 2 ? "#d9a441" : "#9a3b2c"} className="scene-ember"
+                style={{ animationDelay: `${i * 0.6}s` }} />
+            ))}
+          </svg>
+
+          <div className="mx-auto max-w-2xl px-6 pt-10 pb-56 text-center sm:pb-72">
+            <h2 className="text-3xl sm:text-4xl">Gather your party</h2>
+            <p className="mt-3 text-[var(--muted)]">Free to add. Set up in a few minutes.</p>
+            <div className="mt-7 flex justify-center">
+              {invite ? (
+                <a href={invite} target="_blank" rel="noreferrer" className={`${primaryButton} px-5 py-2.5`}>
+                  Add to Server
+                </a>
+              ) : (
+                <button
+                  onClick={() => (session ? (window.location.href = "/dashboard") : signIn("discord", { callbackUrl: afterSignIn() }))}
+                  className={`${primaryButton} px-5 py-2.5`}
+                >
+                  {session ? "Open dashboard" : "Sign in with Discord"}
+                </button>
+              )}
+            </div>
           </div>
         </section>
       </main>
