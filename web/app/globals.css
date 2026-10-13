@@ -211,6 +211,22 @@ body {
   100% { opacity: 0; transform: translateX(90px); }
 }
 
+/* Campfire: three flame frames take turns, embers rise and fade. */
+.scene-flame { opacity: 0; animation: scene-flame 1.35s steps(1) infinite; }
+.scene-ember { opacity: 0; animation: scene-ember 3s steps(8) infinite; }
+
+@keyframes scene-flame {
+  0% { opacity: 1; }
+  33.3%, 100% { opacity: 0; }
+}
+@keyframes scene-ember {
+  0% { opacity: 1; transform: translate(0, 0); }
+  60% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(2px, -14px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .scene-twinkle, .scene-flicker, .scene-firefly, .scene-shooting { animation: none; }
+  .scene-twinkle, .scene-flicker, .scene-firefly, .scene-shooting, .scene-ember { animation: none; }
+  .scene-flame { animation: none; }
+  .scene-flame:first-of-type { opacity: 1; }
 }

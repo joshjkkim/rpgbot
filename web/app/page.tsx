@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Swords } from "lucide-react";
 import { inviteUrl } from "./lib/invite";
 import { FIREFLIES, SCENE, STARS, WINDOWS } from "./scene";
+import { FLAME_FRAMES, PALETTE, SPRITES, type SpriteName } from "./sprites";
 
 // Real output from the bot's renderers, shown at the size Discord shows them (`show`, in px).
 const SHOWCASE = [
@@ -25,14 +26,34 @@ const SHOWCASE = [
   },
 ];
 
-const ALSO = [
-  "Turn-based fights against enemies you write",
-  "Duels between members, with gold on the line",
-  "Quests and achievements with custom rewards",
-  "Daily rewards with streak bonuses",
-  "Trading and gifting between players",
-  "Per-channel and per-role XP rates",
+const ALSO: Array<[SpriteName, string]> = [
+  ["skull", "Turn-based fights against enemies you write"],
+  ["swords", "Duels between members, with gold on the line"],
+  ["scroll", "Quests and achievements with custom rewards"],
+  ["coin", "Daily rewards with streak bonuses"],
+  ["chest", "Trading and gifting between players"],
+  ["potion", "Per-channel and per-role XP rates"],
 ];
+
+/** Character-grid pixel art as SVG rects; see sprites.ts. */
+function Pixels({ grid, x = 0, y = 0 }: { grid: string[]; x?: number; y?: number }) {
+  return grid.flatMap((row, py) =>
+    [...row].map((ch, px) =>
+      ch === "." ? null : <rect key={`${px},${py}`} x={x + px} y={y + py} width={1} height={1} fill={PALETTE[ch]} />,
+    ),
+  );
+}
+
+function Sprite({ name, size = 36 }: { name: SpriteName; size?: number }) {
+  return (
+    <svg viewBox="0 0 12 12" width={size} height={size} shapeRendering="crispEdges" aria-hidden className="shrink-0">
+      <Pixels grid={SPRITES[name]} />
+    </svg>
+  );
+}
+
+// The campfire scene's size and where its fire sits, matching public/campfire.png.
+const CAMP = { w: 320, h: 90, fireX: 160, ground: 70 };
 
 const primaryButton = "btn";
 const ghostButton = "btn btn-stone";
@@ -168,13 +189,55 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="mx-auto max-w-5xl px-6 pb-24">
+        <section className="mx-auto max-w-5xl px-6 pb-16">
           <h2 className="text-2xl">Also in the box</h2>
-          <ul className="mt-4 grid gap-x-10 gap-y-2 text-[var(--muted)] sm:grid-cols-2">
-            {ALSO.map((line) => (
-              <li key={line}>{line}</li>
+          <ul className="mt-6 grid gap-x-10 gap-y-4 text-[var(--muted)] sm:grid-cols-2">
+            {ALSO.map(([sprite, line]) => (
+              <li key={line} className="flex items-center gap-4">
+                <Sprite name={sprite} />
+                {line}
+              </li>
             ))}
           </ul>
+        </section>
+
+        {/* The page ends at a campfire, answering the castle at the top. */}
+        <section className="relative isolate overflow-hidden">
+          <svg
+            viewBox={`0 0 ${CAMP.w} ${CAMP.h}`} preserveAspectRatio="xMidYMax slice" aria-hidden
+            className="absolute inset-0 -z-10 h-full w-full"
+          >
+            <image href="/campfire.png" width={CAMP.w} height={CAMP.h} style={{ imageRendering: "pixelated" }} />
+            {FLAME_FRAMES.map((grid, i) => (
+              <g key={i} className="scene-flame" style={{ animationDelay: `${(i * 0.45).toFixed(2)}s` }}>
+                <Pixels grid={grid} x={CAMP.fireX - 3} y={CAMP.ground - 12} />
+              </g>
+            ))}
+            {[0, 1, 2, 3, 4].map((i) => (
+              <rect key={i} x={CAMP.fireX - 2 + ((i * 3) % 5)} y={CAMP.ground - 13} width={1} height={1}
+                fill={i % 2 ? "#d9a441" : "#9a3b2c"} className="scene-ember"
+                style={{ animationDelay: `${i * 0.6}s` }} />
+            ))}
+          </svg>
+
+          <div className="mx-auto max-w-2xl px-6 pt-10 pb-56 text-center sm:pb-72">
+            <h2 className="text-3xl sm:text-4xl">Gather your party</h2>
+            <p className="mt-3 text-[var(--muted)]">Free to add. Set up in a few minutes.</p>
+            <div className="mt-7 flex justify-center">
+              {invite ? (
+                <a href={invite} target="_blank" rel="noreferrer" className={`${primaryButton} px-5 py-2.5`}>
+                  Add to Server
+                </a>
+              ) : (
+                <button
+                  onClick={() => (session ? (window.location.href = "/dashboard") : signIn("discord", { callbackUrl: afterSignIn() }))}
+                  className={`${primaryButton} px-5 py-2.5`}
+                >
+                  {session ? "Open dashboard" : "Sign in with Discord"}
+                </button>
+              )}
+            </div>
+          </div>
         </section>
       </main>
 
