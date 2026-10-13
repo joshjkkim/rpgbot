@@ -1,41 +1,42 @@
 import { dbQuery } from "@/app/lib/db";
 import { STARTER_PACKS, type StarterPack } from "@/app/lib/starterPacks";
 
+type Config = Record<string, Record<string, Record<string, unknown>> | undefined>;
+
 /**
- * The starter packs, with their content read live from a template server when
- * STARTER_PACK_GUILD_ID is set. Editing that server on the dashboard then
- * updates the pack for everyone who adds it afterwards, with no deploy; the
- * JSON file is the fallback and supplies the name and description.
+ * Every starter pack: the rows of the `starter_packs` table, whose content is
+ * read live from each pack's template server, followed by the JSON packs in
+ * app/lib/packs that no row has replaced (same id).
  *
- * Keep the template server free of role and channel ids (item role actions,
- * quest announce channels): they are copied as-is and mean nothing elsewhere.
+ * So a new pack is one INSERT plus a template server edited on the dashboard,
+ * and changing a pack is just editing that server. No deploy either way.
  *
- * ponytail: one template server feeds the first pack. Map pack ids to servers
- * when there is more than one pack.
+ * Keep template servers free of role and channel ids (item role actions, quest
+ * announce channels): they are copied as-is and mean nothing in other servers.
  */
 export async function loadStarterPacks(): Promise<StarterPack[]> {
-    const source = process.env.STARTER_PACK_GUILD_ID?.trim();
-    if (!source) return STARTER_PACKS;
+    // A database without the table yet (migration 003 not applied) just gets the JSON packs.
+    const res = await dbQuery<{ id: string; name: string; description: string; config: Config | null }>(
+        `SELECT p.id, p.name, p.description, g.config
+         FROM starter_packs p JOIN guilds g ON g.discord_guild_id = p.source_discord_guild_id
+         ORDER BY p.position, p.name`,
+    ).catch((err: { code?: string }) => {
+        if (err.code !== "42P01") console.error("Loading starter packs failed:", err); // 42P01: no such table
+        return null;
+    });
 
-    type Config = Record<string, Record<string, Record<string, unknown>> | undefined>;
-    const res = await dbQuery<{ config: Config | null }>(
-        `SELECT config FROM guilds WHERE discord_guild_id = $1`,
-        [source],
-    ).catch(() => null);
-    const c = res?.rows[0]?.config;
-    if (!c) return STARTER_PACKS;
+    const live: StarterPack[] = (res?.rows ?? []).map(({ id, name, description, config: c }) => ({
+        id,
+        name,
+        description,
+        content: {
+            shop: { categories: c?.shop?.categories ?? {}, items: c?.shop?.items ?? {} },
+            combat: { enemies: c?.combat?.enemies ?? {} },
+            quests: { quests: c?.quests?.quests ?? {} },
+            achievements: { achievements: c?.achievements?.achievements ?? {} },
+        } as StarterPack["content"],
+    }));
 
-    const [first, ...rest] = STARTER_PACKS;
-    return [
-        {
-            ...first!,
-            content: {
-                shop: { categories: c.shop?.categories ?? {}, items: c.shop?.items ?? {} },
-                combat: { enemies: c.combat?.enemies ?? {} },
-                quests: { quests: c.quests?.quests ?? {} },
-                achievements: { achievements: c.achievements?.achievements ?? {} },
-            } as StarterPack["content"],
-        },
-        ...rest,
-    ];
+    const replaced = new Set(live.map((p) => p.id));
+    return [...live, ...STARTER_PACKS.filter((p) => !replaced.has(p.id))];
 }
