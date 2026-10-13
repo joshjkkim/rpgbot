@@ -36,6 +36,8 @@ export interface EnemyConfig {
   xpReward: number;
   goldReward: number;
   drops: EnemyDrop[];
+  /** Fought by the whole server at once; never by /fight or encounters. */
+  boss?: boolean;
 }
 
 export interface CombatDeathPenalty {
@@ -62,6 +64,15 @@ export interface CombatEncounterConfig {
   channelIds?: string[];
 }
 
+export interface CombatBossConfig {
+  enabled?: boolean;
+  chancePercent?: number;
+  cooldownSeconds?: number;
+  durationSeconds?: number;
+  attackCooldownSeconds?: number;
+  channelIds?: string[];
+}
+
 export interface CombatConfig {
   enabled: boolean;
   hpBase?: number;
@@ -81,6 +92,7 @@ export interface CombatConfig {
   pvpDeathPenalty?: CombatDeathPenalty;
   pvp?: CombatPvpConfig;
   encounters?: CombatEncounterConfig;
+  bosses?: CombatBossConfig;
 }
 
 type Props = {
@@ -142,6 +154,10 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
 
   function updateEncounters(patch: Partial<CombatEncounterConfig>) {
     updateRoot({ encounters: { ...(local.encounters ?? {}), ...patch } });
+  }
+
+  function updateBosses(patch: Partial<CombatBossConfig>) {
+    updateRoot({ bosses: { ...(local.bosses ?? {}), ...patch } });
   }
 
   function upsertEnemy(enemy: EnemyConfig) {
@@ -330,13 +346,70 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
         </div>
       </Section>
 
+      <Section title="World bosses" description="Big enemies the whole server fights together." defaultOpen={false}>
+        <p className="mb-4 text-sm text-[var(--muted)]">
+          Make a boss by turning on <span className="text-[var(--foreground)]">World boss</span> for an enemy below.
+          Owners can summon one any time with <span className="font-mono">/boss summon</span>.
+        </p>
+        <Toggle
+          label="Spawn bosses on their own"
+          checked={!!local.bosses?.enabled}
+          onChange={(v) => updateBosses({ enabled: v })}
+          hint="Each message that earns XP has a small chance to wake a boss. Only one boss can be loose at a time."
+        />
+
+        <div className="mt-4">
+          <FieldGrid>
+            <NumberField
+              label="Chance per message (%)"
+              value={local.bosses?.chancePercent ?? 0.2}
+              min={0}
+              max={100}
+              step={0.1}
+              onChange={(v) => updateBosses({ chancePercent: v })}
+              hint="0.2% is roughly one boss every 500 XP-earning messages."
+            />
+            <NumberField
+              label="Cooldown (seconds)"
+              value={local.bosses?.cooldownSeconds ?? 21600}
+              min={0}
+              onChange={(v) => updateBosses({ cooldownSeconds: v })}
+              hint="Shortest gap between two random bosses. 21600 is 6 hours."
+            />
+            <NumberField
+              label="Time to kill (seconds)"
+              value={local.bosses?.durationSeconds ?? 1800}
+              min={60}
+              onChange={(v) => updateBosses({ durationSeconds: v })}
+              hint="If it isn't defeated in time it escapes, and nobody is rewarded."
+            />
+            <NumberField
+              label="Attack cooldown (seconds)"
+              value={local.bosses?.attackCooldownSeconds ?? 20}
+              min={0}
+              onChange={(v) => updateBosses({ attackCooldownSeconds: v })}
+              hint="How often one member can hit it, so the whole server has to pitch in."
+            />
+            <ChannelsField
+              wide
+              label="Channels"
+              value={local.bosses?.channelIds ?? []}
+              onChange={(v) => updateBosses({ channelIds: v })}
+              hint={(local.bosses?.channelIds ?? []).length === 0
+                ? "None picked, so any channel that gives XP. Summoned bosses appear wherever /boss summon is run."
+                : undefined}
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
       <Section title="Enemies" description="What members can fight, and what beating them pays." defaultOpen={false}>
         <KeyedList<EnemyConfig>
           entries={enemyEntries}
           addPlaceholder="Enemy ID, e.g. slime"
           addLabel="Add enemy"
           empty="No enemies defined. There is nothing to fight yet."
-          itemLabel={(id, enemy) => `${enemy.emoji ?? ""} ${enemy.name || id}`.trim()}
+          itemLabel={(id, enemy) => `${enemy.emoji ?? ""} ${enemy.name || id}${enemy.boss ? " · world boss" : ""}`.trim()}
           onAdd={(rawId) => {
             const id = rawId.trim();
             if (!/^[a-zA-Z0-9_-]{2,40}$/.test(id)) return;
@@ -349,7 +422,7 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
               atk: 8,
               def: 3,
               spd: 5,
-              critChance: 0.05,
+              critChance: 5,
               critMultiplier: 1.5,
               minLevel: 1,
               maxLevel: null,
@@ -369,6 +442,14 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
                 <TextField label="Name" value={enemy.name} onChange={(v) => upsertEnemy({ ...enemy, name: v })} />
                 <TextField label="Emoji" value={enemy.emoji ?? ""} onChange={(v) => upsertEnemy({ ...enemy, emoji: v })} />
               </FieldGrid>
+              <Toggle
+                label="World boss"
+                checked={!!enemy.boss}
+                onChange={(v) => upsertEnemy({ ...enemy, boss: v })}
+                hint={enemy.boss
+                  ? "The whole server fights it together. Its XP and gold are split by damage dealt, and the top damage dealer rolls its drops. Give it lots of HP."
+                  : "Turn on to make this a world boss instead of a normal enemy."}
+              />
 
               <Field label="Stats">
                 <FieldGrid>
@@ -377,13 +458,13 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
                   <NumberField label="Defence" value={enemy.def} min={0} onChange={(v) => upsertEnemy({ ...enemy, def: v })} />
                   <NumberField label="Speed" value={enemy.spd} min={0} onChange={(v) => upsertEnemy({ ...enemy, spd: v })} />
                   <NumberField
-                    label="Crit chance"
+                    label="Crit chance (%)"
                     value={enemy.critChance}
                     min={0}
-                    max={1}
-                    step={0.01}
+                    max={100}
+                    step={0.5}
                     onChange={(v) => upsertEnemy({ ...enemy, critChance: v })}
-                    hint="0–1, so 0.05 is 5%."
+                    hint="5 means a 5% chance."
                   />
                   <NumberField
                     label="Crit multiplier"

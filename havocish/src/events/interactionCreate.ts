@@ -14,6 +14,7 @@ import { handleSettingsModal } from "../commands/user/settings.js";
 import { handleFightButton } from "../commands/user/fight.js";
 import { handleDuelButton } from "../commands/user/duel.js";
 import { handleEncounterButton } from "../player/encounters.js";
+import { handleBossButton } from "../player/bosses.js";
 
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -62,6 +63,8 @@ export function registerInteractionCreate(client: Client) {
                     await handleDuelButton(interaction);
                 } else if (interaction.customId.startsWith("encounter:")) {
                     await handleEncounterButton(interaction);
+                } else if (interaction.customId.startsWith("boss:")) {
+                    await handleBossButton(interaction);
                 }
 
                 return;

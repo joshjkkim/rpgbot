@@ -491,6 +491,7 @@ export function getEligibleEnemies(config: GuildConfig, playerLevel: number): En
     const enemies = Object.values(config.combat.enemies ?? {});
     return enemies.filter(
         (e) =>
+            !e.boss &&
             playerLevel >= e.minLevel &&
             (e.maxLevel == null || playerLevel <= e.maxLevel),
     );

@@ -118,6 +118,21 @@ export interface GuildConfig {
             /** Channels encounters may appear in. Empty means any channel that gives XP. */
             channelIds?: string[];
         };
+        /** World bosses; see player/bosses.ts. Bosses themselves are enemies with `boss: true`. */
+        bosses?: {
+            /** Lets bosses spawn on their own. /boss summon works either way. */
+            enabled?: boolean;
+            /** Chance per XP-earning message, in percent. */
+            chancePercent?: number;
+            /** Minimum gap between two random boss spawns in the same server. */
+            cooldownSeconds?: number;
+            /** How long the server has to kill it before it escapes. */
+            durationSeconds?: number;
+            /** How often one member can attack. */
+            attackCooldownSeconds?: number;
+            /** Channels random bosses may appear in. Empty means any channel that gives XP. */
+            channelIds?: string[];
+        };
     },
     xp: {
         basePerMessage: number;
