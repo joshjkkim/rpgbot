@@ -106,6 +106,18 @@ export interface GuildConfig {
             /** How long a member must wait after finishing a duel before starting another. */
             cooldownSeconds?: number;
         };
+        /** Wild enemies that turn up while people chat; see player/encounters.ts. */
+        encounters?: {
+            enabled?: boolean;
+            /** Chance per XP-earning message, in percent (2 = 2%). */
+            chancePercent?: number;
+            /** Minimum gap between two encounters in the same server. */
+            cooldownSeconds?: number;
+            /** How long an unclaimed encounter waits before it leaves. */
+            fleeSeconds?: number;
+            /** Channels encounters may appear in. Empty means any channel that gives XP. */
+            channelIds?: string[];
+        };
     },
     xp: {
         basePerMessage: number;

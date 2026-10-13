@@ -1,4 +1,4 @@
-import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable, User } from "discord.js";
 import {
     ActionRowBuilder, ButtonBuilder, ButtonStyle,
     EmbedBuilder, MessageFlags, SlashCommandBuilder,
@@ -7,13 +7,14 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { ownerSetupRows } from "../../ui/dashboardLinks.js";
-import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
+import { calculateStats, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
 import {
     COMBAT_ACTIONS, applyAction, applyFightRewards,
     getActiveFight, getFightByMessageId, pickRandomEnemy, startFight,
 } from "../../player/fight.js";
 import type { ActiveFight, EnemyConfig, FightEndSummary } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
+import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import type { shopItemConfig } from "../../types/economy.js";
 import { renderItemCard } from "../../ui/canvas/itemCard.js";
 
@@ -140,7 +141,7 @@ async function lootCards(summary: FightEndSummary, config: GuildConfig) {
     }
 }
 
-function buildActionRow(disabled = false): ActionRowBuilder<ButtonBuilder> {
+export function buildActionRow(disabled = false): ActionRowBuilder<ButtonBuilder> {
     const buttons = Object.values(COMBAT_ACTIONS).map(action => {
         const style =
             action.style === "primary"  ? ButtonStyle.Primary  :
@@ -156,6 +157,58 @@ function buildActionRow(disabled = false): ActionRowBuilder<ButtonBuilder> {
     return new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
 }
 
+// ─── Shared fight start ───────────────────────────────────────────────────────
+// /fight and random encounters (player/encounters.ts) start fights the same way.
+
+type Ready =
+    | { ok: false; message: string }
+    | { ok: true; profile: DbUserGuildProfile; config: GuildConfig; stats: CombatStats; currentHp: number };
+
+/** Whether this member can start a fight right now, with what they need to start one. */
+export async function readyToFight(user: User, discordGuildId: string): Promise<Ready> {
+    const { user: dbUser } = await getOrCreateDbUser({
+        discordUserId: user.id,
+        username: user.username,
+        avatarUrl: user.displayAvatarURL(),
+    });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId });
+
+    if (!config.combat.enabled) return { ok: false, message: "⚔️ Combat isn't enabled on this server." };
+    if (getActiveFight(user.id, discordGuildId)) {
+        return { ok: false, message: "You're already in a fight! Finish your current battle first." };
+    }
+
+    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const stats = calculateStats(profile, config, config.shop?.items ?? {});
+    const currentHp = resolveCurrentHp(profile, stats);
+    if (currentHp <= 0) {
+        return { ok: false, message: "❤️ You have **0 HP** — you need to heal before fighting again!" };
+    }
+    return { ok: true, profile, config, stats, currentHp };
+}
+
+export function buildStartEmbed(
+    displayName: string, enemy: EnemyConfig, currentHp: number, maxHp: number, config: GuildConfig,
+): EmbedBuilder {
+    return new EmbedBuilder()
+        .setTitle(`⚔️ ${displayName} vs ${enemy.emoji} ${enemy.name}`)
+        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
+        .setDescription("Choose your action!")
+        .addFields(
+            {
+                name: "🧑 You",
+                value: [buildHpBar(currentHp, maxHp), `❤️ **${currentHp}** / **${maxHp}**`].join("\n"),
+                inline: true,
+            },
+            {
+                name: `${enemy.emoji} ${enemy.name}`,
+                value: [buildHpBar(enemy.hp, enemy.hp), `❤️ **${enemy.hp}** / **${enemy.hp}**`].join("\n"),
+                inline: true,
+            },
+        )
+        .setFooter({ text: "Round 1 · Your turn" });
+}
+
 // ─── /fight command ───────────────────────────────────────────────────────────
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -164,38 +217,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
 
-    const { user: dbUser } = await getOrCreateDbUser({
-        discordUserId: interaction.user.id,
-        username: interaction.user.username,
-        avatarUrl: interaction.user.displayAvatarURL(),
-    });
-
-    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
-
-    // Guard: combat enabled
-    if (!config.combat.enabled) {
-        await interaction.reply({ content: "⚔️ Combat isn't enabled on this server.", flags: MessageFlags.Ephemeral });
+    const ready = await readyToFight(interaction.user, interaction.guildId);
+    if (!ready.ok) {
+        await interaction.reply({ content: ready.message, flags: MessageFlags.Ephemeral });
         return;
     }
-
-    // Guard: already in a fight
-    if (getActiveFight(interaction.user.id, interaction.guildId)) {
-        await interaction.reply({ content: "You're already in a fight! Finish your current battle first.", flags: MessageFlags.Ephemeral });
-        return;
-    }
-
-    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
-
-    // Guard: HP check
-    const stats = calculateStats(profile, config, config.shop?.items ?? {});
-    const currentHp = resolveCurrentHp(profile, stats);
-    if (currentHp <= 0) {
-        await interaction.reply({
-            content: `❤️ You have **0 HP** — you need to heal before fighting again!`,
-            flags: MessageFlags.Ephemeral,
-        });
-        return;
-    }
+    const { profile, config, stats, currentHp } = ready;
 
     // Pick enemy
     const enemyIdOpt = interaction.options.getString("enemy");
@@ -233,30 +260,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Fights are public — not ephemeral
     await interaction.deferReply();
 
-    const initialEmbed = new EmbedBuilder()
-        .setTitle(`⚔️ ${interaction.user.displayName} vs ${enemy.emoji} ${enemy.name}`)
-        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
-        .setDescription("Choose your action!")
-        .addFields(
-            {
-                name: "🧑 You",
-                value: [
-                    buildHpBar(currentHp, stats.maxHp),
-                    `❤️ **${currentHp}** / **${stats.maxHp}**`,
-                ].join("\n"),
-                inline: true,
-            },
-            {
-                name: `${enemy.emoji} ${enemy.name}`,
-                value: [
-                    buildHpBar(enemy.hp, enemy.hp),
-                    `❤️ **${enemy.hp}** / **${enemy.hp}**`,
-                ].join("\n"),
-                inline: true,
-            },
-        )
-        .setFooter({ text: "Round 1 · Your turn" });
-
+    const initialEmbed = buildStartEmbed(interaction.user.displayName, enemy, currentHp, stats.maxHp, config);
     const row = buildActionRow();
     const reply = await interaction.editReply({ embeds: [initialEmbed], components: [row] });
 
