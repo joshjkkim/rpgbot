@@ -175,6 +175,19 @@ CREATE INDEX IF NOT EXISTS idx_events_user_created_at
 CREATE INDEX IF NOT EXISTS idx_events_category_type
     ON public.events (category, event_type);
 
+-- ─── starter_packs ───────────────────────────────────────────────────────────
+-- Dashboard starter packs; content is read live from the source guild's
+-- config. See migrations/003_starter_packs.sql.
+
+CREATE TABLE IF NOT EXISTS public.starter_packs (
+    id                      TEXT        PRIMARY KEY,
+    name                    TEXT        NOT NULL,
+    description             TEXT        NOT NULL DEFAULT '',
+    source_discord_guild_id BIGINT      NOT NULL,
+    position                INTEGER     NOT NULL DEFAULT 0,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed

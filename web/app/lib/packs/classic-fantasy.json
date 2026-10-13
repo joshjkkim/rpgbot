@@ -1,7 +1,7 @@
 {
   "id": "classic-fantasy",
   "name": "Classic Fantasy",
-  "description": "A tavern-and-dungeon starter: potions and gear in the shop, five enemies from cave slimes to an ashen wyrm, repeatable quests and milestone achievements.",
+  "description": "A tavern-and-dungeon starter: potions and gear in the shop, five enemies from cave slimes to an ashen wyrm, a world boss (the Hollow King), repeatable quests and milestone achievements.",
   "content": {
     "shop": {
       "categories": {
@@ -141,6 +141,16 @@
           "drops": [
             { "itemId": "greater-healing-draught", "chance": 0.5, "quantity": 2 },
             { "itemId": "dragonscale-mantle", "chance": 0.02, "quantity": 1 }
+          ]
+        },
+        "hollow-king": {
+          "id": "hollow-king", "name": "The Hollow King", "emoji": "👑", "boss": true,
+          "hp": 6000, "atk": 55, "def": 20, "spd": 15, "critChance": 10, "critMultiplier": 2,
+          "minLevel": 1, "maxLevel": null, "xpReward": 3000, "goldReward": 1500,
+          "drops": [
+            { "itemId": "greater-healing-draught", "chance": 1, "quantity": 3 },
+            { "itemId": "runed-blade", "chance": 0.5, "quantity": 1 },
+            { "itemId": "dragonscale-mantle", "chance": 0.25, "quantity": 1 }
           ]
         }
       }
