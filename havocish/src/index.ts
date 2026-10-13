@@ -17,6 +17,7 @@ import { cleanupExpiredDuels } from "./commands/user/duel.js";
 import { closePool } from "./db/index.js";
 import { assertBotEnv } from "./env.js";
 import { alertsEnabled, crashMessage, postAlert } from "./alert.js";
+import { startPreviewServer } from "./http/previewServer.js";
 
 // Refuse to start on missing configuration, before a single event handler is
 // registered. An unset DATABASE_URL does not throw -- pg falls back to
@@ -52,6 +53,7 @@ registerGuildDelete(client);
 registerInteractionCreate(client);
 registerVoiceStateUpdate(client);
 registerLevelUps(client);
+const previewServer = startPreviewServer();
 
 const pruneTimer = setInterval(() => {
     void pruneCaches();
@@ -100,6 +102,7 @@ async function shutdown(reason: string, exitCode = 0) {
 
     clearTimeout(timeout);
 
+    previewServer?.close();
     await client.destroy().catch(() => null);
     await closePool().catch(() => null);
 

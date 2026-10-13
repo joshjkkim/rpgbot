@@ -62,9 +62,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     await interaction.deferReply({ flags: profile.settings && profile.settings.profilePrivate ? MessageFlags.Ephemeral : undefined });
 
+    const who = { username: user.username, avatarUrl: user.displayAvatarURL({ extension: "png", size: 256 }) };
     const file = config.style.template === "fantasy"
-        ? await buildFantasyProfileCard(interaction, profile, config)
-        : await buildProfileCard(interaction, profile, config);
+        ? await buildFantasyProfileCard(who, profile, config)
+        : await buildProfileCard(who, profile, config);
 
     const buttons: ButtonBuilder[] = [
         new ButtonBuilder()
@@ -92,8 +93,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.editReply({ files: [file], components: [row]  });
 }
 
+/** Whose card it is. Kept apart from the interaction so the card shows the profile's owner, not whoever ran the command. */
+export type CardUser = { username: string; avatarUrl: string };
+
 export async function buildProfileCard(
-    interaction: ChatInputCommandInteraction,
+    who: CardUser,
     profile: DbUserGuildProfile,
     config: GuildConfig
 ): Promise<AttachmentBuilder> {
@@ -103,7 +107,7 @@ export async function buildProfileCard(
     const ctx = canvas.getContext("2d");
 
     // ---------- data ----------
-    const username = interaction.user.username;
+    const username = who.username;
 
     const totalXp = Number(profile.xp ?? "0");
     const level = Number(profile.level ?? 0);
@@ -230,7 +234,7 @@ export async function buildProfileCard(
     ctx.stroke();
 
     // ---------- avatar ----------
-    const avatarUrl = interaction.user.displayAvatarURL({ extension: "png", size: 256 });
+    const avatarUrl = who.avatarUrl;
     const AX = 145, AY = H / 2, AR = 72;
 
     // outer glow ring
@@ -962,7 +966,7 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
 }
 
 export async function buildFantasyProfileCard(
-    interaction: ChatInputCommandInteraction,
+    who: CardUser,
     profile: any,
     config: any
 ): Promise<AttachmentBuilder> {
@@ -973,7 +977,7 @@ export async function buildFantasyProfileCard(
     const ctx = canvas.getContext("2d");
 
     // ── Data ─────────────────────────────────────────────────────────────────
-    const username = interaction.user.username;
+    const username = who.username;
     const totalXp = Number(profile.xp ?? "0");
     const level = Number(profile.level ?? 0);
 
@@ -1213,7 +1217,7 @@ export async function buildFantasyProfileCard(
     }
 
     // Avatar image clipped to circle
-    await drawAvatarCircle(ctx, interaction.user.displayAvatarURL({ extension: "png", size: 256 }), AX, AY, AR);
+    await drawAvatarCircle(ctx, who.avatarUrl, AX, AY, AR);
 
     // Polished stone rim around avatar
     ctx.strokeStyle = STONE_BORDER;

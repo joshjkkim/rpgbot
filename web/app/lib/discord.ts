@@ -40,7 +40,14 @@ async function fetchGuildsOnce(accessToken: string) {
     return { kind: "ok" as const, guilds: (await res.json()) as DiscordGuild[] };
 }
 
-/** The signed-in user's guilds, straight from Discord. */
+// Discord rate-limits /users/@me/guilds per user, hard enough that a page
+// making two API calls at once got a 429 on the second. Answers are reused for
+// a short while, and concurrent callers share one in-flight request. Per server
+// instance only; losing ownership takes up to GUILDS_TTL_MS to apply.
+const GUILDS_TTL_MS = 30_000;
+const guildsCache = new Map<string, { at: number; result: Promise<GuildsResult> }>();
+
+/** The signed-in user's guilds, from Discord or a recent answer. */
 export async function fetchUserGuilds(): Promise<GuildsResult> {
     const session = await getServerSession(authOptions);
 
@@ -50,11 +57,24 @@ export async function fetchUserGuilds(): Promise<GuildsResult> {
         return { ok: false, status: 401 };
     }
 
-    let out = await fetchGuildsOnce(session.accessToken);
+    const token = session.accessToken;
+    const hit = guildsCache.get(token);
+    if (hit && Date.now() - hit.at < GUILDS_TTL_MS) return hit.result;
+
+    for (const [key, entry] of guildsCache) if (Date.now() - entry.at >= GUILDS_TTL_MS) guildsCache.delete(key);
+    const result = fetchGuildsFromDiscord(token);
+    guildsCache.set(token, { at: Date.now(), result });
+    // Only successes are worth reusing; a failure should be retried next call.
+    void result.then((r) => { if (!r.ok) guildsCache.delete(token); });
+    return result;
+}
+
+async function fetchGuildsFromDiscord(accessToken: string): Promise<GuildsResult> {
+    let out = await fetchGuildsOnce(accessToken);
 
     if (out.kind === "retry") {
         await new Promise((r) => setTimeout(r, 250));
-        out = await fetchGuildsOnce(session.accessToken);
+        out = await fetchGuildsOnce(accessToken);
     }
 
     if (out.kind === "expired") return { ok: false, status: 401 };
