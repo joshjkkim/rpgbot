@@ -2,43 +2,30 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-    Activity,
-    ArrowLeft,
-    ChevronDown,
-    ChevronRight,
-    Coins,
-    FileText,
-    LayoutGrid,
-    Package,
-    Palette,
-    ScrollText,
-    Sparkles,
-    Swords,
-    TrendingUp,
-    Trophy,
-} from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
+import { Sprite } from "@/app/components/ui/sprite";
+import type { SpriteName } from "@/app/sprites";
 
-const sections = [
+const sections: Array<{ label: string; tabs: Array<{ href: string; label: string; sprite: SpriteName }> }> = [
     {
         label: "Settings",
         tabs: [
-            { href: "", label: "Overview", icon: LayoutGrid },
-            { href: "presets", label: "Starter packs", icon: Package },
-            { href: "styles", label: "Style", icon: Palette },
-            { href: "xp", label: "XP", icon: Sparkles },
-            { href: "shop", label: "Economy", icon: Coins },
-            { href: "achievements", label: "Achievements", icon: Trophy },
-            { href: "levels", label: "Levels", icon: TrendingUp },
-            { href: "quests", label: "Quests", icon: ScrollText },
-            { href: "combat", label: "Combat", icon: Swords },
-            { href: "logging", label: "Logging", icon: FileText },
+            { href: "", label: "Overview", sprite: "map" },
+            { href: "presets", label: "Starter packs", sprite: "bag" },
+            { href: "styles", label: "Style", sprite: "palette" },
+            { href: "xp", label: "XP", sprite: "potion" },
+            { href: "shop", label: "Economy", sprite: "coin" },
+            { href: "achievements", label: "Achievements", sprite: "trophy" },
+            { href: "levels", label: "Levels", sprite: "star" },
+            { href: "quests", label: "Quests", sprite: "scroll" },
+            { href: "combat", label: "Combat", sprite: "swords" },
+            { href: "logging", label: "Logging", sprite: "book" },
         ],
     },
     {
         label: "Analytics",
         tabs: [
-            { href: "logs", label: "Logs", icon: Activity },
+            { href: "logs", label: "Logs", sprite: "hourglass" },
         ],
     },
 ];
@@ -74,7 +61,7 @@ function NavSection({ section, guildId }: { section: typeof sections[0]; guildId
                                         : "border-transparent text-[var(--muted)] hover:bg-white/[0.04] hover:text-[var(--foreground)]"
                                 }`}
                             >
-                                <t.icon size={16} className="shrink-0" />
+                                <span className={active ? "" : "opacity-75 grayscale-[35%]"}><Sprite name={t.sprite} size={18} /></span>
                                 {t.label}
                             </Link>
                         );
