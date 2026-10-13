@@ -3,6 +3,7 @@
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import StyleBasicsEditor from "@/app/components/styles/styleBasicsEditor";
+import StylePreview from "@/app/components/styles/stylePreview";
 
 export default function StylePageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
@@ -21,10 +22,13 @@ export default function StylePageClient({ guildId }: { guildId: string }) {
       rawSection={style}
     >
       {config && (
-        <StyleBasicsEditor
-          value={style}
-          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, style: next }))}
-        />
+        <>
+          <StyleBasicsEditor
+            value={style}
+            onChange={(next: any) => setConfig((prev: any) => ({ ...prev, style: next }))}
+          />
+          <StylePreview guildId={guildId} style={style} />
+        </>
       )}
     </ConfigPage>
   );
