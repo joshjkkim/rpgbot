@@ -33,6 +33,7 @@ import type { EnemyConfig } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
+import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1386,6 +1387,60 @@ async function main() {
             actions: { 0: { type: "giveStat", statId: "hp", amount: 25 } },
         };
         check("actions read as use lines", itemCardLines(useOnly).map(l => l.text).includes("Use: Gives 25 hp."), true);
+    });
+
+    await test("encounters spawn by chance, respect cooldown and channels, and go to the first click", async () => {
+        const { config } = await reset();
+        config.combat.enabled = true;
+        config.combat.enemies = {
+            slime: {
+                id: "slime", name: "Slime", emoji: "🟢", hp: 20, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+                minLevel: 0, maxLevel: null, xpReward: 5, goldReward: 5, drops: [],
+            },
+        };
+        config.combat.encounters = { enabled: true, chancePercent: 100, cooldownSeconds: 600, fleeSeconds: 60 };
+        await setGuildConfig(TEST_DISCORD_GUILD, config);
+        guildConfigCache.clear();
+
+        const sent: unknown[] = [];
+        const message = (guildId: string, channelId: string) => ({
+            guildId, channelId,
+            channel: {
+                isSendable: () => true,
+                send: async (payload: unknown) => { sent.push(payload); return { id: `enc-${sent.length}`, edit: async () => null }; },
+            },
+        }) as any;
+
+        await maybeSpawnEncounter(message(TEST_DISCORD_GUILD, "c1"), config, 1);
+        check("a 100% roll spawns", sent.length, 1);
+        await maybeSpawnEncounter(message(TEST_DISCORD_GUILD, "c1"), config, 1);
+        check("the cooldown holds the next one back", sent.length, 1);
+
+        const elsewhere = { ...config, combat: { ...config.combat, encounters: { ...config.combat.encounters, channelIds: ["c-other"] } } };
+        await maybeSpawnEncounter(message("smoke-guild-b", "c1"), elsewhere, 1);
+        check("channels outside the list never spawn", sent.length, 1);
+        const never = { ...config, combat: { ...config.combat, encounters: { ...config.combat.encounters, chancePercent: 0 } } };
+        await maybeSpawnEncounter(message("smoke-guild-c", "c1"), never, 1);
+        check("a 0% chance never spawns", sent.length, 1);
+
+        // Two clicks at once: exactly one turns the encounter into a fight.
+        const updates: unknown[] = [];
+        const replies: unknown[] = [];
+        const click = () => handleEncounterButton({
+            inCachedGuild: () => true,
+            message: { id: "enc-1" },
+            user: { id: TEST_DISCORD_USER, username: "smoke-test", displayAvatarURL: () => "" },
+            member: { displayName: "smoke-test" },
+            guildId: TEST_DISCORD_GUILD,
+            channelId: "c1",
+            reply: async (p: unknown) => { replies.push(p); },
+            update: async (p: unknown) => { updates.push(p); },
+        } as any);
+        await Promise.all([click(), click()]);
+        check("one click gets the fight", updates.length, 1);
+        check("the other is turned away", replies.length, 1);
+        await click();
+        check("a late click finds it gone", replies.length, 2);
     });
 
     console.log(`\n${"─".repeat(60)}`);

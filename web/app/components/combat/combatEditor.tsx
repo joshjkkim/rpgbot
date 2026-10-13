@@ -11,7 +11,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
-import { ItemField } from "@/app/components/ui/pickers";
+import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
 
 // ─── Types (mirrored from havocish) ─────────────────────────────────────────────
 
@@ -54,6 +54,14 @@ export interface CombatPvpConfig {
   cooldownSeconds?: number;
 }
 
+export interface CombatEncounterConfig {
+  enabled?: boolean;
+  chancePercent?: number;
+  cooldownSeconds?: number;
+  fleeSeconds?: number;
+  channelIds?: string[];
+}
+
 export interface CombatConfig {
   enabled: boolean;
   hpBase?: number;
@@ -72,6 +80,7 @@ export interface CombatConfig {
   pveDeathPenalty?: CombatDeathPenalty;
   pvpDeathPenalty?: CombatDeathPenalty;
   pvp?: CombatPvpConfig;
+  encounters?: CombatEncounterConfig;
 }
 
 type Props = {
@@ -129,6 +138,10 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
 
   function updatePvp(patch: Partial<CombatPvpConfig>) {
     updateRoot({ pvp: { ...(local.pvp ?? {}), ...patch } });
+  }
+
+  function updateEncounters(patch: Partial<CombatEncounterConfig>) {
+    updateRoot({ encounters: { ...(local.encounters ?? {}), ...patch } });
   }
 
   function upsertEnemy(enemy: EnemyConfig) {
@@ -266,6 +279,52 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
               min={1}
               onChange={(v) => updatePvp({ maxRounds: v })}
               hint="Reaching it is a draw and no gold moves — two high-defence members can otherwise trade minimum hits forever."
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
+      <Section title="Random encounters" description="Wild enemies that turn up while people chat." defaultOpen={false}>
+        <Toggle
+          label="Enable random encounters"
+          checked={!!local.encounters?.enabled}
+          onChange={(v) => updateEncounters({ enabled: v })}
+          hint="Each message that earns XP has a small chance to make an enemy appear in that channel. The first member to click Fight takes it on. Combat must also be enabled, and you need at least one enemy."
+        />
+
+        <div className="mt-4">
+          <FieldGrid>
+            <NumberField
+              label="Chance per message (%)"
+              value={local.encounters?.chancePercent ?? 2}
+              min={0}
+              max={100}
+              step={0.5}
+              onChange={(v) => updateEncounters({ chancePercent: v })}
+              hint="2% means roughly one encounter every 50 XP-earning messages."
+            />
+            <NumberField
+              label="Cooldown (seconds)"
+              value={local.encounters?.cooldownSeconds ?? 600}
+              min={0}
+              onChange={(v) => updateEncounters({ cooldownSeconds: v })}
+              hint="Shortest gap between two encounters, so a lucky streak can't flood the chat."
+            />
+            <NumberField
+              label="Leaves after (seconds)"
+              value={local.encounters?.fleeSeconds ?? 120}
+              min={15}
+              onChange={(v) => updateEncounters({ fleeSeconds: v })}
+              hint="How long an encounter waits for someone to fight it."
+            />
+            <ChannelsField
+              wide
+              label="Channels"
+              value={local.encounters?.channelIds ?? []}
+              onChange={(v) => updateEncounters({ channelIds: v })}
+              hint={(local.encounters?.channelIds ?? []).length === 0
+                ? "None picked, so any channel that gives XP. Pick some to keep encounters out of busy or serious channels."
+                : undefined}
             />
           </FieldGrid>
         </div>

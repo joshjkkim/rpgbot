@@ -2,6 +2,7 @@ import { Client, Events } from "discord.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { addMessageXp, grantDailyXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
+import { maybeSpawnEncounter } from "../player/encounters.js";
 
 export function registerMessageCreate(client: Client) {
   client.on(Events.MessageCreate, async (message) => {
@@ -37,6 +38,12 @@ export function registerMessageCreate(client: Client) {
         roleIds,
       });
 
+      // Only messages that earned XP can draw an encounter, so the XP cooldown
+      // and disabled channels keep spam from farming spawns.
+      if (gave) {
+        await maybeSpawnEncounter(message, config, profile.level ?? 1)
+          .catch((err) => console.error("Encounter spawn failed:", err));
+      }
 
       let granted = false;
       let rewardXp: number | undefined = undefined;

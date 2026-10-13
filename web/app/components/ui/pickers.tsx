@@ -84,51 +84,66 @@ export function ItemField({ items, ...props }: PickerProps & { items: Record<str
   return <Picker {...props} options={options} unknownLabel="Item" />;
 }
 
-/** Several roles at once, as toggle chips. Empty means anyone. */
-export function RolesField({ label, hint, value, onChange, wide }: {
+type ChipsProps = {
   label?: string;
   hint?: React.ReactNode;
   value: string[];
   onChange: (v: string[]) => void;
   wide?: boolean;
+};
+
+/** Several ids at once, as toggle chips; a comma-separated text box when the list is unavailable. */
+function IdChips({ label, hint, value, onChange, wide, options, unknownLabel, emptyHint }: ChipsProps & {
+  options: { id: string; name: string }[] | null;
+  unknownLabel: string;
+  emptyHint: string;
 }) {
-  const meta = useContext(GuildMetaContext);
-  if (!meta) {
+  if (!options) {
     return (
       <TextField
         label={label} hint={hint} wide={wide} mono
         value={value.join(", ")}
         onChange={(v) => onChange(v.split(",").map((s) => s.trim()).filter(Boolean))}
-        placeholder="Comma-separated role IDs, blank for anyone"
+        placeholder={`Comma-separated ${unknownLabel.toLowerCase()} IDs, blank for ${emptyHint}`}
       />
     );
   }
-  const known = new Set(meta.roles.map((r) => r.id));
-  const roles = [
-    ...meta.roles.map((r) => ({ id: r.id, label: `@${r.name}` })),
-    ...value.filter((id) => !known.has(id)).map((id) => ({ id, label: `Unknown role (${id})` })),
+  const known = new Set(options.map((o) => o.id));
+  const chips = [
+    ...options.map((o) => ({ id: o.id, label: o.name })),
+    ...value.filter((id) => !known.has(id)).map((id) => ({ id, label: `Unknown ${unknownLabel.toLowerCase()} (${id})` })),
   ];
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
   return (
-    <Field label={label} hint={hint ?? (value.length === 0 ? "No roles picked, so anyone can." : undefined)} wide={wide}>
+    <Field label={label} hint={hint ?? (value.length === 0 ? `None picked, so ${emptyHint}.` : undefined)} wide={wide}>
       <div className="flex flex-wrap gap-1.5">
-        {roles.map((r) => {
-          const on = value.includes(r.id);
+        {chips.map((c) => {
+          const on = value.includes(c.id);
           return (
             <button
-              key={r.id}
+              key={c.id}
               type="button"
               aria-pressed={on}
-              onClick={() => toggle(r.id)}
+              onClick={() => toggle(c.id)}
               className={`rounded-sm border px-2 py-1 text-xs transition-colors ${
                 on ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--border-bright)]"
               }`}
             >
-              {r.label}
+              {c.label}
             </button>
           );
         })}
       </div>
     </Field>
   );
+}
+
+/** Several roles at once, as toggle chips. Empty means anyone. */
+export function RolesField(props: ChipsProps) {
+  return <IdChips {...props} options={useRoleOptions()} unknownLabel="Role" emptyHint="anyone can" />;
+}
+
+/** Several text channels at once, as toggle chips. Empty means every channel. */
+export function ChannelsField(props: ChipsProps) {
+  return <IdChips {...props} options={useChannelOptions()} unknownLabel="Channel" emptyHint="every channel" />;
 }
