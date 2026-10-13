@@ -109,7 +109,9 @@ export default function Home() {
   const invite = inviteUrl();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    // The page is the ground below the hero's cliff: it starts at the scene's foreground
+    // colour and darkens to the campfire's ground, so scrolling reads as one landscape.
+    <div className="min-h-screen flex flex-col bg-[linear-gradient(#0f0b0e,#0a0807)]">
       <Header />
 
       <main className="flex-1">
@@ -137,8 +139,6 @@ export default function Home() {
               <rect x={60} y={8} width={6} height={1} fill="#efe3bd" className="scene-shooting" />
             </g>
           </svg>
-          {/* Fades the scene into the page so the section has no hard bottom edge. */}
-          <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-b from-transparent to-[var(--background)]" />
 
           <div className="mx-auto max-w-3xl px-6 pt-16 pb-56 text-center sm:pt-24 sm:pb-72">
             <h1 className="text-4xl leading-tight sm:text-6xl">
