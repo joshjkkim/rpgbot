@@ -9,7 +9,6 @@ import {
   hasEntry,
   missingCount,
   PACK_FEATURES,
-  STARTER_PACKS,
   type GuildConfigJson,
   type StarterPack,
 } from "@/app/lib/starterPacks";
@@ -57,7 +56,7 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
   const enemies: Row[] = Object.entries(combat.enemies ?? {}).map(([id, e]) => ({
     id,
     label: `${e.emoji} ${e.name}`,
-    detail: `level ${e.minLevel}${e.maxLevel == null ? "+" : `–${e.maxLevel}`}`,
+    detail: e.boss ? "world boss" : `level ${e.minLevel}${e.maxLevel == null ? "+" : `–${e.maxLevel}`}`,
   }));
   const questRows: Row[] = Object.entries(quests.quests ?? {}).map(([id, q]) => ({ id, label: q.name }));
   const achievementRows: Row[] = Object.entries(achievements.achievements ?? {}).map(([id, a]) => ({ id, label: a.name }));
@@ -93,7 +92,7 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
   );
 }
 
-export default function PresetsPageClient({ guildId }: { guildId: string }) {
+export default function PresetsPageClient({ guildId, packs }: { guildId: string; packs: StarterPack[] }) {
   const { config, loading, saving, error, save } = useGuildConfig(guildId);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -141,7 +140,7 @@ export default function PresetsPageClient({ guildId }: { guildId: string }) {
 
       {!loading &&
         config &&
-        STARTER_PACKS.map((pack) => (
+        packs.map((pack) => (
           <PackCard key={pack.id} pack={pack} config={config} saving={saving} onAdd={() => add(pack)} />
         ))}
     </main>

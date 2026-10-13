@@ -19,7 +19,7 @@ export type StarterPack = {
       categories: Record<string, Named>;
       items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean }>;
     };
-    combat: { enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null }> };
+    combat: { enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }> };
     quests: { quests: Record<string, Named> };
     achievements: { achievements: Record<string, Named> };
   };
