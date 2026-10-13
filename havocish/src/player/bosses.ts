@@ -1,4 +1,4 @@
-import type { ButtonInteraction, ColorResolvable, Message, SendableChannels } from "discord.js";
+import type { ButtonInteraction, Client, ColorResolvable, Message, SendableChannels } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from "discord.js";
 import type { EnemyConfig, FightEndSummary } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -9,6 +9,7 @@ import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { calculateStats, resolveCurrentHp } from "./combat.js";
 import { applyFightRewards, resolveHit } from "./fight.js";
 import { readyToFight } from "../commands/user/fight.js";
+import { query } from "../db/index.js";
 
 /**
  * World bosses: one big enemy the whole server fights together. Everyone hits
@@ -16,8 +17,11 @@ import { readyToFight } from "../commands/user/fight.js";
  * split by damage dealt. The top damage dealer rolls its drops.
  *
  * Bosses spawn by chance on XP-earning messages (like encounters, but rarer) or
- * when an owner runs /boss summon. One per server at a time, in memory only: a
- * restart loses a live boss, and its button then says so.
+ * when an owner runs /boss summon. One per server at a time.
+ *
+ * Live bosses are kept in memory and mirrored to the live_bosses table, so a
+ * restart picks them back up (restoreBosses) instead of losing the fight.
+ * Attack cooldowns are not saved; they reset on restart.
  */
 
 const DEFAULTS = { chancePercent: 0.2, cooldownSeconds: 6 * 3600, durationSeconds: 30 * 60, attackCooldownSeconds: 20 };
@@ -54,6 +58,76 @@ export function liveBoss(discordGuildId: string) {
     return live.get(discordGuildId) ?? null;
 }
 
+// ─── Persistence ──────────────────────────────────────────────────────────────
+
+function saveBoss(boss: LiveBoss) {
+    return query(
+        `INSERT INTO live_bosses (discord_guild_id, channel_id, message_id, enemy, hp, ends_at, fighters, updated_at)
+         VALUES ($1, $2, $3, $4, $5, to_timestamp($6 / 1000.0), $7, NOW())
+         ON CONFLICT (discord_guild_id) DO UPDATE SET
+             channel_id = EXCLUDED.channel_id, message_id = EXCLUDED.message_id, enemy = EXCLUDED.enemy,
+             hp = EXCLUDED.hp, ends_at = EXCLUDED.ends_at, fighters = EXCLUDED.fighters, updated_at = NOW()`,
+        [boss.discordGuildId, boss.message.channelId, boss.message.id, JSON.stringify(boss.enemy),
+            boss.hp, boss.endsAt, JSON.stringify(Object.fromEntries(boss.fighters))],
+    ).catch((err) => console.error(`Saving the boss in ${boss.discordGuildId} failed:`, err));
+}
+
+function forgetBoss(discordGuildId: string) {
+    return query(`DELETE FROM live_bosses WHERE discord_guild_id = $1`, [discordGuildId])
+        .catch((err) => console.error(`Removing the saved boss in ${discordGuildId} failed:`, err));
+}
+
+/** Saves every live boss's latest HP and damage. Called on shutdown, before the process exits. */
+export async function saveLiveBosses() {
+    await Promise.all([...live.values()].filter((b) => !b.ended).map(saveBoss));
+}
+
+function arm(boss: LiveBoss) {
+    boss.escapeTimer = setTimeout(() => void finish(boss, "escaped"), Math.max(0, boss.endsAt - Date.now()));
+    boss.escapeTimer.unref();
+    live.set(boss.discordGuildId, boss);
+}
+
+/**
+ * Picks up the bosses that were live when the bot last stopped. A boss whose
+ * time ran out while the bot was down escapes straight away; one whose message
+ * is gone (deleted, or the bot lost access) is dropped.
+ */
+export async function restoreBosses(client: Client): Promise<number> {
+    const { rows } = await query<{
+        guild_id: string; channel_id: string; message_id: string;
+        enemy: EnemyConfig; hp: number; ends_at: Date; fighters: Record<string, Fighter>;
+    }>(
+        `SELECT discord_guild_id::text AS guild_id, channel_id::text AS channel_id, message_id::text AS message_id,
+                enemy, hp, ends_at, fighters
+         FROM live_bosses`,
+    );
+
+    let restored = 0;
+    for (const row of rows) {
+        const channel = await client.channels.fetch(row.channel_id).catch(() => null);
+        const message = channel?.isTextBased() ? await channel.messages.fetch(row.message_id).catch(() => null) : null;
+        if (!message) {
+            await forgetBoss(row.guild_id);
+            continue;
+        }
+        arm({
+            enemy: row.enemy,
+            hp: row.hp,
+            discordGuildId: row.guild_id,
+            message,
+            endsAt: new Date(row.ends_at).getTime(),
+            fighters: new Map(Object.entries(row.fighters ?? {})),
+            lastAttackAt: new Map(),
+            ended: false,
+            escapeTimer: undefined as unknown as NodeJS.Timeout,
+            redrawTimer: null,
+        });
+        restored++;
+    }
+    return restored;
+}
+
 /** Called for every message that earned XP. Rarely, wakes a boss. */
 export async function maybeSpawnBoss(message: Message<true>, config: GuildConfig) {
     const cfg = config.combat.bosses;
@@ -84,11 +158,11 @@ export async function spawnBoss(channel: SendableChannels, discordGuildId: strin
         message,
         lastAttackAt: new Map(),
         ended: false,
-        escapeTimer: setTimeout(() => void finish(boss, "escaped"), durationMs),
+        escapeTimer: undefined as unknown as NodeJS.Timeout,
         redrawTimer: null,
     };
-    boss.escapeTimer.unref();
-    live.set(discordGuildId, boss);
+    arm(boss);
+    await saveBoss(boss);
     return boss;
 }
 
@@ -133,6 +207,7 @@ function scheduleRedraw(boss: LiveBoss, config: GuildConfig) {
         boss.redrawTimer = null;
         if (boss.ended) return;
         void boss.message.edit({ embeds: [bossEmbed(boss, config)] }).catch(() => null);
+        void saveBoss(boss);
     }, REDRAW_MS);
     boss.redrawTimer.unref();
 }
@@ -242,7 +317,10 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
     boss.ended = true;
     clearTimeout(boss.escapeTimer);
     if (boss.redrawTimer) clearTimeout(boss.redrawTimer);
-    if (live.get(boss.discordGuildId) === boss) live.delete(boss.discordGuildId);
+    if (live.get(boss.discordGuildId) === boss) {
+        live.delete(boss.discordGuildId);
+        await forgetBoss(boss.discordGuildId);
+    }
 
     const config = known ?? (await getOrCreateGuildConfig({ discordGuildId: boss.discordGuildId })).config;
     const { enemy } = boss;

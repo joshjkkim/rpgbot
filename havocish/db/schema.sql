@@ -188,6 +188,21 @@ CREATE TABLE IF NOT EXISTS public.starter_packs (
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── live_bosses ─────────────────────────────────────────────────────────────
+-- World bosses in progress, so a restart does not lose them. See
+-- migrations/004_live_bosses.sql.
+
+CREATE TABLE IF NOT EXISTS public.live_bosses (
+    discord_guild_id BIGINT      PRIMARY KEY,
+    channel_id       BIGINT      NOT NULL,
+    message_id       BIGINT      NOT NULL,
+    enemy            JSONB       NOT NULL,
+    hp               INTEGER     NOT NULL,
+    ends_at          TIMESTAMPTZ NOT NULL,
+    fighters         JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed

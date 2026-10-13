@@ -34,7 +34,7 @@ import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
-import { handleBossButton, liveBoss, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
+import { handleBossButton, liveBoss, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1477,12 +1477,12 @@ async function main() {
         guildConfigCache.clear();
 
         const edits: unknown[] = [];
-        const channel = { send: async () => ({ id: "boss-1", edit: async (p: unknown) => { edits.push(p); return null; } }) } as any;
+        const channel = { send: async () => ({ id: "1001", channelId: "1000", edit: async (p: unknown) => { edits.push(p); return null; } }) } as any;
         const live = await spawnBoss(channel, TEST_DISCORD_GUILD, config, { ...boss, hp: 1 });
         const replies: string[] = [];
         const attack = () => handleBossButton({
             inCachedGuild: () => true,
-            message: { id: "boss-1" },
+            message: { id: "1001" },
             user: { id: TEST_DISCORD_USER, username: "smoke-test", displayAvatarURL: () => "" },
             member: { displayName: "smoke-test" },
             guildId: TEST_DISCORD_GUILD,
@@ -1496,6 +1496,37 @@ async function main() {
         check("the fighter's damage counted", live.fighters.get(TEST_DISCORD_USER)?.damage, 1);
         const xpAfter = BigInt((await getOrCreateProfile({ userId, guildId })).profile.xp);
         check("the whole pool went to the only fighter", (xpAfter - xpBefore).toString(), "1000");
+        const leftover = await query(`SELECT 1 FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
+        check("a fallen boss leaves no saved row", leftover.rowCount, 0);
+    });
+
+    await test("a live world boss survives a restart", async () => {
+        const { config } = await reset();
+        config.combat.enabled = true;
+        const boss = {
+            id: "golem", name: "Golem", emoji: "🗿", hp: 500, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+            minLevel: 0, maxLevel: null, xpReward: 10, goldReward: 10, drops: [], boss: true,
+        };
+        const message = { id: "2001", channelId: "2000", edit: async () => null };
+        const spawned = await spawnBoss({ send: async () => message } as any, TEST_DISCORD_GUILD, config, boss);
+        spawned.hp = 321;
+        spawned.fighters.set(TEST_DISCORD_USER, { username: "smoke-test", damage: 179, taken: 4, hits: 9 });
+        await saveLiveBosses();
+
+        // A fresh process: the restored boss comes from the table, not memory.
+        const client = {
+            channels: { fetch: async (id: string) => id === "2000"
+                ? { isTextBased: () => true, messages: { fetch: async (m: string) => (m === "2001" ? message : null) } }
+                : null },
+        } as any;
+        check("one boss restored", await restoreBosses(client), 1);
+        const back = liveBoss(TEST_DISCORD_GUILD);
+        check("it is a new object", back !== spawned, true);
+        check("its HP came back", back?.hp, 321);
+        check("its damage leaderboard came back", back?.fighters.get(TEST_DISCORD_USER)?.damage, 179);
+        check("its escape time is unchanged", back?.endsAt, spawned.endsAt);
+
+        await query(`DELETE FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
     });
 
     console.log(`\n${"─".repeat(60)}`);
