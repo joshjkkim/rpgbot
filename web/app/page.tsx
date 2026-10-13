@@ -3,59 +3,35 @@
 import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeftRight,
-  Flame,
-  IdCard,
-  ScrollText,
-  Sparkles,
-  Store,
-  Swords,
-  TrendingUp,
-} from "lucide-react";
+import { Swords } from "lucide-react";
 import { inviteUrl } from "./lib/invite";
 
-const FEATURES = [
+// Real output from the bot's renderers, shown at the size Discord shows them (`show`, in px).
+const SHOWCASE = [
   {
-    icon: Sparkles,
-    title: "XP that fits your server",
-    body: "Earn XP from messages and time in voice. Per-channel multipliers, flat bonuses and cooldown overrides, plus role-based rates for boosters and staff.",
+    src: "/showcase/profile.png", w: 1100, h: 420, show: 560,
+    title: "Every member gets a character",
+    body: "/profile draws a card with their level, gold and streak, in your server's colours and currency names.",
   },
   {
-    icon: TrendingUp,
-    title: "Levels with real rewards",
-    body: "Four progression curves, per-level XP overrides, and actions that fire on level-up — assign a role, strip a role, or announce it in a channel you pick.",
+    src: "/showcase/levelup.png", w: 1120, h: 280, show: 560,
+    title: "Level-ups people notice",
+    body: "Chatting, voice, fights and quests all give XP. Each level-up posts a banner, and can hand out a role.",
   },
   {
-    icon: Flame,
-    title: "Dailies and streaks",
-    body: "Daily XP and gold with a streak multiplier that compounds, and milestone rewards at whatever day counts you choose.",
+    src: "/showcase/item.png", w: 840, h: 432, show: 360,
+    title: "Gear you design",
+    body: "Stock the shop with your own weapons, armour and potions. Members buy, equip, trade and sell them.",
   },
-  {
-    icon: Store,
-    title: "A shop worth spending in",
-    body: "Categories, stock limits, per-user caps, role and level gates. Items can grant roles, restore health, hand out stats, or give other items.",
-  },
-  {
-    icon: Swords,
-    title: "Equipment and combat",
-    body: "Nine equipment slots feeding HP, attack, defence, speed and crit. Turn-based fights against enemies you define, plus wagered duels between members — with a rake you set.",
-  },
-  {
-    icon: ArrowLeftRight,
-    title: "Trading and gifting",
-    body: "Players swap items and gold through offers that are re-checked at accept time, so nothing duplicates and nothing oversells.",
-  },
-  {
-    icon: ScrollText,
-    title: "Quests and achievements",
-    body: "Objectives that track message, XP, daily and combat activity, with cooldowns, repeatability, and rewards that announce where you want them.",
-  },
-  {
-    icon: IdCard,
-    title: "Profile cards",
-    body: "Rendered profile images with progress bars, equipment, combat stats and your server's own colours, icons and currency names.",
-  },
+];
+
+const ALSO = [
+  "Turn-based fights against enemies you write",
+  "Duels between members, with gold on the line",
+  "Quests and achievements with custom rewards",
+  "Daily rewards with streak bonuses",
+  "Trading and gifting between players",
+  "Per-channel and per-role XP rates",
 ];
 
 const primaryButton = "btn";
@@ -197,18 +173,12 @@ export default function Home() {
       <main className="flex-1">
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-14 pb-20 lg:grid-cols-[1.1fr_1fr] lg:pt-20">
           <div className="text-center lg:text-left">
-            <span className="font-display text-sm uppercase tracking-[0.2em] text-[var(--accent)]">
-              Level up your community
-            </span>
-            <h1 className="mt-4 text-4xl leading-tight sm:text-6xl">
-              Turn your Discord server into an{" "}
-              {/* A muted legendary orange. */}
-              <span className="text-[#d0894a]">RPG</span>
+            <h1 className="text-4xl leading-tight sm:text-6xl">
+              Turn your Discord server into an RPG
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-[var(--muted)]">
-              havocish gives your members levels to climb, gold to earn and spend, gear to
-              equip and enemies to fight — and gives you a dashboard to tune every number
-              behind it, without touching a config file.
+              Your members level up by chatting, earn gold, fight enemies and collect gear.
+              You set it all up from a dashboard.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
@@ -236,24 +206,30 @@ export default function Home() {
           <WorldFeed />
         </section>
 
-        <section className="mx-auto max-w-6xl px-6 pb-24">
-          <h2 className="mb-6 text-center text-sm uppercase tracking-[0.2em] text-[var(--accent)]">
-            Everything a campaign needs
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="frame group p-5 transition-colors hover:border-[var(--accent)]"
-              >
-                <span className="slot h-9 w-9 transition-colors group-hover:text-[var(--gold)]">
-                  <f.icon size={18} />
-                </span>
-                <h3 className="mt-3 text-lg">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{f.body}</p>
+        <section className="mx-auto max-w-5xl space-y-16 px-6 pb-20">
+          {SHOWCASE.map((f, i) => (
+            <div key={f.src} className="grid items-center gap-6 md:grid-cols-2 md:gap-10">
+              {/* eslint-disable-next-line @next/next/no-img-element -- static PNGs, nothing to optimise */}
+              <img
+                src={f.src} width={f.w} height={f.h} alt={f.title} loading="lazy"
+                style={{ maxWidth: f.show }}
+                className={`mx-auto h-auto w-full ${i % 2 ? "md:order-2" : ""}`}
+              />
+              <div>
+                <h2 className="text-2xl">{f.title}</h2>
+                <p className="mt-2 leading-relaxed text-[var(--muted)]">{f.body}</p>
               </div>
+            </div>
+          ))}
+        </section>
+
+        <section className="mx-auto max-w-5xl px-6 pb-24">
+          <h2 className="text-2xl">Also in the box</h2>
+          <ul className="mt-4 grid gap-x-10 gap-y-2 text-[var(--muted)] sm:grid-cols-2">
+            {ALSO.map((line) => (
+              <li key={line}>{line}</li>
             ))}
-          </div>
+          </ul>
         </section>
       </main>
 
