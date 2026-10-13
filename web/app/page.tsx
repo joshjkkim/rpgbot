@@ -2,7 +2,6 @@
 
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Swords } from "lucide-react";
 import { inviteUrl } from "./lib/invite";
 import { FIREFLIES, SCENE, STARS, WINDOWS } from "./scene";
 import { FLAME_FRAMES, PALETTE, SPRITES, type SpriteName } from "./sprites";
@@ -67,9 +66,8 @@ function afterSignIn() {
 function Wordmark() {
   return (
     <span className="flex items-center gap-2.5 font-display text-xl text-[var(--gold)] [text-shadow:0_1px_0_#000]">
-      <span className="slot h-8 w-8">
-        <Swords size={16} />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a 64px pixel-art PNG */}
+      <img src="/logo.png" alt="" width={32} height={32} className="[image-rendering:pixelated]" />
       havocish
     </span>
   );
