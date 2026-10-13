@@ -2,6 +2,7 @@ import type { ButtonInteraction, ColorResolvable, Message, SendableChannels } fr
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from "discord.js";
 import type { EnemyConfig, FightEndSummary } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
+import { canPost } from "./canPost.js";
 import { commitProfileChanges, getOrCreateProfile } from "../cache/profileService.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -65,7 +66,7 @@ export async function maybeSpawnBoss(message: Message<true>, config: GuildConfig
 
     const bosses = bossesIn(config);
     const enemy = bosses[Math.floor(Math.random() * bosses.length)];
-    if (!enemy || !message.channel.isSendable()) return;
+    if (!enemy || !canPost(message)) return;
     lastSpawnAt.set(message.guildId, now);
     await spawnBoss(message.channel, message.guildId, config, enemy);
 }
