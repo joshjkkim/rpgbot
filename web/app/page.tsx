@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Swords } from "lucide-react";
@@ -83,85 +82,6 @@ function Header() {
   );
 }
 
-// Chat channel and item quality colours, muted to sit with the rest of the page.
-const SYSTEM = "text-[#d6c77a]";
-const GUILD = "text-[#8fc27a]";
-const DUEL = "text-[#d19a5b]";
-const UNCOMMON = "text-[#7fb86a]";
-const RARE = "text-[#6c95d0]";
-const EPIC = "text-[#a584cc]";
-const NAMED = "text-[var(--gold)]";
-
-/** Each line is [text, colour?] runs; the line's own colour covers uncoloured runs. */
-const FEED: Array<{ tone: string; parts: Array<[string, string?]> }> = [
-  { tone: SYSTEM, parts: [["Aria has reached level 12!"]] },
-  { tone: GUILD, parts: [["[Guild] Brakka: anyone up for a dungeon run?"]] },
-  { tone: "", parts: [["Tovin receives loot: "], ["[Ironbark Maul]", RARE], ["."]] },
-  { tone: SYSTEM, parts: [["Mirelle has earned the achievement "], ["[Chatterbox]", NAMED], ["!"]] },
-  { tone: DUEL, parts: [["Osric has defeated Brakka in a duel. 50 gold changes hands."]] },
-  { tone: SYSTEM, parts: [["Quest complete: "], ["[Daily: Say Something]", NAMED], [". +120 XP"]] },
-  { tone: "", parts: [["Wren buys "], ["[Minor Healing Draught]", UNCOMMON], [" for 25 gold."]] },
-  { tone: GUILD, parts: [["[Guild] Aria: day 7 of the streak, not breaking it now"]] },
-  { tone: "", parts: [["Brakka trades "], ["[Cloak of the Wandering Fox]", EPIC], [" to Wren."]] },
-  { tone: SYSTEM, parts: [["Tovin has reached level 20 and is now a Veteran!"]] },
-];
-
-const VISIBLE_LINES = 9;
-
-/**
- * An MMO chat frame with server life scrolling past -- levels, loot, duels,
- * quests and trades. Decorative: the feature list below says the same in words.
- */
-function WorldFeed() {
-  // Starts at a fixed offset so the server render and the first client render agree.
-  const [start, setStart] = useState(0);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setStart((s) => s + 1), 2400);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="frame mx-auto w-full max-w-md text-left">
-      <div className="flex items-end gap-1 border-b border-[var(--border)] px-3 pt-2">
-        {["General", "Guild", "Loot"].map((tab, i) => (
-          <span
-            key={tab}
-            className={`rounded-t-sm border border-b-0 px-2.5 py-1 font-display text-xs ${
-              i === 0
-                ? "border-[var(--border-bright)] bg-black/40 text-[var(--gold)]"
-                : "border-transparent text-[var(--muted)]"
-            }`}
-          >
-            {tab}
-          </span>
-        ))}
-        <span className="ml-auto pb-1.5 text-[11px] text-[var(--muted)]">Tavern of Legends</span>
-      </div>
-
-      <ul
-        aria-hidden
-        className="flex h-56 flex-col justify-end overflow-hidden bg-black/35 px-3 py-2 text-[13px] leading-6 [text-shadow:0_1px_0_#000]"
-      >
-        {Array.from({ length: VISIBLE_LINES }, (_, i) => start + i).map((n) => {
-          const line = FEED[n % FEED.length];
-          return (
-            // Keyed by position in the endless stream, so only the newest line mounts and animates.
-            <li key={n} className={`feed-line ${line.tone}`}>
-              {line.parts.map(([text, colour], j) => (
-                <span key={j} className={colour}>
-                  {text}
-                </span>
-              ))}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 export default function Home() {
   const { data: session } = useSession();
   const invite = inviteUrl();
@@ -171,17 +91,26 @@ export default function Home() {
       <Header />
 
       <main className="flex-1">
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-14 pb-20 lg:grid-cols-[1.1fr_1fr] lg:pt-20">
-          <div className="text-center lg:text-left">
+        <section className="relative isolate overflow-hidden">
+          {/* Pixel-art dusk scene, drawn at 400x150 and scaled up without smoothing. */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- a static decorative PNG */}
+          <img
+            src="/scene.png" alt="" aria-hidden
+            className="absolute inset-0 -z-10 h-full w-full object-cover object-bottom [image-rendering:pixelated]"
+          />
+          {/* Fades the scene into the page so the section has no hard bottom edge. */}
+          <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-b from-transparent to-[var(--background)]" />
+
+          <div className="mx-auto max-w-3xl px-6 pt-16 pb-56 text-center sm:pt-24 sm:pb-72">
             <h1 className="text-4xl leading-tight sm:text-6xl">
               Turn your Discord server into an RPG
             </h1>
-            <p className="mt-5 text-lg leading-relaxed text-[var(--muted)]">
+            <p className="mt-5 text-lg leading-relaxed text-[var(--foreground)]/80 [text-shadow:0_1px_2px_#000]">
               Your members level up by chatting, earn gold, fight enemies and collect gear.
               You set it all up from a dashboard.
             </p>
 
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               {invite && (
                 <a href={invite} target="_blank" rel="noreferrer" className={`${primaryButton} px-5 py-2.5`}>
                   Add to Server
@@ -202,11 +131,9 @@ export default function Home() {
               </p>
             )}
           </div>
-
-          <WorldFeed />
         </section>
 
-        <section className="mx-auto max-w-5xl space-y-16 px-6 pb-20">
+        <section className="mx-auto max-w-5xl space-y-16 px-6 pt-8 pb-20">
           {SHOWCASE.map((f, i) => (
             <div key={f.src} className="grid items-center gap-6 md:grid-cols-2 md:gap-10">
               {/* eslint-disable-next-line @next/next/no-img-element -- static PNGs, nothing to optimise */}

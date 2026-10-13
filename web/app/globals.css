@@ -176,22 +176,5 @@ body {
     box-shadow: inset 0 0 6px rgb(0 0 0 / 0.9), 0 0 0 1px #000;
     color: var(--accent);
   }
-
-  /* A chat line arriving in the landing page's feed. */
-  .feed-line {
-    animation: feed-in 450ms ease-out both;
-  }
 }
 
-@keyframes feed-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .feed-line {
-    animation: none;
-  }
-}
