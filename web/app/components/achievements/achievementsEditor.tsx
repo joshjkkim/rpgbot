@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Field,
   FieldGrid,
-  KeyedList,
   NumberField,
   Section,
   SelectField,
@@ -12,6 +11,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
 
 export interface AchievementCondition {
@@ -123,51 +123,24 @@ export default function AchievementsEditor({ value, onChange, shopItems }: Props
 
   return (
     <div className="space-y-4">
-      <Section title="General" description="Whether achievements run, and where unlocks are announced.">
-        <Toggle
-          label="Enable achievements"
-          checked={!!local.enabled}
-          onChange={(v) => updateRoot({ enabled: v })}
-        />
-        <div className="mt-4">
-          <FieldGrid>
-            <ChannelField
-              label="Announce channel"
-              value={local.announceAllId ?? ""}
-              onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextAreaField
-              label="Announce message"
-              value={local.announceMessage ?? ""}
-              onChange={(v) => updateRoot({ announceMessage: v || null })}
-              rows={2}
-              placeholder="{user} unlocked {achievementName}!"
-              hint="{user} {achievementName} {achievementDescription}"
-            />
-          </FieldGrid>
-        </div>
-      </Section>
-
       <Section title="Achievements" description="One-off milestones and what they pay out.">
-        <KeyedList<AchievementConfig>
+        <ContentBrowser<AchievementConfig>
           entries={entries}
-          addPlaceholder="Achievement ID, e.g. first-steps"
-          addLabel="Add achievement"
+          newLabel="New achievement"
           empty="No achievements defined yet."
-          itemLabel={(id, a) => a.name || id}
-          onAdd={(rawId) => {
-            const id = rawId.trim();
-            if (!/^[a-zA-Z0-9_-]{2,60}$/.test(id)) return;
-            if ((local.achievements ?? {})[id]) return;
+          look={(id, a) => ({ icon: "🏆", label: a.name || id })}
+          tooltip={(id, a) => <EntryTooltip title={a.name || id} colour="var(--gold)" lines={[a.description]} />}
+          onCreate={(name) => {
+            const id = idFromName(name, Object.keys(local.achievements ?? {}));
             upsert({
               id,
-              name: id,
+              name,
               description: "",
               category: "misc",
               conditions: { type: "level", operator: ">=", value: 5 },
               reward: {},
             });
+            return id;
           }}
           onRemove={(id) => {
             const next = { ...(local.achievements ?? {}) };
@@ -299,6 +272,33 @@ export default function AchievementsEditor({ value, onChange, shopItems }: Props
           }}
         />
       </Section>
+
+      <Section title="General" description="Whether achievements run, and where unlocks are announced." defaultOpen={!local.enabled}>
+        <Toggle
+          label="Enable achievements"
+          checked={!!local.enabled}
+          onChange={(v) => updateRoot({ enabled: v })}
+        />
+        <div className="mt-4">
+          <FieldGrid>
+            <ChannelField
+              label="Announce channel"
+              value={local.announceAllId ?? ""}
+              onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
+              emptyLabel="Don't announce"
+            />
+            <TextAreaField
+              label="Announce message"
+              value={local.announceMessage ?? ""}
+              onChange={(v) => updateRoot({ announceMessage: v || null })}
+              rows={2}
+              placeholder="{user} unlocked {achievementName}!"
+              hint="{user} {achievementName} {achievementDescription}"
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
-  EmptyState,
   Field,
   FieldGrid,
   KeyedList,
@@ -16,7 +15,7 @@ import {
 } from "@/app/components/ui/form";
 import ItemTooltip, { RARITIES, type ItemRarity } from "./itemTooltip";
 import { ChannelField, ItemField, RoleField, RolesField } from "@/app/components/ui/pickers";
-import { DeleteButton, SlotGrid, idFromName } from "@/app/components/ui/slots";
+import { ContentBrowser, idFromName } from "@/app/components/ui/slots";
 
 type EquipSlot =
   | "head" | "body" | "legs" | "feet" | "hands"
@@ -241,9 +240,7 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
     [categoryEntries]
   );
 
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const selectedItem = selectedItemId ? local.items?.[selectedItemId] ?? null : null;
   const visibleItems = itemEntries.filter(([, item]) => categoryFilter === "all" || item.categoryId === categoryFilter);
 
   /** The full form for one item, shown beside the grid when it is selected. */
@@ -581,8 +578,12 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
         title="Items"
         description="What is for sale, and what it does. Hover an item to see how members see it, click it to edit."
       >
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-          <div className="space-y-3 lg:sticky lg:top-4">
+        <ContentBrowser<shopItemConfig>
+          entries={visibleItems}
+          newLabel="New item"
+          empty="No items for sale yet."
+          above={
+            <>
             {categoryEntries.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {[["all", "All"] as const, ...categoryEntries.map(([id, c]) => [id, `${c.icon ?? ""} ${c.name || id}`.trim()] as const)].map(
@@ -604,52 +605,31 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                 )}
               </div>
             )}
-            <SlotGrid<shopItemConfig>
-              entries={visibleItems}
-              selected={selectedItemId}
-              onSelect={setSelectedItemId}
-              look={(id, item) => ({
-                icon: item.emoji,
-                label: item.name || id,
-                colour: RARITIES.find((r) => r.value === item.rarity)?.colour,
-                faded: item.hidden,
-              })}
-              tooltip={(_, item) => <ItemTooltip item={item} />}
-              newLabel="New item"
-              onCreate={(name) => {
-                const id = idFromName(name, Object.keys(local.items ?? {}));
-                const categoryId = categoryFilter !== "all" ? categoryFilter : (categoryEntries[0]?.[0] ?? "");
-                upsertItem({ id, name, categoryId, price: 100 });
-                setSelectedItemId(id);
-              }}
-            />
-          </div>
-
-          {selectedItem ? (
-            <div className="rounded-sm border border-[var(--border)] bg-black/30 p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <p className="min-w-0 truncate font-display text-lg">
-                  {selectedItem.emoji} {selectedItem.name || selectedItem.id}
-                  <span className="ml-2 font-mono text-xs text-[var(--muted)]">{selectedItem.id}</span>
-                </p>
-                <DeleteButton
-                  onDelete={() => {
-                    const next = { ...(local.items ?? {}) };
-                    delete next[selectedItem.id];
-                    updateRoot({ items: next });
-                    setSelectedItemId(null);
-                  }}
-                />
-              </div>
-              {itemEditor(selectedItem)}
-            </div>
-          ) : (
-            <EmptyState>Pick an item to edit it, or make a new one.</EmptyState>
-          )}
-        </div>
+            </>
+          }
+          look={(id, item) => ({
+            icon: item.emoji,
+            label: item.name || id,
+            colour: RARITIES.find((r) => r.value === item.rarity)?.colour,
+            faded: item.hidden,
+          })}
+          tooltip={(_, item) => <ItemTooltip item={item} />}
+          onCreate={(name) => {
+            const id = idFromName(name, Object.keys(local.items ?? {}));
+            const categoryId = categoryFilter !== "all" ? categoryFilter : (categoryEntries[0]?.[0] ?? "");
+            upsertItem({ id, name, categoryId, price: 100 });
+            return id;
+          }}
+          onRemove={(id) => {
+            const next = { ...(local.items ?? {}) };
+            delete next[id];
+            updateRoot({ items: next });
+          }}
+          renderItem={(_, item) => itemEditor(item)}
+        />
       </Section>
 
-      <Section title="General" description="Whether the shop is open, and how gifting works." defaultOpen={false}>
+      <Section title="General" description="Whether the shop is open, and how gifting works." defaultOpen={!local.enabled}>
         <Toggle
           label="Enable shop"
           checked={!!local.enabled}

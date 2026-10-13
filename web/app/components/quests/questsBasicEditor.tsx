@@ -5,7 +5,6 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   Field,
   FieldGrid,
-  KeyedList,
   NumberField,
   Section,
   SelectField,
@@ -13,6 +12,7 @@ import {
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
 
 export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim";
@@ -149,64 +149,25 @@ export default function QuestsBasicEditor({ value, onChange, shopItems }: Props)
 
   return (
     <div className="space-y-4">
-      <Section title="General" description="Whether quests run, and how completions are told to members.">
-        <div className="space-y-3">
-          <Toggle
-            label="Enable quests"
-            checked={!!local.enabled}
-            onChange={(v) => updateRoot({ enabled: v })}
-          />
-          <Toggle
-            label="DM on completion"
-            checked={!!local.dmUser}
-            onChange={(v) => updateRoot({ dmUser: v })}
-          />
-          <Toggle
-            label="Reply in the channel on completion"
-            checked={!!local.replyMessage}
-            onChange={(v) => updateRoot({ replyMessage: v })}
-          />
-        </div>
-
-        <div className="mt-4">
-          <FieldGrid>
-            <ChannelField
-              label="Announce channel"
-              value={local.announceAllId ?? ""}
-              onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextField
-              label="Announce message"
-              value={local.announceMessage ?? ""}
-              onChange={(v) => updateRoot({ announceMessage: v || null })}
-              placeholder="{user} completed {questName}!"
-              hint="{user} {questName} {questDescription}"
-            />
-          </FieldGrid>
-        </div>
-      </Section>
-
       <Section title="Quests" description="Objectives members can take on and claim.">
-        <KeyedList<QuestConfig>
+        <ContentBrowser<QuestConfig>
           entries={questEntries}
-          addPlaceholder="Quest ID, e.g. daily-chatter"
-          addLabel="Add quest"
+          newLabel="New quest"
           empty="No quests defined yet."
-          itemLabel={(id, quest) => quest.name || id}
-          onAdd={(rawId) => {
-            const id = rawId.trim();
-            if (!/^[a-zA-Z0-9_-]{2,40}$/.test(id)) return;
-            if ((local.quests ?? {})[id]) return;
+          look={(id, quest) => ({ icon: "📜", label: quest.name || id, faded: quest.active === false })}
+          tooltip={(id, quest) => <EntryTooltip title={quest.name || id} colour="var(--gold)" lines={[quest.description, quest.active === false && "Inactive"]} />}
+          onCreate={(name) => {
+            const id = idFromName(name, Object.keys(local.quests ?? {}));
             upsertQuest({
               id,
-              name: id,
+              name,
               description: "",
               conditions: { type: "messages", target: 10 },
               reward: {},
               active: true,
               cooldown: 86400,
             });
+            return id;
           }}
           onRemove={(id) => {
             const next = { ...(local.quests ?? {}) };
@@ -401,6 +362,45 @@ export default function QuestsBasicEditor({ value, onChange, shopItems }: Props)
           }}
         />
       </Section>
+
+      <Section title="General" description="Whether quests run, and how completions are told to members." defaultOpen={!local.enabled}>
+        <div className="space-y-3">
+          <Toggle
+            label="Enable quests"
+            checked={!!local.enabled}
+            onChange={(v) => updateRoot({ enabled: v })}
+          />
+          <Toggle
+            label="DM on completion"
+            checked={!!local.dmUser}
+            onChange={(v) => updateRoot({ dmUser: v })}
+          />
+          <Toggle
+            label="Reply in the channel on completion"
+            checked={!!local.replyMessage}
+            onChange={(v) => updateRoot({ replyMessage: v })}
+          />
+        </div>
+
+        <div className="mt-4">
+          <FieldGrid>
+            <ChannelField
+              label="Announce channel"
+              value={local.announceAllId ?? ""}
+              onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
+              emptyLabel="Don't announce"
+            />
+            <TextField
+              label="Announce message"
+              value={local.announceMessage ?? ""}
+              onChange={(v) => updateRoot({ announceMessage: v || null })}
+              placeholder="{user} completed {questName}!"
+              hint="{user} {questName} {questDescription}"
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
     </div>
   );
 }
