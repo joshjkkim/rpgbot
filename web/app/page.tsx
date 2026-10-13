@@ -264,6 +264,8 @@ export default function Home() {
           <a href="/legal/terms" className="hover:text-[var(--accent)]">Terms of Service</a>
           {" · "}
           <a href="/legal/privacy" className="hover:text-[var(--accent)]">Privacy Policy</a>
+          {" · "}
+          <a href="https://discord.gg/9dV5NnV9tq" target="_blank" rel="noreferrer" className="hover:text-[var(--accent)]">Support server</a>
         </div>
       </footer>
     </div>
