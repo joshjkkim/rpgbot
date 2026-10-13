@@ -77,6 +77,17 @@ export default function ConfigPage({
     if (ok !== false) setSavedAt(Date.now());
   }
 
+  // Cmd/Ctrl+S saves instead of opening the browser's "save page" dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "s" || !(e.metaKey || e.ctrlKey)) return;
+      e.preventDefault();
+      if (dirty && !loading && !saving) void handleSave();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
   return (
     <main className="mx-auto max-w-5xl space-y-5">
       <header className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
@@ -116,6 +127,20 @@ export default function ConfigPage({
       )}
 
       {!loading && children}
+
+      {/* Pinned to the bottom of the screen while there is something to save, so a
+          change halfway down a long page can be saved without scrolling back up. */}
+      {dirty && !loading && (
+        <div className="sticky bottom-4 z-30 flex items-center justify-between gap-4 rounded-sm border border-[var(--accent)]/60 bg-[#14100c]/95 px-4 py-3 shadow-[0_4px_16px_rgb(0_0_0/0.6)] backdrop-blur">
+          <span className="text-sm text-amber-400">You have unsaved changes</span>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-xs text-[var(--muted)] sm:inline">Ctrl/⌘ + S</span>
+            <button className="btn px-4 py-2 text-sm" disabled={saving} onClick={handleSave}>
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {!loading && rawSection !== undefined && (
         <details className="frame p-4">
