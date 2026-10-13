@@ -33,6 +33,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           <Link href="/legal/terms" className="hover:text-[var(--accent)]">Terms of Service</Link>
           {" · "}
           <Link href="/legal/privacy" className="hover:text-[var(--accent)]">Privacy Policy</Link>
+          {" · "}
+          <a href="https://discord.gg/9dV5NnV9tq" target="_blank" rel="noreferrer" className="hover:text-[var(--accent)]">Support server</a>
         </p>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import type { Client, Guild } from "discord.js";
-import { ActionRowBuilder, ButtonBuilder, EmbedBuilder, Events, PermissionFlagsBits } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Events, PermissionFlagsBits } from "discord.js";
 import { setGuildConfig, upsertGuild } from "../db/guilds.js";
 import { DEFAULT_GUILD_CONFIG } from "../types/guild.js";
 import { dashboardButton } from "../ui/dashboardLinks.js";
@@ -53,7 +53,10 @@ async function sendWelcome(guild: Guild) {
     );
   const payload = {
     embeds: [embed],
-    components: [new ActionRowBuilder<ButtonBuilder>().addComponents(dashboardButton(guild.id))],
+    components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
+      dashboardButton(guild.id),
+      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Support server").setURL("https://discord.gg/9dV5NnV9tq"),
+    )],
   };
 
   const me = guild.members.me;
