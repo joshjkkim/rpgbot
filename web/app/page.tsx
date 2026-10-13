@@ -4,7 +4,8 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { inviteUrl } from "./lib/invite";
 import { FIREFLIES, SCENE, STARS, WINDOWS } from "./scene";
-import { FLAME_FRAMES, PALETTE, SPRITES, type SpriteName } from "./sprites";
+import { FLAME_FRAMES, type SpriteName } from "./sprites";
+import { Pixels, Sprite } from "./components/ui/sprite";
 
 // Real output from the bot's renderers, shown at the size Discord shows them (`show`, in px).
 const SHOWCASE = [
@@ -33,23 +34,6 @@ const ALSO: Array<[SpriteName, string]> = [
   ["chest", "Trading and gifting between players"],
   ["potion", "Per-channel and per-role XP rates"],
 ];
-
-/** Character-grid pixel art as SVG rects; see sprites.ts. */
-function Pixels({ grid, x = 0, y = 0 }: { grid: string[]; x?: number; y?: number }) {
-  return grid.flatMap((row, py) =>
-    [...row].map((ch, px) =>
-      ch === "." ? null : <rect key={`${px},${py}`} x={x + px} y={y + py} width={1} height={1} fill={PALETTE[ch]} />,
-    ),
-  );
-}
-
-function Sprite({ name, size = 36 }: { name: SpriteName; size?: number }) {
-  return (
-    <svg viewBox="0 0 12 12" width={size} height={size} shapeRendering="crispEdges" aria-hidden className="shrink-0">
-      <Pixels grid={SPRITES[name]} />
-    </svg>
-  );
-}
 
 // The campfire scene's size and where its fire sits, matching public/campfire.png.
 const CAMP = { w: 320, h: 90, fireX: 160, ground: 70 };

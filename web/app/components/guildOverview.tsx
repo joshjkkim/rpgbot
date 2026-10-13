@@ -1,141 +1,95 @@
 "use client";
 
 import Link from "next/link";
-import { Coins, FileText, Palette, ScrollText, Sparkles, Swords, TrendingUp, Trophy } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import QuestLog from "@/app/components/questLog";
+import { Sprite } from "@/app/components/ui/sprite";
+import type { SpriteName } from "@/app/sprites";
 
-const ICONS = {
-  xp: Sparkles,
-  levels: TrendingUp,
-  shop: Coins,
-  combat: Swords,
-  quests: ScrollText,
-  achievements: Trophy,
-  styles: Palette,
-  logging: FileText,
-} as const;
+type Row = {
+  href: string;
+  title: string;
+  sprite: SpriteName;
+  /** null when the feature has no on/off switch of its own. */
+  enabled: boolean | null;
+  summary: string;
+};
 
 function count(record: unknown): number {
   return record && typeof record === "object" ? Object.keys(record).length : 0;
 }
 
-type Card = {
-  href: string;
-  title: string;
-  /** null when the section has no on/off switch of its own. */
-  enabled: boolean | null;
-  lines: string[];
-};
+/** "1 item", "3 items", "2 categories". */
+function n(amount: number, one: string, many = `${one}s`) {
+  return `${amount} ${amount === 1 ? one : many}`;
+}
 
-function buildCards(config: any): Card[] {
-  const xp = config?.xp ?? {};
-  const levels = config?.levels ?? {};
-  const shop = config?.shop ?? {};
-  const combat = config?.combat ?? {};
-  const quests = config?.quests ?? {};
-  const achievements = config?.achievements ?? {};
-  const style = config?.style ?? {};
-  const logging = config?.logging ?? {};
+/** Each feature as one plain sentence, so the page reads as a status report, not a grid of numbers. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the config is untyped JSON from the API
+function describe(config: Record<string, any>): Row[] {
+  const { xp = {}, levels = {}, shop = {}, combat = {}, quests = {}, achievements = {}, style = {}, logging = {} } = config ?? {};
+  const xpName = style.xp?.name || "XP";
+  const goldName = style.gold?.name || "gold";
 
-  const activeLogCategories = Object.values(logging.allowedCategories ?? {}).filter(
-    (v) => v !== false
-  ).length;
+  const enemies = Object.values(combat.enemies ?? {}) as Array<{ boss?: boolean }>;
+  const bosses = enemies.filter((e) => e.boss).length;
+  const loggedKinds = Object.values(logging.allowedCategories ?? {}).filter((v) => v !== false).length;
 
   return [
     {
-      href: "xp",
-      title: "XP",
-      enabled: null,
-      lines: [
-        `${xp.basePerMessage ?? 0} XP per message, ${xp.xpMessageCooldown ?? 0}s cooldown`,
-        xp.vc?.enabled ? `Voice XP on, ${xp.vc.basePerMinute ?? 0}/min` : "Voice XP off",
-        `Daily ${xp.dailyXp ?? 0} XP + ${xp.dailyGold ?? 0} gold`,
-      ],
+      href: "xp", title: "XP", sprite: "potion", enabled: null,
+      summary: [
+        `${xp.basePerMessage ?? 0} ${xpName} per message${xp.xpMessageCooldown ? `, at most once every ${xp.xpMessageCooldown}s` : ""}`,
+        xp.vc?.enabled ? `voice gives ${xp.vc.basePerMinute ?? 0} a minute` : "no voice XP",
+        `daily reward of ${xp.dailyXp ?? 0} ${xpName} and ${xp.dailyGold ?? 0} ${goldName}`,
+      ].join(", ") + ".",
     },
     {
-      href: "levels",
-      title: "Levels",
-      enabled: null,
-      lines: [
+      href: "levels", title: "Levels", sprite: "star", enabled: null,
+      summary: [
         `${levels.curveType ?? "linear"} curve`,
-        levels.maxLevel ? `Max level ${levels.maxLevel}` : "No level cap",
-        `${count(levels.levelActions)} level(s) with actions`,
-      ],
+        levels.maxLevel ? `up to level ${levels.maxLevel}` : "no level cap",
+        count(levels.levelActions) ? `rewards at ${n(count(levels.levelActions), "level")}` : "no level rewards yet",
+      ].join(", ") + ".",
     },
     {
-      href: "shop",
-      title: "Economy",
-      enabled: shop.enabled ?? false,
-      lines: [
-        `${count(shop.items)} item(s) in ${count(shop.categories)} category(ies)`,
-        shop.gifting?.enabled ? "Gifting enabled" : "Gifting disabled",
-      ],
+      href: "shop", title: "Economy", sprite: "chest", enabled: !!shop.enabled,
+      summary: count(shop.items)
+        ? `${n(count(shop.items), "item")} in ${n(count(shop.categories), "category", "categories")}, gifting ${shop.gifting?.enabled ? "allowed" : "off"}.`
+        : "No items for sale yet.",
     },
     {
-      href: "combat",
-      title: "Combat",
-      enabled: combat.enabled ?? false,
-      lines: [
-        `${count(combat.enemies)} enemy type(s)`,
-        `${combat.hpBase ?? 0} base HP, +${combat.hpPerLevel ?? 0}/level`,
-        combat.pvp?.enabled
-          ? `Duels on, ${combat.pvp.rakePercent ?? 0}% rake`
-          : "Duels off",
-      ],
+      href: "combat", title: "Combat", sprite: "swords", enabled: !!combat.enabled,
+      summary: enemies.length
+        ? [
+            n(enemies.length - bosses, "enemy", "enemies") + (bosses ? ` and ${n(bosses, "world boss", "world bosses")}` : ""),
+            `duels ${combat.pvp?.enabled ? "on" : "off"}`,
+            `random encounters ${combat.encounters?.enabled ? "on" : "off"}`,
+          ].join(", ") + "."
+        : "No enemies yet, so there is nothing to fight.",
     },
     {
-      href: "quests",
-      title: "Quests",
-      enabled: quests.enabled ?? false,
-      lines: [
-        `${count(quests.quests)} quest(s) defined`,
-        quests.announceAllId ? "Announces completions" : "No announce channel",
-      ],
+      href: "quests", title: "Quests", sprite: "scroll", enabled: !!quests.enabled,
+      summary: count(quests.quests)
+        ? `${n(count(quests.quests), "quest")}, ${quests.announceAllId ? "completions announced" : "completions not announced"}.`
+        : "No quests yet.",
     },
     {
-      href: "achievements",
-      title: "Achievements",
-      enabled: achievements.enabled ?? false,
-      lines: [
-        `${count(achievements.achievements)} achievement(s) defined`,
-        achievements.announceAllId ? "Announces unlocks" : "No announce channel",
-      ],
+      href: "achievements", title: "Achievements", sprite: "trophy", enabled: !!achievements.enabled,
+      summary: count(achievements.achievements)
+        ? `${n(count(achievements.achievements), "achievement")}, ${achievements.announceAllId ? "unlocks announced" : "unlocks not announced"}.`
+        : "No achievements yet.",
     },
     {
-      href: "styles",
-      title: "Style",
-      enabled: null,
-      lines: [
-        `${style.template ?? "default"} profile template`,
-        `Currency: ${style.gold?.name ?? "Gold"} ${style.gold?.icon ?? ""}`.trim(),
-      ],
+      href: "styles", title: "Style", sprite: "palette", enabled: null,
+      summary: `${style.template === "fantasy" ? "Fantasy" : "Default"} profile card; currency is ${style.gold?.icon ?? "💰"} ${style.gold?.name || "Gold"} and ${style.xp?.icon ?? "⭐"} ${xpName}.`,
     },
     {
-      href: "logging",
-      title: "Logging",
-      enabled: logging.enabled ?? false,
-      lines: [
-        `${activeLogCategories} categor(ies) recorded`,
-        logging.mainChannelId ? "Main channel set" : "No main channel",
-      ],
+      href: "logging", title: "Logging", sprite: "book", enabled: !!logging.enabled,
+      summary: `${n(loggedKinds, "kind of event", "kinds of event")} recorded, ${logging.mainChannelId ? "posted to a log channel" : "no log channel"}.`,
     },
   ];
-}
-
-function StatusPill({ enabled }: { enabled: boolean | null }) {
-  if (enabled === null) return null;
-
-  // Muted takes on the uncommon green and poor grey item quality colours.
-  return (
-    <span
-      className={`ml-auto text-[11px] font-semibold uppercase tracking-wider ${
-        enabled ? "text-[#8fbf72]" : "text-[#8a857c]"
-      }`}
-    >
-      {enabled ? "On" : "Off"}
-    </span>
-  );
 }
 
 export default function GuildOverview({ guildId }: { guildId: string }) {
@@ -153,8 +107,6 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
     );
   }
 
-  const cards = buildCards(config);
-
   return (
     <div className="space-y-6">
       <header className="frame flex items-center gap-4 p-5">
@@ -169,42 +121,39 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
           <div className="h-14 w-14 rounded-full border-2 border-[var(--border-bright)] bg-[var(--border)] shadow-[0_0_0_2px_#000]" />
         )}
         <div className="min-w-0">
-          <h1 className="truncate text-2xl">
-            {guild.name ?? "Server"}
-          </h1>
-          <p className="mt-0.5 font-mono text-xs text-[var(--muted)]">{guildId}</p>
+          <h1 className="truncate text-2xl">{guild.name ?? "Server"}</h1>
+          <p className="mt-0.5 text-sm text-[var(--muted)]">Everything havocish does here, at a glance.</p>
         </div>
       </header>
 
       <QuestLog guildId={guildId} config={config} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => {
-          const Icon = ICONS[card.href as keyof typeof ICONS];
-          return (
+      <section className="frame divide-y divide-[var(--border)]">
+        {describe(config).map((row) => (
           <Link
-            key={card.href}
-            href={`/dashboard/${guildId}/${card.href}`}
-            className="frame group p-4 transition-colors hover:border-[var(--accent)]"
+            key={row.href}
+            href={`/dashboard/${guildId}/${row.href}`}
+            className={`group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-[var(--accent)]/5 ${
+              row.enabled === false ? "opacity-60 hover:opacity-100" : ""
+            }`}
           >
-            <div className="flex items-center gap-2.5">
-              <span className="slot h-8 w-8 transition-colors group-hover:text-[var(--gold)]">
-                <Icon size={16} />
-              </span>
-              <h2>{card.title}</h2>
-              <StatusPill enabled={card.enabled} />
+            <Sprite name={row.sprite} size={32} />
+            <div className="min-w-0 flex-1">
+              <h2 className="flex items-center gap-2">
+                {row.title}
+                {row.enabled !== null && (
+                  // The muted uncommon green and poor grey item quality colours.
+                  <span className={`text-[11px] font-semibold uppercase tracking-wider ${row.enabled ? "text-[#8fbf72]" : "text-[#8a857c]"}`}>
+                    {row.enabled ? "On" : "Off"}
+                  </span>
+                )}
+              </h2>
+              <p className="text-sm text-[var(--muted)] first-letter:uppercase">{row.summary}</p>
             </div>
-            <ul className="mt-2 space-y-1">
-              {card.lines.map((line) => (
-                <li key={line} className="text-sm text-[var(--muted)]">
-                  {line}
-                </li>
-              ))}
-            </ul>
+            <ChevronRight size={16} className="shrink-0 text-[var(--muted)] transition-colors group-hover:text-[var(--accent)]" />
           </Link>
-          );
-        })}
-      </div>
+        ))}
+      </section>
     </div>
   );
 }
