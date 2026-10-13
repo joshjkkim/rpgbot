@@ -141,3 +141,85 @@ export function DeleteButton({ onDelete, label = "Delete" }: { onDelete: () => v
     </button>
   );
 }
+
+/**
+ * A content page's main block: the slot grid on the left, the selected entry's
+ * editor on the right (stacked on narrow screens). Pages pass the entry form
+ * they already had; this owns selection, the header and deleting.
+ */
+export function ContentBrowser<T>({
+  entries,
+  look,
+  tooltip,
+  newLabel,
+  onCreate,
+  onRemove,
+  renderItem,
+  empty,
+  above,
+}: {
+  entries: Array<[string, T]>;
+  look: (id: string, value: T) => SlotLook;
+  tooltip?: (id: string, value: T) => React.ReactNode;
+  newLabel: string;
+  /** Creates an entry from the typed name and returns its id, which then opens. */
+  onCreate: (name: string) => string;
+  onRemove: (id: string) => void;
+  renderItem: (id: string, value: T) => React.ReactNode;
+  /** Shown when there are no entries at all. */
+  empty: string;
+  /** Above the grid, e.g. filter chips. */
+  above?: React.ReactNode;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const current = entries.find(([id]) => id === selected);
+
+  return (
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+      <div className="space-y-3 lg:sticky lg:top-4">
+        {above}
+        <SlotGrid
+          entries={entries}
+          selected={selected}
+          onSelect={setSelected}
+          look={look}
+          tooltip={tooltip}
+          newLabel={newLabel}
+          onCreate={(name) => setSelected(onCreate(name))}
+        />
+      </div>
+
+      {current ? (
+        <div className="rounded-sm border border-[var(--border)] bg-black/30 p-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <p className="min-w-0 truncate font-display text-lg">
+              {look(current[0], current[1]).icon} {look(current[0], current[1]).label}
+              <span className="ml-2 font-mono text-xs text-[var(--muted)]">{current[0]}</span>
+            </p>
+            <DeleteButton
+              onDelete={() => {
+                onRemove(current[0]);
+                setSelected(null);
+              }}
+            />
+          </div>
+          {renderItem(current[0], current[1])}
+        </div>
+      ) : (
+        <p className="rounded-sm border border-dashed border-[var(--border)] p-4 text-center text-sm text-[var(--muted)]">
+          {entries.length === 0 ? empty : "Pick one to edit it, or make a new one."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** A tooltip in the item tooltip's style, for enemies, quests and achievements. */
+export function EntryTooltip({ title, colour, lines }: { title: string; colour?: string; lines: Array<string | null | undefined | false> }) {
+  return (
+    <div className="w-full rounded-[3px] border border-[var(--border-bright)] bg-[#0e0f14]/95 px-3 py-2.5 text-[13px] leading-5 shadow-[inset_0_0_0_1px_#000,0_2px_8px_rgb(0_0_0/0.6)] [text-shadow:0_1px_0_#000]">
+      <p className="font-display text-base" style={{ color: colour }}>{title}</p>
+      {lines.filter(Boolean).map((l, i) => <p key={i}>{l}</p>)}
+    </div>
+  );
+}

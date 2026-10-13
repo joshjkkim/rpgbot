@@ -5,12 +5,12 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   Field,
   FieldGrid,
-  KeyedList,
   NumberField,
   Section,
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
+import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
 
 // ─── Types (mirrored from havocish) ─────────────────────────────────────────────
@@ -205,7 +205,185 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
 
   return (
     <div className="space-y-4">
-      <Section title="General" description="Whether members can fight at all.">
+      <Section title="Enemies" description="What members can fight, and what beating them pays.">
+        <ContentBrowser<EnemyConfig>
+          entries={enemyEntries}
+          newLabel="New enemy"
+          empty="No enemies defined. There is nothing to fight yet."
+          look={(id, enemy) => ({ icon: enemy.emoji, label: enemy.name || id, colour: enemy.boss ? "#d0894a" : undefined })}
+          tooltip={(id, enemy) => (
+            <EntryTooltip
+              title={`${enemy.emoji ?? ""} ${enemy.name || id}`}
+              colour={enemy.boss ? "#d0894a" : undefined}
+              lines={[
+                enemy.boss ? "World boss" : `Level ${enemy.minLevel}${enemy.maxLevel == null ? "+" : `–${enemy.maxLevel}`}`,
+                `${enemy.hp} HP · ${enemy.atk} ATK · ${enemy.def} DEF`,
+                `Rewards ${enemy.xpReward} XP · ${enemy.goldReward} gold${enemy.drops?.length ? ` · ${enemy.drops.length} drop${enemy.drops.length === 1 ? "" : "s"}` : ""}`,
+              ]}
+            />
+          )}
+          onCreate={(name) => {
+            const id = idFromName(name, Object.keys(local.enemies ?? {}));
+            upsertEnemy({
+              id,
+              name,
+              emoji: "👾",
+              hp: 50,
+              atk: 8,
+              def: 3,
+              spd: 5,
+              critChance: 5,
+              critMultiplier: 1.5,
+              minLevel: 1,
+              maxLevel: null,
+              xpReward: 25,
+              goldReward: 10,
+              drops: [],
+            });
+            return id;
+          }}
+          onRemove={(id) => {
+            const next = { ...(local.enemies ?? {}) };
+            delete next[id];
+            updateRoot({ enemies: next });
+          }}
+          renderItem={(id, enemy) => (
+            <div className="space-y-4">
+              <FieldGrid>
+                <TextField label="Name" value={enemy.name} onChange={(v) => upsertEnemy({ ...enemy, name: v })} />
+                <TextField label="Emoji" value={enemy.emoji ?? ""} onChange={(v) => upsertEnemy({ ...enemy, emoji: v })} />
+              </FieldGrid>
+              <Toggle
+                label="World boss"
+                checked={!!enemy.boss}
+                onChange={(v) => upsertEnemy({ ...enemy, boss: v })}
+                hint={enemy.boss
+                  ? "The whole server fights it together. Its XP and gold are split by damage dealt, and the top damage dealer rolls its drops. Give it lots of HP."
+                  : "Turn on to make this a world boss instead of a normal enemy."}
+              />
+
+              <Field label="Stats">
+                <FieldGrid>
+                  <NumberField label="HP" value={enemy.hp} min={1} onChange={(v) => upsertEnemy({ ...enemy, hp: v })} />
+                  <NumberField label="Attack" value={enemy.atk} min={0} onChange={(v) => upsertEnemy({ ...enemy, atk: v })} />
+                  <NumberField label="Defence" value={enemy.def} min={0} onChange={(v) => upsertEnemy({ ...enemy, def: v })} />
+                  <NumberField label="Speed" value={enemy.spd} min={0} onChange={(v) => upsertEnemy({ ...enemy, spd: v })} />
+                  <NumberField
+                    label="Crit chance (%)"
+                    value={enemy.critChance}
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    onChange={(v) => upsertEnemy({ ...enemy, critChance: v })}
+                    hint="5 means a 5% chance."
+                  />
+                  <NumberField
+                    label="Crit multiplier"
+                    value={enemy.critMultiplier}
+                    min={1}
+                    step={0.1}
+                    onChange={(v) => upsertEnemy({ ...enemy, critMultiplier: v })}
+                  />
+                </FieldGrid>
+              </Field>
+
+              <Field label="Availability and rewards">
+                <FieldGrid>
+                  <NumberField label="Min level" value={enemy.minLevel} min={0} onChange={(v) => upsertEnemy({ ...enemy, minLevel: v })} />
+                  <NumberField
+                    label="Max level"
+                    value={enemy.maxLevel ?? 0}
+                    min={0}
+                    onChange={(v) => upsertEnemy({ ...enemy, maxLevel: v > 0 ? v : null })}
+                    hint="0 means no upper limit."
+                  />
+                  <NumberField label="XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
+                  <NumberField label="Gold reward" value={enemy.goldReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, goldReward: v })} />
+                </FieldGrid>
+              </Field>
+
+              <Field label="Drops">
+                <div className="space-y-3">
+                  {(enemy.drops ?? []).length === 0 && (
+                    <p className="text-xs text-[var(--muted)]">This enemy drops nothing.</p>
+                  )}
+
+                  {(enemy.drops ?? []).map((drop, index) => {
+                    const patchDrop = (p: Partial<EnemyDrop>) =>
+                      upsertEnemy({
+                        ...enemy,
+                        drops: enemy.drops.map((d, i) => (i === index ? { ...d, ...p } : d)),
+                      });
+
+                    return (
+                      <div
+                        key={index}
+                        className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
+                      >
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-xs text-[var(--muted)]">Drop {index + 1}</span>
+                          <button
+                            type="button"
+                            aria-label="Remove drop"
+                            onClick={() =>
+                              upsertEnemy({
+                                ...enemy,
+                                drops: enemy.drops.filter((_, i) => i !== index),
+                              })
+                            }
+                            className="text-[var(--muted)] transition-colors hover:text-red-400"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        <FieldGrid>
+                          <ItemField items={shopItems}
+                            label="Item"
+                            value={drop.itemId}
+                            onChange={(v) => patchDrop({ itemId: v })}
+                            emptyLabel="Choose an item"
+                          />
+                          <NumberField
+                            label="Chance"
+                            value={drop.chance}
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            onChange={(v) => patchDrop({ chance: v })}
+                            hint="0–1, so 0.25 is a quarter of the time."
+                          />
+                          <NumberField
+                            label="Quantity"
+                            value={drop.quantity}
+                            min={1}
+                            onChange={(v) => patchDrop({ quantity: v })}
+                          />
+                        </FieldGrid>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      upsertEnemy({
+                        ...enemy,
+                        drops: [...(enemy.drops ?? []), { itemId: "", chance: 0.25, quantity: 1 }],
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+                  >
+                    <Plus size={14} /> Add drop
+                  </button>
+                </div>
+              </Field>
+            </div>
+          )}
+        />
+      </Section>
+
+      <Section title="General" description="Whether members can fight at all." defaultOpen={!local.enabled}>
         <Toggle
           label="Enable combat"
           checked={!!local.enabled}
@@ -403,174 +581,6 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
         </div>
       </Section>
 
-      <Section title="Enemies" description="What members can fight, and what beating them pays." defaultOpen={false}>
-        <KeyedList<EnemyConfig>
-          entries={enemyEntries}
-          addPlaceholder="Enemy ID, e.g. slime"
-          addLabel="Add enemy"
-          empty="No enemies defined. There is nothing to fight yet."
-          itemLabel={(id, enemy) => `${enemy.emoji ?? ""} ${enemy.name || id}${enemy.boss ? " · world boss" : ""}`.trim()}
-          onAdd={(rawId) => {
-            const id = rawId.trim();
-            if (!/^[a-zA-Z0-9_-]{2,40}$/.test(id)) return;
-            if ((local.enemies ?? {})[id]) return;
-            upsertEnemy({
-              id,
-              name: id,
-              emoji: "👾",
-              hp: 50,
-              atk: 8,
-              def: 3,
-              spd: 5,
-              critChance: 5,
-              critMultiplier: 1.5,
-              minLevel: 1,
-              maxLevel: null,
-              xpReward: 25,
-              goldReward: 10,
-              drops: [],
-            });
-          }}
-          onRemove={(id) => {
-            const next = { ...(local.enemies ?? {}) };
-            delete next[id];
-            updateRoot({ enemies: next });
-          }}
-          renderItem={(id, enemy) => (
-            <div className="space-y-4">
-              <FieldGrid>
-                <TextField label="Name" value={enemy.name} onChange={(v) => upsertEnemy({ ...enemy, name: v })} />
-                <TextField label="Emoji" value={enemy.emoji ?? ""} onChange={(v) => upsertEnemy({ ...enemy, emoji: v })} />
-              </FieldGrid>
-              <Toggle
-                label="World boss"
-                checked={!!enemy.boss}
-                onChange={(v) => upsertEnemy({ ...enemy, boss: v })}
-                hint={enemy.boss
-                  ? "The whole server fights it together. Its XP and gold are split by damage dealt, and the top damage dealer rolls its drops. Give it lots of HP."
-                  : "Turn on to make this a world boss instead of a normal enemy."}
-              />
-
-              <Field label="Stats">
-                <FieldGrid>
-                  <NumberField label="HP" value={enemy.hp} min={1} onChange={(v) => upsertEnemy({ ...enemy, hp: v })} />
-                  <NumberField label="Attack" value={enemy.atk} min={0} onChange={(v) => upsertEnemy({ ...enemy, atk: v })} />
-                  <NumberField label="Defence" value={enemy.def} min={0} onChange={(v) => upsertEnemy({ ...enemy, def: v })} />
-                  <NumberField label="Speed" value={enemy.spd} min={0} onChange={(v) => upsertEnemy({ ...enemy, spd: v })} />
-                  <NumberField
-                    label="Crit chance (%)"
-                    value={enemy.critChance}
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    onChange={(v) => upsertEnemy({ ...enemy, critChance: v })}
-                    hint="5 means a 5% chance."
-                  />
-                  <NumberField
-                    label="Crit multiplier"
-                    value={enemy.critMultiplier}
-                    min={1}
-                    step={0.1}
-                    onChange={(v) => upsertEnemy({ ...enemy, critMultiplier: v })}
-                  />
-                </FieldGrid>
-              </Field>
-
-              <Field label="Availability and rewards">
-                <FieldGrid>
-                  <NumberField label="Min level" value={enemy.minLevel} min={0} onChange={(v) => upsertEnemy({ ...enemy, minLevel: v })} />
-                  <NumberField
-                    label="Max level"
-                    value={enemy.maxLevel ?? 0}
-                    min={0}
-                    onChange={(v) => upsertEnemy({ ...enemy, maxLevel: v > 0 ? v : null })}
-                    hint="0 means no upper limit."
-                  />
-                  <NumberField label="XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
-                  <NumberField label="Gold reward" value={enemy.goldReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, goldReward: v })} />
-                </FieldGrid>
-              </Field>
-
-              <Field label="Drops">
-                <div className="space-y-3">
-                  {(enemy.drops ?? []).length === 0 && (
-                    <p className="text-xs text-[var(--muted)]">This enemy drops nothing.</p>
-                  )}
-
-                  {(enemy.drops ?? []).map((drop, index) => {
-                    const patchDrop = (p: Partial<EnemyDrop>) =>
-                      upsertEnemy({
-                        ...enemy,
-                        drops: enemy.drops.map((d, i) => (i === index ? { ...d, ...p } : d)),
-                      });
-
-                    return (
-                      <div
-                        key={index}
-                        className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
-                      >
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="text-xs text-[var(--muted)]">Drop {index + 1}</span>
-                          <button
-                            type="button"
-                            aria-label="Remove drop"
-                            onClick={() =>
-                              upsertEnemy({
-                                ...enemy,
-                                drops: enemy.drops.filter((_, i) => i !== index),
-                              })
-                            }
-                            className="text-[var(--muted)] transition-colors hover:text-red-400"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-
-                        <FieldGrid>
-                          <ItemField items={shopItems}
-                            label="Item"
-                            value={drop.itemId}
-                            onChange={(v) => patchDrop({ itemId: v })}
-                            emptyLabel="Choose an item"
-                          />
-                          <NumberField
-                            label="Chance"
-                            value={drop.chance}
-                            min={0}
-                            max={1}
-                            step={0.01}
-                            onChange={(v) => patchDrop({ chance: v })}
-                            hint="0–1, so 0.25 is a quarter of the time."
-                          />
-                          <NumberField
-                            label="Quantity"
-                            value={drop.quantity}
-                            min={1}
-                            onChange={(v) => patchDrop({ quantity: v })}
-                          />
-                        </FieldGrid>
-                      </div>
-                    );
-                  })}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      upsertEnemy({
-                        ...enemy,
-                        drops: [...(enemy.drops ?? []), { itemId: "", chance: 0.25, quantity: 1 }],
-                      })
-                    }
-                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
-                  >
-                    <Plus size={14} /> Add drop
-                  </button>
-                </div>
-              </Field>
-            </div>
-          )}
-        />
-      </Section>
     </div>
   );
 }
