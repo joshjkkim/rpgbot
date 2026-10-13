@@ -4,6 +4,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Swords } from "lucide-react";
 import { inviteUrl } from "./lib/invite";
+import { FIREFLIES, SCENE, STARS, WINDOWS } from "./scene";
 
 // Real output from the bot's renderers, shown at the size Discord shows them (`show`, in px).
 const SHOWCASE = [
@@ -92,12 +93,29 @@ export default function Home() {
 
       <main className="flex-1">
         <section className="relative isolate overflow-hidden">
-          {/* Pixel-art dusk scene, drawn at 400x150 and scaled up without smoothing. */}
-          {/* eslint-disable-next-line @next/next/no-img-element -- a static decorative PNG */}
-          <img
-            src="/scene.png" alt="" aria-hidden
-            className="absolute inset-0 -z-10 h-full w-full object-cover object-bottom [image-rendering:pixelated]"
-          />
+          {/* Pixel-art dusk scene, drawn at 400x150 and scaled up without smoothing. The SVG
+              crops like object-cover, so the animated pixels stay on their spots in the art. */}
+          <svg
+            viewBox={`0 0 ${SCENE.w} ${SCENE.h}`} preserveAspectRatio="xMidYMax slice" aria-hidden
+            className="absolute inset-0 -z-10 h-full w-full"
+          >
+            <image href="/scene.png" width={SCENE.w} height={SCENE.h} style={{ imageRendering: "pixelated" }} />
+            {STARS.map(([x, y], i) => (
+              <rect key={`s${i}`} x={x} y={y} width={1} height={1} fill="#e9dcb4" className="scene-twinkle"
+                style={{ animationDelay: `${(i * 1.3) % 5}s`, animationDuration: `${3 + (i % 4)}s` }} />
+            ))}
+            {WINDOWS.map(([x, y], i) => (
+              <rect key={`w${i}`} x={x} y={y} width={1} height={1} fill="#e0a84a" className="scene-flicker"
+                style={{ animationDelay: `${i * 0.7}s` }} />
+            ))}
+            {FIREFLIES.map(([x, y], i) => (
+              <rect key={`f${i}`} x={x} y={y} width={1} height={1} fill={i % 2 ? "#7a5a2c" : "#c99a4a"} className="scene-firefly"
+                style={{ animationDelay: `${(i * 0.9) % 7}s`, animationDuration: `${6 + (i % 3)}s` }} />
+            ))}
+            <g transform="rotate(14 60 8)">
+              <rect x={60} y={8} width={6} height={1} fill="#efe3bd" className="scene-shooting" />
+            </g>
+          </svg>
           {/* Fades the scene into the page so the section has no hard bottom edge. */}
           <div className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-b from-transparent to-[var(--background)]" />
 
