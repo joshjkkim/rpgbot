@@ -75,8 +75,8 @@ export default function Dashboard() {
 
                 if (!res.ok) throw new Error("Failed to load your servers.");
                 setGuilds(await res.json());
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : String(err));
             } finally {
                 if (!redirecting) setLoading(false);
             }

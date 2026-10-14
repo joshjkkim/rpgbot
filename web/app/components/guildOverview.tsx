@@ -129,7 +129,7 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
       <QuestLog guildId={guildId} config={config} />
 
       <section className="frame divide-y divide-[var(--border)]">
-        {describe(config).map((row) => (
+        {describe(config ?? {}).map((row) => (
           <Link
             key={row.href}
             href={`/dashboard/${guildId}/${row.href}`}

@@ -23,7 +23,7 @@ export default function LoggingPageClient({ guildId }: { guildId: string }) {
       {config && (
         <LoggingEditor
           value={logging}
-          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, logging: next }))}
+          onChange={(next) => setConfig((prev) => ({ ...prev, logging: next }))}
         />
       )}
     </ConfigPage>

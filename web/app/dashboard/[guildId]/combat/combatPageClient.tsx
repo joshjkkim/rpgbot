@@ -24,7 +24,7 @@ export default function CombatPageClient({ guildId }: { guildId: string }) {
         <CombatEditor
           value={combat}
           shopItems={config.shop?.items ?? {}}
-          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, combat: next }))}
+          onChange={(next) => setConfig((prev) => ({ ...prev, combat: next }))}
         />
       )}
     </ConfigPage>

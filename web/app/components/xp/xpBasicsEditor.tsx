@@ -72,6 +72,7 @@ type VcRoleBonusConfig = {
  * affected voice XP. Read the legacy key when the correct one is absent, so a
  * guild's existing numbers start working instead of resetting to zero.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- reads configs saved by older editors, of no fixed shape
 function migrateVcChannels(raw: Record<string, any>): Record<string, VcChannelConfig> {
   const out: Record<string, VcChannelConfig> = {};
   for (const [id, cfg] of Object.entries(raw ?? {})) {
@@ -81,6 +82,7 @@ function migrateVcChannels(raw: Record<string, any>): Record<string, VcChannelCo
   return out;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- reads configs saved by older editors, of no fixed shape
 function migrateVcRoles(raw: Record<string, any>): Record<string, VcRoleBonusConfig> {
   const out: Record<string, VcRoleBonusConfig> = {};
   for (const [id, cfg] of Object.entries(raw ?? {})) {
@@ -98,15 +100,18 @@ const DEFAULT_DAILY_ANNOUNCE =
 const DEFAULT_STREAK_ANNOUNCE =
   "🔥 {user}, you are on a {streak}-day streak! You've earned a bonus of {xp} XP and {gold} gold!";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the XP section has no typed config yet; read() supplies defaults
+type XpJson = Record<string, any>;
+
 type Props = {
-  value: any;
-  onChange: (nextXp: any) => void;
+  value: XpJson | null | undefined;
+  onChange: (nextXp: XpJson) => void;
 };
 
 export default function XpBasicsEditor({ value, onChange }: Props) {
   const xp = value ?? {};
 
-  const read = (src: any) => ({
+  const read = (src: XpJson) => ({
     basePerMessage: src.basePerMessage ?? 5,
     xpMessageCooldown: src.xpMessageCooldown ?? 60,
     xpChannelIds: (src.xpChannelIds ?? {}) as Record<string, XpChannelConfig>,

@@ -161,8 +161,8 @@ export default function LogsPageClient({ guildId }: { guildId: string }) {
         if (!res.ok) throw new Error(`Failed to fetch logs: ${res.status}`);
         const data = await res.json();
         setLogs(data.logs ?? []);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
       } finally {
         setLoading(false);
       }

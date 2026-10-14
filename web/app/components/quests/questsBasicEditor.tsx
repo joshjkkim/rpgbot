@@ -90,6 +90,7 @@ function fromCsv(s: string) {
  * field values -- plain numbers -- and every reward silently granted nothing.
  * A legacy flat object is folded into index 0.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- reads configs saved by older editors, of no fixed shape
 function normalizeRewards(raw: any): Record<number, QuestReward> {
   if (!raw || typeof raw !== "object") return {};
 
@@ -104,6 +105,7 @@ function normalizeRewards(raw: any): Record<number, QuestReward> {
   return { 0: raw as QuestReward };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- reads configs saved by older editors, of no fixed shape
 function normalizeQuests(raw: Record<string, any> | undefined): Record<string, QuestConfig> {
   const out: Record<string, QuestConfig> = {};
   for (const [id, quest] of Object.entries(raw ?? {})) {
@@ -177,6 +179,7 @@ export default function QuestsBasicEditor({ value, onChange, shopItems }: Props)
           renderItem={(id, quest) => {
             const rewards = quest.reward ?? {};
             const rewardKeys = Object.keys(rewards).map(Number).sort((a, b) => a - b);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each condition type has its own fields
             const condition: any = quest.conditions ?? { type: "messages", target: 0 };
 
             return (
