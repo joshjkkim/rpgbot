@@ -35,6 +35,7 @@ import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
 import { handleBossButton, liveBoss, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
+import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1527,6 +1528,41 @@ async function main() {
         check("its escape time is unchanged", back?.endsAt, spawned.endsAt);
 
         await query(`DELETE FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
+    });
+
+    await test("/help pages render, respect switched-off features, and hide the owner page", async () => {
+        const { config } = await reset();
+        config.combat.enabled = false;
+        await setGuildConfig(TEST_DISCORD_GUILD, config);
+        guildConfigCache.clear();
+
+        const shown: any[] = [];
+        const base = (owner: boolean) => ({
+            inCachedGuild: () => true,
+            guildId: TEST_DISCORD_GUILD,
+            memberPermissions: { has: () => owner },
+            reply: async (p: any) => { shown.push(p); },
+            update: async (p: any) => { shown.push(p); },
+        });
+        const text = (p: any) => p.embeds[0].data.description as string;
+        const tabs = (p: any) => p.components[0].components.map((b: any) => b.data.custom_id);
+
+        await helpCommand(base(false) as any);
+        check("opens on getting started, privately", `${shown[0].embeds[0].data.title}|${!!shown[0].flags}`, "🌱 Getting started|true");
+        check("members get no owner tab", tabs(shown[0]).includes("help:owner"), false);
+
+        for (const page of ["combat", "items", "social"]) {
+            await handleHelpButton({ ...base(false), customId: `help:${page}` } as any);
+            const body = text(shown.at(-1));
+            check(`${page} page has content`, body.length > 0 && body.length < 4096, true);
+        }
+        await handleHelpButton({ ...base(false), customId: "help:combat" } as any);
+        check("combat page says combat is off", text(shown.at(-1)).includes("turned off"), true);
+
+        await handleHelpButton({ ...base(false), customId: "help:owner" } as any);
+        check("a member asking for the owner page gets the start page", shown.at(-1).embeds[0].data.title, "🌱 Getting started");
+        await handleHelpButton({ ...base(true), customId: "help:owner" } as any);
+        check("owners get the owner page and a dashboard link", `${shown.at(-1).embeds[0].data.title}|${shown.at(-1).components.length}`, "🛠️ For server owners|2");
     });
 
     console.log(`\n${"─".repeat(60)}`);
