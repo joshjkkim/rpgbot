@@ -128,7 +128,8 @@ export default function PresetsPageClient({ guildId, packs }: { guildId: string;
 
       {notice && (
         <div className="frame p-4 text-sm">
-          {notice} Tweak anything in{" "}
+          {notice} Your server is ready to play: members can try <span className="font-mono">/fight</span>,{" "}
+          <span className="font-mono">/shop</span> and <span className="font-mono">/quests</span> now. Tweak anything in{" "}
           <Link href={`/dashboard/${guildId}/shop`} className="text-[var(--accent)] underline-offset-2 hover:underline">
             Economy
           </Link>
