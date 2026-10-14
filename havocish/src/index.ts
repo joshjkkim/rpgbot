@@ -18,6 +18,7 @@ import { closePool } from "./db/index.js";
 import { assertBotEnv } from "./env.js";
 import { alertsEnabled, crashMessage, postAlert } from "./alert.js";
 import { startPreviewServer } from "./http/previewServer.js";
+import { restoreBosses, saveLiveBosses } from "./player/bosses.js";
 
 // Refuse to start on missing configuration, before a single event handler is
 // registered. An unset DATABASE_URL does not throw -- pg falls back to
@@ -42,6 +43,9 @@ const client = new Client({
 
 client.once(Events.ClientReady, () => {
     console.log(`Logged in as ${client.user?.tag}!`);
+    void restoreBosses(client)
+        .then((n) => n && console.log(`Restored ${n} live world boss${n === 1 ? "" : "es"}.`))
+        .catch((err) => console.error("Restoring world bosses failed:", err));
     console.log(alertsEnabled()
         ? "Crash alerts: on."
         : "Crash alerts: off (ALERT_WEBHOOK_URL unset).");
@@ -94,6 +98,7 @@ async function shutdown(reason: string, exitCode = 0) {
     timeout.unref();
 
     try {
+        await saveLiveBosses();
         await flushDirtyProfiles(true);
         await flushLogBuffer();
     } catch (err) {
