@@ -46,14 +46,15 @@ async function sendWelcome(guild: Guild) {
     .setTitle("⚔️ havocish has arrived")
     .setDescription(
       [
-        `Adventurers of **${guild.name}** now earn XP and gold just by chatting. Try \`/profile\` to see your character and \`/daily\` to claim a reward.`,
+        `Adventurers of **${guild.name}** now earn XP and gold just by chatting. Try \`/profile\` to see your character, \`/daily\` to claim a reward, and \`/help\` for everything else.`,
         "",
-        "**Server owner:** open the dashboard to stock the shop, add enemies and write quests. A quest log there walks you through it.",
+        "**Server owner:** the shop, enemies and quests start empty. **Set up with a starter pack** fills them in one click on the dashboard, ready to play, and you can change anything afterwards.",
       ].join("\n")
     );
   const payload = {
     embeds: [embed],
     components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
+      dashboardButton(guild.id, "presets", "⚡ Set up with a starter pack"),
       dashboardButton(guild.id),
       new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Support server").setURL("https://discord.gg/9dV5NnV9tq"),
     )],

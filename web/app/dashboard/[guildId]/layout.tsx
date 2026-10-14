@@ -11,9 +11,8 @@ export default async function GuildLayout({ children, params }: { children: Reac
 
     const session = await getServerSession(authOptions);
     if (!session) {
-        // Remember the server so a link from Discord lands there after sign-in.
-        // ponytail: layouts can't see the child path, so /shop links land on the
-        // server overview instead; add middleware if that ever matters.
+        // proxy.ts normally catches this first, keeping the exact page; this
+        // backstop (a cookie that is present but no longer valid) keeps the server.
         redirect(`/?callbackUrl=${encodeURIComponent(`/dashboard/${guildId}`)}`);
     }
 
