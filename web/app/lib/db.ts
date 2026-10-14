@@ -2,7 +2,6 @@ import { Pool } from "pg";
 import type { QueryResult,QueryResultRow } from "pg";
 
 declare global {
-  // eslint-disable-next-line no-var
   var pgPool: Pool | undefined;
 }
 
@@ -32,7 +31,7 @@ pool.on("error", (err) => {
 
 if (process.env.NODE_ENV !== "production") global.pgPool = pool;
 
-export async function dbQuery<T extends QueryResultRow = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
+export async function dbQuery<T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> {
     const res = await pool.query<T>(text, params);
     return res;
 }

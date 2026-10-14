@@ -25,7 +25,7 @@ export default function StylePageClient({ guildId }: { guildId: string }) {
         <>
           <StyleBasicsEditor
             value={style}
-            onChange={(next: any) => setConfig((prev: any) => ({ ...prev, style: next }))}
+            onChange={(next) => setConfig((prev) => ({ ...prev, style: next }))}
           />
           <StylePreview guildId={guildId} style={style} />
         </>

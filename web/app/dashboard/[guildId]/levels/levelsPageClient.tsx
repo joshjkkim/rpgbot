@@ -23,7 +23,7 @@ export default function LevelsPageClient({ guildId }: { guildId: string }) {
       {config && (
         <LevelsEditor
           value={levels}
-          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, levels: next }))}
+          onChange={(next) => setConfig((prev) => ({ ...prev, levels: next }))}
         />
       )}
     </ConfigPage>

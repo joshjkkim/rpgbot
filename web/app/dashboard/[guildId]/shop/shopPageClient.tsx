@@ -23,7 +23,7 @@ export default function ShopPageClient({ guildId }: { guildId: string }) {
       {config && (
         <ShopEconomyEditor
           value={shop}
-          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, shop: next }))}
+          onChange={(next) => setConfig((prev) => ({ ...prev, shop: next }))}
         />
       )}
     </ConfigPage>

@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
         return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
     }
 
-    const res = await dbQuery<{ config: any }>(
+    const res = await dbQuery(
         `SELECT * FROM events WHERE discord_guild_id = $1 ORDER BY timestamp DESC LIMIT 50`,
         [guildId]
     );

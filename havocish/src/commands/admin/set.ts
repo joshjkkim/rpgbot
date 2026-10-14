@@ -10,7 +10,7 @@ import { profileKey, userGuildProfileCache } from "../../cache/caches.js";
 
 export const data = new SlashCommandBuilder()
     .setName("set")
-    .setDescription("Configure XP settings for this server")
+    .setDescription("Set a member's XP, level, gold or streak directly")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 
     .addSubcommand(sub =>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
+import type { DashboardConfig } from "@/app/lib/dashboardConfig";
 
 
 /**
@@ -16,7 +17,7 @@ function handledExpiredSession(res: Response) {
 }
 
 export function useGuildConfig(guildId: string) {
-    const [config, setConfig] = useState<any>(null);
+    const [config, setConfig] = useState<DashboardConfig | null>(null);
     const [dbGuildId, setDbGuildId] = useState<number | null>(null);
     const [guild, setGuild] = useState<{ name: string | null; iconUrl: string | null }>({ name: null, iconUrl: null });
     // Hash of the config as loaded. Sent back on save so the server can reject
@@ -58,14 +59,14 @@ export function useGuildConfig(guildId: string) {
             setDbGuildId(data.id);
             setGuild({ name: data.name ?? null, iconUrl: data.iconUrl ?? null });
             setVersion(data.version ?? null);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
         } finally {
             if (!redirecting) setLoading(false);
         }
     }
 
-    async function save(newConfig: any) {
+    async function save(newConfig?: DashboardConfig | null) {
         const toSave = newConfig ?? config;
         if(!toSave) return;
 
@@ -97,8 +98,8 @@ export function useGuildConfig(guildId: string) {
 
             await refresh();
             return true;
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
             return false;
         } finally {
             setSaving(false);

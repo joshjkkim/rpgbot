@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireGuildOwner } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 import { validateGuildConfig } from "@/app/lib/validateConfig";
+import type { DashboardConfig } from "@/app/lib/dashboardConfig";
 
 // 401 = sign in again, 403 = signed in but not this server's owner,
 // 503 = Discord did not answer. All three used to be reported as "forbidden".
@@ -20,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
 
     // `version` is a hash of the stored config. The client sends it back on save
     // so a write can be rejected if anything changed in the meantime -- see POST.
-    const res = await dbQuery<{ config: any; id: any; name: string | null; icon_url: string | null; version: string }>(
+    const res = await dbQuery<{ config: DashboardConfig | null; id: number; name: string | null; icon_url: string | null; version: string }>(
         `SELECT id, name, icon_url, config, md5(config::text) AS version
          FROM guilds WHERE discord_guild_id = $1`,
         [guildId]

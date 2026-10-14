@@ -93,7 +93,9 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
 }
 
 export default function PresetsPageClient({ guildId, packs }: { guildId: string; packs: StarterPack[] }) {
-  const { config, loading, saving, error, save } = useGuildConfig(guildId);
+  const { config: typed, loading, saving, error, save } = useGuildConfig(guildId);
+  // Packs work section by section on plain JSON, without the editors' types.
+  const config = typed as GuildConfigJson | null;
   const [notice, setNotice] = useState<string | null>(null);
 
   async function add(pack: StarterPack) {

@@ -23,7 +23,7 @@ export default function XpPageClient({ guildId }: { guildId: string }) {
       {config && (
         <XpBasicsEditor
           value={xp}
-          onChange={(next: any) => setConfig((prev: any) => ({ ...prev, xp: next }))}
+          onChange={(next) => setConfig((prev) => ({ ...prev, xp: next }))}
         />
       )}
     </ConfigPage>
