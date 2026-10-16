@@ -238,7 +238,8 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
             rakePercent: 0,
             challengeTimeoutSeconds: 120,
             maxRounds: 50,
-            cooldownSeconds: 0,
+            // Without one, a stronger member can re-challenge a weaker one back to back.
+            cooldownSeconds: 300,
         },
     },
     xp: {

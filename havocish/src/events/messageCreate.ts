@@ -4,6 +4,7 @@ import { addMessageXp, grantDailyXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { maybeSpawnEncounter } from "../player/encounters.js";
 import { maybeSpawnBoss } from "../player/bosses.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 export function registerMessageCreate(client: Client) {
   client.on(Events.MessageCreate, async (message) => {
@@ -84,7 +85,7 @@ export function registerMessageCreate(client: Client) {
               .replace(`{goldIcon}`, config.style.gold.icon || "💰")
               .replace('{gold}', rewardGold?.toString() ?? '0');
 
-            await channel.send(streakMessage);
+            await bestEffort("daily/streak announcement", channel.send(streakMessage));
           }
         }
 
@@ -104,7 +105,7 @@ export function registerMessageCreate(client: Client) {
                     .replace('{gold}', streakReward.goldBonus.toString())
                 : `<@${message.author.id}> has reached a ${profile.streak_count}-day streak and earned ${streakReward.xpBonus} ${config.style.xp.name || "XP"} ${config.style.xp.icon || "⭐"} and ${streakReward.goldBonus} ${config.style.gold.name || "Gold"} ${config.style.gold.icon || "💰"}!`;
 
-              await channel.send(streakMessage);
+              await bestEffort("daily/streak announcement", channel.send(streakMessage));
             }
           }
         }
@@ -124,7 +125,7 @@ export function registerMessageCreate(client: Client) {
               .replace(`{goldName}`, config.style.gold.name || "Gold")
               .replace(`{goldIcon}`, config.style.gold.icon || "💰")
               .replace('{streak}', profile.streak_count.toString());
-            await channel.send(dailyMessage);
+            await bestEffort("daily/streak announcement", channel.send(dailyMessage));
           }
         }
 

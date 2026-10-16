@@ -1,6 +1,7 @@
 import type { GuildConfig } from "../types/guild.js";
 import { Client, GuildMember } from "discord.js";
 import { renderLevelUpBanner } from "../ui/canvas/levelUpBanner.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 interface HandleLevelUpArgs {
   client: Client;
@@ -49,7 +50,21 @@ export function calculateTotalXpForLevel(level: number, guildConfig: GuildConfig
   }
 }
 
+/**
+ * Total XP at which a level begins. Everyone starts at level 1 with 0 XP, so
+ * level 1 begins at 0 rather than at the curve's first threshold -- otherwise a
+ * new member's first 100 XP or so fills no bar at all.
+ */
+export function levelStartXp(level: number, guildConfig: GuildConfig): number {
+  return level <= 1 ? 0 : calculateTotalXpForLevel(level, guildConfig);
+}
+
+/** The level a total XP amount reaches. Never below 1: members start at level 1. */
 export function calculateLevelFromXp(xp: number, guildConfig: GuildConfig): number {
+  return Math.max(1, rawLevelFromXp(xp, guildConfig));
+}
+
+function rawLevelFromXp(xp: number, guildConfig: GuildConfig): number {
   const { levels } = guildConfig;
   const { maxLevel } = levels;
 
@@ -100,7 +115,7 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
         return null;
       });
 
-      await channel.send({ content: announceMessage, files: banner ? [banner] : [] });
+      await bestEffort("level-up announcement", channel.send({ content: announceMessage, files: banner ? [banner] : [] }));
     }
   }
 
@@ -123,7 +138,7 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
 
         const channel = await client.channels.fetch(targetChannelId).catch(() => null);
         if (channel && channel.isTextBased() && channel.isSendable()) {
-          await channel.send(action.message.replace("{user}", `<@${userId}>`));
+          await bestEffort("level-up announcement", channel.send(action.message.replace("{user}", `<@${userId}>`)));
         }
       }
     }

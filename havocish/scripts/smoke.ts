@@ -36,6 +36,9 @@ import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
 import { handleBossButton, liveBoss, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
+import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
+import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
+import type { EventCategory } from "../src/types/logging.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1205,10 +1208,11 @@ async function main() {
         const total = BigInt(await goldOf(fx.a, g)) + BigInt(await goldOf(fx.b, g));
         check("gold moved exactly once", total.toString(), "2000");
 
-        // Age the stored timestamp past the window; the rematch is allowed again.
+        // Age the stored timestamp past the window, and heal both (the loser is
+        // at 0 HP, which now blocks a duel on its own); the rematch is allowed again.
         await query(
             `UPDATE user_guild_profiles
-             SET user_stats = jsonb_set(user_stats, '{lastDuelAt}', to_jsonb($3::text))
+             SET user_stats = jsonb_set(user_stats, '{lastDuelAt}', to_jsonb($3::text)) - 'currentHp'
              WHERE guild_id = $1 AND user_id = ANY($2::bigint[])`,
             [g, [fx.a.userId, fx.b.userId], new Date(Date.now() - 600_000).toISOString()]
         );
@@ -1563,6 +1567,80 @@ async function main() {
         check("a member asking for the owner page gets the start page", shown.at(-1).embeds[0].data.title, "🌱 Getting started");
         await handleHelpButton({ ...base(true), customId: "help:owner" } as any);
         check("owners get the owner page and a dashboard link", `${shown.at(-1).embeds[0].data.title}|${shown.at(-1).components.length}`, "🛠️ For server owners|2");
+    });
+
+    await test("level 1 starts at 0 XP, so the bar, the level and total XP agree", async () => {
+        const { config } = await reset();
+        config.levels.curveType = "linear";
+        config.levels.curveParams = { rate: 100 };
+        config.levels.xpOverrides = {};
+        config.levels.maxLevel = null;
+        check("a new member is level 1", levelFromXp(0, config), 1);
+        check("115 XP is still level 1", levelFromXp(115, config), 1);
+        check("level 1 starts at 0", levelStartXp(1, config), 0);
+        check("level 2 starts at 200", levelStartXp(2, config), 200);
+        check("200 XP reaches level 2", levelFromXp(200, config), 2);
+        // The card's numbers for the playtest report: 115 total XP.
+        const into = 115 - levelStartXp(1, config);
+        const span = levelStartXp(2, config) - levelStartXp(1, config);
+        check("the bar reads 115 / 200, not 15 / 100", `${into} / ${span}`, "115 / 200");
+        // /set level writes the XP its level begins at; it used to write 0.
+        check("/set level 10 gives the XP level 10 starts at", levelStartXp(10, config), 1000);
+        check("and that XP is level 10", levelFromXp(levelStartXp(10, config), config), 10);
+    });
+
+    await test("a log channel the bot can't post in doesn't fail the command, and the event is still recorded", async () => {
+        const { guildId, userId, config } = await reset();
+        config.logging = {
+            ...config.logging, enabled: true, mainChannelId: "123",
+            allowedCategories: { ...config.logging.allowedCategories, economy: null } as Record<EventCategory, string | false | null>,
+        };
+        const guild = {
+            channels: { fetch: async () => ({
+                isTextBased: () => true,
+                isSendable: () => true,
+                send: async () => { throw Object.assign(new Error("Missing Access"), { code: 50001 }); },
+            }) },
+        } as any;
+        let threw = false;
+        await logAndBroadcastEvent(guild, {
+            guildId, discordGuildId: TEST_DISCORD_GUILD, userId, category: "economy", eventType: "duel", source: "smokeLogCheck",
+            timestamp: new Date(),
+        }, config).catch(() => { threw = true; });
+        await new Promise((r) => setTimeout(r, 50));
+        check("logging did not throw", threw, false);
+        await flushLogsForTest();
+        const rows = await query(`SELECT 1 FROM events WHERE guild_id = $1 AND source = 'smokeLogCheck'`, [guildId]);
+        check("the event row was still written", (rows.rowCount ?? 0) > 0, true);
+    });
+
+    await test("nobody can duel at 0 HP, and no gold moves", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 1000);
+        await seed(fx.b, g, {}, 1000);
+        await query(
+            `UPDATE user_guild_profiles SET user_stats = jsonb_set(COALESCE(user_stats, '{}'::jsonb), '{currentHp}', '0')
+             WHERE user_id = $1 AND guild_id = $2`,
+            [fx.b.userId, g],
+        );
+        userGuildProfileCache.delete(profileKey(g, fx.b.userId));
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true, maxRounds: 50 };
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 100n,
+            config,
+        });
+        check("the duel is refused", outcome.success, false);
+        check("it says to heal", !outcome.success && outcome.message.includes("0 HP"), true);
+        check("no gold moved", `${await goldOf(fx.a, g)}/${await goldOf(fx.b, g)}`, "1000/1000");
     });
 
     console.log(`\n${"─".repeat(60)}`);

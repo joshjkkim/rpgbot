@@ -17,6 +17,7 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { acceptTrade, cancelTrade, createTrade, denyTrade, viewTrades } from "../../db/trade.js";
 import { respondFiltered } from "../../ui/autocomplete.js";
+import { bestEffort } from "../../ui/bestEffort.js";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -363,9 +364,9 @@ export async function handleTradeOfferModal(interaction: ModalSubmitInteraction)
 
         const receiverDiscordUser = await interaction.client.users.fetch(receiverDiscordId);
         if (receiverDiscordUser && receiverProfile.settings && receiverProfile.settings?.dmOnTradeInbound !== false) {
-            await receiverDiscordUser.send({
+            await bestEffort("trade DM", receiverDiscordUser.send({
                 content: `You have a new trade offer from <@${interaction.user.id}> in **${interaction.guild?.name}**.`
-            }).catch(() => null);
+            })).catch(() => null);
         }
     } else {
         await interaction.editReply({ content: "Failed to create trade offer. Make sure both parties have the required items and gold." });

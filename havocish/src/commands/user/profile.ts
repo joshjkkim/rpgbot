@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { calculateTotalXpForLevel } from "../../leveling/levels.js";
+import { calculateLevelFromXp, calculateTotalXpForLevel, levelStartXp } from "../../leveling/levels.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile, UserStats } from "../../types/userprofile.js";
 import { AttachmentBuilder } from "discord.js";
@@ -69,12 +69,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const buttons: ButtonBuilder[] = [
         new ButtonBuilder()
-            .setCustomId("profile:stats")
+            .setCustomId(`profile:stats:${user.id}`)
             .setLabel("Stats")
             .setStyle(ButtonStyle.Primary),
 
         new ButtonBuilder()
-            .setCustomId("profile:achievements")
+            .setCustomId(`profile:achievements:${user.id}`)
             .setLabel("Achievements")
             .setStyle(ButtonStyle.Primary),
     ];
@@ -82,7 +82,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (config.combat?.enabled) {
         buttons.push(
             new ButtonBuilder()
-                .setCustomId("profile:combat")
+                .setCustomId(`profile:combat:${user.id}`)
                 .setLabel("⚔️ Combat")
                 .setStyle(ButtonStyle.Secondary),
         );
@@ -110,9 +110,11 @@ export async function buildProfileCard(
     const username = who.username;
 
     const totalXp = Number(profile.xp ?? "0");
-    const level = Number(profile.level ?? 0);
+    // From XP, not the stored level, so the level, the bar and Total XP always
+    // agree even if the stored level was set out of step (an old /set level bug).
+    const level = calculateLevelFromXp(totalXp, config);
 
-    const currentLevelXp = calculateTotalXpForLevel(level, config);
+    const currentLevelXp = levelStartXp(level, config);
     const nextLevelXp = calculateTotalXpForLevel(level + 1, config);
 
     const xpInCurrentLevel = Math.max(0, totalXp - currentLevelXp);
@@ -485,10 +487,17 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
         return;
     }
 
+    // The buttons sit under someone's /profile, so they show that member, not
+    // whoever clicked. Buttons from before the owner id was added show the clicker.
+    const ownerId = interaction.customId.split(":")[2] ?? interaction.user.id;
+    const owner = ownerId === interaction.user.id
+        ? interaction.user
+        : await interaction.client.users.fetch(ownerId);
+
     const { user: dbUser } = await getOrCreateDbUser({
-        discordUserId: interaction.user.id,
-        username: interaction.user.username,
-        avatarUrl: interaction.user.displayAvatarURL(),
+        discordUserId: owner.id,
+        username: owner.username,
+        avatarUrl: owner.displayAvatarURL(),
     });
 
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
@@ -592,10 +601,10 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
         ctx.fillStyle = textColor;
         ctx.font = "bold 30px InterBold";
         ctx.textBaseline = "middle";
-        ctx.fillText(`${interaction.user.username}'s Stats`, 50, 62);
+        ctx.fillText(`${owner.username}'s Stats`, 50, 62);
 
         // underline
-        const titleW = ctx.measureText(`${interaction.user.username}'s Stats`).width;
+        const titleW = ctx.measureText(`${owner.username}'s Stats`).width;
         const ulGrad = ctx.createLinearGradient(50, 0, 50 + titleW, 0);
         ulGrad.addColorStop(0, accent); ulGrad.addColorStop(1, "transparent");
         ctx.fillStyle = ulGrad;
@@ -711,9 +720,9 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
         ctx.fillStyle = textColor;
         ctx.font = "bold 30px InterBold";
         ctx.textBaseline = "middle";
-        ctx.fillText(`${interaction.user.username}'s Achievements`, 50, 62);
+        ctx.fillText(`${owner.username}'s Achievements`, 50, 62);
 
-        const titleW = ctx.measureText(`${interaction.user.username}'s Achievements`).width;
+        const titleW = ctx.measureText(`${owner.username}'s Achievements`).width;
         const ulGrad = ctx.createLinearGradient(50, 0, 50 + titleW, 0);
         ulGrad.addColorStop(0, accent); ulGrad.addColorStop(1, "transparent");
         ctx.fillStyle = ulGrad;
@@ -849,8 +858,8 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
         ctx2.fillStyle    = textColor;
         ctx2.font         = "bold 30px InterBold";
         ctx2.textBaseline = "middle";
-        ctx2.fillText(`${interaction.user.username}'s Combat Stats`, 50, 62);
-        const tW2 = ctx2.measureText(`${interaction.user.username}'s Combat Stats`).width;
+        ctx2.fillText(`${owner.username}'s Combat Stats`, 50, 62);
+        const tW2 = ctx2.measureText(`${owner.username}'s Combat Stats`).width;
         const ulG2 = ctx2.createLinearGradient(50, 0, 50 + tW2, 0);
         ulG2.addColorStop(0, accent); ulG2.addColorStop(1, "transparent");
         ctx2.fillStyle = ulG2;
@@ -979,9 +988,9 @@ export async function buildFantasyProfileCard(
     // ── Data ─────────────────────────────────────────────────────────────────
     const username = who.username;
     const totalXp = Number(profile.xp ?? "0");
-    const level = Number(profile.level ?? 0);
+    const level = calculateLevelFromXp(totalXp, config);   // see buildProfileCard
 
-    const currentLevelXp = calculateTotalXpForLevel(level, config);
+    const currentLevelXp = levelStartXp(level, config);
     const nextLevelXp    = calculateTotalXpForLevel(level + 1, config);
     const xpInCurrentLevel  = Math.max(0, totalXp - currentLevelXp);
     const xpNeededForNext   = Math.max(1, nextLevelXp - currentLevelXp);

@@ -5,6 +5,7 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { MessageFlags } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
+import { bestEffort } from "../../ui/bestEffort.js";
 
 export const data = new SlashCommandBuilder()
     .setName("daily")
@@ -50,7 +51,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if (config.xp.announceDailyInChannelId) {
             const channel = await interaction.client.channels.fetch(config.xp.announceDailyInChannelId).catch(() => null);
             if (channel && channel.isTextBased() && channel.isSendable()) {
-                await channel.send(dailyMessage);
+                await bestEffort("daily announcement", channel.send(dailyMessage));
             }
         }
         
@@ -89,7 +90,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     .replace(`{goldName}`, config.style.gold.name || "Gold")
                     .replace(`{goldIcon}`, config.style.gold.icon || "💰");
 
-                await channel.send(streakMessage);
+                await bestEffort("daily announcement", channel.send(streakMessage));
             }
         }
 
@@ -109,7 +110,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                             .replace('{gold}', streakReward.goldBonus.toString())
                         : `<@${interaction.user.id}> has reached a ${profile.streak_count}-day streak and earned ${streakReward.xpBonus} ${config.style.xp.name || "XP"} ${config.style.xp.icon || "⭐"} and ${streakReward.goldBonus} ${config.style.gold.name || "Gold"} ${config.style.gold.icon || "💰"}!`;
 
-                    await channel.send(streakMessage);
+                    await bestEffort("daily announcement", channel.send(streakMessage));
                 }
             }
         }

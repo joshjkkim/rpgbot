@@ -112,11 +112,14 @@ async function reportInteractionError(interaction: Interaction) {
     const content = "There was an error while handling that interaction.";
 
     try {
-        if (interaction.deferred) {
-            // Deferred but not yet answered: the spinner is waiting on an edit.
-            await interaction.editReply({ content });
-        } else if (interaction.replied) {
+        if (interaction.replied) {
             await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
+        } else if (interaction.deferred) {
+            // Deferred but not yet answered: the spinner is waiting on an edit.
+            // A message already sent as Components V2 refuses plain content, so
+            // fall back to a private follow-up rather than leave the spinner.
+            await interaction.editReply({ content }).catch(() =>
+                interaction.followUp({ content, flags: MessageFlags.Ephemeral }));
         } else {
             await interaction.reply({ content, flags: MessageFlags.Ephemeral });
         }

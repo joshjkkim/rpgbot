@@ -3,6 +3,7 @@ import type { GuildConfig } from "../types/guild.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
 import type { AchievementConfig, AchievementCondition, AchievementCheckArgs, AchievementCheckResult, AchievementRewardEffects } from "../types/achievement.js";
 import type { Client, GuildMember, TextChannel, TextBasedChannel } from "discord.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 function getConditionCurrentValue(condition: AchievementCondition, profile: DbUserGuildProfile): number {
     switch (condition.type) {
@@ -186,7 +187,7 @@ function formatTemplate(template: string, args: { userMention: string; achieveme
 async function safeSend(channel: TextBasedChannel | null, content: string) {
     if (!channel) return;
     if (!content?.trim()) return;
-    await (channel as TextChannel).send({ content });
+    await bestEffort("achievement announcement", (channel as TextChannel).send({ content }));
 }
 
 export async function applyAchievementSideEffects(args: { client: Client; discordGuildId: string; discordUserId: string; member?: GuildMember | null; channelIdHint?: string | null; config: GuildConfig; unlocked: AchievementConfig[]; rewards: RewardEffectsLike | null;}) {

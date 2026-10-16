@@ -2,6 +2,7 @@ import { query } from "../db/index.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { LogEvent } from "../types/logging.js";
 import { EmbedBuilder, type BaseInteraction, type ColorResolvable, type Guild, type GuildTextBasedChannel } from "discord.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 export async function logEvent(opts: LogEvent): Promise<void> {
     const { guildId, discordGuildId, userId, targetUserId, category, eventType, source, xpDelta, goldDelta, streakDelta, levelDelta, itemId, itemQuantity, oldLevel, newLevel, oldStreak, newStreak, metaData } = opts;
@@ -157,9 +158,11 @@ export async function logAndBroadcastEvent(ctx: LogContext, event: LogEvent, con
     if(!config.logging?.enabled || !config.logging?.mainChannelId) return;
     if (config.logging?.allowedCategories?.[event.category] === false) return;
 
-    await sendServerLogEvent(ctx, event, config);
-
+    // Recorded first, and the channel post neither awaited nor allowed to throw:
+    // a log channel the bot cannot post in used to fail the command being
+    // logged -- after it had already changed gold or items -- and lose the row.
     enqueueLogEvent(event);
+    void bestEffort("log channel post", sendServerLogEvent(ctx, event, config));
 
     if (LOG_BUFFER.length >= MAX_SIZE) {
         void flushLogBuffer();

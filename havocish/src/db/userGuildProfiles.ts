@@ -10,6 +10,7 @@ import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
 import { runQuestPipeline, announceQuestCompletions } from "../player/quests.js";
 import { calculateStats, resolveCurrentHp } from "../player/combat.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 type XpArgs = {
     client?: Client;
@@ -213,13 +214,13 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
         const discordUser = await args.client.users.fetch(args.discordUserId).catch(() => null);
         if (discordUser && config.quests.dmUser) {
             for (const n of allNotifications) {
-                await discordUser.send({
+                await bestEffort("DM to the member", discordUser.send({
                     embeds: [{
                         title: "🎉 Quest Completed!",
                         description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
                         color: 0x57f287,
                     }],
-                }).catch(() => null);
+                })).catch(() => null);
             }
         }
 
@@ -227,14 +228,14 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
 
         if(channel && config.quests.replyMessage) {
             for (const n of allNotifications) {
-                await channel.send({
+                await bestEffort("announcement", channel.send({
                     content: `<@${args.discordUserId}> completed a quest!`,
                     embeds: [{
                         title: "🎉 Quest Completed!",
                         description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
                         color: 0x57f287,
                     }],
-                }).catch(() => null);
+                })).catch(() => null);
             }
         }
     }
@@ -476,13 +477,13 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         const discordUser = await args.client.users.fetch(args.discordUserId).catch(() => null);
         if (discordUser && config.quests.dmUser) {
             for (const n of qd.notifications) {
-                await discordUser.send({
+                await bestEffort("DM to the member", discordUser.send({
                     embeds: [{
                         title: "🎉 Quest Completed!",
                         description: `**${n.quest.name}** — ${n.message}\n\nUse \`/quests\` to claim your reward.`,
                         color: 0x57f287,
                     }],
-                }).catch(() => null);
+                })).catch(() => null);
             }
         }
     }
