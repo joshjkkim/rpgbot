@@ -2,6 +2,15 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## v0.6 · October 17, 2026
+
+### Improved
+- **`/quests` is now a quest log.** Every quest shows what to do ("Send 25 messages in #general"), your progress bar, how often it repeats and exactly what it pays, items included.
+- Accept and claim quests with one button. No more typing quest IDs.
+
+### Fixed
+- **Claim all** actually claims your finished quests now.
+
 ## v0.5 · October 17, 2026
 
 ### New
