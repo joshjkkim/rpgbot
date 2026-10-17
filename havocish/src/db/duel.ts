@@ -190,6 +190,16 @@ export async function resolveDuel(opts: {
                 config
             );
 
+            // HP carries over between fights, and the simulation starts a 0 HP side
+            // at 1, so a beaten member could be challenged again and again for an
+            // almost certain loss. Both sides have to have healed.
+            if (challengerSide.startingHp <= 0) {
+                return { success: false, message: "The challenger has 0 HP and needs to heal first (`/daily` or a potion)." };
+            }
+            if (opponentSide.startingHp <= 0) {
+                return { success: false, message: "You have 0 HP. Heal first with `/daily` or a potion, then accept." };
+            }
+
             const result = simulateDuel(challengerSide, opponentSide, {
                 maxRounds: pvp.maxRounds ?? 50,
             });

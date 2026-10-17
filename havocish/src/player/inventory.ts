@@ -12,6 +12,7 @@ import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
 import type { EquipSlot } from "../types/economy.js";
 import { calculateStats, resolveCurrentHp } from "./combat.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 /**
  * Buffers an inventory write for `userId` (a `users.id`, not a profile id).
@@ -265,7 +266,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
             if (action.type === "sendMessage" && action.message && action.channelId) {
                 const channel = interaction.guild.channels.cache.get(action.channelId);
                 if (channel && channel.isTextBased()) {
-                    await channel.send(action.message.replace("{user}", `<@${interaction.user.id}>`));
+                    await bestEffort("item message", channel.send(action.message.replace("{user}", `<@${interaction.user.id}>`)));
                 }
                 continue;
             }

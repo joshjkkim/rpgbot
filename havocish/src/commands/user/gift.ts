@@ -4,6 +4,7 @@ import { getOrCreateProfile } from "../../cache/profileService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { transferItem } from "../../player/trading.js";
+import { bestEffort } from "../../ui/bestEffort.js";
 
 export const data = new SlashCommandBuilder()
     .setName("gift")
@@ -66,12 +67,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if (announceChannel) {
             const channel = await interaction.guild?.channels.fetch(announceChannel);
             if (channel?.isTextBased()) {
-                await channel.send({ content: message ? message.replace("{giver}", interaction.user.username).replace("{receiver}", receiver.username).replace("{item}", itemId).replace("{quantity}", quantity.toString()) : res.message });
+                await bestEffort("gift announcement", channel.send({ content: message ? message.replace("{giver}", interaction.user.username).replace("{receiver}", receiver.username).replace("{item}", itemId).replace("{quantity}", quantity.toString()) : res.message }));
             }
         }
 
         if (dmBool) {
-            await receiver.send({ content: message ? message.replace("{giver}", interaction.user.username).replace("{receiver}", receiver.username).replace("{item}", itemId).replace("{quantity}", quantity.toString()) : res.message });
+            await bestEffort("gift DM", receiver.send({ content: message ? message.replace("{giver}", interaction.user.username).replace("{receiver}", receiver.username).replace("{item}", itemId).replace("{quantity}", quantity.toString()) : res.message }));
         }
     } else {
         await interaction.editReply({ content: res.message });

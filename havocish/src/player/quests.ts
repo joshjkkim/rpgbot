@@ -3,6 +3,7 @@ import type { DbUserGuildProfile, item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { TextBasedChannel, Client, TextChannel, GuildMember } from "discord.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 function questTarget(cond: any): number {
   return cond.target ?? cond.value ?? 0; // support your existing naming
@@ -204,7 +205,7 @@ export function applyQuestRewards(args: {
 async function safeSend(channel: TextBasedChannel | null, content: string) {
   if (!channel) return;
   if (!content?.trim()) return;
-  await (channel as TextChannel).send({ content });
+  await bestEffort("quest announcement", (channel as TextChannel).send({ content }));
 }
 
 function formatTemplate(template: string, args: { userMention: string; quest?: QuestConfig }) {

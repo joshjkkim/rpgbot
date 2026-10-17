@@ -2,7 +2,7 @@ import type { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
-import { calculateLevelFromXp } from "../../leveling/levels.js";
+import { calculateLevelFromXp, levelStartXp } from "../../leveling/levels.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import type { EventType } from "../../types/logging.js";
 import { query } from "../../db/index.js";
@@ -123,13 +123,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         case "level": {
             const level = interaction.options.getInteger("level", true);
 
-            const xp = (() => {
-                let totalXp = 0;
-                for (let lvl = 1; lvl <= level; lvl++) {
-                    totalXp = calculateLevelFromXp(totalXp, config);
-                }
-                return totalXp;
-            })();
+            // The XP at which that level begins. This used to loop calculateLevelFromXp
+            // over 0, which always returned 0, so every /set level wrote 0 XP.
+            const xp = levelStartXp(level, config);
 
             const res = await query(
                 `

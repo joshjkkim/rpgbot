@@ -3,7 +3,7 @@ import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
-import { calculateTotalXpForLevel } from "../../leveling/levels.js";
+import { levelStartXp } from "../../leveling/levels.js";
 
 
 export const data = new SlashCommandBuilder()
@@ -69,7 +69,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         case "calculate": {
             const level = interaction.options.getInteger("level", true);
 
-            const xpForLevel = calculateTotalXpForLevel(level, config);
+            const xpForLevel = levelStartXp(level, config);
             const currentXp = Number(profile.xp);
 
             const themeColor = config.style.mainThemeColor || 0x00AE86;

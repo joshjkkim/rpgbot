@@ -10,6 +10,7 @@ import { cooldownRemaining, resolveDuel } from "../../db/duel.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import type { DuelResult, PendingDuel } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
+import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
 
 export const data = new SlashCommandBuilder()
     .setName("duel")
@@ -116,9 +117,10 @@ function buildResultEmbed(
     const embed = new EmbedBuilder()
         .setColor(themeColor(config))
         .setDescription(summariseRounds(result, challengerId, opponentId))
+        // Mentions only render in field values, not names, so the names stay plain.
         .addFields(
-            { name: `<@${challengerId}>`, value: `❤️ ${result.challengerHp} HP left`, inline: true },
-            { name: `<@${opponentId}>`, value: `❤️ ${result.opponentHp} HP left`, inline: true },
+            { name: "Challenger", value: `<@${challengerId}>\n❤️ ${result.challengerHp} HP left`, inline: true },
+            { name: "Opponent", value: `<@${opponentId}>\n❤️ ${result.opponentHp} HP left`, inline: true },
         );
 
     if (result.draw) {
@@ -201,6 +203,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         await interaction.editReply({
             content: `You need to wait ${wait}s before duelling again.`,
         });
+        return;
+    }
+
+    if (resolveCurrentHp(profile, calculateStats(profile, config, config.shop?.items ?? {})) <= 0) {
+        await interaction.editReply({ content: "You have 0 HP. Heal first with `/daily` or a potion." });
         return;
     }
 
