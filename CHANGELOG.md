@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## v0.8 · October 18, 2026
+
+### Improved
+- Using and equipping items now tells you what happened: *"Used 🧪 Healing Draught. ❤️ 20 → 70 / 220 HP. 1 left."* or *"Equipped 🗡️ Iron Sword (weapon). ⚔️ ATK 26 → 34."* No more checking `/me` to see if it worked.
+
 ## v0.7 · October 18, 2026
 
 ### New

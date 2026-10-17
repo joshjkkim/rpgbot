@@ -45,6 +45,7 @@ import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
 import { checkGuild, type Access } from "../src/health/checkGuild.js";
 import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
+import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1769,6 +1770,46 @@ async function main() {
         check("a reward pointing at a deleted item", has("The quest Hunt gives an item that no longer exists (ghost)"), true);
         const firstWarning = msgs.findIndex((m) => m.startsWith("warning"));
         check("errors are listed before warnings", msgs.slice(firstWarning).every((m) => m.startsWith("warning")), true);
+    });
+
+    await test("using and equipping say what changed, by name", async () => {
+        const { userId, guildId, config } = await reset();
+        config.combat.enabled = true;
+        config.shop.items = {
+            ...config.shop.items,
+            draught: { id: "draught", name: "Healing Draught", emoji: "🧪", categoryId: "x", price: 5,
+                actions: { 0: { type: "giveStat", statId: "health", amount: 50 } } },
+            sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", categoryId: "x", price: 5, equipable: true, equipSlot: "weapon",
+                effects: { stats: { atk: 8 } } },
+        };
+        await setGuildConfig(TEST_DISCORD_GUILD, config);
+        guildConfigCache.clear();
+
+        const { profile } = await getOrCreateProfile({ userId, guildId });
+        profile.inventory = {
+            draught: { id: "draught", name: "Healing Draught", emoji: "🧪", description: "", quantity: 2 },
+            sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", description: "", quantity: 1 },
+        };
+        profile.user_stats = { ...profile.user_stats, currentHp: 20 };
+
+        const interaction = {
+            guild: { id: TEST_DISCORD_GUILD, members: { fetch: async () => null } },
+            user: { id: TEST_DISCORD_USER }, client: {}, channelId: "c",
+        } as any;
+
+        const used = await useItemFromInventory(interaction, "draught", 1);
+        check("use succeeds", used.success, true);
+        check("names the item", used.message.includes("🧪 **Healing Draught**"), true);
+        check("shows the HP change", /❤️ 20 → 70 \/ \d+ HP/.test(used.message), true);
+        check("says how many are left", used.message.includes("1 left."), true);
+        check("no raw ids", used.message.includes("`draught`"), false);
+
+        const equipped = await equipItemFromInventory(interaction, "sword");
+        check("equip names the item and slot", equipped.message.startsWith("Equipped 🗡️ **Iron Sword** (weapon)"), true);
+        check("equip shows the attack change", /⚔️ ATK \d+ → \d+/.test(equipped.message), true);
+
+        const off = await equipItemFromInventory(interaction, "", "weapon");
+        check("unequip shows the attack going back down", off.message.startsWith("Took off 🗡️ **Iron Sword**") && /⚔️ ATK/.test(off.message), true);
     });
 
     console.log(`\n${"─".repeat(60)}`);

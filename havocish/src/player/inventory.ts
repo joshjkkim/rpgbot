@@ -14,6 +14,47 @@ import type { EquipSlot } from "../types/economy.js";
 import { calculateStats, resolveCurrentHp } from "./combat.js";
 import { bestEffort } from "../ui/bestEffort.js";
 
+// ─── What changed ─────────────────────────────────────────────────────────────
+// Every action reports its effect, so nobody runs /me after /use to see if it
+// worked. A snapshot is taken before the change and another after it.
+
+type Snapshot = { hp: number; maxHp: number; xp: bigint; gold: bigint; level: number; stats: ReturnType<typeof calculateStats> };
+
+function snapshot(profile: Parameters<typeof calculateStats>[0], config: Parameters<typeof calculateStats>[1]): Snapshot {
+    const stats = calculateStats(profile, config, config.shop?.items ?? {});
+    return {
+        hp: resolveCurrentHp(profile, stats), maxHp: stats.maxHp,
+        xp: BigInt(profile.xp ?? 0), gold: BigInt(profile.gold ?? 0), level: profile.level ?? 1, stats,
+    };
+}
+
+/** "❤️ 120 → 170 / 220 HP · +50 XP · +20 gold · Level 4!" for whatever moved. */
+export function describeChange(before: Snapshot, after: Snapshot, config: Parameters<typeof calculateStats>[1]): string {
+    const parts: string[] = [];
+    if (config.combat?.enabled && after.hp !== before.hp) parts.push(`❤️ ${before.hp} → ${after.hp} / ${after.maxHp} HP`);
+    const xp = after.xp - before.xp;
+    if (xp !== 0n) parts.push(`${xp > 0n ? "+" : ""}${xp} ${config.style.xp.name || "XP"}`);
+    const gold = after.gold - before.gold;
+    if (gold !== 0n) parts.push(`${gold > 0n ? "+" : ""}${gold} ${config.style.gold.name || "gold"}`);
+    if (after.level > before.level) parts.push(`**Level ${after.level}!**`);
+    return parts.join(" · ");
+}
+
+/** "⚔️ ATK 26 → 34 · 🛡️ DEF 12 → 14" for every combat stat that changed. */
+export function describeStatChange(before: Snapshot["stats"], after: Snapshot["stats"]): string {
+    const rows: Array<[string, number, number]> = [
+        ["❤️ Max HP", before.maxHp, after.maxHp],
+        ["⚔️ ATK", before.atk, after.atk],
+        ["🛡️ DEF", before.def, after.def],
+        ["💨 SPD", before.spd, after.spd],
+        ["🎯 Crit", Math.round(before.critChance * 10) / 10, Math.round(after.critChance * 10) / 10],
+    ];
+    return rows.filter(([, a, b]) => a !== b).map(([label, a, b]) => `${label} ${a} → ${b}`).join(" · ");
+}
+
+const named = (def: { emoji?: string | undefined; name?: string | undefined } | undefined, id: string) =>
+    `${def?.emoji ? `${def.emoji} ` : ""}**${def?.name ?? id}**`;
+
 /**
  * Buffers an inventory write for `userId` (a `users.id`, not a profile id).
  *
@@ -225,6 +266,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     const { user: dbUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
     const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const before = snapshot(profile, config);
     const inventory = profile.inventory;
     const items = config.shop?.items;
 
@@ -480,7 +522,14 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     });
     }
 
-    return { success: true, message: `Successfully used ${quantity} of item \`${itemId}\`.` };
+    const { profile: afterProfile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const left = afterProfile.inventory?.[itemId]?.quantity ?? 0;
+    const change = describeChange(before, snapshot(afterProfile, config), config);
+    return {
+        success: true,
+        message: `Used ${named(items[itemId], itemId)}${quantity > 1 ? ` ×${quantity}` : ""}.`
+            + `${change ? ` ${change}.` : ""} ${left ? `${left} left.` : "That was your last one."}`,
+    };
 }
 export async function equipItemFromInventory(interaction: ChatInputCommandInteraction | ButtonInteraction,  itemId?: string, slot?: EquipSlot,): Promise<{ success: boolean; message: string }> {
     if(interaction.guild === null) {
@@ -490,6 +539,12 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
     const { user: dbUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
     const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const statsBefore = snapshot(profile, config).stats;
+    const statLine = async () => {
+        const { profile: after } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+        const line = config.combat?.enabled ? describeStatChange(statsBefore, snapshot(after, config).stats) : "";
+        return line ? ` ${line}.` : "";
+    };
     const inventory = profile.inventory;
     const items = config.shop?.items;
 
@@ -529,7 +584,7 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
             baseline,
         });
 
-        return { success: true, message: `Successfully unequipped item \`${currentEquipped}\` from the \`${slot}\` slot.` };
+        return { success: true, message: `Took off ${named(items?.[currentEquipped], currentEquipped)}.${await statLine()}` };
     }
 
     if(!itemId) {
@@ -595,7 +650,8 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
         baseline,
     });
 
-    return { success: true, message: `Successfully equipped item \`${itemId}\` in the \`${item.equipSlot}\` slot.` };
+    const swapped = currentEquipped && currentEquipped !== itemId ? `, putting ${named(items?.[currentEquipped], currentEquipped)} back in your bag` : "";
+    return { success: true, message: `Equipped ${named(item, itemId)} (${item.equipSlot})${swapped}.${await statLine()}` };
 }
 /**
  * Sells one copy of an item for its sellPrice. Equipping moves an item out of
