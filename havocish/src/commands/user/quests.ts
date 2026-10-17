@@ -1,523 +1,296 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, type ChatInputCommandInteraction, GuildMember, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
-import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, GuildMember, MessageFlags, SectionBuilder, SlashCommandBuilder, TextDisplayBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { applyQuestRewards, applyQuestSideEffects, canStartQuest } from "../../player/quests.js";
-import { MessageFlags } from "discord.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
-import type { QuestConfig, UserQuestState } from "../../types/quest.js";
+import type { GuildConfig } from "../../types/guild.js";
+import type { QuestConfig, QuestCondition, UserQuestState } from "../../types/quest.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { ownerSetupRows } from "../../ui/dashboardLinks.js";
+import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 
-function formatProgress(state: any, def: any) {
-  const cur = typeof state?.progress === "number" ? state.progress : 0;
-  const target = def?.conditions?.target ?? def?.conditions?.value ?? 0;
-
-  if (!target) return `\`${cur}\``;
-
-  const capped = Math.min(cur, target);
-  const BAR_LENGTH = 10;
-  const filled = Math.round((capped / target) * BAR_LENGTH);
-  const bar = "█".repeat(filled) + "░".repeat(BAR_LENGTH - filled);
-  const pct = Math.floor((capped / target) * 100);
-  return `\`[${bar}]\` **${capped}/${target}** (${pct}%)`;
-}
-
-export function questStatus(state: any, def: any, now: number) {
-  const accepted = !!state?.acceptedAt;
-  const completed = !!state?.completedAt;
-  const claimedAtMs = toMs(state?.claimedAt);
-  const cooldownMs = (def?.cooldown ?? 0) * 1000;
-
-  // cooldown (after claim)
-  if (claimedAtMs && cooldownMs > 0) {
-    const readyAt = claimedAtMs + cooldownMs;
-    if (now < readyAt) return { kind: "cooldown", readyAt };
-  }
-
-  if (completed && !state?.claimedAt) return { kind: "needs_claim" };
-  if (accepted && !completed) return { kind: "active" };
-
-  // claimed but cooldown passed OR never started
-  return { kind: "available" };
-}
-
-function buildQuestsRows(view: "my" | "all") {
-  const viewRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("quests:view:my")
-      .setLabel("My Quests")
-      .setStyle(view === "my" ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("quests:view:all")
-      .setLabel("All Quests")
-      .setStyle(view === "all" ? ButtonStyle.Success : ButtonStyle.Secondary),
-  );
-
-  const actionRow = new ActionRowBuilder<ButtonBuilder>();
-
-  if (view === "all") {
-    actionRow.addComponents(
-      new ButtonBuilder()
-        .setCustomId("quests:action:start")
-        .setLabel("Start Quest")
-        .setStyle(ButtonStyle.Primary),
-    );
-  } else {
-    actionRow.addComponents(
-      new ButtonBuilder()
-        .setCustomId("quests:action:claim")
-        .setLabel("Claim Quest")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("quests:action:claim_all")
-        .setLabel("Claim All")
-        .setStyle(ButtonStyle.Secondary),
-    );
-  }
-
-  return [viewRow, actionRow];
-}
-
-
-
-function toMs(d: any): number | null {
-    if (!d) return null;
-    const t = d instanceof Date ? d.getTime() : new Date(d).getTime();
-    return Number.isFinite(t) ? t : null;
-}
-
-function relTime(ms: number) {
-    return `<t:${Math.floor(ms / 1000)}:R>`;
-}
-
-function dateTime(ms: number) {
-    return `<t:${Math.floor(ms / 1000)}:D>`;
-}
-
-function renderMyQuestsEmbed({ userQuests, questDefs, config, username }: any) {
-  const now = Date.now();
-  const lines: string[] = [];
-
-  for (const [questId, state] of Object.entries<any>(userQuests)) {
-    const def = questDefs[questId];
-
-    if (!def) {
-      lines.push(`• **${questId}** — *(quest removed)*`);
-      continue;
-    }
-
-    const status = questStatus(state, def, now);
-    if(status.kind === "available") {
-      continue;
-    }
-    const claimedAtMs = toMs(state?.claimedAt);
-
-    let lineStatus = "";
-    switch (status.kind) {
-      case "cooldown": {
-        const readyAt = typeof status.readyAt === "number" ? status.readyAt : now;
-        lineStatus = `✅ Claimed ${claimedAtMs ? dateTime(claimedAtMs) : ""} • ⏳ next ${relTime(readyAt)}`;
-        break;
-      }
-      case "needs_claim":
-        lineStatus = `🎁 Completed — ready to claim`;
-        break;
-      case "active":
-        lineStatus = `🟡 In progress — ${formatProgress(state, def)}`;
-        break;
-      default:
-        lineStatus = `🟢 Available`;
-        break;
-    }
-
-    lines.push(`• **${def.name}** — ${lineStatus}`);
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle(`🧭 ${username}'s Quests`)
-    .setDescription(lines.length ? lines.slice(0, 20).join("\n") : "_No quest progress yet._")
-    .setFooter({ text: "Tip: switch to All Quests to see everything available" });
-
-  return embed;
-}
-
-function renderAllQuestsEmbed({ userQuests, questDefs, config }: any) {
-  const now = Date.now();
-  const lines: string[] = [];
-
-  for (const def of Object.values<QuestConfig>(questDefs)) {
-    if (def.active === false) continue;
-
-    const state = userQuests[def.id];
-    const status = questStatus(state, def, now);
-
-    let lineStatus = "";
-    switch (status.kind) {
-      case "cooldown": {
-        const readyAt = typeof status.readyAt === "number" ? status.readyAt : now;
-        lineStatus = `⏳ Cooldown — ready ${relTime(readyAt)}`;
-        break;
-      }
-      case "needs_claim":
-        lineStatus = `✅ Completed — ready to claim`;
-        break;
-      case "active":
-        lineStatus = `🟡 In progress — ${formatProgress(state, def)}`;
-        break;
-      default:
-        lineStatus = `🟢 Available`;
-        break;
-    }
-
-    lines.push(`• **${def.name}**, ${def.id} — ${lineStatus}`);
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle(`📜 All Active Quests`)
-    .setDescription(lines.length ? lines.slice(0, 20).join("\n") : "_No quests configured._");
-
-  return embed;
-}
-
-
+/**
+ * /quests: the quest log. Every quest is a card saying what to do, how far
+ * along you are and what it pays, with the button that fits: Accept, Claim,
+ * or a disabled In progress / On cooldown. It replaced two embeds of names and
+ * Start/Claim buttons that asked members to type the quest's id.
+ *
+ * Buttons: quests:{accept|claim}:{questId}:{page}, quests:claimall:{page},
+ * quests:page:{page}. The log is ephemeral, so whoever clicks owns it.
+ */
 
 export const data = new SlashCommandBuilder()
     .setName("quests")
-    .setDescription("View your quests and available quests")
-    .addStringOption(opt =>
-        opt.setName("view")
-        .setDescription("Which view to open")
-        .addChoices(
-            { name: "My Quests", value: "my" },
-            { name: "All Quests", value: "all" }
-        )
-        .setRequired(false)
-    );
+    .setDescription("Your quest log: what to do, your progress and the rewards");
 
-export async function execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.inGuild() || !interaction.guildId) {
-        await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
-        return;
+type Status =
+    | { kind: "claim" }
+    | { kind: "active" }
+    | { kind: "available" }
+    | { kind: "cooldown"; readyAt: number };
+
+/** Where a member stands on a quest. Order is how the log sorts them. */
+export function questStatus(state: UserQuestState | undefined, def: QuestConfig, now: number): Status {
+    const claimedAt = state?.claimedAt ? Date.parse(state.claimedAt) : NaN;
+    const readyAt = claimedAt + (def.cooldown ?? 0) * 1000;
+    if (Number.isFinite(claimedAt) && def.cooldown > 0 && now < readyAt && !state?.acceptedAt) {
+        return { kind: "cooldown", readyAt };
+    }
+    if (state?.completedAt && !state.claimedAt) return { kind: "claim" };
+    if (state?.acceptedAt && !state.completedAt) return { kind: "active" };
+    return { kind: "available" };
+}
+
+const ORDER: Record<Status["kind"], number> = { claim: 0, active: 1, available: 2, cooldown: 3 };
+
+const channels = (ids?: string[]) => (ids?.length ? ` in ${ids.map((id) => `<#${id}>`).join(", ")}` : "");
+
+/** The condition in words: "Send 25 messages in #general". */
+export function objective(cond: QuestCondition, config: GuildConfig): string {
+    const n = cond.target.toLocaleString();
+    switch (cond.type) {
+        case "messages": return `Send ${n} messages${channels(cond.channelIds)}`;
+        case "vcMinutes": return `Spend ${n} minutes in voice${channels(cond.channelIds)}`;
+        case "spendGold": return `Spend ${n} ${config.style.gold.name || "gold"} in the shop`;
+        case "earnXp": return `Earn ${n} ${config.style.xp.name || "XP"}`;
+        case "dailyClaim": return `Claim your daily reward ${n} time${cond.target === 1 ? "" : "s"}`;
+    }
+}
+
+function repeats(cooldown: number): string {
+    if (!cooldown) return "repeatable";
+    if (cooldown === 86400) return "daily";
+    if (cooldown === 604800) return "weekly";
+    const hours = Math.round(cooldown / 3600);
+    return hours >= 1 ? `every ${hours}h` : `every ${Math.max(1, Math.round(cooldown / 60))}m`;
+}
+
+/** "75 XP · 30 gold · 🧪 Minor Healing Draught ×1 · @Role". */
+export function rewardLine(def: QuestConfig, config: GuildConfig): string {
+    const parts: string[] = [];
+    for (const r of Object.values(def.reward ?? {})) {
+        if (r.xp) parts.push(`${config.style.xp.icon || "⭐"} ${r.xp} ${config.style.xp.name || "XP"}`);
+        if (r.gold) parts.push(`${config.style.gold.icon || "💰"} ${r.gold} ${config.style.gold.name || "gold"}`);
+        if (r.itemId) {
+            const item = config.shop?.items?.[r.itemId];
+            parts.push(`${item?.emoji ?? "🎁"} ${item?.name ?? r.itemId} ×${r.quantity ?? 1}`);
+        }
+        if (r.roleId) parts.push(`<@&${r.roleId}>`);
+    }
+    return parts.join(" · ") || "No reward";
+}
+
+function bar(cur: number, target: number) {
+    const filled = Math.round((Math.min(cur, target) / Math.max(1, target)) * 10);
+    return `\`${"█".repeat(filled)}${"░".repeat(10 - filled)}\` ${Math.min(cur, target)}/${target}`;
+}
+
+export function renderQuestLog(config: GuildConfig, userQuests: Record<string, UserQuestState>, page: number, status?: string) {
+    const now = Date.now();
+    const quests = Object.values(config.quests?.quests ?? {})
+        .filter((q) => q.active !== false)
+        .map((q) => ({ q, s: questStatus(userQuests[q.id], q, now) }))
+        .sort((a, b) => ORDER[a.s.kind] - ORDER[b.s.kind] || a.q.name.localeCompare(b.q.name));
+
+    const claimable = quests.filter((x) => x.s.kind === "claim").length;
+    const active = quests.filter((x) => x.s.kind === "active").length;
+    const view = pageOf(quests, page);
+
+    const c = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
+    if (status) c.addTextDisplayComponents((t) => t.setContent(`-# ${status}`));
+    c.addTextDisplayComponents((t) => t.setContent([
+        "## 📜 Quest Log",
+        `-# ${claimable ? `🎁 ${claimable} ready to claim · ` : ""}${active} in progress · ${quests.length} on the board`,
+    ].join("\n")));
+
+    if (quests.length === 0) {
+        c.addSeparatorComponents((s) => s).addTextDisplayComponents((t) => t.setContent("_The quest board is empty._"));
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    for (const { q, s } of view.items) {
+        const state = userQuests[q.id];
+        const progress = s.kind === "active" ? `\n${bar(state?.progress ?? 0, q.conditions.target)}` : "";
+        const icon = s.kind === "claim" ? "🎁" : s.kind === "active" ? "🟡" : s.kind === "cooldown" ? "⏳" : "📜";
+        const lines = [
+            `### ${icon} ${q.name}`,
+            q.description ? `-# ${q.description}` : "",
+            `🎯 ${objective(q.conditions, config)} · 🔁 ${repeats(q.cooldown)}${progress}`,
+            `🎁 ${rewardLine(q, config)}`,
+            s.kind === "cooldown" ? `-# Available again <t:${Math.floor(s.readyAt / 1000)}:R>` : "",
+        ].filter(Boolean);
 
-    const view = interaction.options.getString("view") ?? "my";
+        const button = new ButtonBuilder();
+        if (s.kind === "claim") button.setCustomId(`quests:claim:${q.id}:${view.page}`).setLabel("Claim").setEmoji("✨").setStyle(ButtonStyle.Success);
+        else if (s.kind === "available") button.setCustomId(`quests:accept:${q.id}:${view.page}`).setLabel("Accept").setStyle(ButtonStyle.Primary);
+        else button.setCustomId(`quests:noop:${q.id}`).setLabel(s.kind === "active" ? "In progress" : "On cooldown").setStyle(ButtonStyle.Secondary).setDisabled(true);
 
+        c.addSeparatorComponents((sep) => sep).addSectionComponents(
+            new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n"))).setButtonAccessory(button),
+        );
+    }
+
+    const nav = pagerButtons((p) => `quests:page:${p}`, view.page, view.pages);
+    if (claimable >= 2) {
+        nav.push(new ButtonBuilder().setCustomId(`quests:claimall:${view.page}`).setLabel(`Claim all (${claimable})`).setEmoji("✨").setStyle(ButtonStyle.Success));
+    }
+    return nav.length ? [c, new ActionRowBuilder<ButtonBuilder>().addComponents(...nav)] : [c];
+}
+
+// ─── Command ──────────────────────────────────────────────────────────────────
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+    if (!interaction.inGuild()) {
+        await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
+        return;
+    }
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const { config, userQuests } = await load(interaction);
+    if (!config.quests?.enabled) {
+        await interaction.editReply({
+            content: "The quest board is empty. No quests are on offer here yet.",
+            components: ownerSetupRows(interaction, "quests", "Set up quests on the dashboard"),
+        });
+        return;
+    }
+    await interaction.editReply({ components: renderQuestLog(config, userQuests, 0), flags: MessageFlags.IsComponentsV2 });
+}
+
+async function load(interaction: ChatInputCommandInteraction | ButtonInteraction) {
     const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
         username: interaction.user.username,
         avatarUrl: interaction.user.displayAvatarURL(),
     });
-    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
-    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
-
-    
-
-    const questDefs = config.quests?.quests ?? {};
-    console.log(questDefs);
-    const userQuests = (profile as any).quests ?? {};
-
-    const embed = view === "all"
-        ? renderAllQuestsEmbed({ userQuests, questDefs, config })
-        : renderMyQuestsEmbed({ userQuests, questDefs, config, username: interaction.user.username });
-
-    const rows = buildQuestsRows(view as any);
-    await interaction.editReply({ embeds: [embed], components: rows });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
+    const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const userQuests = (cached.profile.quests ?? {}) as Record<string, UserQuestState>;
+    return { dbUser, dbGuild, config, cached, userQuests };
 }
+
+// ─── Buttons ──────────────────────────────────────────────────────────────────
 
 export async function handleQuestsButton(interaction: ButtonInteraction) {
-  if (!interaction.customId.startsWith("quests:")) return;
-  if (!interaction.inGuild() || !interaction.guildId) return;
+    if (!interaction.inGuild()) return;
+    const [, action = "", a = "", b = ""] = interaction.customId.split(":");
 
-  const parts = interaction.customId.split(":");
-  const kind = parts[1]; // "view" | "action"
-  const op = parts[2];   // "my" | "all" | "start" | "claim" | "claim_all"
-
-  if (kind === "action" && (op === "start" || op === "claim")) {
-    if (op === "start") {
-      const modal = new ModalBuilder()
-        .setCustomId("quests:modal:start")
-        .setTitle("Start a Quest");
-
-      const questIdInput = new TextInputBuilder()
-        .setCustomId("questId")
-        .setLabel("Quest ID")
-        .setPlaceholder("e.g. daily_messages_25")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true);
-
-      modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(questIdInput));
-      await interaction.showModal(modal);
-      return;
+    // Logs from before the rework carried view/action buttons and id-typing
+    // modals; send them to a fresh log rather than half-handle them.
+    if (!["accept", "claim", "claimall", "page"].includes(action)) {
+        await interaction.reply({ content: "This quest menu is out of date. Run `/quests` again.", flags: MessageFlags.Ephemeral });
+        return;
     }
 
-    if (op === "claim") {
-      const modal = new ModalBuilder()
-        .setCustomId("quests:modal:claim")
-        .setTitle("Claim a Quest");
+    await interaction.deferUpdate();
+    const page = Number(action === "accept" || action === "claim" ? b : a) || 0;
+    let status: string | undefined;
 
-      const questIdInput = new TextInputBuilder()
-        .setCustomId("questId")
-        .setLabel("Quest ID")
-        .setPlaceholder("e.g. daily_messages_25")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true);
-
-      modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(questIdInput));
-      await interaction.showModal(modal);
-      return;
+    if (action === "accept") status = await acceptQuest(interaction, a);
+    else if (action === "claim") status = await claimQuests(interaction, [a]);
+    else if (action === "claimall") {
+        const { config, userQuests } = await load(interaction);
+        const ready = Object.values(config.quests?.quests ?? {})
+            .filter((q) => q.active !== false && questStatus(userQuests[q.id], q, Date.now()).kind === "claim")
+            .map((q) => q.id);
+        status = await claimQuests(interaction, ready);
     }
-  }
 
-  await interaction.deferUpdate();
-
-  // load data once for view switches + claim_all
-  const { user: dbUser } = await getOrCreateDbUser({
-    discordUserId: interaction.user.id,
-    username: interaction.user.username,
-    avatarUrl: interaction.user.displayAvatarURL(),
-  });
-  const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
-  const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
-
-  const questDefs = config.quests?.quests ?? {};
-  const userQuests = (profile as any).quests ?? {};
-
-  // default view
-  let view: "my" | "all" = "my";
-
-  if (kind === "view" && (op === "my" || op === "all")) view = op;
-
-  if (kind === "action" && op === "claim_all") {
-    view = "my";
-  }
-
-  const embed =
-    view === "all"
-      ? renderAllQuestsEmbed({ userQuests, questDefs, config })
-      : renderMyQuestsEmbed({ userQuests, questDefs, config, username: interaction.user.username });
-
-  const rows = buildQuestsRows(view);
-  await interaction.editReply({ embeds: [embed], components: rows });
+    const { config, userQuests } = await load(interaction);
+    await interaction.editReply({ components: renderQuestLog(config, userQuests, page, status), flags: MessageFlags.IsComponentsV2 });
 }
 
-export async function handleQuestsStartModal(interaction: ModalSubmitInteraction) {
-  if (interaction.customId !== "quests:modal:start") return;
+/** Starts a quest. Returns the status line shown at the top of the log. */
+async function acceptQuest(interaction: ButtonInteraction, questId: string): Promise<string> {
+    const { dbUser, dbGuild, config, cached } = await load(interaction);
+    const qc = config.quests?.quests?.[questId];
+    if (!config.quests?.enabled || !qc || qc.active === false) return "❌ That quest is no longer on the board.";
 
-  if (!interaction.inGuild() || !interaction.guildId) {
-    await interaction.reply({ content: "This interaction can only be used in a server.", flags: MessageFlags.Ephemeral });
-    return;
-  }
+    const userQuests = { ...(cached.profile.quests ?? {}) } as Record<string, UserQuestState>;
+    const check = canStartQuest(userQuests[questId], qc, Date.now());
+    if (!check.ok) {
+        if (check.reason === "cooldown" && check.readyAt) return `⏳ **${qc.name}** is available again <t:${Math.floor(check.readyAt / 1000)}:R>.`;
+        if (check.reason === "needs_claim") return `🎁 You already finished **${qc.name}**. Claim it first.`;
+        return `🟡 You're already on **${qc.name}**.`;
+    }
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-  const questId = interaction.fields.getTextInputValue("questId").trim();
-
-  const { user: dbUser } = await getOrCreateDbUser({
-    discordUserId: interaction.user.id,
-    username: interaction.user.username,
-    avatarUrl: interaction.user.displayAvatarURL(),
-  });
-
-  const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
-
-  const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
-  const baseline = { xp: cached.profile.xp, gold: cached.profile.gold };
-  let profile = cached.profile;
-  let pending = cached.pendingChanges ?? ({} as PendingProfileChanges);
-
-  if (!config.quests?.enabled) {
-    await interaction.editReply({
-      content: "The quest board is empty. No quests are on offer here yet.",
-      components: ownerSetupRows(interaction, "quests", "Set up quests on the dashboard"),
+    userQuests[questId] = { acceptedAt: new Date().toISOString(), progress: 0, completedAt: null, claimedAt: null };
+    const profile = { ...cached.profile, quests: userQuests };
+    const pending = { ...(cached.pendingChanges ?? {}), quests: userQuests } as PendingProfileChanges;
+    commitProfileChanges({
+        userId: dbUser.id, guildId: dbGuild.id, profile, changes: pending,
+        baseline: { xp: cached.profile.xp, gold: cached.profile.gold },
     });
-    return;
-  }
 
-  const qc = config.quests?.quests?.[questId];
-  if (!qc || qc.active === false) {
-    await interaction.editReply({ content: "Invalid quest ID (or quest is not active)." });
-    return;
-  }
-
-  const userQuests = ((profile.quests ?? {}) as Record<string, UserQuestState>);
-  const state = userQuests[questId];
-
-  const nowMs = Date.now();
-  const nowIso = new Date(nowMs).toISOString();
-
-  const result = canStartQuest(state, qc, nowMs);
-  if (!result.ok) {
-    if (result.reason === "cooldown" && result.readyAt) {
-      const ts = Math.floor(result.readyAt / 1000);
-      await interaction.editReply({ content: `That quest is on cooldown. Ready <t:${ts}:R>.` });
-      return;
-    }
-    if (result.reason === "needs_claim") {
-      await interaction.editReply({ content: "You already completed that quest — claim it first." });
-      return;
-    }
-    if (result.reason === "already_active") {
-      await interaction.editReply({ content: "You already started that quest." });
-      return;
-    }
-    await interaction.editReply({ content: `Cannot start quest: ${result.reason}` });
-    return;
-  }
-
-  // Create/reset quest state
-  userQuests[questId] = {
-    acceptedAt: nowIso,
-    progress: 0,
-    completedAt: null,
-    claimedAt: null,
-  };
-
-  // Write into profile + pending
-  profile = { ...profile, quests: userQuests };
-  pending = { ...pending, quests: userQuests };
-
-  commitProfileChanges({
-    userId: dbUser.id,
-    guildId: dbGuild.id,
-    profile,
-    changes: pending,
-    baseline,
-  });
-
-  await logAndBroadcastEvent(interaction, {
-    guildId: dbGuild.id,
-    discordGuildId: dbGuild.discord_guild_id,
-    userId: dbUser.id,
-    category: "quests",
-    eventType: "startQuest",
-    questId: questId,
-    timestamp: new Date(),
-  }, config);
-
-  await interaction.editReply({ content: `Started **${qc.name}**.` });
+    await logAndBroadcastEvent(interaction, {
+        guildId: dbGuild.id, discordGuildId: dbGuild.discord_guild_id, userId: dbUser.id,
+        category: "quests", eventType: "startQuest", questId, timestamp: new Date(),
+    }, config);
+    return `✅ Accepted **${qc.name}**. ${objective(qc.conditions, config)}!`;
 }
 
-export async function handleQuestsClaimModal(interaction: ModalSubmitInteraction) {
-  if (interaction.customId !== "quests:modal:claim") return;
+/** Claims every finished quest in `questIds`, one commit each. Returns the status line. */
+async function claimQuests(interaction: ButtonInteraction, questIds: string[]): Promise<string> {
+    const claimed: string[] = [];
+    const totals = { xp: 0, gold: 0, items: [] as string[] };
 
-  if (!interaction.inGuild() || !interaction.guildId) {
-    await interaction.reply({ content: "This interaction can only be used in a server.", flags: MessageFlags.Ephemeral });
-    return;
-  }
+    for (const questId of questIds) {
+        // Reloaded per quest: each claim commits, and the next must start from it.
+        const { dbUser, dbGuild, config, cached } = await load(interaction);
+        const qc = config.quests?.quests?.[questId];
+        const userQuests = { ...(cached.profile.quests ?? {}) } as Record<string, UserQuestState>;
+        const state = userQuests[questId];
+        if (!qc || !state?.completedAt || state.claimedAt) continue;
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        userQuests[questId] = { ...state, claimedAt: new Date().toISOString(), acceptedAt: null, completedAt: null, progress: 0 };
+        let profile = { ...cached.profile, quests: userQuests };
+        let pending = { ...(cached.pendingChanges ?? {}), quests: userQuests } as PendingProfileChanges;
 
-  const questId = interaction.fields.getTextInputValue("questId").trim();
+        const effects = applyQuestRewards({ profile, pending, quest: qc, config });
+        profile = effects.profile;
+        pending = effects.pending;
+        commitProfileChanges({
+            userId: dbUser.id, guildId: dbGuild.id, profile, changes: pending,
+            baseline: { xp: cached.profile.xp, gold: cached.profile.gold },
+            recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
+        });
 
-  const { user: dbUser } = await getOrCreateDbUser({
-    discordUserId: interaction.user.id,
-    username: interaction.user.username,
-    avatarUrl: interaction.user.displayAvatarURL(),
-  });
+        await applyQuestSideEffects({
+            client: interaction.client,
+            discordGuildId: interaction.guildId!,
+            discordUserId: interaction.user.id,
+            member: interaction.member instanceof GuildMember ? interaction.member : null,
+            channelIdHint: interaction.channelId,
+            config,
+            rewards: { grantedRoles: effects.grantedRoles, messages: effects.messages },
+        });
 
-  const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+        await logAndBroadcastEvent(interaction, {
+            guildId: dbGuild.id, discordGuildId: dbGuild.discord_guild_id, userId: dbUser.id,
+            category: "quests", eventType: "claimQuest", questId,
+            xpDelta: effects.totalXp, goldDelta: effects.totalGold,
+            itemId: effects.grantedItems.map((it) => it.itemId).join(", "),
+            itemQuantity: effects.grantedItems.reduce((sum, it) => sum + it.quantity, 0),
+            timestamp: new Date(),
+        }, config);
 
-  const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
-  const baseline = { xp: cached.profile.xp, gold: cached.profile.gold };
-  let profile = cached.profile;
-  let pending = cached.pendingChanges ?? ({} as PendingProfileChanges);
+        claimed.push(qc.name);
+        totals.xp += effects.totalXp;
+        totals.gold += effects.totalGold;
+        for (const it of effects.grantedItems) {
+            const item = config.shop?.items?.[it.itemId];
+            totals.items.push(`${item?.emoji ?? "🎁"} ${item?.name ?? it.itemId} ×${it.quantity}`);
+        }
+    }
 
-  if (!config.quests?.enabled) {
-    await interaction.editReply({
-      content: "The quest board is empty. No quests are on offer here yet.",
-      components: ownerSetupRows(interaction, "quests", "Set up quests on the dashboard"),
-    });
-    return;
-  }
-
-  const qc = config.quests?.quests?.[questId];
-  if (!qc || qc.active === false) {
-    await interaction.editReply({ content: "Invalid quest ID (or quest is not active)." });
-    return;
-  }
-
-  const userQuests = (profile.quests ?? {}) as Record<string, UserQuestState>;
-  const state = userQuests[questId];
-
-  if (!state) {
-    await interaction.editReply({ content: "You haven't started that quest." });
-    return;
-  }
-  if (!state.completedAt) {
-    await interaction.editReply({ content: "That quest isn't completed yet." });
-    return;
-  }
-  if (state.claimedAt) {
-    await interaction.editReply({ content: "You already claimed that quest." });
-    return;
-  }
-
-  // mark claimed + reset for repeatability
-  const nowIso = new Date().toISOString();
-  userQuests[questId] = {
-    ...state,
-    claimedAt: nowIso,
-    acceptedAt: null,
-    completedAt: null,
-    progress: 0,
-  };
-
-  profile = { ...profile, quests: userQuests };
-  pending = { ...pending, quests: userQuests };
-
-  // apply rewards
-  const rewardEffects = applyQuestRewards({ profile, pending, quest: qc, config });
-  profile = rewardEffects.profile;
-  pending = rewardEffects.pending;
-
-  commitProfileChanges({
-    userId: dbUser.id,
-    guildId: dbGuild.id,
-    profile,
-    changes: pending,
-    baseline,
-    recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
-  });
-
-  // side effects (roles/messages)
-  await applyQuestSideEffects({
-    client: interaction.client,
-    discordGuildId: interaction.guildId,
-    discordUserId: interaction.user.id,
-    member: interaction.member instanceof GuildMember ? interaction.member : null,
-    channelIdHint: interaction.channelId,
-    config,
-    rewards: rewardEffects ? { grantedRoles: rewardEffects.grantedRoles, messages: rewardEffects.messages } : null,
-  });
-
-  // reply
-  const parts: string[] = [];
-  if (rewardEffects.totalXp) parts.push(`+${rewardEffects.totalXp} xp`);
-  if (rewardEffects.totalGold) parts.push(`+${rewardEffects.totalGold} gold`);
-  if (rewardEffects.grantedItems.length) {
-    for (const it of rewardEffects.grantedItems) parts.push(`+${it.quantity} ${it.itemId}`);
-  }
-
-  await logAndBroadcastEvent(interaction, {
-    guildId: dbGuild.id,
-    discordGuildId: dbGuild.discord_guild_id,
-    userId: dbUser.id,
-    category: "quests",
-    eventType: "claimQuest",
-    questId: questId,
-    xpDelta: rewardEffects.totalXp,
-    goldDelta: rewardEffects.totalGold,
-    itemId: rewardEffects.grantedItems.map(it => it.itemId).join(", "),
-    itemQuantity: rewardEffects.grantedItems.reduce((sum, it) => sum + it.quantity, 0),
-    timestamp: new Date(),
-  }, config);
-
-  await interaction.editReply({
-    content: parts.length ? `Claimed **${qc.name}**! (${parts.join(", ")})` : `Claimed **${qc.name}**!`,
-  });
+    if (claimed.length === 0) return "❌ Nothing to claim right now.";
+    const { config } = await load(interaction);
+    const gains = [
+        totals.xp && `+${totals.xp} ${config.style.xp.name || "XP"}`,
+        totals.gold && `+${totals.gold} ${config.style.gold.name || "gold"}`,
+        ...totals.items,
+    ].filter(Boolean).join(", ");
+    return `✨ Claimed **${claimed.join("**, **")}**${gains ? `: ${gains}` : ""}`;
 }

@@ -8,7 +8,7 @@ import { handleConfigPanelModalSubmit } from "../ui/panel/panelModal.js";
 import { handleShopButton } from "../commands/user/shop.js";
 import { handleProfileButton } from "../commands/user/profile.js";
 import { handleInventoryButton } from "../commands/user/inventory.js";
-import { handleQuestsButton, handleQuestsClaimModal, handleQuestsStartModal } from "../commands/user/quests.js";
+import { handleQuestsButton } from "../commands/user/quests.js";
 import { handleTradeOfferButton, handleTradeOfferModal } from "../commands/user/trade.js";
 import { handleSettingsModal } from "../commands/user/settings.js";
 import { handleFightButton } from "../commands/user/fight.js";
@@ -76,12 +76,6 @@ export function registerInteractionCreate(client: Client) {
             if (interaction.isModalSubmit()) {
                 if (interaction.customId.startsWith("config-panel:")) {
                     await handleConfigPanelModalSubmit(interaction);
-                } else if (interaction.customId.startsWith("quests:")) {
-                    if(interaction.customId.startsWith("quests:modal:start")) {
-                        await handleQuestsStartModal(interaction);
-                    } else if (interaction.customId.startsWith("quests:modal:claim")) {
-                        await handleQuestsClaimModal(interaction);
-                    }
                 } else if (interaction.customId.startsWith("trade:modal:")) {
                     await handleTradeOfferModal(interaction);
                 } else if (interaction.customId.startsWith("settings:modal:")) {

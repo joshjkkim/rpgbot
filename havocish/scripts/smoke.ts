@@ -42,6 +42,7 @@ import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry } from "./changelog-post.js";
 import { readFileSync } from "node:fs";
+import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1685,6 +1686,55 @@ async function main() {
         check("sections become bold lines", entry?.body.startsWith("**New**"), true);
         check("older entries are left out", entry?.body.includes("old"), false);
         check("the real CHANGELOG.md has an entry", !!newestEntry(readFileSync(new URL("../../CHANGELOG.md", import.meta.url), "utf8")), true);
+    });
+
+    await test("the quest log explains each quest and accepts/claims from buttons", async () => {
+        const { userId, guildId, config } = await reset();
+        config.quests = {
+            ...config.quests,
+            enabled: true,
+            quests: {
+                chatter: {
+                    id: "chatter", name: "Tavern Talk", description: "Share stories.", active: true, cooldown: 86400,
+                    conditions: { type: "messages", target: 25, channelIds: ["111"] },
+                    reward: { 0: { xp: 75, gold: 30 }, 1: { itemId: "potion", quantity: 2 } },
+                },
+            },
+        };
+        config.shop.items = { ...config.shop.items, potion: { id: "potion", name: "Healing Draught", emoji: "🧪", categoryId: "x", price: 5 } };
+        await setGuildConfig(TEST_DISCORD_GUILD, config);
+        guildConfigCache.clear();
+
+        check("objective in words", objective(config.quests.quests.chatter!.conditions, config), "Send 25 messages in <#111>");
+        const fresh = JSON.stringify(renderQuestLog(config, {}, 0).map((c: any) => c.toJSON()));
+        check("shows the description", fresh.includes("Share stories."), true);
+        check("shows rewards with item names", fresh.includes("Healing Draught ×2") && fresh.includes("75 XP"), true);
+        check("says how often it repeats", fresh.includes("daily"), true);
+        check("offers Accept, not a typed id", fresh.includes("quests:accept:chatter:0"), true);
+
+        let shown: any = null;
+        const click = (customId: string) => handleQuestsButton({
+            customId, guildId: TEST_DISCORD_GUILD, channelId: "c", inGuild: () => true,
+            user: { id: TEST_DISCORD_USER, username: "smoke-test", displayAvatarURL: () => "" },
+            member: null, client: { guilds: { cache: new Map() } },
+            deferUpdate: async () => {}, editReply: async (p: any) => { shown = p; }, reply: async () => {},
+        } as any);
+
+        await click("quests:accept:chatter:0");
+        let { profile } = await getOrCreateProfile({ userId, guildId });
+        check("accepting starts the quest", !!profile.quests?.chatter?.acceptedAt, true);
+        check("the log says so", JSON.stringify(shown.components[0].toJSON()).includes("Accepted"), true);
+
+        // Finish it without sending 25 messages.
+        profile.quests!.chatter = { ...profile.quests!.chatter!, progress: 25, completedAt: new Date().toISOString() };
+        const goldBefore = BigInt(profile.gold);
+        await click("quests:claim:chatter:0");
+        ({ profile } = await getOrCreateProfile({ userId, guildId }));
+        check("claiming pays the gold", (BigInt(profile.gold) - goldBefore).toString(), "30");
+        check("and the item", profile.inventory?.potion?.quantity, 2);
+        check("the quest resets for next time", `${profile.quests?.chatter?.completedAt}|${!!profile.quests?.chatter?.claimedAt}`, "null|true");
+        const after = JSON.stringify(shown.components[0].toJSON());
+        check("now on cooldown", after.includes("On cooldown"), true);
     });
 
     console.log(`\n${"─".repeat(60)}`);
