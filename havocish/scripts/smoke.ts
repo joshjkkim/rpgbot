@@ -39,6 +39,7 @@ import { execute as helpCommand, handleHelpButton } from "../src/commands/user/h
 import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
+import { renderSheet } from "../src/commands/user/me.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1641,6 +1642,38 @@ async function main() {
         check("the duel is refused", outcome.success, false);
         check("it says to heal", !outcome.success && outcome.message.includes("0 HP"), true);
         check("no gold moved", `${await goldOf(fx.a, g)}/${await goldOf(fx.b, g)}`, "1000/1000");
+    });
+
+    await test("/me shows level progress, HP, stats and what each piece of gear adds", async () => {
+        const { userId, guildId, config } = await reset();
+        config.combat.enabled = true;
+        config.levels.curveType = "linear";
+        config.levels.curveParams = { rate: 100 };
+        config.levels.xpOverrides = {};
+        config.shop.items = {
+            ...config.shop.items,
+            sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", categoryId: "gear", price: 10, equipable: true, equipSlot: "weapon",
+                effects: { stats: { atk: 8, def: 2 } } },
+        };
+        const { profile } = await getOrCreateProfile({ userId, guildId });
+        profile.xp = "115";
+        profile.equips = { weapon: "sword" };
+        profile.inventory = { sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", description: "", quantity: 1 } };
+
+        const json = (parts: any[]) => JSON.stringify(parts.map((p) => p.toJSON()));
+        const own = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
+        check("level and progress from XP", own.includes("Level 1") && own.includes("115 / 200"), true);
+        check("HP line present", own.includes("**HP**"), true);
+        check("gear lists its bonus", own.includes("Iron Sword") && own.includes("+8 ATK, +2 DEF"), true);
+        check("empty slots say so", own.includes("Head · _empty_"), true);
+        check("your own sheet has inventory buttons", own.includes("inventory:gear:"), true);
+
+        const theirs = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, false));
+        check("someone else's sheet has no buttons", theirs.includes("inventory:"), false);
+
+        config.combat.enabled = false;
+        const noCombat = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
+        check("no HP or stats when combat is off", noCombat.includes("**HP**"), false);
     });
 
     console.log(`\n${"─".repeat(60)}`);
