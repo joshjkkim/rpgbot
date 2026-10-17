@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## v0.7 · October 18, 2026
+
+### New
+- **For server owners: a setup check on the dashboard.** The Overview now tells you about anything that would quietly fail, like a channel havocish can't post in, a reward role it can't give, combat with no enemies, or a quest reward pointing at a deleted item. Each comes with a **Fix** link to the right page.
+
 ## v0.6 · October 17, 2026
 
 ### Improved

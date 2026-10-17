@@ -1,4 +1,6 @@
 import { createServer, type IncomingMessage } from "node:http";
+import type { Client } from "discord.js";
+import { checkGuild, discordAccess } from "../health/checkGuild.js";
 import { timingSafeEqual } from "node:crypto";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { calculateTotalXpForLevel } from "../leveling/levels.js";
@@ -15,6 +17,11 @@ import type { GuildConfig } from "../types/guild.js";
  *
  *   POST /preview  { guildId, kind: "profile" | "levelup", style, user: { username, avatarUrl } }
  *   -> image/png
+ *
+ * It also answers the Overview's health check (src/health/checkGuild.ts), which
+ * needs the bot's own view of the server's channels, roles and permissions:
+ *
+ *   POST /health   { guildId }  ->  { inGuild: false } | { inGuild: true, issues: Issue[] }
  */
 
 const MAX_BODY = 16 * 1024;
@@ -98,7 +105,16 @@ async function render(body: any): Promise<Buffer> {
     return card.attachment as Buffer;
 }
 
-export function startPreviewServer() {
+async function health(body: any, client: Client) {
+    const guildId = str(body?.guildId, 32);
+    if (!guildId || !/^\d+$/.test(guildId)) throw new BadRequest("bad guildId");
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return { inGuild: false };
+    const { config } = await getOrCreateGuildConfig({ discordGuildId: guildId });
+    return { inGuild: true, issues: checkGuild(config, discordAccess(guild)) };
+}
+
+export function startPreviewServer(client: Client) {
     const secret = process.env.PREVIEW_SECRET?.trim();
     if (!secret) {
         console.log("Style previews: off (PREVIEW_SECRET unset).");
@@ -107,7 +123,7 @@ export function startPreviewServer() {
     const port = Number(process.env.PORT) || 8080;
 
     const server = createServer(async (req, res) => {
-        if (req.method !== "POST" || req.url !== "/preview") {
+        if (req.method !== "POST" || (req.url !== "/preview" && req.url !== "/health")) {
             res.writeHead(404).end();
             return;
         }
@@ -116,6 +132,11 @@ export function startPreviewServer() {
             return;
         }
         try {
+            if (req.url === "/health") {
+                const report = await health(await readJson(req), client);
+                res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify(report));
+                return;
+            }
             const png = await render(await readJson(req));
             res.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" }).end(png);
         } catch (err) {

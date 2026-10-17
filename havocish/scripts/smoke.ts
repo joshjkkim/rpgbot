@@ -43,6 +43,8 @@ import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry } from "./changelog-post.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
+import { checkGuild, type Access } from "../src/health/checkGuild.js";
+import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1735,6 +1737,38 @@ async function main() {
         check("the quest resets for next time", `${profile.quests?.chatter?.completedAt}|${!!profile.quests?.chatter?.claimedAt}`, "null|true");
         const after = JSON.stringify(shown.components[0].toJSON());
         check("now on cooldown", after.includes("On cooldown"), true);
+    });
+
+    await test("the health check finds setups that will fail quietly", async () => {
+        const base = structuredClone(DEFAULT_GUILD_CONFIG);
+        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true };
+        check("a fresh server has nothing to fix", checkGuild(base, allOk).length, 0);
+
+        const c = structuredClone(DEFAULT_GUILD_CONFIG);
+        c.levels.announceLevelUpInChannelId = "levels";
+        c.levels.levelActions = { 10: [{ type: "assignRole", roleId: "veteran" }] };
+        c.logging = { ...c.logging, enabled: true, mainChannelId: "gone" };
+        c.combat.enabled = true;
+        c.shop.enabled = true;
+        c.quests = { ...c.quests, enabled: true, quests: {
+            q: { id: "q", name: "Hunt", description: "", active: true, cooldown: 0, conditions: { type: "earnXp", target: 10 }, reward: { 0: { itemId: "ghost" } } },
+        } };
+        const access: Access = {
+            channelName: (id) => (id === "gone" ? null : id),
+            missingIn: (id, perms) => (id === "levels" ? perms.filter((p) => p === "files") : []),
+            roleName: (id) => (id === "veteran" ? "Veteran" : null),
+            canManageRole: () => false,
+        };
+        const msgs = checkGuild(c, access).map((i) => `${i.severity}:${i.page}:${i.message}`);
+        const has = (part: string) => msgs.some((m) => m.includes(part));
+        check("a missing permission is named", has("can't post level-up announcements in #levels. Give it Attach Files"), true);
+        check("a deleted channel is caught", has("The logs channel was deleted"), true);
+        check("a role it can't give is caught", has("can't give @Veteran (the level 10 reward)"), true);
+        check("combat with no enemies", has("Combat is on but there are no enemies"), true);
+        check("an empty shop", has("The shop is open but has nothing for sale"), true);
+        check("a reward pointing at a deleted item", has("The quest Hunt gives an item that no longer exists (ghost)"), true);
+        const firstWarning = msgs.findIndex((m) => m.startsWith("warning"));
+        check("errors are listed before warnings", msgs.slice(firstWarning).every((m) => m.startsWith("warning")), true);
     });
 
     console.log(`\n${"─".repeat(60)}`);
