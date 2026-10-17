@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import QuestLog from "@/app/components/questLog";
+import HealthPanel from "@/app/components/healthPanel";
 import { Sprite } from "@/app/components/ui/sprite";
 import type { SpriteName } from "@/app/sprites";
 
@@ -125,6 +126,8 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
           <p className="mt-0.5 text-sm text-[var(--muted)]">Everything havocish does here, at a glance.</p>
         </div>
       </header>
+
+      <HealthPanel guildId={guildId} />
 
       <QuestLog guildId={guildId} config={config} />
 

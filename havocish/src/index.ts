@@ -57,7 +57,7 @@ registerGuildDelete(client);
 registerInteractionCreate(client);
 registerVoiceStateUpdate(client);
 registerLevelUps(client);
-const previewServer = startPreviewServer();
+const previewServer = startPreviewServer(client);
 
 const pruneTimer = setInterval(() => {
     void pruneCaches();
