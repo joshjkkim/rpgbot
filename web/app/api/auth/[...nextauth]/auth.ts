@@ -64,6 +64,11 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
       authorization: { params: { scope: "identify guilds" } },
+      // Discord now returns `iss` on the OAuth redirect (RFC 9207). openid-client
+      // rejects any callback carrying one unless the issuer is configured --
+      // "issuer must be configured on the issuer" -- which broke every sign-in.
+      // This is the issuer Discord publishes at /.well-known/openid-configuration.
+      issuer: "https://discord.com",
     }),
   ],
   session: { strategy: "jwt" },
