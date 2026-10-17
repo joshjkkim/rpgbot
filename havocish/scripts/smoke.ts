@@ -40,6 +40,8 @@ import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
+import { newestEntry } from "./changelog-post.js";
+import { readFileSync } from "node:fs";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
@@ -1674,6 +1676,15 @@ async function main() {
         config.combat.enabled = false;
         const noCombat = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
         check("no HP or stats when combat is off", noCombat.includes("**HP**"), false);
+    });
+
+    await test("the changelog post takes only the newest entry", async () => {
+        const md = "# Changelog\n\nintro\n\n## v2 · today\n\n### New\n- **thing**\n\n## v1 · before\n\n- old";
+        const entry = newestEntry(md);
+        check("title is the newest heading", entry?.title, "v2 · today");
+        check("sections become bold lines", entry?.body.startsWith("**New**"), true);
+        check("older entries are left out", entry?.body.includes("old"), false);
+        check("the real CHANGELOG.md has an entry", !!newestEntry(readFileSync(new URL("../../CHANGELOG.md", import.meta.url), "utf8")), true);
     });
 
     console.log(`\n${"─".repeat(60)}`);
