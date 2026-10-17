@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## v0.9 · October 18, 2026
+
+### New
+- **For server owners: a setup wizard.** Answer five questions (how fast people level up, which features you want, where level-ups go, which roles to give at which levels, and whether to start with a pack) and havocish sets itself up. Find it on the dashboard Overview, or from the button when havocish joins a server.
+
 ## v0.8 · October 18, 2026
 
 ### Improved

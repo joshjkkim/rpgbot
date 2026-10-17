@@ -96,8 +96,8 @@ export default function QuestLog({ guildId, config }: { guildId: string; config:
             ({done}/{quests.length})
           </span>
         </h2>
-        <Link href={`/dashboard/${guildId}/presets`} className="btn btn-stone px-3 py-1.5 text-sm">
-          Use a starter pack
+        <Link href={`/dashboard/${guildId}/setup`} className="btn px-3 py-1.5 text-sm">
+          ⚡ Setup wizard
         </Link>
       </div>
 
