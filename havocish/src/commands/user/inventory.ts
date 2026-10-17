@@ -9,7 +9,7 @@ import type { EquipSlot } from "../../types/economy.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 
-const SLOT_META: { key: EquipSlot; label: string; emoji: string }[] = [
+export const SLOT_META: { key: EquipSlot; label: string; emoji: string }[] = [
     { key: "head",      label: "Head",      emoji: "👑" },
     { key: "body",      label: "Body",      emoji: "👕" },
     { key: "legs",      label: "Legs",      emoji: "👖" },

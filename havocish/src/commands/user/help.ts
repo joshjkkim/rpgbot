@@ -38,7 +38,8 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                 lines: [
                     `Chat in this server to earn ${xp}, level up, and collect ${gold}.`,
                     "",
-                    "`/profile` your character card: level, gold, streak and gear",
+                    "`/me` your character at a glance: HP, stats and gear",
+                    "`/profile` your character card to show off: level, gold and streak",
                     "`/daily` claim your daily reward. Come back every day to build a streak",
                     "`/levels` how levels work here and what you need for the next one",
                     "`/leaderboard` the top players in this server",
