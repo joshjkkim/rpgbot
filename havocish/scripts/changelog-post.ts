@@ -2,8 +2,9 @@
  * Posts the newest CHANGELOG.md entry to the support server's announcements,
  * through a Discord webhook (CHANGELOG_WEBHOOK_URL in havocish/.env).
  *
- *   npm run changelog:post            # prints what would be posted
- *   npm run changelog:post -- --send  # posts it
+ *   npm run changelog:post                        # prints what would be posted
+ *   npm run changelog:post -- --send              # posts it
+ *   npm run changelog:post -- --entry v0.5 --send # posts an older entry instead
  *
  * Printing first is the default on purpose: a webhook post goes straight to
  * every member, so it is read before it is sent.
@@ -16,10 +17,10 @@ const CHANGELOG = fileURLToPath(new URL("../../CHANGELOG.md", import.meta.url));
 const GOLD = 0xc4a462;
 const AVATAR = "https://raw.githubusercontent.com/joshjkkim/rpgbot/main/havocish/assets/brand/avatar-pixel.png";
 
-/** The first "## " section: its heading and the lines under it. */
-export function newestEntry(markdown: string): { title: string; body: string } | null {
+/** The first "## " section, or the one whose heading starts with `version`: its heading and the lines under it. */
+export function newestEntry(markdown: string, version?: string): { title: string; body: string } | null {
     const sections = markdown.split(/^## /m).slice(1);
-    const first = sections[0];
+    const first = version ? sections.find((sec) => sec.startsWith(`${version} `)) : sections[0];
     if (!first) return null;
     const [title = "", ...rest] = first.split("\n");
     // "### New" reads as a bold line in an embed; Discord renders the bullets as-is.
@@ -28,8 +29,10 @@ export function newestEntry(markdown: string): { title: string; body: string } |
 }
 
 async function main() {
-    const entry = newestEntry(readFileSync(CHANGELOG, "utf8"));
-    if (!entry) throw new Error("CHANGELOG.md has no ## entry.");
+    const at = process.argv.indexOf("--entry");
+    const version = at > -1 ? process.argv[at + 1] : undefined;
+    const entry = newestEntry(readFileSync(CHANGELOG, "utf8"), version);
+    if (!entry) throw new Error(version ? `No CHANGELOG.md entry for ${version}.` : "CHANGELOG.md has no ## entry.");
     if (entry.body.length > 4000) throw new Error(`Entry is ${entry.body.length} characters; an embed holds 4096.`);
 
     const payload = {
