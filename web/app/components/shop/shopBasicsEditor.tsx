@@ -674,7 +674,7 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
         </div>
       </Section>
 
-      <Section title="Categories" description="How the shop is grouped." defaultOpen={false}>
+      <Section advanced title="Categories" description="How the shop is grouped." defaultOpen={false}>
         <KeyedList<shopCategoryConfig>
           entries={categoryEntries}
           addPlaceholder="Category ID, e.g. consumables"

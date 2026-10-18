@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 
 /*
@@ -15,18 +15,35 @@ import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 const inputClass =
   "w-full rounded-sm border px-3 py-2 text-sm transition-colors";
 
+/**
+ * Simple vs Advanced. ConfigPage provides it; an `advanced` Section hides in
+ * Simple mode and counts itself so the page can say how many are hidden.
+ * Outside a ConfigPage everything shows.
+ */
+export const SettingsMode = createContext<{ showAdvanced: boolean; countHidden: () => () => void }>({
+  showAdvanced: true,
+  countHidden: () => () => {},
+});
+
 export function Section({
   title,
   description,
   defaultOpen = true,
+  advanced,
   children,
 }: {
   title: string;
   description?: string;
   defaultOpen?: boolean;
+  /** Only shown in Advanced mode. */
+  advanced?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const { showAdvanced, countHidden } = useContext(SettingsMode);
+  const hidden = advanced && !showAdvanced;
+  useEffect(() => (hidden ? countHidden() : undefined), [hidden, countHidden]);
+  if (hidden) return null;
 
   return (
     <section className="frame">

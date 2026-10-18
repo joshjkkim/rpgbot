@@ -192,7 +192,7 @@ export default function LevelsEditor({ value, onChange }: Props) {
         </div>
       </Section>
 
-      <Section
+      <Section advanced
         title="XP overrides"
         description="Pin specific levels to an exact total XP, ignoring the curve."
         defaultOpen={false}
