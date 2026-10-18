@@ -49,6 +49,8 @@ import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { gridRules, makeGrid, rollLoot, skillLevel } from "../src/player/gathering.js";
+import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
+import { findRules } from "../src/ui/gathering/find.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
 
@@ -1384,6 +1386,13 @@ async function main() {
         const loc = { difficulty: { finds: 5, hazards: 3, tries: 5 } } as any;
         check("skill 50 adds tries", gridRules(loc, 50).tries, 9);
         check("skill eases hazards to a floor of 1", gridRules(loc, 50).hazards, 1);
+
+        // Timing: the window grows with skill but never drops under 2.5 s; rarer finds fight back.
+        check("timing window at skill 1", timingWindowMs({ difficulty: {} } as any, 1), 3000);
+        check("timing window floor", timingWindowMs({ difficulty: { windowMs: 1000 } } as any, 1), 2500);
+        check("a rare find pulls twice", pullRounds({ difficulty: {} } as any, 1, "rare"), 2);
+        check("skill 25 drops a pull, but rares keep one", pullRounds({ difficulty: {} } as any, 30, "rare"), 1);
+        check("find gets more time with skill", findRules({ difficulty: {} } as any, 50).seconds, 13);
     });
 
     await test("an item card reads the same lines as the dashboard tooltip", async () => {

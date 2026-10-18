@@ -5,7 +5,7 @@
  */
 
 /** Wave 2 and 3 add more (codebreaker, trail, forge, memory, sequence). */
-export type GameType = "grid";
+export type GameType = "grid" | "timing" | "find";
 
 export interface GatheringLoot {
     itemId: string;
