@@ -11,6 +11,7 @@ import { logAndBroadcastEvent } from "../../db/events.js";
 import type { DuelResult, PendingDuel } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
 import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
+import { busyFighting, getActiveFight } from "../../player/fight.js";
 
 export const data = new SlashCommandBuilder()
     .setName("duel")
@@ -192,6 +193,17 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
+    // One fight at a time: a fight in progress would overwrite the HP a duel leaves.
+    const busy = busyFighting(interaction.user.id, interaction.guildId, "Duel once it's over.");
+    if (busy) {
+        await interaction.editReply({ content: busy });
+        return;
+    }
+    if (getActiveFight(opponentUser.id, interaction.guildId)) {
+        await interaction.editReply({ content: `${opponentUser.displayName} is in the middle of a fight. Challenge them once it's over.` });
+        return;
+    }
+
     // Cheap pre-checks so an obviously doomed challenge is refused before anyone
     // is pinged. Both are re-checked under lock in resolveDuel(), because either
     // side can spend gold or finish another duel while this sits unanswered.
@@ -263,6 +275,18 @@ export async function handleDuelButton(interaction: ButtonInteraction) {
         pendingDuels.delete(duel.messageId);
         await interaction.update({ content: "This challenge expired.", embeds: [], components: [] });
         return;
+    }
+
+    // Checked before claiming, so the challenge stays open once the fight is over.
+    if (interaction.customId !== "duel:decline") {
+        const busy = busyFighting(interaction.user.id, interaction.guildId, "Accept once it's over.");
+        if (busy || getActiveFight(duel.challengerDiscordId, interaction.guildId)) {
+            await interaction.reply({
+                content: busy ?? `<@${duel.challengerDiscordId}> is in the middle of a fight. Accept once it's over.`,
+                flags: MessageFlags.Ephemeral,
+            });
+            return;
+        }
     }
 
     // Claim the challenge before awaiting anything. Two clicks arriving together

@@ -48,6 +48,9 @@ export interface ActiveFight {
     guildId: string;         // Discord guild ID
     messageId: string;       // the fight embed message (for button routing)
     channelId: string;
+    /** The fighter's profile ids, so a fight nobody finishes can still be saved. */
+    dbUserId: number;
+    dbGuildId: number;
     combatType: "pve" | "pvp";  // determines which death penalty block to apply
 
     // Combatants

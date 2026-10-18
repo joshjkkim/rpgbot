@@ -52,7 +52,8 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                 title: "⚔️ Combat",
                 lines: combatOn
                     ? [
-                        "`/fight` battle an enemy for XP, gold and loot. Pick your moves turn by turn",
+                        "`/fight` battle an enemy for XP, gold and loot. Pick your moves turn by turn. Lost the fight in the chat? `/fight` again brings it back",
+                        "🧪 **Potions** you carry show up as buttons in the fight. Drinking one uses your turn",
                         "`/duel @someone` challenge another member, with gold on the line if you like",
                         "`/equip` and `/unequip` put on gear. Better gear means more HP, attack and defence",
                         "",

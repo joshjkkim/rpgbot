@@ -12,7 +12,7 @@ import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
 import { registerLevelUps } from "./events/levelUp.js";
 import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
 import { flushLogBuffer } from "./db/events.js";
-import { cleanupStaleFights } from "./player/fight.js";
+import { abandonFight, allActiveFights, cleanupStaleFights } from "./player/fight.js";
 import { cleanupExpiredDuels } from "./commands/user/duel.js";
 import { closePool } from "./db/index.js";
 import { assertBotEnv } from "./env.js";
@@ -61,13 +61,14 @@ const previewServer = startPreviewServer(client);
 
 const pruneTimer = setInterval(() => {
     void pruneCaches();
-    cleanupStaleFights();
     cleanupExpiredDuels();
 }, 5 * 60 * 1000);
 
 const flushTimer = setInterval(() => {
     void flushDirtyProfiles();
     void flushLogBuffer();
+    // Here and not in the 5-minute prune, so a walked-away fight ends close to its timeout.
+    cleanupStaleFights(client);
 }, 30 * 1000);
 
 // Non-null: assertBotEnv() above has already exited if this is unset.
@@ -99,6 +100,8 @@ async function shutdown(reason: string, exitCode = 0) {
 
     try {
         await saveLiveBosses();
+        // Before the flush: ending a fight writes the HP it cost into the cache.
+        await Promise.all(allActiveFights().map((f) => abandonFight(f, client, "restart").catch((err) => console.error("Failed to end a fight on shutdown:", err))));
         await flushDirtyProfiles(true);
         await flushLogBuffer();
     } catch (err) {

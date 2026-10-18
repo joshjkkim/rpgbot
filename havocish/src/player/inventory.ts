@@ -1,4 +1,5 @@
 import { query } from "../db/index.js";
+import { busyFighting } from "./fight.js";
 import { addMessageXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -262,6 +263,8 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     if(interaction.guild === null) {
         return { success: false, message: "This command can only be used in a server." };
     }
+    const busy = busyFighting(interaction.user.id, interaction.guild.id, "Potions are on the fight's buttons; everything else can wait until it's over.");
+    if (busy) return { success: false, message: busy };
 
     const { user: dbUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
@@ -535,6 +538,8 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
     if(interaction.guild === null) {
         return { success: false, message: "This command can only be used in a server." };
     }
+    const busy = busyFighting(interaction.user.id, interaction.guild.id, "Change gear once it's over.");
+    if (busy) return { success: false, message: busy };
 
     const { user: dbUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
