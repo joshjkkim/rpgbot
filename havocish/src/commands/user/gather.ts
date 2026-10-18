@@ -166,7 +166,8 @@ async function endRun(run: GridRun, why: "leave" | "out" | "hazard" | "timeout",
     const { config } = await getOrCreateGuildConfig({ discordGuildId: run.discordGuildId });
     const w = words(run.activity);
     if (why === "hazard") {
-        for (const id of Object.keys(run.found)) run.found[id] = Math.floor(run.found[id]! / 2);
+        // Rounded up: rounding down wiped out small hauls, which read as a bug.
+        for (const id of Object.keys(run.found)) run.found[id] = Math.ceil(run.found[id]! / 2);
     }
     const result = await finishRun({ userId: run.userId, guildId: run.guildId, config, activity: run.activity, location: run.location, found: run.found });
 
