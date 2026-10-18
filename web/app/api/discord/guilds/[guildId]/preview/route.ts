@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/auth";
-import { requireGuildOwner } from "@/app/lib/discord";
+import { requireGuildManager } from "@/app/lib/discord";
 
 // Same meanings as the config route: sign in again, not the owner, Discord did not answer.
 const AUTH_ERRORS = { 401: "unauthorized", 403: "forbidden", 503: "discord_unavailable" } as const;
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
 
-    const auth = await requireGuildOwner(guildId);
+    const auth = await requireGuildManager(guildId);
     if (!auth.ok) {
         return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
     }

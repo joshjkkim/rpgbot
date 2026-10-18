@@ -5,7 +5,7 @@ import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { purchaseItem } from "../../db/shop.js";
-import { ownerSetupRows } from "../../ui/dashboardLinks.js";
+import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
@@ -59,12 +59,12 @@ async function renderShop(interaction: ChatInputCommandInteraction | ButtonInter
 
     if (!config.shop?.enabled) {
         container.addTextDisplayComponents(t => t.setContent("**Shop Closed**\nThe shopkeeper hasn't opened for business yet."));
-        return [container, ...ownerSetupRows(interaction, "shop", "Open the shop on the dashboard")];
+        return [container, ...managerSetupRows(interaction, "shop", "Open the shop on the dashboard")];
     }
 
     if (Object.keys(categories).length === 0) {
         container.addTextDisplayComponents(t => t.setContent("The shelves are bare. Nothing has been stocked yet."));
-        return [container, ...ownerSetupRows(interaction, "shop", "Stock the shop on the dashboard")];
+        return [container, ...managerSetupRows(interaction, "shop", "Stock the shop on the dashboard")];
     }
 
     const items = Object.values(config.shop.items ?? {});

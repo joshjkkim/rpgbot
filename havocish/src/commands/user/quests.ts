@@ -9,7 +9,7 @@ import type { PendingProfileChanges } from "../../types/cache.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { QuestConfig, QuestCondition, UserQuestState } from "../../types/quest.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
-import { ownerSetupRows } from "../../ui/dashboardLinks.js";
+import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 
 /**
@@ -159,7 +159,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (!config.quests?.enabled) {
         await interaction.editReply({
             content: "The quest board is empty. No quests are on offer here yet.",
-            components: ownerSetupRows(interaction, "quests", "Set up quests on the dashboard"),
+            components: managerSetupRows(interaction, "quests", "Set up quests on the dashboard"),
         });
         return;
     }

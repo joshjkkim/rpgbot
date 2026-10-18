@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/auth";
-import { fetchGuildMeta, requireGuildOwner } from "@/app/lib/discord";
+import { fetchGuildMeta, requireGuildManager } from "@/app/lib/discord";
 import { GuildMetaProvider } from "@/app/components/ui/pickers";
 import { dbQuery } from "@/app/lib/db";
 import Sidebar from "@/app/components/sidebar/sidebar";
@@ -18,7 +18,7 @@ export default async function GuildLayout({ children, params }: { children: Reac
 
     // The config API enforces this too, but without it here the sidebar would
     // label the server for someone who cannot read anything inside it.
-    const auth = await requireGuildOwner(guildId);
+    const auth = await requireGuildManager(guildId);
     if (!auth.ok) {
         redirect("/dashboard");
     }

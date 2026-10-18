@@ -43,7 +43,7 @@ async function fetchGuildsOnce(accessToken: string) {
 // Discord rate-limits /users/@me/guilds per user, hard enough that a page
 // making two API calls at once got a 429 on the second. Answers are reused for
 // a short while, and concurrent callers share one in-flight request. Per server
-// instance only; losing ownership takes up to GUILDS_TTL_MS to apply.
+// instance only; losing access takes up to GUILDS_TTL_MS to apply.
 const GUILDS_TTL_MS = 30_000;
 const guildsCache = new Map<string, { at: number; result: Promise<GuildsResult> }>();
 
@@ -83,16 +83,25 @@ async function fetchGuildsFromDiscord(accessToken: string): Promise<GuildsResult
     return { ok: true, guilds: out.guilds };
 }
 
+const ADMINISTRATOR = BigInt(0x8);
+const MANAGE_GUILD = BigInt(0x20);
+
 /**
- * Gate for a guild's config. Ownership is the bar: Discord reports it directly,
- * with no permission-bit arithmetic to get wrong.
+ * Who may configure a server: its owner, or anyone with Manage Server (which
+ * Administrator implies). The same bar the bot's admin commands use, so
+ * moderators can do from the dashboard what they could already do in Discord.
  */
-export async function requireGuildOwner(discordGuildId: string) {
+export function canManageGuild(g: DiscordGuild): boolean {
+    return g.owner || (BigInt(g.permissions) & (ADMINISTRATOR | MANAGE_GUILD)) !== BigInt(0);
+}
+
+/** Gate for a guild's config: see canManageGuild. */
+export async function requireGuildManager(discordGuildId: string) {
     const result = await fetchUserGuilds();
     if (!result.ok) return { ok: false as const, status: result.status };
 
-    const isOwner = result.guilds.some((g) => g.id === discordGuildId && g.owner);
-    if (!isOwner) return { ok: false as const, status: 403 as const };
+    const allowed = result.guilds.some((g) => g.id === discordGuildId && canManageGuild(g));
+    if (!allowed) return { ok: false as const, status: 403 as const };
 
     return { ok: true as const, status: 200 as const };
 }
@@ -106,7 +115,7 @@ export type GuildMeta = {
  * The server's channels and roles, for the pickers. Listing them needs the bot,
  * not the signed-in user, so this uses DISCORD_BOT_TOKEN. Returns null when the
  * token is unset or the bot is not in the server; the pickers then fall back to
- * typing an ID. Callers must have checked ownership already.
+ * typing an ID. Callers must have checked access already.
  */
 export async function fetchGuildMeta(discordGuildId: string): Promise<GuildMeta | null> {
     const token = process.env.DISCORD_BOT_TOKEN;

@@ -6,7 +6,7 @@ import {
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
-import { ownerSetupRows } from "../../ui/dashboardLinks.js";
+import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { calculateStats, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
 import {
     COMBAT_ACTIONS, applyAction, applyFightRewards, busyFighting, healAmount,
@@ -288,7 +288,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         if (!enemy) {
             await interaction.reply({
                 content: "No foes roam at your level yet.",
-                components: ownerSetupRows(interaction, "combat", "Add enemies on the dashboard"),
+                components: managerSetupRows(interaction, "combat", "Add enemies on the dashboard"),
                 flags: MessageFlags.Ephemeral,
             });
             return;
