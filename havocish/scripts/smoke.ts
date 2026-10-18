@@ -25,7 +25,8 @@ import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trad
 import { updateInventory, sellItemFromInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
-import { startFight, applyAction, applyFightRewards, clearActiveFight } from "../src/player/fight.js";
+import { startFight, applyAction, applyFightRewards, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
+import { buildActionRow } from "../src/commands/user/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
 import { databaseUrlProblem } from "../src/env.js";
@@ -1787,6 +1788,67 @@ async function main() {
         const [winner, loser] = outcome.result.winnerDiscordId === fx.a.discordId ? [fx.a, fx.b] : [fx.b, fx.a];
         check("the winner's duel quest is done", !!(await state(winner)).duels.completedAt, true);
         check("the loser's is not", (await state(loser)).duels.progress, 0);
+    });
+
+    await test("fights: potions take a turn, walking away keeps your wounds, other actions wait", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 100);
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.shop.items = {
+            ...config.shop.items,
+            draught: { id: "draught", name: "Draught", emoji: "🧪", categoryId: "x", price: 5, permanent: false,
+                actions: { 0: { type: "giveStat", statId: "health", amount: 30 } } } as any,
+            sword: { id: "sword", name: "Sword", categoryId: "x", price: 5, equipable: true, equipSlot: "weapon", permanent: true } as any,
+        };
+        await setGuildConfig(fx.guild.discord_guild_id, config);
+        guildConfigCache.clear();
+
+        // No attack, so every swing does the minimum 1 damage; too much HP to die.
+        const enemy: EnemyConfig = {
+            id: "brute", name: "Brute", emoji: "🪨", hp: 100000, atk: 0, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+            minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [],
+        };
+        const profile = await row(fx.a, g);
+        profile.inventory = { draught: { id: "draught", name: "Draught", quantity: 2 } } as any;
+        const fight = startFight({
+            discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
+            messageId: "smoke-fight-potion", channelId: "smoke-channel", combatType: "pve", profile, enemy, config,
+        });
+        fight.playerCurrentHp = 20;
+
+        const row1 = JSON.stringify(buildActionRow(profile, config).toJSON());
+        check("a potion button shows with its count", row1.includes("fight:potion:draught") && row1.includes("Draught ×2"), true);
+        check("gear gets no button", row1.includes("sword"), false);
+
+        const drink = applyAction(fight, "potion:draught", fx.guild, profile, config);
+        check("drinking heals, then the enemy still swings", fight.playerCurrentHp, 49);
+        check("and it uses the turn", fight.round, 1);
+        check("the log says what it did", drink.result.log[0]!.includes("❤️ 20 → 50"), true);
+        check("a non-potion can't be drunk", (() => { try { applyAction(fight, "potion:sword", fx.guild, profile, config); return "drank"; } catch { return "refused"; } })(), "refused");
+
+        // Other HP and gear changes wait; the reply links to the fight.
+        const busy = busyFighting(fx.a.discordId, fx.guild.discord_guild_id, "Later.");
+        check("other actions are told to wait, with a link", busy?.includes(`/channels/${fx.guild.discord_guild_id}/smoke-channel/smoke-fight-potion`), true);
+        const fake = { guild: { id: fx.guild.discord_guild_id }, user: { id: fx.a.discordId } } as any;
+        check("/use waits during a fight", (await useItemFromInventory(fake, "draught", 1)).success, false);
+        check("/equip waits during a fight", (await equipItemFromInventory(fake, "sword")).success, false);
+
+        // Walking away: a flee that keeps the damage, with no penalty.
+        fight.playerCurrentHp = 7;
+        const client = { channels: { fetch: async () => null } } as any;
+        await abandonFight(fight, client, "timeout");
+        await flushDirtyProfiles(true);
+        const after = await row(fx.a, g);
+        check("the fight is over", getActiveFight(fx.a.discordId, fx.guild.discord_guild_id), null);
+        check("the HP lost stays lost", (after.user_stats as any)?.currentHp, 7);
+        check("no gold penalty", await goldOf(fx.a, g), "100");
+        check("not a loss either", (after.user_stats as any)?.fightsLost ?? 0, 0);
+        await abandonFight(fight, client, "restart");
+        await flushDirtyProfiles(true);
+        check("ending it twice changes nothing", (await row(fx.a, g)).user_stats?.currentHp, 7);
     });
 
     await test("the health check finds setups that will fail quietly", async () => {

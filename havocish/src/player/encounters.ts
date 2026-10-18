@@ -119,7 +119,7 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
     // The encounter message becomes the fight, so its buttons route to /fight's handler.
     await interaction.update({
         embeds: [buildStartEmbed(interaction.member.displayName, enemy, ready.currentHp, ready.stats.maxHp, ready.config)],
-        components: [buildActionRow()],
+        components: [buildActionRow(ready.profile, ready.config)],
     });
     startFight({
         discordUserId: interaction.user.id,

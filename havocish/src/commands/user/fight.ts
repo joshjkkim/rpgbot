@@ -5,13 +5,16 @@ import {
 } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
-import { getOrCreateProfile } from "../../cache/profileService.js";
+import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
 import { ownerSetupRows } from "../../ui/dashboardLinks.js";
 import { calculateStats, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
 import {
-    COMBAT_ACTIONS, applyAction, applyFightRewards,
-    getActiveFight, getFightByMessageId, pickRandomEnemy, startFight,
+    COMBAT_ACTIONS, applyAction, applyFightRewards, busyFighting, healAmount,
+    getActiveFight, getFightByMessageId, pickRandomEnemy, setActiveFight, startFight,
 } from "../../player/fight.js";
+import { calculateLevelFromXp } from "../../leveling/levels.js";
+import type { PendingProfileChanges } from "../../types/cache.js";
+import { bestEffort } from "../../ui/bestEffort.js";
 import type { ActiveFight, EnemyConfig, FightEndSummary } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
@@ -141,7 +144,26 @@ async function lootCards(summary: FightEndSummary, config: GuildConfig) {
     }
 }
 
-export function buildActionRow(disabled = false): ActionRowBuilder<ButtonBuilder> {
+// Attack and Flee take two of the row's five buttons.
+const MAX_POTION_BUTTONS = 3;
+
+/** The healing potions in a bag, smallest first, as fight buttons. */
+function potionButtons(profile: DbUserGuildProfile | undefined, config: GuildConfig | undefined): ButtonBuilder[] {
+    const items = config?.shop?.items ?? {};
+    return Object.values(profile?.inventory ?? {})
+        .filter((inv) => (inv.quantity ?? 0) > 0 && healAmount(items[inv.id]) > 0)
+        .sort((a, b) => healAmount(items[a.id]) - healAmount(items[b.id]))
+        .slice(0, MAX_POTION_BUTTONS)
+        .map((inv) => new ButtonBuilder()
+            .setCustomId(`fight:potion:${inv.id}`)
+            .setLabel(`${items[inv.id]!.name} ×${inv.quantity}`.slice(0, 80))
+            // Fixed: an owner can type anything as an item emoji, and one Discord rejects fails the whole fight message.
+            .setEmoji("🧪")
+            .setStyle(ButtonStyle.Success));
+}
+
+/** Attack and Flee, plus a button per healing potion the fighter carries. */
+export function buildActionRow(profile?: DbUserGuildProfile, config?: GuildConfig): ActionRowBuilder<ButtonBuilder> {
     const buttons = Object.values(COMBAT_ACTIONS).map(action => {
         const style =
             action.style === "primary"  ? ButtonStyle.Primary  :
@@ -151,10 +173,9 @@ export function buildActionRow(disabled = false): ActionRowBuilder<ButtonBuilder
             .setCustomId(`fight:${action.id}`)
             .setLabel(action.label)
             .setEmoji(action.emoji)
-            .setStyle(style)
-            .setDisabled(disabled);
+            .setStyle(style);
     });
-    return new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons, ...potionButtons(profile, config));
 }
 
 // ─── Shared fight start ───────────────────────────────────────────────────────
@@ -174,9 +195,8 @@ export async function readyToFight(user: User, discordGuildId: string): Promise<
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId });
 
     if (!config.combat.enabled) return { ok: false, message: "⚔️ Combat isn't enabled on this server." };
-    if (getActiveFight(user.id, discordGuildId)) {
-        return { ok: false, message: "You're already in a fight! Finish your current battle first." };
-    }
+    const busy = busyFighting(user.id, discordGuildId, "Finish it first.");
+    if (busy) return { ok: false, message: busy };
 
     const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
     const stats = calculateStats(profile, config, config.shop?.items ?? {});
@@ -214,6 +234,12 @@ export function buildStartEmbed(
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.inGuild() || !interaction.guildId) {
         await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
+        return;
+    }
+
+    const current = getActiveFight(interaction.user.id, interaction.guildId);
+    if (current) {
+        await bringBackFight(interaction, current);
         return;
     }
 
@@ -268,7 +294,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.deferReply();
 
     const initialEmbed = buildStartEmbed(interaction.user.displayName, enemy, currentHp, stats.maxHp, config);
-    const row = buildActionRow();
+    const row = buildActionRow(profile, config);
     const reply = await interaction.editReply({ embeds: [initialEmbed], components: [row] });
 
     // Register the fight now that we have the real message ID
@@ -282,6 +308,61 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         enemy,
         config,
     });
+}
+
+/**
+ * /fight during a fight reposts it here, at the bottom of the channel, for when
+ * the original got buried or deleted. The old message's buttons are removed so
+ * there is only ever one live copy.
+ */
+async function bringBackFight(interaction: ChatInputCommandInteraction, fight: ActiveFight): Promise<void> {
+    await interaction.deferReply();
+    const { config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
+    const { profile } = await getOrCreateProfile({ userId: fight.dbUserId, guildId: fight.dbGuildId });
+    if (fight.resolved) {
+        await interaction.editReply({ content: "That fight just ended." });
+        return;
+    }
+
+    const reply = await interaction.editReply({
+        embeds: [buildFightEmbed(fight, config, ["↩️ Back to your fight."])],
+        components: [buildActionRow(profile, config)],
+    });
+    const old = { channelId: fight.channelId, messageId: fight.messageId };
+    fight.channelId = interaction.channelId;
+    fight.messageId = reply.id;
+    setActiveFight(fight);
+
+    await bestEffort("moved fight message", (async () => {
+        const channel = await interaction.client.channels.fetch(old.channelId);
+        if (channel?.isTextBased()) {
+            await channel.messages.edit(old.messageId, {
+                embeds: [new EmbedBuilder().setDescription(`⚔️ This fight moved: ${reply.url}`)],
+                components: [],
+            });
+        }
+    })());
+}
+
+/**
+ * Takes one of a potion out of the fighter's bag, or says why it can't. Checks
+ * and removes in one synchronous step, so two quick clicks can't both drink the
+ * last one.
+ */
+function takePotion(profile: DbUserGuildProfile, pending: PendingProfileChanges | undefined, itemId: string, config: GuildConfig): boolean {
+    const have = profile.inventory?.[itemId];
+    if (!have || (have.quantity ?? 0) < 1) return false;
+    const inventory = { ...profile.inventory };
+    if (have.quantity <= 1) delete inventory[itemId];
+    else inventory[itemId] = { ...have, quantity: have.quantity - 1 };
+    profile.inventory = inventory;
+    commitProfileChanges({
+        userId: profile.user_id, guildId: profile.guild_id, profile,
+        changes: { ...(pending ?? {}), inventory } as PendingProfileChanges,
+        baseline: { xp: profile.xp, gold: profile.gold },
+        recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
+    });
+    return true;
 }
 
 // ─── Button handler ───────────────────────────────────────────────────────────
@@ -311,7 +392,16 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
         avatarUrl: interaction.user.displayAvatarURL(),
     });
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
-    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const profile = cached.profile;
+
+    if (actionId.startsWith("potion:") && !fight.resolved) {
+        if (!takePotion(profile, cached.pendingChanges, actionId.slice("potion:".length), config)) {
+            await interaction.followUp({ content: "You don't have any of those left.", flags: MessageFlags.Ephemeral });
+            await interaction.editReply({ components: [buildActionRow(profile, config)] });
+            return;
+        }
+    }
 
     const { fight: updatedFight, result, ended, summary, alreadyResolved } = applyAction(
         fight, actionId, dbGuild, profile, config,
@@ -336,5 +426,5 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
 
     // Fight continues — update embed with new HP values and last round log
     const updatedEmbed = buildFightEmbed(updatedFight, config, result.log);
-    await interaction.editReply({ embeds: [updatedEmbed], components: [buildActionRow()] });
+    await interaction.editReply({ embeds: [updatedEmbed], components: [buildActionRow(profile, config)] });
 }

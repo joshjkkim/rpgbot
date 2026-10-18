@@ -9,10 +9,14 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **A much bigger Classic Fantasy pack.** Fifteen enemies instead of five, a gear upgrade every few levels in every slot (now including legs and hands), loot to sell, two rare drops to chase, eight new hunting quests and two new achievements.
 
 ### Improved
+- **Drink potions mid-fight.** Healing potions in your bag show up as buttons next to Attack and Flee. Drinking one heals you but uses your turn, so the enemy still swings.
+- **Lost your fight in a busy channel?** Run `/fight` again and it comes back to you, right where you left it.
 - **For server owners: Simple and Advanced settings.** Dashboard pages now open in Simple mode, showing just the settings most servers need. Switch to **Advanced** at the top of any page (or click **Show** at the bottom) for everything else, like per-channel rates, role bonuses and player stats. havocish remembers your choice.
 
 ### Fixed
 - Quests to spend gold in the shop now count your purchases. They never moved before.
+- Walking away from a fight, or the bot restarting mid-fight, now counts as fleeing: no penalty, but you keep the damage you took. It used to quietly restore your HP, which made ignoring a losing fight better than fleeing.
+- Using a potion with `/use` during a fight wasted it. During a fight, `/use`, `/equip`, `/unequip` and duels now wait until it's over and link you back to the fight.
 
 ## v0.9 · October 18, 2026
 

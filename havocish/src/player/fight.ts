@@ -15,6 +15,10 @@ import { getOrCreateProfile, commitProfileChanges } from "../cache/profileServic
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { runQuestPipeline } from "./quests.js";
+import { EmbedBuilder, type Client } from "discord.js";
+import type { shopItemConfig } from "../types/economy.js";
+import { getOrCreateGuildConfig } from "../cache/guildService.js";
+import { bestEffort } from "../ui/bestEffort.js";
 
 /** A fight expires (auto-fled) if the player doesn't act within this many ms. */
 const FIGHT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -33,6 +37,22 @@ export function fightKey(discordUserId: string, discordGuildId: string) {
 
 export function getActiveFight(discordUserId: string, discordGuildId: string): ActiveFight | null {
     return activeFights.get(fightKey(discordUserId, discordGuildId)) ?? null;
+}
+
+/** A link that jumps to the fight's message. */
+export function fightLink(fight: ActiveFight): string {
+    return `https://discord.com/channels/${fight.guildId}/${fight.channelId}/${fight.messageId}`;
+}
+
+/**
+ * While a member is fighting, anything else that changes their HP or gear
+ * waits: the fight holds its own copy of both and would overwrite the change
+ * when it ends. Returns what to tell them, or null when they aren't fighting.
+ */
+export function busyFighting(discordUserId: string, discordGuildId: string, then: string): string | null {
+    const fight = getActiveFight(discordUserId, discordGuildId);
+    if (!fight) return null;
+    return `⚔️ You're fighting ${fight.enemy.emoji} **${fight.enemy.name}** ([jump to it](${fightLink(fight)})). ${then}`;
 }
 
 export function getFightByMessageId(messageId: string): ActiveFight | null {
@@ -73,6 +93,53 @@ export function resolveHit(
 // Add new CombatAction objects here as the system grows.
 // The /fight button handler looks actions up by id.
 
+/**
+ * The enemy's swing after the player's turn, and whether the fight goes on.
+ * `playerHp` is the player's HP before the swing.
+ */
+function enemyTurn(fight: ActiveFight, playerHp: number, log: string[]): { playerHpDelta: number; outcome: FightOutcome } {
+    const enemyHit = resolveHit(
+        fight.enemy.atk,
+        fight.playerStats.def,
+        fight.enemy.critChance,
+        fight.enemy.critMultiplier,
+    );
+    log.push(
+        enemyHit.isCrit
+            ? `💥 **${fight.enemy.emoji} ${fight.enemy.name} landed a critical hit!** You took **${enemyHit.damage}** damage!`
+            : `🗡️ ${fight.enemy.emoji} ${fight.enemy.name} hit you for **${enemyHit.damage}** damage.`,
+    );
+    if (playerHp - enemyHit.damage <= 0) return { playerHpDelta: -enemyHit.damage, outcome: "loss" };
+
+    const outcome: FightOutcome = fight.round + 1 >= MAX_ROUNDS ? "flee" : "continue";
+    if (outcome === "flee") log.push(`⏱️ The fight dragged on too long — you escaped exhausted.`);
+    return { playerHpDelta: -enemyHit.damage, outcome };
+}
+
+/** How much an item heals when drunk mid-fight; 0 for anything that isn't a healing consumable. */
+export function healAmount(item: shopItemConfig | undefined): number {
+    if (!item || item.permanent) return 0;
+    let total = 0;
+    for (const a of Object.values(item.actions ?? {}) as any[]) {
+        if (a?.type === "giveStat" && a.statId === "health") total += a.amount ?? 0;
+    }
+    return total;
+}
+
+/** Drinking a potion takes the player's turn, so the enemy still swings. */
+function drinkAction(item: shopItemConfig): CombatAction {
+    return {
+        id: `potion:${item.id}`, label: item.name, emoji: item.emoji ?? "🧪", style: "secondary",
+        execute({ fight }): CombatActionResult {
+            const healed = Math.min(healAmount(item), fight.playerStats.maxHp - fight.playerCurrentHp);
+            const hp = fight.playerCurrentHp + healed;
+            const log = [`${item.emoji ?? "🧪"} You drank **${item.name}**. ❤️ ${fight.playerCurrentHp} → ${hp}`];
+            const turn = enemyTurn(fight, hp, log);
+            return { outcome: turn.outcome, playerHpDelta: healed + turn.playerHpDelta, enemyHpDelta: 0, log };
+        },
+    };
+}
+
 export const COMBAT_ACTIONS: Record<string, CombatAction> = {
 
     basic_attack: {
@@ -106,30 +173,7 @@ export const COMBAT_ACTIONS: Record<string, CombatAction> = {
 
             // Enemy counter-attacks (speed already determined order at fight start;
             // here we always let the enemy hit back in the same round)
-            const enemyHit = resolveHit(
-                fight.enemy.atk,
-                fight.playerStats.def,
-                fight.enemy.critChance,
-                fight.enemy.critMultiplier,
-            );
-            const playerHpDelta = -enemyHit.damage;
-            log.push(
-                enemyHit.isCrit
-                    ? `💥 **${fight.enemy.emoji} ${fight.enemy.name} landed a critical hit!** You took **${enemyHit.damage}** damage!`
-                    : `🗡️ ${fight.enemy.emoji} ${fight.enemy.name} hit you for **${enemyHit.damage}** damage.`,
-            );
-
-            const playerHpAfter = fight.playerCurrentHp + playerHpDelta;
-            if (playerHpAfter <= 0) {
-                return { outcome: "loss", playerHpDelta, enemyHpDelta, log };
-            }
-
-            const outcome: FightOutcome =
-                fight.round + 1 >= MAX_ROUNDS ? "flee" : "continue";
-            if (outcome === "flee") {
-                log.push(`⏱️ The fight dragged on too long — you escaped exhausted.`);
-            }
-
+            const { playerHpDelta, outcome } = enemyTurn(fight, fight.playerCurrentHp, log);
             return { outcome, playerHpDelta, enemyHpDelta, log };
         },
     },
@@ -211,6 +255,8 @@ export function startFight(opts: StartFightOptions): ActiveFight {
         guildId: opts.discordGuildId,
         messageId: opts.messageId,
         channelId: opts.channelId,
+        dbUserId: opts.profile.user_id,
+        dbGuildId: opts.profile.guild_id,
         combatType: opts.combatType,
         playerStats,
         playerCurrentHp,
@@ -249,7 +295,8 @@ export function applyAction(
     profile: DbUserGuildProfile,
     config: GuildConfig,
 ): ApplyActionResult {
-    const action = COMBAT_ACTIONS[actionId];
+    const potion = actionId.startsWith("potion:") ? config.shop?.items?.[actionId.slice("potion:".length)] : undefined;
+    const action = potion && healAmount(potion) > 0 ? drinkAction(potion) : COMBAT_ACTIONS[actionId];
     if (!action) {
         throw new Error(`Unknown combat action: ${actionId}`);
     }
@@ -520,14 +567,44 @@ export function pickRandomEnemy(config: GuildConfig, playerLevel: number): Enemy
 // ─── Stale fight cleanup ───────────────────────────────────────────────────────
 // Call this on an interval (e.g. every 60s) from index.ts to reap abandoned fights.
 
-export function cleanupStaleFights(): number {
+export function cleanupStaleFights(client: Client): number {
     const now = Date.now();
     let cleaned = 0;
-    for (const [key, fight] of activeFights.entries()) {
+    for (const fight of [...activeFights.values()]) {
         if (now > fight.expiresAt) {
-            activeFights.delete(key);
+            void abandonFight(fight, client, "timeout").catch((err) => console.error("Failed to end an abandoned fight:", err));
             cleaned++;
         }
     }
     return cleaned;
+}
+
+/** Every fight still going, for the shutdown handler. */
+export function allActiveFights(): ActiveFight[] {
+    return [...activeFights.values()];
+}
+
+/**
+ * Ends a fight nobody finished -- the member walked away, or the bot is
+ * restarting -- as a flee. No rewards and no death penalty, but the HP lost
+ * in it stays lost, so walking away is never better than fleeing.
+ */
+export async function abandonFight(fight: ActiveFight, client: Client, why: "timeout" | "restart"): Promise<void> {
+    if (fight.resolved) return;
+    fight.resolved = true;
+    clearActiveFight(fight.userId, fight.guildId);
+
+    const { config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
+    const ids = { user_id: fight.dbUserId, guild_id: fight.dbGuildId } as DbUserGuildProfile;
+    await applyFightRewards(buildSummary(fight, "flee", config), fight, ids, config);
+
+    const reason = why === "timeout" ? "You walked away" : "havocish restarted";
+    const embed = new EmbedBuilder()
+        .setTitle(`🏃 Left the fight with ${fight.enemy.emoji} ${fight.enemy.name}`)
+        .setColor("#FFA500")
+        .setDescription(`${reason}, so it counts as fleeing. You kept your wounds: ❤️ **${fight.playerCurrentHp}** / **${fight.playerStats.maxHp}**.`);
+    await bestEffort("abandoned fight message", (async () => {
+        const channel = await client.channels.fetch(fight.channelId);
+        if (channel?.isTextBased()) await channel.messages.edit(fight.messageId, { embeds: [embed], components: [] });
+    })());
 }
