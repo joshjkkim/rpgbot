@@ -106,7 +106,7 @@ export async function handleViewInventory(interaction: ChatInputCommandInteracti
     }
 
     const { user: dbUser } = await getOrCreateDbUser({ discordUserId: targetUserId });
-    const { guild: dbGuild } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
+    const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guild.id });
     const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
     const inventory = await getInventory(profile.user_id, profile.guild_id);
 
@@ -116,7 +116,7 @@ export async function handleViewInventory(interaction: ChatInputCommandInteracti
     }
 
     const inventoryLines = Object.entries(inventory).map(([itemId, itemData]) => {
-        return `• **${itemData.name}** (ID: \`${itemId}\`) x${itemData.quantity}`;
+        return `• **${config.shop?.items?.[itemId]?.name ?? itemData.name}** (ID: \`${itemId}\`) x${itemData.quantity}`;
     });
 
     const inventoryMessage = `Inventory for <@${targetUserId}>:\n\n` + inventoryLines.join("\n");
@@ -696,5 +696,5 @@ export async function sellItemFromInventory(interaction: ButtonInteraction | Str
     });
 
     const goldIcon = config.style.gold.icon || "💰";
-    return { success: true, message: `Sold ${owned.emoji ? owned.emoji + " " : ""}${owned.name} for ${price} ${goldIcon}.` };
+    return { success: true, message: `Sold ${named(config.shop?.items?.[itemId], itemId)} for ${price} ${goldIcon}.` };
 }
