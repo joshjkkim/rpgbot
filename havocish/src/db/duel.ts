@@ -1,5 +1,8 @@
 import { withTransaction } from "./index.js";
-import { flushProfileCacheToDb } from "../cache/profileService.js";
+import { commitProfileChanges, flushProfileCacheToDb, getOrCreateProfile } from "../cache/profileService.js";
+import { calculateLevelFromXp } from "../leveling/levels.js";
+import { runQuestPipeline } from "../player/quests.js";
+import type { PendingProfileChanges } from "../types/cache.js";
 import { profileKey, userGuildProfileCache } from "../cache/caches.js";
 import { calculateStats, resolveCurrentHp } from "../player/combat.js";
 import { simulateDuel, splitPot } from "../player/duel.js";
@@ -272,6 +275,25 @@ export async function resolveDuel(opts: {
         if (settled) {
             userGuildProfileCache.delete(profileKey(guildId, challenger.userId));
             userGuildProfileCache.delete(profileKey(guildId, opponent.userId));
+        }
+
+        // Quest progress goes through the cache, so it waits until the duel is settled.
+        const winner = outcome.success
+            ? [challenger, opponent].find((s) => s.discordUserId === outcome.result.winnerDiscordId)
+            : undefined;
+        if (winner) {
+            const cached = await getOrCreateProfile({ userId: winner.userId, guildId });
+            const baseline = { xp: cached.profile.xp, gold: cached.profile.gold };
+            const q = await runQuestPipeline({
+                profile: cached.profile,
+                pending: cached.pendingChanges ?? ({} as PendingProfileChanges),
+                config,
+                event: { type: "winDuel", guildId: String(guildId), userId: winner.discordUserId },
+            });
+            commitProfileChanges({
+                userId: winner.userId, guildId, profile: q.profile, changes: q.pending, baseline,
+                recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
+            });
         }
 
         return outcome;

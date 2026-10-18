@@ -2,10 +2,17 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## v0.10 · October 18, 2026
+## Unreleased
+
+### New
+- **Hunting quests.** Quests can now ask you to defeat enemies (any, or specific ones like *"defeat 10 Grey Wolves"*) or win duels. World bosses count, so *Topple the Throne* pays out when the Hollow King falls.
+- **A much bigger Classic Fantasy pack.** Fifteen enemies instead of five, a gear upgrade every few levels in every slot (now including legs and hands), loot to sell, two rare drops to chase, eight new hunting quests and two new achievements.
 
 ### Improved
 - **For server owners: Simple and Advanced settings.** Dashboard pages now open in Simple mode, showing just the settings most servers need. Switch to **Advanced** at the top of any page (or click **Show** at the bottom) for everything else, like per-channel rates, role bonuses and player stats. havocish remembers your choice.
+
+### Fixed
+- Quests to spend gold in the shop now count your purchases. They never moved before.
 
 ## v0.9 · October 18, 2026
 

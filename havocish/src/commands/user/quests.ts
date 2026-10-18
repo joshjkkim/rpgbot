@@ -57,6 +57,11 @@ export function objective(cond: QuestCondition, config: GuildConfig): string {
         case "spendGold": return `Spend ${n} ${config.style.gold.name || "gold"} in the shop`;
         case "earnXp": return `Earn ${n} ${config.style.xp.name || "XP"}`;
         case "dailyClaim": return `Claim your daily reward ${n} time${cond.target === 1 ? "" : "s"}`;
+        case "defeatEnemies": {
+            const names = (cond.enemyIds ?? []).map((id) => config.combat.enemies?.[id]?.name ?? id);
+            return `Defeat ${n} ${names.length ? names.join(" or ") : `enem${cond.target === 1 ? "y" : "ies"}`}`;
+        }
+        case "winDuels": return `Win ${n} duel${cond.target === 1 ? "" : "s"}`;
     }
 }
 

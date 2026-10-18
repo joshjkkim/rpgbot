@@ -31,7 +31,6 @@ function getRepeatCooldown(state: UserQuestState | undefined, qc: QuestConfig, n
 
 function eventMatchesCondition(ev: QuestEvent, cond: any): number {
   // Returns how much to increment progress by (delta), or 0 if no match
-  console.log(cond.type && ev.type && `Checking event type ${ev.type} against condition type ${cond.type}`);
   switch (cond.type) {
     case "messages": {
       if (ev.type !== "message") return 0;
@@ -54,6 +53,14 @@ function eventMatchesCondition(ev: QuestEvent, cond: any): number {
     case "dailyClaim": {
       if (ev.type !== "dailyClaim") return 0;
       return 1;
+    }
+    case "defeatEnemies": {
+      if (ev.type !== "defeatEnemy") return 0;
+      if (cond.enemyIds?.length && !cond.enemyIds.includes(ev.enemyId)) return 0;
+      return 1;
+    }
+    case "winDuels": {
+      return ev.type === "winDuel" ? 1 : 0;
     }
     default:
       return 0;
@@ -90,7 +97,6 @@ export function applyQuestEvent(args: {
     // (better to do globally, but this is a simple hook)
 
     const cond = qc.conditions;
-    console.log(qc, qc.conditions)
     const delta = eventMatchesCondition(event, cond);
     if (delta <= 0) continue;
 
@@ -98,7 +104,6 @@ export function applyQuestEvent(args: {
     const prev = typeof state.progress === "number" ? state.progress : 0;
     const next = prev + delta;
     state.progress = next;
-    console.log(`Quest ${questId} progress: ${prev} -> ${next}`);
 
     // completion
     const target = questTarget(cond);

@@ -10,6 +10,7 @@ import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../../player/achievements.js";
+import { runQuestPipeline } from "../../player/quests.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import type { GuildConfig } from "../../types/guild.js";
 
@@ -216,6 +217,13 @@ async function buyItem(interaction: ButtonInteraction, itemId: string, quantity:
     let prof2 = cached2.profile;
     let pending2 = cached2.pendingChanges ?? ({} as PendingProfileChanges);
     const baseline = { xp: prof2.xp, gold: prof2.gold };
+
+    const quest = await runQuestPipeline({
+        profile: prof2, pending: pending2, config,
+        event: { type: "spendGold", guildId: dbGuild.discord_guild_id, userId: interaction.user.id, amount: price },
+    });
+    prof2 = quest.profile;
+    pending2 = quest.pending;
 
     const ach = await runAchievementPipeline({ profile: prof2, pending: pending2, config });
     prof2 = ach.profile;

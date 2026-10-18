@@ -13,16 +13,18 @@ import {
   Toggle,
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
-import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { ChannelField, EnemiesField, ItemField, RoleField } from "@/app/components/ui/pickers";
 
-export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim";
+export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim" | "defeatEnemies" | "winDuels";
 
 export type QuestCondition =
   | { type: "messages"; target: number; channelIds?: string[] }
   | { type: "vcMinutes"; target: number; channelIds?: string[] }
   | { type: "spendGold"; target: number }
   | { type: "earnXp"; target: number }
-  | { type: "dailyClaim"; target: number };
+  | { type: "dailyClaim"; target: number }
+  | { type: "defeatEnemies"; target: number; enemyIds?: string[] }
+  | { type: "winDuels"; target: number };
 
 export interface QuestReward {
   xp?: number;
@@ -60,6 +62,8 @@ export type QuestsConfig = {
 type Props = {
   /** Shop items, so item fields can be dropdowns. */
   shopItems: Record<string, { name?: string; emoji?: string }>;
+  /** Combat enemies, for "defeat enemies" objectives. */
+  enemies: Record<string, { name?: string; emoji?: string }>;
   value: QuestsConfig | null | undefined;
   onChange: (next: QuestsConfig) => void;
 };
@@ -70,6 +74,8 @@ const CONDITIONS = [
   { value: "spendGold" as const, label: "Gold spent" },
   { value: "earnXp" as const, label: "XP earned" },
   { value: "dailyClaim" as const, label: "Daily claims" },
+  { value: "defeatEnemies" as const, label: "Enemies defeated" },
+  { value: "winDuels" as const, label: "Duels won" },
 ];
 
 const CHANNEL_SCOPED: QuestConditionType[] = ["messages", "vcMinutes"];
@@ -114,7 +120,7 @@ function normalizeQuests(raw: Record<string, any> | undefined): Record<string, Q
   return out;
 }
 
-export default function QuestsBasicEditor({ value, onChange, shopItems }: Props) {
+export default function QuestsBasicEditor({ value, onChange, shopItems, enemies }: Props) {
   const [local, setLocal] = useState<QuestsConfig>(() => ({
     ...(value ?? {}),
     quests: normalizeQuests(value?.quests),
@@ -231,6 +237,17 @@ export default function QuestsBasicEditor({ value, onChange, shopItems }: Props)
                       upsertQuest({ ...quest, conditions: { ...condition, target: v } })
                     }
                   />
+                  {condition.type === "defeatEnemies" && (
+                    <EnemiesField
+                      wide
+                      label="Which enemies"
+                      enemies={enemies}
+                      value={condition.enemyIds ?? []}
+                      onChange={(ids) =>
+                        upsertQuest({ ...quest, conditions: { ...condition, enemyIds: ids.length ? ids : undefined } })
+                      }
+                    />
+                  )}
                   {CHANNEL_SCOPED.includes(condition.type) && (
                     <TextField
                       wide

@@ -14,6 +14,7 @@ import { calculateStats, resolveCurrentHp } from "./combat.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
+import { runQuestPipeline } from "./quests.js";
 
 /** A fight expires (auto-fled) if the player doesn't act within this many ms. */
 const FIGHT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -469,6 +470,16 @@ export async function applyFightRewards(
 
     p.user_stats = stats;
     pendingChanges.user_stats = stats;
+
+    // ── Quests ── (a finished one shows as ready to claim in /quests)
+    if (summary.outcome === "win" && fight.combatType === "pve" && fight.enemy) {
+        const q = await runQuestPipeline({
+            profile: p, pending: pendingChanges, config,
+            event: { type: "defeatEnemy", guildId: String(p.guild_id), userId: String(p.user_id), enemyId: fight.enemy.id },
+        });
+        p = q.profile;
+        pendingChanges = q.pending;
+    }
 
     // ── Write to cache (dirty → synced to DB on next flush) ──
     return commitProfileChanges({
