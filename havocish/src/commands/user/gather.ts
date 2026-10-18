@@ -5,6 +5,7 @@ import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { respondFiltered } from "../../ui/autocomplete.js";
 import { accentColor } from "../../ui/pager.js";
+import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import {
     cooldownLeft, enabledActivities, finishRun, gridRules, makeGrid, rollLoot, skillLevel, startCooldown, unlockedLocations,
     type GridCell,
@@ -106,7 +107,14 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const say = (content: string) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
     const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
-    if (!enabledActivities(config).length) return void await say("Gathering isn't set up on this server yet.");
+    if (!enabledActivities(config).length) {
+        await interaction.reply({
+            content: "Gathering isn't set up on this server yet.",
+            components: managerSetupRows(interaction, "gathering", "Set up gathering"),
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
     const allowed = config.gathering.channelIds ?? [];
     if (allowed.length && !allowed.includes(interaction.channelId)) {
         return void await say(`Gathering happens in ${allowed.map((id) => `<#${id}>`).join(", ")}.`);

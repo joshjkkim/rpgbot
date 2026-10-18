@@ -1,5 +1,6 @@
 import type { AchievementsConfig } from "@/app/components/achievements/achievementsEditor";
 import type { CombatConfig } from "@/app/components/combat/combatEditor";
+import type { GatheringConfig } from "@/app/components/gathering/gatheringEditor";
 import type { LevelsConfig } from "@/app/components/levels/levelsEditor";
 import type { LoggingConfig } from "@/app/components/logging/loggingEditor";
 import type { QuestsConfig } from "@/app/components/quests/questsBasicEditor";
@@ -15,6 +16,7 @@ export type DashboardConfig = {
   levels?: LevelsConfig;
   shop?: ShopConfig;
   combat?: CombatConfig;
+  gathering?: GatheringConfig;
   quests?: QuestsConfig;
   achievements?: AchievementsConfig;
   style?: StyleConfig;
