@@ -29,9 +29,10 @@ export const PACES: Record<Pace, PaceSettings> = {
   standard: {
     label: "Standard",
     blurb: "A steady climb that keeps regulars busy for weeks.",
-    basePerMessage: 15, xpMessageCooldown: 60, dailyXp: 50, dailyGold: 20,
-    // Also the bot's default for a new server (DEFAULT_GUILD_CONFIG).
-    curve: { curveType: "polynomial", curveParams: { factor: 233, degree: 2 } },
+    // Also the bot's default for a new server (DEFAULT_GUILD_CONFIG). Message XP
+    // stays small so fights, quests and dailies count for something next to it.
+    basePerMessage: 5, xpMessageCooldown: 60, dailyXp: 50, dailyGold: 20,
+    curve: { curveType: "polynomial", curveParams: { factor: 78, degree: 2 } },
   },
   hardcore: {
     label: "Hardcore",
