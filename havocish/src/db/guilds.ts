@@ -133,7 +133,16 @@ export function mergeConfig(raw: GuildConfig | null): GuildConfig {
                 ...DEFAULT_GUILD_CONFIG.logging.allowedCategories,
                 ...(raw?.logging?.allowedCategories ?? {}),
             } as Record<EventCategory, string | null>
-        }
+        },
+        gathering: {
+            ...DEFAULT_GUILD_CONFIG.gathering,
+            ...(raw?.gathering ?? {}),
+            skill: {
+                ...DEFAULT_GUILD_CONFIG.gathering.skill,
+                ...(raw?.gathering?.skill ?? {}),
+            },
+            activities: raw?.gathering?.activities ?? {},
+        },
     }
 }
 

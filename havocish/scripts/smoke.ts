@@ -48,6 +48,7 @@ import { checkGuild, type Access } from "../src/health/checkGuild.js";
 import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
+import { gridRules, makeGrid, rollLoot, skillLevel } from "../src/player/gathering.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
 
@@ -1365,6 +1366,24 @@ async function main() {
         await flushDirtyProfiles(true);
         const row = await query<{ gold: string }>(`SELECT gold FROM user_guild_profiles WHERE user_id = $1 AND guild_id = $2`, [userId, guildId]);
         check("gold persisted", row.rows[0]?.gold, "40");
+    });
+
+    await test("gathering: skill curve, weighted loot and the grid", async () => {
+        const cfg = { ...DEFAULT_GUILD_CONFIG, shop: { items: { ore: { id: "ore", name: "Ore" }, gem: { id: "gem", name: "Gem" } } } } as any;
+        // About 25 runs of 20 skill XP to skill 10, 400 to the cap of 50.
+        check("skill 10 after ~25 runs", skillLevel(25 * 20, cfg), 10);
+        check("skill 50 after ~400 runs", skillLevel(400 * 20, cfg), 50);
+
+        const loot = [{ itemId: "ore", chance: 90, min: 1, max: 1 }, { itemId: "gone", chance: 1000, min: 1, max: 1 }];
+        check("a deleted item never drops", rollLoot(loot, cfg)?.itemId, "ore");
+        check("an empty table gives nothing", rollLoot([], cfg), null);
+
+        const grid = makeGrid({ size: 16, finds: 5, hazards: 2 });
+        check("grid has 5 finds", grid.filter(c => c === "find").length, 5);
+        check("grid has 2 hazards", grid.filter(c => c === "hazard").length, 2);
+        const loc = { difficulty: { finds: 5, hazards: 3, tries: 5 } } as any;
+        check("skill 50 adds tries", gridRules(loc, 50).tries, 9);
+        check("skill eases hazards to a floor of 1", gridRules(loc, 50).hazards, 1);
     });
 
     await test("an item card reads the same lines as the dashboard tooltip", async () => {
