@@ -5,6 +5,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### Improved
+- **See what an item does before you buy it.** The shop now lists each item's stats, equip bonuses and use effects, like *+12 Attack · Equip: Fights award 10% more gold* or *Use: Gives 30 health.*
 - **For server owners: your moderators can use the dashboard.** Anyone with **Manage Server** in Discord can now open and edit your server on havocish.com, not just the owner. They could already change settings with commands, so this gives them the easier way to do it.
 - **For server owners: `/config` is now a row of switches.** Click Shop, Quests, Duels, World bosses and the rest to turn them on or off, right in Discord. Setting things up (items, enemies, quests, levels) happens on the dashboard.
 - **For server owners: `/set` and `/admin-inv` are now `/admin set` and `/admin items`.** Same options, one command.

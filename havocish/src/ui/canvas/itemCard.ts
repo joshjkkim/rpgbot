@@ -47,11 +47,30 @@ function describeAction(a: shopItemAction) {
 }
 
 /**
+ * What an item does, as text: base stats, equip bonuses and use effects. Shared
+ * by the card and the /shop list so the two never disagree.
+ */
+export function itemEffects(item: shopItemConfig) {
+    const { stats = {}, boosts = {}, cosmetic = {} } = item.effects ?? {};
+    const statKeys = (Object.keys(STAT_NAMES) as Array<keyof typeof STAT_NAMES>).filter((k) => stats[k]);
+    return {
+        stats: statKeys.map((k) => `${signed(stats[k]!)} ${STAT_NAMES[k]}`),
+        equip: [
+            stats.crit ? `Equip: ${signed(stats.crit)}% critical strike chance.` : null,
+            boostLine(boosts.xpMultiplier, "XP"),
+            boostLine(boosts.goldMultiplier, "gold"),
+            cosmetic.title ? `Equip: Grants the title "${cosmetic.title}".` : null,
+        ].filter((l): l is string => !!l),
+        use: Object.values(item.actions ?? {}).map((a) => `Use: ${describeAction(a)}`),
+    };
+}
+
+/**
  * Turns an item into the lines the card shows. Pure and canvas-free, so the
  * smoke tests can assert on what an item reads as without rendering anything.
  */
 export function itemCardLines(item: shopItemConfig): Line[] {
-    const { stats = {}, boosts = {}, cosmetic = {} } = item.effects ?? {};
+    const effects = itemEffects(item);
     const rarity = RARITY_COLOURS[item.rarity ?? "common"] ?? RARITY_COLOURS.common;
 
     const lines: Line[] = [{
@@ -68,27 +87,15 @@ export function itemCardLines(item: shopItemConfig): Line[] {
         lines.push({ text: slot.charAt(0).toUpperCase() + slot.slice(1), colour: PARCHMENT });
     }
 
-    const baseStats = (Object.keys(STAT_NAMES) as Array<keyof typeof STAT_NAMES>).filter((k) => stats[k]);
-    for (const k of baseStats) {
-        lines.push({ text: `${signed(stats[k]!)} ${STAT_NAMES[k]}`, colour: PARCHMENT });
-    }
-
-    const equipLines = [
-        stats.crit ? `Equip: ${signed(stats.crit)}% critical strike chance.` : null,
-        boostLine(boosts.xpMultiplier, "XP"),
-        boostLine(boosts.goldMultiplier, "gold"),
-        cosmetic.title ? `Equip: Grants the title "${cosmetic.title}".` : null,
-    ].filter((l): l is string => !!l);
-    for (const text of equipLines) lines.push({ text, colour: GREEN });
+    for (const text of effects.stats) lines.push({ text, colour: PARCHMENT });
+    for (const text of effects.equip) lines.push({ text, colour: GREEN });
 
     // Every equip bonus is read from equipped items, so on anything else they do nothing.
-    if (!item.equipable && (baseStats.length > 0 || equipLines.length > 0)) {
+    if (!item.equipable && (effects.stats.length > 0 || effects.equip.length > 0)) {
         lines.push({ text: "Not equipable, so these bonuses never apply.", colour: RED });
     }
 
-    for (const a of Object.values(item.actions ?? {})) {
-        lines.push({ text: `Use: ${describeAction(a)}`, colour: GREEN });
-    }
+    for (const text of effects.use) lines.push({ text, colour: GREEN });
 
     if (item.description) {
         lines.push({ text: `"${item.description}"`, colour: GOLD, gapAbove: 6 });

@@ -7,6 +7,7 @@ import { calculateLevelFromXp } from "../../leveling/levels.js";
 import { purchaseItem } from "../../db/shop.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
+import { itemEffects } from "../../ui/canvas/itemCard.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../../player/achievements.js";
@@ -114,11 +115,15 @@ function renderCategory(container: ContainerBuilder, config: GuildConfig, catego
             item.minLevel ? `Level ${item.minLevel}+` : "",
             item.requiresRoleIds?.length ? "Role required" : "",
         ].filter(Boolean).join(" · ");
+        // Equip bonuses only apply to gear, so they are left off anything that can't be worn.
+        const fx = itemEffects(item);
+        const effects = [...(item.equipable ? [...fx.stats, ...fx.equip] : []), ...fx.use].join(" · ");
 
         container.addSectionComponents(new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(
                 `**${item.emoji || "•"} ${item.name}**` +
                 (item.description ? `\n-# ${item.description.length > 150 ? item.description.slice(0, 147) + "..." : item.description}` : "") +
+                (effects ? `\n${effects}` : "") +
                 (details ? `\n-# ${details}` : "")
             ))
             .setButtonAccessory(b => b
