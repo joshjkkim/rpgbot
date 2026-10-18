@@ -11,7 +11,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ### Improved
 - **Drink potions mid-fight.** Healing potions in your bag show up as buttons next to Attack and Flee. Drinking one heals you but uses your turn, so the enemy still swings.
 - **Lost your fight in a busy channel?** Run `/fight` again and it comes back to you, right where you left it.
-- **For server owners: new servers level at a pace that lasts.** The default is now the wizard's Standard pace: the first level-up comes after about 16 messages, level 10 after about 1,250, so each level and each upgrade feels earned. The wizard's Relaxed and Hardcore paces were rescaled around it. Servers that already set their own levels are unchanged.
+- **For server owners: new servers level at a pace that lasts.** The default is now the wizard's Standard pace: 5 XP per message on a curve where each level costs a bit more than the last. The first level-up comes after about 16 messages and level 10 after about 1,260, so each level and each upgrade feels earned, and fights and quests still matter next to chatting. The wizard's Relaxed and Hardcore paces were rescaled around it. Servers that already set their own levels are unchanged.
 - **For server owners: Simple and Advanced settings.** Dashboard pages now open in Simple mode, showing just the settings most servers need. Switch to **Advanced** at the top of any page (or click **Show** at the bottom) for everything else, like per-channel rates, role bonuses and player stats. havocish remembers your choice.
 
 ### Fixed
