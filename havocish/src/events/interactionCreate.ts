@@ -16,6 +16,14 @@ import { handleDuelButton } from "../commands/user/duel.js";
 import { handleEncounterButton } from "../player/encounters.js";
 import { handleBossButton } from "../player/bosses.js";
 import { handleHelpButton } from "../commands/user/help.js";
+import { busyFighting } from "../player/fight.js";
+
+/** While fighting, you fight: /fight (which brings the fight back) and /help are all that work. */
+function allowedMidFight(interaction: Interaction): boolean {
+    if (interaction.isChatInputCommand()) return interaction.commandName === "fight" || interaction.commandName === "help";
+    if ("customId" in interaction) return interaction.customId.startsWith("fight:") || interaction.customId.startsWith("help:");
+    return true;
+}
 
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -24,6 +32,14 @@ export function registerInteractionCreate(client: Client) {
             if (interaction.isAutocomplete()) {
                 await commands.get(interaction.commandName)?.autocomplete?.(interaction);
                 return;
+            }
+
+            if (interaction.isRepliable() && interaction.guildId && !allowedMidFight(interaction)) {
+                const busy = busyFighting(interaction.user.id, interaction.guildId, "Everything else waits until it's over.");
+                if (busy) {
+                    await interaction.reply({ content: busy, flags: MessageFlags.Ephemeral });
+                    return;
+                }
             }
 
             if (interaction.isChatInputCommand()) {
