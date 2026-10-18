@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Field,
@@ -9,7 +9,6 @@ import {
   NumberField,
   Section,
   SelectField,
-  SettingsMode,
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
@@ -73,6 +72,8 @@ const GAMES: Record<GameType, {
   blurb: string;
   words: Array<{ key: string; label: string; fallback: string; hint?: string }>;
   difficulty: Array<{ key: string; label: string; fallback: number; hint?: string }>;
+  /** One line on what the difficulty numbers add up to. */
+  summary: (d: (key: string) => number) => string;
 }> = {
   grid: {
     label: "Grid: push your luck",
@@ -91,6 +92,11 @@ const GAMES: Record<GameType, {
       { key: "finds", label: "Finds hidden", fallback: 5, hint: "Out of 16 tiles." },
       { key: "hazards", label: "Hazards hidden", fallback: 2, hint: "Skill removes one every 15 levels, never below 1." },
     ],
+    summary: (d) => {
+      const finds = Math.min(d("finds"), 15);
+      const hazards = Math.min(d("hazards"), 16 - finds);
+      return `${finds} finds · ${hazards} hazards · ${16 - finds - hazards} empty, out of 16 tiles, with ${d("tries")} tries. More finds mean something almost every run; fewer finds and better loot make a location feel rich but risky.`;
+    },
   },
 };
 
@@ -115,7 +121,6 @@ function LocationEditor({
   shopItems: ShopItems;
   onChange: (next: GatheringLocation) => void;
 }) {
-  const { showAdvanced } = useContext(SettingsMode);
   const loot = location.loot ?? [];
   // Shares are of what can actually drop: entries for deleted items get nothing.
   const total = loot.reduce((sum, l) => sum + (l.chance > 0 && shopItems[l.itemId] ? l.chance : 0), 0);
@@ -180,8 +185,10 @@ function LocationEditor({
         </div>
       </Field>
 
-      {showAdvanced && (
-        <Field label="Difficulty">
+      <Field
+        label="How often players find something"
+        hint={GAMES[game].summary((key) => location.difficulty?.[key] ?? GAMES[game].difficulty.find((d) => d.key === key)?.fallback ?? 0)}
+      >
           <FieldGrid>
             {GAMES[game].difficulty.map((d) => (
               <NumberField
@@ -194,8 +201,7 @@ function LocationEditor({
               />
             ))}
           </FieldGrid>
-        </Field>
-      )}
+      </Field>
     </div>
   );
 }
