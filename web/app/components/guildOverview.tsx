@@ -30,7 +30,7 @@ function n(amount: number, one: string, many = `${one}s`) {
 /** Each feature as one plain sentence, so the page reads as a status report, not a grid of numbers. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the config is untyped JSON from the API
 function describe(config: Record<string, any>): Row[] {
-  const { xp = {}, levels = {}, shop = {}, combat = {}, quests = {}, achievements = {}, style = {}, logging = {} } = config ?? {};
+  const { xp = {}, levels = {}, shop = {}, combat = {}, quests = {}, achievements = {}, style = {}, logging = {}, gathering = {} } = config ?? {};
   const xpName = style.xp?.name || "XP";
   const goldName = style.gold?.name || "gold";
 
@@ -70,6 +70,12 @@ function describe(config: Record<string, any>): Row[] {
             `random encounters ${combat.encounters?.enabled ? "on" : "off"}`,
           ].join(", ") + "."
         : "No enemies yet, so there is nothing to fight.",
+    },
+    {
+      href: "gathering", title: "Gathering", sprite: "pickaxe", enabled: !!gathering.enabled,
+      summary: count(gathering.activities)
+        ? `${(Object.values(gathering.activities) as Array<{ name?: string }>).map((a) => a.name).join(", ")}, played with /gather.`
+        : "No activities yet.",
     },
     {
       href: "quests", title: "Quests", sprite: "scroll", enabled: !!quests.enabled,
