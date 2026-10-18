@@ -24,19 +24,20 @@ export const PACES: Record<Pace, PaceSettings> = {
     label: "Relaxed",
     blurb: "Levels come quickly. Good for small or casual servers.",
     basePerMessage: 20, xpMessageCooldown: 30, dailyXp: 100, dailyGold: 50,
-    curve: { curveType: "linear", curveParams: { rate: 100 } },
+    curve: { curveType: "polynomial", curveParams: { factor: 100, degree: 2 } },
   },
   standard: {
     label: "Standard",
     blurb: "A steady climb that keeps regulars busy for weeks.",
     basePerMessage: 15, xpMessageCooldown: 60, dailyXp: 50, dailyGold: 20,
-    curve: { curveType: "polynomial", curveParams: { factor: 50, degree: 2 } },
+    // Also the bot's default for a new server (DEFAULT_GUILD_CONFIG).
+    curve: { curveType: "polynomial", curveParams: { factor: 233, degree: 2 } },
   },
   hardcore: {
     label: "Hardcore",
     blurb: "High levels are rare and mean something. Good for big, active servers.",
     basePerMessage: 10, xpMessageCooldown: 60, dailyXp: 30, dailyGold: 10,
-    curve: { curveType: "polynomial", curveParams: { factor: 100, degree: 2.2 } },
+    curve: { curveType: "polynomial", curveParams: { factor: 240, degree: 2.2 } },
   },
 };
 
