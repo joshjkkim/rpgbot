@@ -20,6 +20,7 @@ import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import type { shopItemConfig } from "../../types/economy.js";
 import { renderItemCard } from "../../ui/canvas/itemCard.js";
+import { questCompleteLines } from "../../player/quests.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
 
@@ -116,6 +117,10 @@ function buildEndEmbed(
         ].join("\n"),
         inline: true,
     });
+
+    if (summary.questsCompleted?.length) {
+        embed.addFields({ name: "\u200b", value: questCompleteLines(summary.questsCompleted), inline: false });
+    }
 
     embed.setFooter({ text: `${playerDisplayName}'s fight` });
     return embed;

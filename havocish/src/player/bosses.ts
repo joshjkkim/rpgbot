@@ -342,8 +342,9 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
     const lines: string[] = [];
     for (const pay of payouts) {
         const fighter = boss.fighters.get(pay.discordUserId)!;
+        let quests: string[] = [];
         try {
-            await payOut(pay, fighter, enemy, boss.discordGuildId, config);
+            quests = await payOut(pay, fighter, enemy, boss.discordGuildId, config);
         } catch (err) {
             console.error(`Boss reward failed for ${pay.discordUserId}:`, err);
         }
@@ -351,7 +352,7 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
             const item = config.shop?.items?.[d.itemId];
             return item ? `${item.emoji ?? "🎁"} ${item.name}` : d.itemId;
         });
-        lines.push(`<@${pay.discordUserId}> · ${fighter.damage} dmg · ${xpIcon} ${pay.xp} · ${goldIcon} ${pay.gold}${drops.length ? ` · ${drops.join(", ")}` : ""}`);
+        lines.push(`<@${pay.discordUserId}> · ${fighter.damage} dmg · ${xpIcon} ${pay.xp} · ${goldIcon} ${pay.gold}${drops.length ? ` · ${drops.join(", ")}` : ""}${quests.map((q) => ` · 📜 ${q}`).join("")}`);
     }
 
     await boss.message.edit({
@@ -363,7 +364,7 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
     }).catch(() => null);
 }
 
-async function payOut(pay: Payout, fighter: Fighter, enemy: EnemyConfig, discordGuildId: string, config: GuildConfig) {
+async function payOut(pay: Payout, fighter: Fighter, enemy: EnemyConfig, discordGuildId: string, config: GuildConfig): Promise<string[]> {
     const { user } = await getOrCreateDbUser({ discordUserId: pay.discordUserId, username: fighter.username });
     const { guild } = await getOrCreateGuildConfig({ discordGuildId });
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
@@ -381,4 +382,5 @@ async function payOut(pay: Payout, fighter: Fighter, enemy: EnemyConfig, discord
     };
     // applyFightRewards reads only the HP, combat type and enemy off the fight.
     await applyFightRewards(summary, { playerCurrentHp: resolveCurrentHp(profile, stats), combatType: "pve", enemy } as any, profile, config);
+    return summary.questsCompleted ?? [];
 }

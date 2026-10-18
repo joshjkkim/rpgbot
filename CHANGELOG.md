@@ -9,6 +9,8 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **A much bigger Classic Fantasy pack.** Fifteen enemies instead of five, a gear upgrade every few levels in every slot (now including legs and hands), loot to sell, two rare drops to chase, eight new hunting quests and two new achievements.
 
 ### Improved
+- **See when a fight finishes a quest.** The kill that completes a hunting quest now says so on the victory screen: *"📜 Quest complete: The Wolf Problem. Claim it in `/quests`."* Duel wins and world boss kills show it too.
+- **Hunting quests read properly.** *"Defeat 10 Grey Wolf"* is now *"Defeat Grey Wolf ×10"*.
 - **Drink potions mid-fight.** Healing potions in your bag show up as buttons next to Attack and Flee. Drinking one heals you but uses your turn, so the enemy still swings.
 - **Lost your fight in a busy channel?** Run `/fight` again and it comes back to you, right where you left it.
 - **For server owners: new servers level at a pace that lasts.** The default is now the wizard's Standard pace: 5 XP per message on a curve where each level costs a bit more than the last. The first level-up comes after about 16 messages and level 10 after about 1,260, so each level and each upgrade feels earned, and fights and quests still matter next to chatting. The wizard's Relaxed and Hardcore paces were rescaled around it. Servers that already set their own levels are unchanged.

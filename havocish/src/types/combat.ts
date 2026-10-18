@@ -127,6 +127,7 @@ export interface FightEndSummary {
     rounds: number;
     totalDamageDealt: number;
     totalDamageTaken: number;
+    questsCompleted?: string[]; // quest names this fight finished, set in applyFightRewards
 }
 
 // ─── Skill config (future — add to GuildConfig.combat.skills later) ───────────

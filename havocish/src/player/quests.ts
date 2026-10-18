@@ -207,6 +207,11 @@ export function applyQuestRewards(args: {
   return { profile, pending, totalXp, totalGold, grantedItems, grantedRoles, messages };
 }
 
+/** "📜 Quest complete: **The Wolf Problem**. Claim it in `/quests`." One line per quest. */
+export function questCompleteLines(names: string[]): string {
+  return names.map((n) => `📜 Quest complete: **${n}**. Claim it in \`/quests\`.`).join("\n");
+}
+
 async function safeSend(channel: TextBasedChannel | null, content: string) {
   if (!channel) return;
   if (!content?.trim()) return;
