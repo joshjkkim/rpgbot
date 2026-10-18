@@ -101,9 +101,9 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                     "New here? Use a **starter pack** there to fill the shop, enemies and quests in one click.",
                     "",
                     "`/boss summon` call a world boss for the whole server to fight",
-                    "`/set` change a member's XP, level, gold or streak",
-                    "`/admin-inv` view, give or take a member's items",
-                    "`/config-*` the same settings as the dashboard, from Discord",
+                    "`/config` turn features like the shop, quests and duels on or off",
+                    "`/admin set` change a member's XP, level, gold or streak",
+                    "`/admin items` view, give or take a member's items",
                 ],
             };
     }

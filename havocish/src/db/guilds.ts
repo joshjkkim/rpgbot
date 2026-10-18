@@ -185,3 +185,25 @@ export async function markGuildRemoved(discordGuildId: string): Promise<void> {
     // would be handed straight back if the bot is re-added in that window.
     guildConfigCache.delete(discordGuildId);
 }
+
+/**
+ * Flips one on/off setting in place, creating any missing parent objects.
+ * Writing one key in SQL instead of saving the whole config means a click in
+ * /config can never overwrite a dashboard edit made in the meantime (the bot's
+ * cached copy may be a minute old). Paths come from code, never from users.
+ */
+export async function setGuildConfigFlag(discordGuildId: string, path: string[], value: boolean): Promise<void> {
+    if (!path.length || !path.every((p) => /^[A-Za-z]+$/.test(p))) throw new Error(`Bad config path: ${path.join(".")}`);
+
+    let expr = "COALESCE(config, '{}'::jsonb)";
+    for (let i = 1; i < path.length; i++) {
+        const parent = `'{${path.slice(0, i).join(",")}}'`;
+        expr = `jsonb_set(${expr}, ${parent}, COALESCE(config #> ${parent}, '{}'::jsonb))`;
+    }
+    expr = `jsonb_set(${expr}, '{${path.join(",")}}', to_jsonb($2::boolean))`;
+
+    const res = await query(`UPDATE guilds SET config = ${expr} WHERE discord_guild_id = $1`, [discordGuildId, value]);
+    if (res.rowCount === 0) throw new Error("Failed to set guild config");
+
+    guildConfigCache.delete(discordGuildId);
+}

@@ -16,6 +16,7 @@ import { handleDuelButton } from "../commands/user/duel.js";
 import { handleEncounterButton } from "../player/encounters.js";
 import { handleBossButton } from "../player/bosses.js";
 import { handleHelpButton } from "../commands/user/help.js";
+import { handleConfigButton } from "../commands/admin/configGeneral.js";
 import { busyFighting } from "../player/fight.js";
 
 /** While fighting, you fight: /fight (which brings the fight back) and /help are all that work. */
@@ -84,6 +85,8 @@ export function registerInteractionCreate(client: Client) {
                     await handleBossButton(interaction);
                 } else if (interaction.customId.startsWith("help:")) {
                     await handleHelpButton(interaction);
+                } else if (interaction.customId.startsWith("config:")) {
+                    await handleConfigButton(interaction);
                 }
 
                 return;
