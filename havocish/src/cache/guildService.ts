@@ -4,11 +4,12 @@ import { guildConfigCache, isStale } from "./caches.js";
 
 const GUILD_CONFIG_TTL_MS = 60 * 1000;
 
-export async function getOrCreateGuildConfig(opts: { discordGuildId: string; }): Promise<CachedGuildConfig> {
+/** `fresh` skips the cache, for a read that is about to decide a write. */
+export async function getOrCreateGuildConfig(opts: { discordGuildId: string; fresh?: boolean }): Promise<CachedGuildConfig> {
     const cached = guildConfigCache.get(opts.discordGuildId);
     const now = Date.now();
 
-    if (cached && !isStale(cached.lastLoaded, GUILD_CONFIG_TTL_MS)) {
+    if (cached && !opts.fresh && !isStale(cached.lastLoaded, GUILD_CONFIG_TTL_MS)) {
         const toReturn: CachedGuildConfig = {
             guild: cached.guild,
             config: cached.config,
