@@ -19,6 +19,7 @@ const sections: Array<{ label: string; tabs: Array<{ href: string; label: string
             { href: "levels", label: "Levels", sprite: "star" },
             { href: "quests", label: "Quests", sprite: "scroll" },
             { href: "combat", label: "Combat", sprite: "swords" },
+            { href: "gathering", label: "Gathering", sprite: "pickaxe" },
             { href: "logging", label: "Logging", sprite: "book" },
         ],
     },

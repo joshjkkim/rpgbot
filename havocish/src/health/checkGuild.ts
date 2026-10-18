@@ -155,6 +155,27 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
+    // ── Gathering ──
+    if (config.gathering?.enabled) {
+        const activities = Object.values(config.gathering.activities ?? {}).filter((a) => a.enabled !== false);
+        if (activities.length === 0) {
+            issues.push({ severity: "warning", message: "Gathering is on but there are no activities.", page: "gathering" });
+        }
+        for (const id of config.gathering.channelIds ?? []) channel(id, "gathering", "gathering", POST);
+        for (const a of activities) {
+            const locations = Object.values(a.locations ?? {});
+            if (!locations.some((l) => (l.minSkill ?? 1) <= 1)) {
+                issues.push({ severity: "warning", message: `Nobody can start ${a.name}: it has no location open at skill 1.`, page: "gathering" });
+            }
+            for (const l of locations) {
+                if (!(l.loot ?? []).some((x) => x.chance > 0 && items[x.itemId])) {
+                    issues.push({ severity: "warning", message: `${a.name} at ${l.name} has nothing to find.`, page: "gathering" });
+                }
+                for (const x of l.loot ?? []) item(x.itemId, `${a.name} at ${l.name}`, "gathering");
+            }
+        }
+    }
+
     // ── Logging ──
     if (config.logging?.enabled) {
         if (!config.logging.mainChannelId) {
