@@ -59,7 +59,9 @@ export function objective(cond: QuestCondition, config: GuildConfig): string {
         case "dailyClaim": return `Claim your daily reward ${n} time${cond.target === 1 ? "" : "s"}`;
         case "defeatEnemies": {
             const names = (cond.enemyIds ?? []).map((id) => config.combat.enemies?.[id]?.name ?? id);
-            return `Defeat ${n} ${names.length ? names.join(" or ") : `enem${cond.target === 1 ? "y" : "ies"}`}`;
+            // Enemy names don't pluralise reliably (Wolf → Wolves), so a count goes after them.
+            if (!names.length) return `Defeat ${n} enem${cond.target === 1 ? "y" : "ies"}`;
+            return `Defeat ${names.join(" or ")}${cond.target === 1 ? "" : ` ×${n}`}`;
         }
         case "winDuels": return `Win ${n} duel${cond.target === 1 ? "" : "s"}`;
     }

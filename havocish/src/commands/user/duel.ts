@@ -12,6 +12,7 @@ import type { DuelResult, PendingDuel } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
 import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
 import { busyFighting, getActiveFight } from "../../player/fight.js";
+import { questCompleteLines } from "../../player/quests.js";
 
 export const data = new SlashCommandBuilder()
     .setName("duel")
@@ -113,7 +114,8 @@ function buildResultEmbed(
     wager: number,
     payout: bigint,
     rake: bigint,
-    config: GuildConfig
+    config: GuildConfig,
+    questsCompleted: string[] = [],
 ): EmbedBuilder {
     const embed = new EmbedBuilder()
         .setColor(themeColor(config))
@@ -142,6 +144,11 @@ function buildResultEmbed(
             ? `**${payout}** ${goldLabel(config)} (a **${rake}** cut was taken)`
             : `**${payout}** ${goldLabel(config)}`;
         embed.addFields({ name: "Pot", value: line, inline: false });
+    }
+
+    if (questsCompleted.length) {
+        // Only the winner can finish a quest here, so name them.
+        embed.addFields({ name: "\u200b", value: `<@${result.winnerDiscordId}>\n${questCompleteLines(questsCompleted)}`, inline: false });
     }
 
     return embed;
@@ -339,7 +346,8 @@ export async function handleDuelButton(interaction: ButtonInteraction) {
                 duel.wager,
                 outcome.payout,
                 outcome.rake,
-                config
+                config,
+                outcome.questsCompleted,
             ),
         ],
         components: [],

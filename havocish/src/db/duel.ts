@@ -36,6 +36,8 @@ export type DuelOutcome =
           payout: bigint;
           /** Gold removed from circulation. Zero on a draw. */
           rake: bigint;
+          /** Quest names the winner finished with this duel. */
+          questsCompleted?: string[];
       }
     | { success: false; message: string };
 
@@ -294,6 +296,7 @@ export async function resolveDuel(opts: {
                 userId: winner.userId, guildId, profile: q.profile, changes: q.pending, baseline,
                 recomputeLevel: (xp) => calculateLevelFromXp(Number(xp), config),
             });
+            if (outcome.success) return { ...outcome, questsCompleted: q.completed.map((c) => c.name) };
         }
 
         return outcome;

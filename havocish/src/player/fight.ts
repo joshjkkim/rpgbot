@@ -526,6 +526,7 @@ export async function applyFightRewards(
         });
         p = q.profile;
         pendingChanges = q.pending;
+        summary.questsCompleted = q.completed.map((c) => c.name);
     }
 
     // ── Write to cache (dirty → synced to DB on next flush) ──
