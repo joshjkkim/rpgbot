@@ -1,7 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import ConfigDisplay from "./configDisplay";
+import { SettingsMode } from "./ui/form";
+
+const MODE_KEY = "havocish:advanced";
+const MODE_EVENT = "havocish:mode";
+
+function readMode() {
+  if (new URLSearchParams(window.location.search).has("all")) return true;
+  try { return localStorage.getItem(MODE_KEY) === "1"; } catch { return false; }
+}
+
+function subscribeMode(onChange: () => void) {
+  window.addEventListener(MODE_EVENT, onChange);
+  return () => window.removeEventListener(MODE_EVENT, onChange);
+}
+
+function setMode(advanced: boolean) {
+  try { localStorage.setItem(MODE_KEY, advanced ? "1" : "0"); } catch {}
+  // Drop ?all=1 so picking Simple on a page opened from a Fix link sticks.
+  const url = new URL(window.location.href);
+  url.searchParams.delete("all");
+  if (url.href !== window.location.href) history.replaceState(history.state, "", url);
+  window.dispatchEvent(new Event(MODE_EVENT));
+}
 
 /**
  * The shell every config page shares: title, save control, load/error states,
@@ -35,6 +58,15 @@ export default function ConfigPage({
   children: React.ReactNode;
 }) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  // Simple by default; the choice is remembered per browser. A health check
+  // "Fix" link adds ?all=1, since the setting it points at may be advanced.
+  const showAdvanced = useSyncExternalStore(subscribeMode, readMode, () => false);
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const countHidden = useCallback(() => {
+    setHiddenCount((n) => n + 1);
+    return () => setHiddenCount((n) => n - 1);
+  }, []);
 
   // Leaving with unsaved edits used to discard them without a word: the edits
   // live in React state and nothing persists them until Save. `beforeunload`
@@ -99,6 +131,19 @@ export default function ConfigPage({
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
+          <div role="group" aria-label="Settings shown" className="flex rounded-sm border border-[var(--border)] text-xs">
+            {[false, true].map((adv) => (
+              <button
+                key={String(adv)}
+                type="button"
+                aria-pressed={showAdvanced === adv}
+                onClick={() => setMode(adv)}
+                className={`px-2.5 py-1.5 transition-colors ${showAdvanced === adv ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}
+              >
+                {adv ? "Advanced" : "Simple"}
+              </button>
+            ))}
+          </div>
           {dirty ? (
             <span className="text-xs text-amber-400">Unsaved changes</span>
           ) : savedAt && !saving ? (
@@ -126,7 +171,18 @@ export default function ConfigPage({
         </div>
       )}
 
-      {!loading && children}
+      <SettingsMode.Provider value={{ showAdvanced, countHidden }}>
+        {!loading && children}
+      </SettingsMode.Provider>
+
+      {!loading && hiddenCount > 0 && (
+        <p className="text-center text-xs text-[var(--muted)]">
+          {hiddenCount} advanced section{hiddenCount === 1 ? "" : "s"} hidden ·{" "}
+          <button type="button" onClick={() => setMode(true)} className="text-[var(--accent)] hover:underline">
+            Show
+          </button>
+        </p>
+      )}
 
       {/* Pinned to the bottom of the screen while there is something to save, so a
           change halfway down a long page can be saved without scrolling back up. */}

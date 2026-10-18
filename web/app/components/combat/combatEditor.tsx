@@ -391,7 +391,7 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
         />
       </Section>
 
-      <Section title="Player stats" description="Each stat starts at its base and grows every level.">
+      <Section advanced title="Player stats" description="Each stat starts at its base and grows every level.">
         <div className="space-y-4">
           {STATS.map(({ label, baseKey, perLevelKey, step }) => (
             <Field key={label} label={label}>
@@ -414,7 +414,7 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
         </div>
       </Section>
 
-      <Section title="Death penalties" description="What a member loses on defeat." defaultOpen={false}>
+      <Section advanced title="Death penalties" description="What a member loses on defeat." defaultOpen={false}>
         <Field label="Against enemies (PvE)">{penaltyFields("pveDeathPenalty")}</Field>
         <div className="mt-5">
           <Field label="Against other members (PvP)">{penaltyFields("pvpDeathPenalty")}</Field>

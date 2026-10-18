@@ -57,7 +57,7 @@ export default function HealthPanel({ guildId }: { guildId: string }) {
             </span>
             <span className="flex-1">{issue.message}</span>
             <Link
-              href={`/dashboard/${guildId}/${issue.page}`}
+              href={`/dashboard/${guildId}/${issue.page}?all=1`}
               className="shrink-0 text-xs text-[var(--accent)] hover:underline"
             >
               Fix →

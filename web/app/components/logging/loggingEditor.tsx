@@ -103,7 +103,7 @@ export default function LoggingEditor({ value, onChange }: Props) {
         </div>
       </Section>
 
-      <Section
+      <Section advanced
         title="Categories"
         description="Each category is off, sent to the main channel, or sent to one of its own."
       >

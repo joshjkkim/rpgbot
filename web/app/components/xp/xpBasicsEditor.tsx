@@ -224,7 +224,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         </FieldGrid>
       </Section>
 
-      <Section
+      <Section advanced
         title="Channel overrides"
         description="Per-channel multipliers, bonuses and cooldowns for message XP."
         defaultOpen={false}
@@ -367,7 +367,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         </FieldGrid>
       </Section>
 
-      <Section title="Streak milestones" description="One-off rewards at specific streak lengths." defaultOpen={false}>
+      <Section advanced title="Streak milestones" description="One-off rewards at specific streak lengths." defaultOpen={false}>
         <KeyedList<StreakReward>
           entries={Object.entries(form.streakRewards).sort(sortedByNumber)}
           addPlaceholder="Day count, e.g. 7"
@@ -426,7 +426,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         />
       </Section>
 
-      <Section title="Role XP bonuses" description="Extra message XP for members holding a role." defaultOpen={false}>
+      <Section advanced title="Role XP bonuses" description="Extra message XP for members holding a role." defaultOpen={false}>
         <KeyedList<RoleXpConfig>
           entries={Object.entries(form.roleXp)}
           addPlaceholder="Role ID"
@@ -464,7 +464,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         />
       </Section>
 
-      <Section title="Role daily bonuses" description="Extra daily reward for members holding a role." defaultOpen={false}>
+      <Section advanced title="Role daily bonuses" description="Extra daily reward for members holding a role." defaultOpen={false}>
         <KeyedList<RoleDailyBonusConfig>
           entries={Object.entries(form.roleDailyBonus)}
           addPlaceholder="Role ID"
@@ -512,7 +512,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         />
       </Section>
 
-      <Section title="Temporary roles" description="How long roles granted by items and rewards last." defaultOpen={false}>
+      <Section advanced title="Temporary roles" description="How long roles granted by items and rewards last." defaultOpen={false}>
         <KeyedList<RoleTempConfig>
           entries={Object.entries(form.roleTemp)}
           addPlaceholder="Role ID"
@@ -575,7 +575,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         </div>
       </Section>
 
-      <Section title="Voice channel overrides" description="Per-channel voice rates." defaultOpen={false}>
+      <Section advanced title="Voice channel overrides" description="Per-channel voice rates." defaultOpen={false}>
         <KeyedList<VcChannelConfig>
           entries={Object.entries(form.vcChannelIds)}
           addPlaceholder="Voice channel ID"
@@ -627,7 +627,7 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
         />
       </Section>
 
-      <Section title="Voice role bonuses" description="Extra voice XP for members holding a role." defaultOpen={false}>
+      <Section advanced title="Voice role bonuses" description="Extra voice XP for members holding a role." defaultOpen={false}>
         <KeyedList<VcRoleBonusConfig>
           entries={Object.entries(form.vcRoleXpBonus)}
           addPlaceholder="Role ID"
