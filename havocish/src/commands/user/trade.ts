@@ -18,6 +18,8 @@ import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { acceptTrade, cancelTrade, createTrade, denyTrade, viewTrades } from "../../db/trade.js";
 import { respondFiltered } from "../../ui/autocomplete.js";
 import { bestEffort } from "../../ui/bestEffort.js";
+import type { item } from "../../types/userprofile.js";
+import type { GuildConfig } from "../../types/guild.js";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -100,6 +102,12 @@ export const data = new SlashCommandBuilder()
 
 // ─── /trade (slash command entry) ───────────────────────────────────────────
 
+/** A bag line, named as the item is defined now; the saved copy covers deleted items. */
+const line = (item: item, config: GuildConfig) => {
+    const def = config.shop?.items?.[item.id];
+    return `• \`${item.id}\` — ${def?.emoji ?? item.emoji ?? ""} **${def?.name ?? item.name}** ×${item.quantity}`;
+};
+
 export async function execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.inGuild() || !interaction.guildId) {
         await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
@@ -118,7 +126,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         }
 
         const { user: askerUser } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
-        const { guild } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+        const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
         const { profile: askerProfile } = await getOrCreateProfile({ userId: askerUser.id, guildId: guild.id });
         const { user: receiverUser } = await getOrCreateDbUser({ discordUserId: receiver.id });
         const { profile: receiverProfile } = await getOrCreateProfile({ userId: receiverUser.id, guildId: guild.id });
@@ -128,13 +136,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const inventoryLines = Object.values(inventory).length === 0
             ? "_Your inventory is empty._"
             : Object.values(inventory)
-                .map(item => `• \`${item.id}\` — ${item.emoji ?? ""} **${item.name}** ×${item.quantity}`)
+                .map(item => line(item, config))
                 .join("\n");
 
         const receiverInventoryLines = Object.values(receiverInventory).length === 0
             ? "_Their inventory is empty._"
             : Object.values(receiverInventory)
-                .map(item => `• \`${item.id}\` — ${item.emoji ?? ""} **${item.name}** ×${item.quantity}`)
+                .map(item => line(item, config))
                 .join("\n");
 
         const button = new ButtonBuilder()

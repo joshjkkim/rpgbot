@@ -7,6 +7,9 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ### Improved
 - **For server owners: your moderators can use the dashboard.** Anyone with **Manage Server** in Discord can now open and edit your server on havocish.com, not just the owner. They could already change settings with commands, so this gives them the easier way to do it.
 
+### Fixed
+- Renaming an item, or changing its emoji or description, now shows up everywhere. Items people already owned kept the old name in `/inventory`, `/me` and `/trade`.
+
 ## v0.10 · October 18, 2026
 
 ### New

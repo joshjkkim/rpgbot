@@ -73,7 +73,7 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
         const itemId = equips[key];
         if (!itemId) return `${emoji} ${label} · _empty_`;
         const item = config.shop?.items?.[itemId];
-        const itemName = `${inventory[itemId]?.emoji ?? item?.emoji ?? ""} ${inventory[itemId]?.name ?? item?.name ?? itemId}`.trim();
+        const itemName = `${item?.emoji ?? inventory[itemId]?.emoji ?? ""} ${item?.name ?? inventory[itemId]?.name ?? itemId}`.trim();
         const bonus = itemBonus(config, itemId);
         return `${emoji} ${label} · **${itemName}**${bonus ? ` (${bonus})` : ""}`;
     });

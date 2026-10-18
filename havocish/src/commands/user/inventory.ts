@@ -89,10 +89,12 @@ function renderInventory({ ownerId, ownerName, canAct, profile, config, page, st
 
     for (const [itemId, item] of view.items) {
         const def = shopItems[itemId];
-        const rawDesc = item.description || def?.description || "";
+        // The item's current definition wins over the copy saved when it was
+        // acquired, so edits on the dashboard show up; the copy covers deleted items.
+        const rawDesc = def?.description || item.description || "";
         const desc = rawDesc.length > 150 ? rawDesc.slice(0, 147) + "..." : rawDesc;
         const text = new TextDisplayBuilder().setContent(
-            `**${item.emoji || "•"} ${item.name}** ×${item.quantity}${equippedIds.has(itemId) ? " · _Equipped_" : ""}` +
+            `**${def?.emoji || item.emoji || "•"} ${def?.name ?? item.name}** ×${item.quantity}${equippedIds.has(itemId) ? " · _Equipped_" : ""}` +
             (desc ? `\n-# ${desc}` : "")
         );
 
@@ -132,7 +134,7 @@ function renderInventory({ ownerId, ownerName, canAct, profile, config, page, st
             .setCustomId(`inventory:sell:${ownerId}:${view.page}`)
             .setPlaceholder("💰 Sell an item…")
             .addOptions(sellable.map(([itemId, item]) => ({
-                label: `${item.name} (×${item.quantity})`.slice(0, 100),
+                label: `${shopItems[itemId]!.name} (×${item.quantity})`.slice(0, 100),
                 description: `Sell one for ${shopItems[itemId]!.sellPrice} ${config.style.gold.name || "gold"}`,
                 value: itemId,
             }))),
@@ -158,8 +160,8 @@ function renderGear({ ownerId, ownerName, canAct, profile, config, page, status 
             container.addTextDisplayComponents(t => t.setContent(`${emoji} **${label}** · _empty_`));
             continue;
         }
-        const name = inventory[itemId]?.name ?? shopItems[itemId]?.name ?? itemId;
-        const itemEmoji = inventory[itemId]?.emoji ?? shopItems[itemId]?.emoji ?? "";
+        const name = shopItems[itemId]?.name ?? inventory[itemId]?.name ?? itemId;
+        const itemEmoji = shopItems[itemId]?.emoji ?? inventory[itemId]?.emoji ?? "";
         const text = new TextDisplayBuilder().setContent(`${emoji} **${label}** · ${itemEmoji} ${name}`);
 
         if (canAct) {
