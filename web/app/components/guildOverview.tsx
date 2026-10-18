@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import QuestLog from "@/app/components/questLog";
@@ -95,6 +96,7 @@ function describe(config: Record<string, any>): Row[] {
 
 export default function GuildOverview({ guildId }: { guildId: string }) {
   const { config, guild, loading, error } = useGuildConfig(guildId);
+  const justSetUp = useSearchParams().get("setup") === "done";
 
   if (loading) {
     return <p className="text-sm text-[var(--muted)]">Loading…</p>;
@@ -126,6 +128,13 @@ export default function GuildOverview({ guildId }: { guildId: string }) {
           <p className="mt-0.5 text-sm text-[var(--muted)]">Everything havocish does here, at a glance.</p>
         </div>
       </header>
+
+      {justSetUp && (
+        <section className="frame border-[var(--accent)] p-4 text-sm">
+          ⚡ <strong>Your server is set up.</strong> Members can start playing now. The check below confirms havocish can do
+          everything you turned on, and every setting is still yours to change on the pages in the sidebar.
+        </section>
+      )}
 
       <HealthPanel guildId={guildId} />
 
