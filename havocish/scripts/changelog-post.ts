@@ -17,9 +17,12 @@ const CHANGELOG = fileURLToPath(new URL("../../CHANGELOG.md", import.meta.url));
 const GOLD = 0xc4a462;
 const AVATAR = "https://raw.githubusercontent.com/joshjkkim/rpgbot/main/havocish/assets/brand/avatar-pixel.png";
 
-/** The first "## " section, or the one whose heading starts with `version`: its heading and the lines under it. */
+/**
+ * The newest released "## " section (never "## Unreleased", where entries
+ * collect between releases), or the one whose heading starts with `version`.
+ */
 export function newestEntry(markdown: string, version?: string): { title: string; body: string } | null {
-    const sections = markdown.split(/^## /m).slice(1);
+    const sections = markdown.split(/^## /m).slice(1).filter((sec) => !sec.startsWith("Unreleased"));
     const first = version ? sections.find((sec) => sec.startsWith(`${version} `)) : sections[0];
     if (!first) return null;
     const [title = "", ...rest] = first.split("\n");

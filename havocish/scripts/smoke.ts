@@ -1688,6 +1688,7 @@ async function main() {
         check("title is the newest heading", entry?.title, "v2 · today");
         check("sections become bold lines", entry?.body.startsWith("**New**"), true);
         check("older entries are left out", entry?.body.includes("old"), false);
+        check("unreleased changes are not posted", newestEntry(md.replace("## v2", "## Unreleased\n\n- wip\n\n## v2"))?.title, "v2 · today");
         check("the real CHANGELOG.md has an entry", !!newestEntry(readFileSync(new URL("../../CHANGELOG.md", import.meta.url), "utf8")), true);
     });
 

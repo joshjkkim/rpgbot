@@ -37,7 +37,7 @@ export default function ChangelogPage() {
     if (line.startsWith("- ")) { bullets.push(line.slice(2)); continue; }
     flush();
     if (line.startsWith("### ")) blocks.push(<h3 key={blocks.length} className="mt-5 font-display text-[var(--accent)]">{line.slice(4)}</h3>);
-    else if (line.startsWith("## ")) blocks.push(<h2 key={blocks.length}>{line.slice(3)}</h2>);
+    else if (line.startsWith("## ")) blocks.push(<h2 key={blocks.length}>{line === "## Unreleased" ? "Coming in the next update" : line.slice(3)}</h2>);
     else if (line.startsWith("# ")) blocks.push(<h1 key={blocks.length}>{line.slice(2)}</h1>);
     else if (line.trim()) blocks.push(<p key={blocks.length}><Inline text={line} /></p>);
   }
