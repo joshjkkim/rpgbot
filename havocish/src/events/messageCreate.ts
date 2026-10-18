@@ -1,4 +1,5 @@
 import { Client, Events } from "discord.js";
+import { getActiveFight } from "../player/fight.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { addMessageXp, grantDailyXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
@@ -52,7 +53,8 @@ export function registerMessageCreate(client: Client) {
       let granted = false;
       let rewardXp: number | undefined = undefined;
       let rewardGold: number | undefined = undefined;
-      if (config.xp.autoDailyEnabled) {
+      // Not mid-fight: the fight would overwrite the daily heal. A later message claims it.
+      if (config.xp.autoDailyEnabled && !getActiveFight(message.author.id, message.guildId!)) {
         const dailyResult = await grantDailyXp({
           client: message.client,
           member: message.member,

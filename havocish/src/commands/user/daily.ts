@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js";
+import { busyFighting } from "../../player/fight.js";
 import { SlashCommandBuilder } from "discord.js";
 import { grantDailyXp } from "../../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
@@ -21,6 +22,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // before deferring -- the flag cannot be changed afterwards. This was
     // hardcoded to Ephemeral, which made replyToDailyEphemeral do nothing.
     const { guild: dbGuild, config} = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+
+    // The daily heal would be overwritten by the fight's own HP when it ends.
+    const busy = busyFighting(interaction.user.id, interaction.guildId, "Claim your daily once it's over.");
+    if (busy) {
+        await interaction.reply({ content: busy, flags: MessageFlags.Ephemeral });
+        return;
+    }
 
     await interaction.deferReply(
         config.xp.replyToDailyEphemeral === false ? {} : { flags: MessageFlags.Ephemeral }

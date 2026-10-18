@@ -243,7 +243,9 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         },
     },
     xp: {
-        basePerMessage: 5,
+        // The wizard's Standard pace (web/app/lib/setupWizard.ts): level 10 is
+        // about 1,250 XP-earning messages, so levels and gear feel earned.
+        basePerMessage: 15,
         xpMessageCooldown: 60,
         xpChannelIds: {},
 
@@ -292,8 +294,8 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         maxLevel: 100,
         announceLevelUpInChannelId: null,
         announceLevelUpMessage: "🎉 {user}, you have reached level {level}!",
-        curveType: "linear",
-        curveParams: { rate: 100},
+        curveType: "polynomial",
+        curveParams: { factor: 233, degree: 2 },
         xpOverrides: {},
         levelActions: {}
     },
