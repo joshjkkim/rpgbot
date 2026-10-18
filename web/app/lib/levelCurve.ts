@@ -63,22 +63,24 @@ export function suggestedCurveParams(type: CurveType) {
   return Object.fromEntries(CURVE_PARAMS[type].map((s) => [s.key, s.suggested])) as Record<string, number>;
 }
 
+/** Total XP at which a level begins; level 1 at 0. Mirrors the bot's calculateTotalXpForLevel. */
 export function totalXpForLevel(level: number, levels: CurveLevels): number {
-  if (level <= 0) return 0;
+  if (level <= 1) return 0;
 
   const override = levels.xpOverrides?.[level];
   if (override != null) return override;
 
   const p = normalizeCurveParams(levels.curveType, levels.curveParams);
+  const n = level - 1;
   switch (levels.curveType) {
     case "linear":
-      return p.rate * level;
+      return p.rate * n;
     case "exponential":
-      return Math.floor(p.factor * Math.pow(p.base, level - 1));
+      return Math.floor(p.factor * Math.pow(p.base, n - 1));
     case "polynomial":
-      return Math.floor(p.factor * Math.pow(level, p.degree));
+      return Math.floor(p.factor * Math.pow(n, p.degree));
     case "logarithmic":
-      return Math.floor((p.factor * Math.log(level + 1)) / Math.log(p.base));
+      return Math.floor((p.factor * Math.log(n + 1)) / Math.log(p.base));
     default:
       return 0;
   }

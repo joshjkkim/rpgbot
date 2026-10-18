@@ -27,6 +27,13 @@ for (const levels of cases) {
   }
 }
 
+// Every level is one step of the curve, level 1 included (it used to span two).
+const linear = { levels: { curveType: "linear", curveParams: { rate: 100 }, xpOverrides: {} } } as unknown as GuildConfig;
+for (let level = 1; level <= 30; level++) {
+  assert.equal(calculateTotalXpForLevel(level + 1, linear) - calculateTotalXpForLevel(level, linear), 100, `linear step at level ${level}`);
+}
+assert.equal(calculateTotalXpForLevel(1, linear), 0, "level 1 starts at 0");
+
 assert.deepEqual(normalizeCurveParams("linear", { base: 100, perLevel: 50 }), { rate: 100 });
 assert.deepEqual(normalizeCurveParams("exponential", { base: 100, growth: 1.15 }), { factor: 50, base: 100 });
 
