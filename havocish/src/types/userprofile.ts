@@ -1,3 +1,4 @@
+import type { GatheringProgress } from "./gathering.js";
 import type { QueryResultRow } from "pg";
 import type { UserQuestState } from "./quest.js";
 
@@ -30,6 +31,9 @@ export interface UserStats {
     lastDuelAt?: string | null;
     duelsWon?: number;
     duelsLost?: number;
+
+    /** Skill XP, cooldown and run count per gathering activity. */
+    gathering?: GatheringProgress;
 }
 export interface item {
     id: string;

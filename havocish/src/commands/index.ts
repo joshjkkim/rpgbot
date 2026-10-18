@@ -30,6 +30,7 @@ import * as boss from "./user/boss.js"
 import * as help from "./user/help.js"
 import * as me from "./user/me.js"
 import * as admin from "./admin/admin.js"
+import * as gather from "./user/gather.js"
 
 export const commandList = [
     daily.data,
@@ -64,6 +65,7 @@ export const commandList = [
     boss.data,
     help.data,
     me.data,
+    gather.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -99,4 +101,5 @@ export const commands = new Map<string, any>([
     [boss.data.name, boss],
     [help.data.name, help],
     [me.data.name, me],
+    [gather.data.name, gather],
 ])

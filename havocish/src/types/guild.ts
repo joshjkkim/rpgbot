@@ -3,6 +3,7 @@ import type { EventCategory } from "./logging.js";
 import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
 import type { EnemyConfig } from "./combat.js";
+import type { GatheringConfig } from "./gathering.js";
 export interface DbGuild {
     id: number;
     discord_guild_id: string;
@@ -198,7 +199,8 @@ export interface GuildConfig {
         enabled?: boolean;
         mainChannelId?: string | null;
         allowedCategories?: Record<EventCategory, string | null | false>; // category -> channelId to override log if so needed
-    }
+    },
+    gathering: GatheringConfig;
 }
 
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {
@@ -319,5 +321,11 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
             admin: false,
             quests: false
         }
-    }
+    },
+    gathering: {
+        enabled: false,
+        // About 25 runs to skill 10 and 400 to skill 50, at roughly 20 skill XP a run.
+        skill: { maxLevel: 50, curveType: "polynomial", curveParams: { factor: 13, degree: 1.62 } },
+        activities: {},
+    },
 };
