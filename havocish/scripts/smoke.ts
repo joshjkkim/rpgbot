@@ -1584,16 +1584,18 @@ async function main() {
         config.levels.xpOverrides = {};
         config.levels.maxLevel = null;
         check("a new member is level 1", levelFromXp(0, config), 1);
-        check("115 XP is still level 1", levelFromXp(115, config), 1);
+        check("99 XP is still level 1", levelFromXp(99, config), 1);
         check("level 1 starts at 0", levelStartXp(1, config), 0);
-        check("level 2 starts at 200", levelStartXp(2, config), 200);
-        check("200 XP reaches level 2", levelFromXp(200, config), 2);
-        // The card's numbers for the playtest report: 115 total XP.
-        const into = 115 - levelStartXp(1, config);
-        const span = levelStartXp(2, config) - levelStartXp(1, config);
-        check("the bar reads 115 / 200, not 15 / 100", `${into} / ${span}`, "115 / 200");
+        // Level 1 is one step of the curve like every other level; it used to span two.
+        check("level 2 starts at 100", levelStartXp(2, config), 100);
+        check("100 XP reaches level 2", levelFromXp(100, config), 2);
+        check("115 XP is level 2", levelFromXp(115, config), 2);
+        // The card's numbers for 115 total XP: 15 into level 2's 100.
+        const into = 115 - levelStartXp(2, config);
+        const span = levelStartXp(3, config) - levelStartXp(2, config);
+        check("the bar reads 15 / 100 into level 2", `${into} / ${span}`, "15 / 100");
         // /set level writes the XP its level begins at; it used to write 0.
-        check("/set level 10 gives the XP level 10 starts at", levelStartXp(10, config), 1000);
+        check("/set level 10 gives the XP level 10 starts at", levelStartXp(10, config), 900);
         check("and that XP is level 10", levelFromXp(levelStartXp(10, config), config), 10);
     });
 
@@ -1669,7 +1671,7 @@ async function main() {
 
         const json = (parts: any[]) => JSON.stringify(parts.map((p) => p.toJSON()));
         const own = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
-        check("level and progress from XP", own.includes("Level 1") && own.includes("115 / 200"), true);
+        check("level and progress from XP", own.includes("Level 2") && own.includes("15 / 100"), true);
         check("HP line present", own.includes("**HP**"), true);
         check("gear lists its bonus", own.includes("Iron Sword") && own.includes("+8 ATK, +2 DEF"), true);
         check("empty slots say so", own.includes("Head · _empty_"), true);

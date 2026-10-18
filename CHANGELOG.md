@@ -15,6 +15,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 
 ### Fixed
 - Quests to spend gold in the shop now count your purchases. They never moved before.
+- **Your first level-up comes much sooner.** Level 1 took two steps of the level curve instead of one, up to four times longer than every other level. Now every level takes what the server's curve says. If you already had some XP, you'll find yourself one level higher.
 - Walking away from a fight, or the bot restarting mid-fight, now counts as fleeing: no penalty, but you keep the damage you took. It used to quietly restore your HP, which made ignoring a losing fight better than fleeing.
 - Using a potion with `/use` during a fight wasted it. During a fight, `/use`, `/equip`, `/unequip` and duels now wait until it's over and link you back to the fight.
 

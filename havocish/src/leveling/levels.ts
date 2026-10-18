@@ -14,35 +14,42 @@ interface HandleLevelUpArgs {
   fromLevel?: number;
 }
 
+/**
+ * Total XP at which a level begins. Everyone starts at level 1 with 0 XP, so
+ * the curve's first step is level 2: the formula runs on `level - 1`. It used
+ * to run on `level` while level 1 was still shown from 0, which made level 1
+ * span two steps (four times as long as intended on a polynomial curve).
+ */
 export function calculateTotalXpForLevel(level: number, guildConfig: GuildConfig): number {
   const { levels } = guildConfig;
   const { curveType, curveParams, xpOverrides } = levels;
 
-  if (level <= 0) return 0;
+  if (level <= 1) return 0;
 
   const override = xpOverrides[level];
   if (override != null) return override;
 
+  const n = level - 1;
   switch (curveType) {
     case "linear": {
       const rate = curveParams["rate"] ?? 100;
-      return rate * level;
+      return rate * n;
     }
     case "exponential": {
       const base = curveParams["base"] ?? 2;
       const factor = curveParams["factor"] ?? 50;
-      return Math.floor(factor * Math.pow(base, level - 1));
+      return Math.floor(factor * Math.pow(base, n - 1));
     }
     case "polynomial": {
       const degree = curveParams["degree"] ?? 2;
       const factor = curveParams["factor"] ?? 100;
-      return Math.floor(factor * Math.pow(level, degree));
+      return Math.floor(factor * Math.pow(n, degree));
     }
     case "logarithmic": {
       const base = curveParams["base"] ?? 2;
       const factor = curveParams["factor"] ?? 200;
       return Math.floor(
-        factor * Math.log(level + 1) / Math.log(base)
+        factor * Math.log(n + 1) / Math.log(base)
       );
     }
     default:
@@ -50,13 +57,9 @@ export function calculateTotalXpForLevel(level: number, guildConfig: GuildConfig
   }
 }
 
-/**
- * Total XP at which a level begins. Everyone starts at level 1 with 0 XP, so
- * level 1 begins at 0 rather than at the curve's first threshold -- otherwise a
- * new member's first 100 XP or so fills no bar at all.
- */
+/** Total XP at which a level begins (the same as calculateTotalXpForLevel). */
 export function levelStartXp(level: number, guildConfig: GuildConfig): number {
-  return level <= 1 ? 0 : calculateTotalXpForLevel(level, guildConfig);
+  return calculateTotalXpForLevel(level, guildConfig);
 }
 
 /** The level a total XP amount reaches. Never below 1: members start at level 1. */
