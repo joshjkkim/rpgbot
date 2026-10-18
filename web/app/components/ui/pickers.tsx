@@ -143,6 +143,12 @@ export function RolesField(props: ChipsProps) {
   return <IdChips {...props} options={useRoleOptions()} unknownLabel="Role" emptyHint="anyone can" />;
 }
 
+/** Several enemies at once, from the config. Empty means any enemy. */
+export function EnemiesField({ enemies, ...props }: ChipsProps & { enemies: Record<string, { name?: string; emoji?: string }> }) {
+  const options = Object.entries(enemies).map(([id, e]) => ({ id, name: `${e.emoji ? e.emoji + " " : ""}${e.name || id}` }));
+  return <IdChips {...props} options={options} unknownLabel="Enemy" emptyHint="any enemy counts" />;
+}
+
 /** Several text channels at once, as toggle chips. Empty means every channel. */
 export function ChannelsField(props: ChipsProps) {
   return <IdChips {...props} options={useChannelOptions()} unknownLabel="Channel" emptyHint="every channel" />;

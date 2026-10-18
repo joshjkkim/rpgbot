@@ -1688,6 +1688,7 @@ async function main() {
         check("title is the newest heading", entry?.title, "v2 · today");
         check("sections become bold lines", entry?.body.startsWith("**New**"), true);
         check("older entries are left out", entry?.body.includes("old"), false);
+        check("unreleased changes are not posted", newestEntry(md.replace("## v2", "## Unreleased\n\n- wip\n\n## v2"))?.title, "v2 · today");
         check("the real CHANGELOG.md has an entry", !!newestEntry(readFileSync(new URL("../../CHANGELOG.md", import.meta.url), "utf8")), true);
     });
 
@@ -1738,6 +1739,54 @@ async function main() {
         check("the quest resets for next time", `${profile.quests?.chatter?.completedAt}|${!!profile.quests?.chatter?.claimedAt}`, "null|true");
         const after = JSON.stringify(shown.components[0].toJSON());
         check("now on cooldown", after.includes("On cooldown"), true);
+    });
+
+    await test("winning fights and duels progresses combat quests", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 1000);
+        await seed(fx.b, g, {}, 1000);
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true, rakePercent: 0, maxRounds: 50 };
+        const quest = (id: string, conditions: any) => ({ id, name: id, description: "", active: true, cooldown: 0, conditions, reward: { 0: { gold: 1 } } });
+        config.quests = { ...config.quests, enabled: true, quests: {
+            wolves: quest("wolves", { type: "defeatEnemies", target: 2, enemyIds: ["wolf"] }),
+            duels: quest("duels", { type: "winDuels", target: 1 }),
+        } };
+        const acceptedAt = new Date().toISOString();
+        for (const who of [fx.a, fx.b]) {
+            await flushProfileCacheToDb({ userId: who.userId, guildId: g, force: true });
+            userGuildProfileCache.delete(profileKey(g, who.userId));
+            await query(`UPDATE user_guild_profiles SET quests = $3 WHERE user_id = $1 AND guild_id = $2`,
+                [who.userId, g, JSON.stringify({ wolves: { acceptedAt, progress: 0 }, duels: { acceptedAt, progress: 0 } })]);
+        }
+        const state = async (who: typeof fx.a) => (await getOrCreateProfile({ userId: who.userId, guildId: g })).profile.quests as any;
+
+        const win = { outcome: "win", xpGained: 0, goldGained: 0, goldLost: 0, itemsDropped: [], rounds: 1, totalDamageDealt: 1, totalDamageTaken: 0 } as const;
+        const beat = async (enemyId: string) => {
+            const { profile } = await getOrCreateProfile({ userId: fx.a.userId, guildId: g });
+            await applyFightRewards({ ...win, itemsDropped: [] }, { playerCurrentHp: 50, combatType: "pve", enemy: { id: enemyId } } as any, profile, config);
+        };
+        await beat("slime");
+        check("other enemies don't count", (await state(fx.a)).wolves.progress, 0);
+        await beat("wolf");
+        await beat("wolf");
+        check("two wolves complete it", !!(await state(fx.a)).wolves.completedAt, true);
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 10n,
+            config,
+        });
+        check("duel resolved", outcome.success, true);
+        if (!outcome.success || !outcome.result.winnerDiscordId) return;
+        const [winner, loser] = outcome.result.winnerDiscordId === fx.a.discordId ? [fx.a, fx.b] : [fx.b, fx.a];
+        check("the winner's duel quest is done", !!(await state(winner)).duels.completedAt, true);
+        check("the loser's is not", (await state(loser)).duels.progress, 0);
     });
 
     await test("the health check finds setups that will fail quietly", async () => {

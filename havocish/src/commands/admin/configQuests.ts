@@ -261,6 +261,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                     "```",
                 },
                 {
+                name: "Condition: defeatEnemies",
+                value:
+                    "Track fights won. World bosses count.\n" +
+                    "**Example:** defeat 10 Grey Wolves (leave out enemyIds for any enemy)\n" +
+                    "```json\n" +
+                    '{ "type": "defeatEnemies", "target": 10, "enemyIds": ["grey-wolf"] }\n' +
+                    "```",
+                },
+                {
+                name: "Condition: winDuels",
+                value:
+                    "Track duels won.\n" +
+                    "**Example:** win 3 duels\n" +
+                    "```json\n" +
+                    '{ "type": "winDuels", "target": 3 }\n' +
+                    "```",
+                },
+                {
                 name: "Reward JSON (optional)",
                 value:
                     "You can give XP, gold, an item, or a role when a quest is completed.\n" +

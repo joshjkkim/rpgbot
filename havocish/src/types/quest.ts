@@ -7,14 +7,19 @@ export type QuestCondition =
   | { type: "vcMinutes"; target: number; channelIds?: string[] }
   | { type: "spendGold"; target: number }
   | { type: "earnXp"; target: number }
-  | { type: "dailyClaim"; target: number };
+  | { type: "dailyClaim"; target: number }
+  /** Fights won. Limited to `enemyIds` when set; world bosses count. */
+  | { type: "defeatEnemies"; target: number; enemyIds?: string[] }
+  | { type: "winDuels"; target: number };
 
 export type QuestEvent =
   | { type: "message"; guildId: string; userId: string; channelId: string }
   | { type: "vcMinute"; guildId: string; userId: string; channelId: string; minutes: number }
   | { type: "spendGold"; guildId: string; userId: string; amount: number }
   | { type: "earnXp"; guildId: string; userId: string; amount: number }
-  | { type: "dailyClaim"; guildId: string; userId: string };
+  | { type: "dailyClaim"; guildId: string; userId: string }
+  | { type: "defeatEnemy"; guildId: string; userId: string; enemyId: string }
+  | { type: "winDuel"; guildId: string; userId: string };
 
 export type QuestNotify = {
   quest: QuestConfig;

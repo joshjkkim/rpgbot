@@ -343,7 +343,7 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
     for (const pay of payouts) {
         const fighter = boss.fighters.get(pay.discordUserId)!;
         try {
-            await payOut(pay, fighter, boss.discordGuildId, config);
+            await payOut(pay, fighter, enemy, boss.discordGuildId, config);
         } catch (err) {
             console.error(`Boss reward failed for ${pay.discordUserId}:`, err);
         }
@@ -363,7 +363,7 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
     }).catch(() => null);
 }
 
-async function payOut(pay: Payout, fighter: Fighter, discordGuildId: string, config: GuildConfig) {
+async function payOut(pay: Payout, fighter: Fighter, enemy: EnemyConfig, discordGuildId: string, config: GuildConfig) {
     const { user } = await getOrCreateDbUser({ discordUserId: pay.discordUserId, username: fighter.username });
     const { guild } = await getOrCreateGuildConfig({ discordGuildId });
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
@@ -379,6 +379,6 @@ async function payOut(pay: Payout, fighter: Fighter, discordGuildId: string, con
         totalDamageDealt: fighter.damage,
         totalDamageTaken: fighter.taken,
     };
-    // applyFightRewards reads only the HP and combat type off the fight.
-    await applyFightRewards(summary, { playerCurrentHp: resolveCurrentHp(profile, stats), combatType: "pve" } as any, profile, config);
+    // applyFightRewards reads only the HP, combat type and enemy off the fight.
+    await applyFightRewards(summary, { playerCurrentHp: resolveCurrentHp(profile, stats), combatType: "pve", enemy } as any, profile, config);
 }
