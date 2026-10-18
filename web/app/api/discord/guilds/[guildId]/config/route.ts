@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireGuildOwner } from "@/app/lib/discord";
+import { requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 import { validateGuildConfig } from "@/app/lib/validateConfig";
 import type { DashboardConfig } from "@/app/lib/dashboardConfig";
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
 
-    const auth = await requireGuildOwner(guildId);
+    const auth = await requireGuildManager(guildId);
     if (!auth.ok) {
         return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
     }
@@ -44,7 +44,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
 export async function POST(request: Request, { params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
 
-    const auth = await requireGuildOwner(guildId);
+    const auth = await requireGuildManager(guildId);
     if (!auth.ok) {
         return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
     }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchUserGuilds, type DiscordGuild } from "@/app/lib/discord";
+import { canManageGuild, fetchUserGuilds, type DiscordGuild } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 
 export async function GET() {
@@ -15,8 +15,8 @@ export async function GET() {
     );
   }
 
-  const ownerGuilds = result.guilds.filter((guild) => guild.owner);
-  const guildIds = ownerGuilds.map((g) => g.id);
+  const managedGuilds = result.guilds.filter(canManageGuild);
+  const guildIds = managedGuilds.map((g) => g.id);
 
   const botInstalledRes = guildIds.length
     ? await dbQuery<{ discord_guild_id: string }>(
@@ -34,7 +34,7 @@ export async function GET() {
 
   const installedSet = new Set(botInstalledRes.rows.map(r => r.discord_guild_id));
 
-  const out = ownerGuilds.map((guild: DiscordGuild) => ({
+  const out = managedGuilds.map((guild: DiscordGuild) => ({
     ...guild,
     installed: installedSet.has(guild.id),
   }));

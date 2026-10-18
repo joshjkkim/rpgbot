@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type Interaction } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, type Interaction } from "discord.js";
 
 /**
  * Where the dashboard lives. Optional: it defaults to production, so links work
@@ -17,16 +17,16 @@ export function dashboardButton(guildId: string, page?: DashboardPage, label = "
 }
 
 /**
- * The dashboard only lets the server owner in (requireGuildOwner in
- * web/app/lib/discord.ts), so a link shown to anyone else leads to a page that
- * turns them away.
+ * The dashboard lets in the owner and Manage Server members (requireGuildManager
+ * in web/app/lib/discord.ts), so a link shown to anyone else leads to a page
+ * that turns them away. Administrator implies Manage Server here.
  */
-export function isOwner(interaction: Interaction) {
-    return !!interaction.guild && interaction.guild.ownerId === interaction.user.id;
+export function canManage(interaction: Interaction) {
+    return !!interaction.guild && !!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
 }
 
-/** A "set this up" link for the server owner, or no rows for anyone else. */
-export function ownerSetupRows(interaction: Interaction, page: DashboardPage, label: string) {
-    if (!interaction.guildId || !isOwner(interaction)) return [];
+/** A "set this up" link for anyone who can use the dashboard, or no rows for anyone else. */
+export function managerSetupRows(interaction: Interaction, page: DashboardPage, label: string) {
+    if (!interaction.guildId || !canManage(interaction)) return [];
     return [new ActionRowBuilder<ButtonBuilder>().addComponents(dashboardButton(interaction.guildId, page, label))];
 }

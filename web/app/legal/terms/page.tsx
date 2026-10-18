@@ -71,9 +71,9 @@ export default function TermsPage() {
         must have the right to use it.
       </p>
       <p>
-        Dashboard access is limited to a server&rsquo;s owner. Granting someone Manage Server
-        permissions in Discord also lets them change the bot&rsquo;s configuration there, so grant
-        it deliberately.
+        Dashboard access is limited to a server&rsquo;s owner and members with Manage Server
+        permission. Granting someone Manage Server in Discord lets them change the bot&rsquo;s
+        configuration there, so grant it deliberately.
       </p>
 
       <h2>5. Acceptable use</h2>
