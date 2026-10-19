@@ -198,7 +198,7 @@ function LocationEditor({
           value={location.minToolTier ?? 0}
           min={0}
           onChange={(v) => onChange({ ...location, minToolTier: v > 0 ? v : undefined })}
-          hint="0 means no tool needed. Make tools on the Economy page."
+          hint="0 means no tool needed. Make tools on the Items page."
         />
         <NumberField
           label="Skill XP per run"

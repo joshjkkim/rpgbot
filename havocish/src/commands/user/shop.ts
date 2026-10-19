@@ -35,6 +35,24 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 }
 
 /** The front counter (`view` "home") or one category's shelf. */
+/** The member's role ids, from whichever shape Discord sent the member in. */
+function roleIdsOf(interaction: ChatInputCommandInteraction | ButtonInteraction): string[] {
+    const m = interaction.member;
+    if (m instanceof GuildMember) return [...m.roles.cache.keys()];
+    return Array.isArray(m?.roles) ? m.roles : [];
+}
+
+/**
+ * Categories this member can see, in the owner's order: not hidden, and either
+ * open to all or limited to a role they have. The dashboard's shop preview
+ * (web/app/components/shop/shopPreview.tsx) applies the same rules.
+ */
+export function visibleCategories(config: GuildConfig, roleIds: string[]) {
+    return Object.entries(config.shop?.categories ?? {})
+        .filter(([, c]) => !c.hidden && (!c.roleRequiredIds?.length || c.roleRequiredIds.some((r) => roleIds.includes(r))))
+        .sort(([ai, a], [bi, b]) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || (a.name || ai).localeCompare(b.name || bi));
+}
+
 async function renderShop(interaction: ChatInputCommandInteraction | ButtonInteraction, view: "home" | "category", categoryId: string, page: number, status?: string) {
     const { user: dbUser } = await getOrCreateDbUser({
         discordUserId: interaction.user.id,
@@ -49,8 +67,8 @@ async function renderShop(interaction: ChatInputCommandInteraction | ButtonInter
     const container = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
     if (status) container.addTextDisplayComponents(t => t.setContent(`-# ${status}`));
 
-    const categories = config.shop?.categories ?? {};
-    const category = categories[categoryId];
+    const list = visibleCategories(config, roleIdsOf(interaction));
+    const category = list.find(([id]) => id === categoryId)?.[1];
 
     if (view === "category" && category && config.shop?.enabled) {
         return renderCategory(container, config, categoryId, page, balance);
@@ -63,13 +81,12 @@ async function renderShop(interaction: ChatInputCommandInteraction | ButtonInter
         return [container, ...managerSetupRows(interaction, "shop", "Open the shop on the dashboard")];
     }
 
-    if (Object.keys(categories).length === 0) {
+    if (list.length === 0) {
         container.addTextDisplayComponents(t => t.setContent("The shelves are bare. Nothing has been stocked yet."));
         return [container, ...managerSetupRows(interaction, "shop", "Stock the shop on the dashboard")];
     }
 
     const items = Object.values(config.shop.items ?? {});
-    const list = Object.entries(categories);
     const shelf = pageOf(list, page);
 
     container.addSeparatorComponents(s => s);
@@ -193,6 +210,11 @@ async function buyItem(interaction: ButtonInteraction, itemId: string, quantity:
     const configItem = config.shop?.items?.[itemId];
     if (!configItem) {
         return "❌ This item does not exist.";
+    }
+
+    // A hidden or role-limited category's items can't be bought through a stale button either.
+    if (!visibleCategories(config, roleIdsOf(interaction)).some(([id]) => id === configItem.categoryId)) {
+        return "❌ That item isn't for sale to you.";
     }
 
     if (configItem.requiresRoleIds && configItem.requiresRoleIds.length > 0) {

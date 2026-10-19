@@ -103,9 +103,9 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     if (config.shop?.gifting?.enabled) channel(config.shop.gifting.announceChannel, "gift announcements", "shop", POST);
     for (const it of Object.values(items)) {
         for (const a of Object.values(it.actions ?? {})) {
-            if (a.type === "assignRole" || a.type === "removeRole") role(a.roleId, `the item ${it.name}`, "shop");
-            if (a.type === "sendMessage") channel(a.channelId, `the item ${it.name}'s message`, "shop", POST);
-            if (a.type === "giveItem") item(a.itemId, `The item ${it.name}`, "shop");
+            if (a.type === "assignRole" || a.type === "removeRole") role(a.roleId, `the item ${it.name}`, "items");
+            if (a.type === "sendMessage") channel(a.channelId, `the item ${it.name}'s message`, "items", POST);
+            if (a.type === "giveItem") item(a.itemId, `The item ${it.name}`, "items");
         }
     }
 

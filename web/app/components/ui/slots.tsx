@@ -157,6 +157,8 @@ export function ContentBrowser<T>({
   renderItem,
   empty,
   above,
+  selected: controlled,
+  onSelect,
 }: {
   entries: Array<[string, T]>;
   look: (id: string, value: T) => SlotLook;
@@ -170,8 +172,13 @@ export function ContentBrowser<T>({
   empty: string;
   /** Above the grid, e.g. filter chips. */
   above?: React.ReactNode;
+  /** Pass both to control which entry is open (e.g. to jump to one from a link). */
+  selected?: string | null;
+  onSelect?: (id: string | null) => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [own, setOwn] = useState<string | null>(null);
+  const selected = controlled !== undefined ? controlled : own;
+  const setSelected = onSelect ?? setOwn;
   const current = entries.find(([id]) => id === selected);
 
   return (

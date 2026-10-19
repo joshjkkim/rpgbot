@@ -48,6 +48,7 @@ import { checkGuild, type Access } from "../src/health/checkGuild.js";
 import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
+import { visibleCategories } from "../src/commands/user/shop.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
@@ -1368,6 +1369,17 @@ async function main() {
         await flushDirtyProfiles(true);
         const row = await query<{ gold: string }>(`SELECT gold FROM user_guild_profiles WHERE user_id = $1 AND guild_id = $2`, [userId, guildId]);
         check("gold persisted", row.rows[0]?.gold, "40");
+    });
+
+    await test("shop categories follow their sort order, hidden flag and roles", async () => {
+        const cfg = { shop: { categories: {
+            b: { id: "b", name: "B", sortOrder: 2 },
+            a: { id: "a", name: "A", sortOrder: 1 },
+            secret: { id: "secret", name: "Secret", hidden: true },
+            vip: { id: "vip", name: "VIP", sortOrder: 0, roleRequiredIds: ["r1"] },
+        } } } as any;
+        check("members see unhidden categories in order", visibleCategories(cfg, []).map(([id]) => id).join(","), "a,b");
+        check("a role opens its category", visibleCategories(cfg, ["r1"]).map(([id]) => id).join(","), "vip,a,b");
     });
 
     await test("gathering: skill curve, weighted loot and the grid", async () => {

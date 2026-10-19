@@ -99,7 +99,7 @@ export default function Gathering() {
 
       <H2>Tools</H2>
       <P>
-        Any shop item can be a tool: at <Where>Economy</Where>, open the item and set <b>Gathering tool</b> to the
+        Any item can be a tool: at <Where>Items</Where>, open the item and set <b>Gathering tool</b> to the
         activity, with a <b>tier</b> and a <b>bonus</b>. Members don&apos;t equip tools. The best one in their bag counts.
       </P>
       <Table

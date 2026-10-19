@@ -5,14 +5,14 @@ import ConfigPage from "@/app/components/configPage";
 import ShopEconomyEditor from "@/app/components/shop/shopBasicsEditor";
 
 export default function ShopPageClient({ guildId }: { guildId: string }) {
-  const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
+  const { config, setConfig, guild, loading, saving, dirty, error, save } = useGuildConfig(guildId);
 
   const shop = config?.shop ?? null;
 
   return (
     <ConfigPage
       title="Economy"
-      description="Shop categories and items, what they cost, who can buy them, and what they do when used."
+      description="The shop: whether it's open, how it's grouped, and gifting. Items themselves are on the Items page."
       loading={loading}
       saving={saving}
       error={error}
@@ -22,7 +22,9 @@ export default function ShopPageClient({ guildId }: { guildId: string }) {
     >
       {config && (
         <ShopEconomyEditor
-          activities={config.gathering?.activities ?? {}}
+          guildId={guildId}
+          serverName={guild.name ?? "Your server"}
+          goldIcon={(config.style?.gold as { icon?: string } | undefined)?.icon || "💰"}
           value={shop}
           onChange={(next) => setConfig((prev) => ({ ...prev, shop: next }))}
         />

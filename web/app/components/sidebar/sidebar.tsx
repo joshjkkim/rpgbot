@@ -15,6 +15,7 @@ const sections: Array<{ label: string; tabs: Array<{ href: string; label: string
             { href: "styles", label: "Style", sprite: "palette" },
             { href: "xp", label: "XP", sprite: "potion" },
             { href: "shop", label: "Economy", sprite: "coin" },
+            { href: "items", label: "Items", sprite: "chest" },
             { href: "achievements", label: "Achievements", sprite: "trophy" },
             { href: "levels", label: "Levels", sprite: "star" },
             { href: "quests", label: "Quests", sprite: "scroll" },

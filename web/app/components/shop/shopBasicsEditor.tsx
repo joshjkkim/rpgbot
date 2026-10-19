@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import {
-  Field,
   FieldGrid,
   KeyedList,
   NumberField,
   Section,
-  SelectField,
   TextAreaField,
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
-import ItemTooltip, { RARITIES, type ItemRarity } from "./itemTooltip";
-import { ChannelField, ItemField, RoleField, RolesField } from "@/app/components/ui/pickers";
-import { ContentBrowser, idFromName } from "@/app/components/ui/slots";
+import type { ItemRarity } from "./itemTooltip";
+import Link from "next/link";
+import ShopPreview from "./shopPreview";
+import { ChannelField, RolesField } from "@/app/components/ui/pickers";
 
 type EquipSlot =
   | "head" | "body" | "legs" | "feet" | "hands"
@@ -32,13 +30,6 @@ export interface shopItemAction {
   amount?: number;
 }
 
-const ITEM_ACTION_TYPES = [
-  { value: "assignRole" as const, label: "Assign role" },
-  { value: "removeRole" as const, label: "Remove role" },
-  { value: "sendMessage" as const, label: "Send message" },
-  { value: "giveStat" as const, label: "Give stat" },
-  { value: "giveItem" as const, label: "Give item" },
-];
 
 type ItemEffects = {
   cosmetic?: {
@@ -114,76 +105,23 @@ export type ShopConfig = {
 type Props = {
   value: ShopConfig | null | undefined;
   onChange: (next: ShopConfig) => void;
-  /** Gathering activities, so an item can be made a tool for one. */
-  activities?: Record<string, { name?: string; emoji?: string }>;
+  /** For the link to the Items page. */
+  guildId: string;
+  /** For the preview's header and prices. */
+  serverName: string;
+  goldIcon: string;
 };
 
-const EQUIP_SLOTS = [
-  { value: "head" as const, label: "Head" },
-  { value: "body" as const, label: "Body" },
-  { value: "legs" as const, label: "Legs" },
-  { value: "feet" as const, label: "Feet" },
-  { value: "hands" as const, label: "Hands" },
-  { value: "weapon" as const, label: "Weapon" },
-  { value: "shield" as const, label: "Shield" },
-  { value: "accessory" as const, label: "Accessory" },
-  { value: "aura" as const, label: "Aura" },
-];
 
-const FONT_PRESETS = [
-  { value: "inter" as const, label: "Inter" },
-  { value: "sora" as const, label: "Sora" },
-  { value: "nunito" as const, label: "Nunito" },
-];
 
-function toCsv(ids?: string[]) {
-  return (ids ?? []).join(", ");
-}
 
-function fromCsv(s: string) {
-  return s.split(",").map((x) => x.trim()).filter(Boolean);
-}
 
-/**
- * Drops item effects the bot no longer runs.
- *
- * `runCommand` was offered here and saved into configs, but /use never had a
- * branch for it, so the effect silently did nothing. Filtering on load stops a
- * stored one rendering as a type with no matching option, and the next save
- * writes the config back without it.
- */
-function dropRetiredActions(config: ShopConfig): ShopConfig {
-  const items = config.items;
-  if (!items) return config;
 
-  const known = ITEM_ACTION_TYPES.map((t) => t.value) as string[];
-  const cleaned: Record<string, shopItemConfig> = {};
-
-  for (const [id, item] of Object.entries(items)) {
-    const entries = Object.entries(item?.actions ?? {});
-    const kept = entries.filter(([, a]) => known.includes(a?.type));
-
-    if (kept.length === entries.length) {
-      cleaned[id] = item;
-      continue;
-    }
-
-    // The bot keys actions by index, so reindex rather than leaving a hole.
-    const actions: Record<number, shopItemAction> = {};
-    kept.forEach(([, a], i) => {
-      actions[i] = a;
-    });
-    cleaned[id] = { ...item, actions };
-  }
-
-  return { ...config, items: cleaned };
-}
-
-export default function ShopEconomyEditor({ value, onChange, activities = {} }: Props) {
-  const [local, setLocal] = useState<ShopConfig>(dropRetiredActions(value ?? {}));
+export default function ShopEconomyEditor({ value, onChange, guildId, serverName, goldIcon }: Props) {
+  const [local, setLocal] = useState<ShopConfig>(value ?? {});
 
   useEffect(() => {
-    setLocal(dropRetiredActions(value ?? {}));
+    setLocal(value ?? {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(value)]);
 
@@ -214,9 +152,6 @@ export default function ShopEconomyEditor({ value, onChange, activities = {} }: 
     updateRoot({ categories: { ...(local.categories ?? {}), [category.id]: category } });
   }
 
-  function upsertItem(item: shopItemConfig) {
-    updateRoot({ items: { ...(local.items ?? {}), [item.id]: item } });
-  }
 
   const categoryEntries = useMemo(
     () =>
@@ -228,445 +163,19 @@ export default function ShopEconomyEditor({ value, onChange, activities = {} }: 
     [local.categories]
   );
 
-  const itemEntries = useMemo(
-    () =>
-      Object.entries(local.items ?? {}).sort((a, b) =>
-        (a[1].name || a[0]).localeCompare(b[1].name || b[0])
-      ),
-    [local.items]
-  );
 
-  const categoryOptions = useMemo(
-    () => [
-      { value: "", label: "— none —" },
-      ...categoryEntries.map(([id, c]) => ({ value: id, label: c.name || id })),
-    ],
-    [categoryEntries]
-  );
 
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const visibleItems = itemEntries.filter(([, item]) => categoryFilter === "all" || item.categoryId === categoryFilter);
-
-  /** The full form for one item, shown beside the grid when it is selected. */
-  function itemEditor(item: shopItemConfig) {
-    const actions = item.actions ?? {};
-    const actionKeys = Object.keys(actions).map(Number).sort((a, b) => a - b);
-    const effects = item.effects ?? {};
-
-    const patchEffects = (p: Partial<ItemEffects>) =>
-      upsertItem({ ...item, effects: { ...effects, ...p } });
-
-    return (
-      <div className="space-y-4">
-        <div className="max-w-xs">
-          <ItemTooltip item={item} />
-        </div>
-
-        <div className="space-y-4">
-          <FieldGrid>
-            <TextField label="Name" value={item.name} onChange={(v) => upsertItem({ ...item, name: v })} />
-            <TextField
-              label="Emoji"
-              value={item.emoji ?? ""}
-              onChange={(v) => upsertItem({ ...item, emoji: v })}
-            />
-            <SelectField
-              label="Rarity"
-              value={item.rarity ?? "common"}
-              onChange={(v) => upsertItem({ ...item, rarity: v })}
-              options={RARITIES}
-              hint="Only colours the name."
-            />
-            <SelectField
-              label="Category"
-              value={item.categoryId ?? ""}
-              onChange={(v) => upsertItem({ ...item, categoryId: v })}
-              options={categoryOptions}
-            />
-            <NumberField
-              label="Price"
-              value={item.price ?? 0}
-              min={0}
-              onChange={(v) => upsertItem({ ...item, price: v })}
-            />
-            <TextAreaField
-              label="Description"
-              value={item.description ?? ""}
-              onChange={(v) => upsertItem({ ...item, description: v })}
-              rows={2}
-            />
-          </FieldGrid>
-
-          <Field label="Availability">
-            <FieldGrid>
-              <NumberField
-                label="Sell price"
-                value={item.sellPrice ?? 0}
-                min={0}
-                onChange={(v) => upsertItem({ ...item, sellPrice: v > 0 ? v : null })}
-                hint="0 means it cannot be sold back."
-              />
-              <NumberField
-                label="Minimum level"
-                value={item.minLevel ?? 0}
-                min={0}
-                onChange={(v) => upsertItem({ ...item, minLevel: v })}
-              />
-              <NumberField
-                label="Stock"
-                value={item.stock ?? 0}
-                min={0}
-                onChange={(v) => upsertItem({ ...item, stock: v > 0 ? v : null })}
-                hint="0 means unlimited."
-              />
-              <NumberField
-                label="Max per member"
-                value={item.maxPerUser ?? 0}
-                min={0}
-                onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
-                hint="0 means no cap."
-              />
-              <RolesField
-                wide
-                label="Required roles"
-                value={item.requiresRoleIds ?? []}
-                onChange={(v) => upsertItem({ ...item, requiresRoleIds: v })}
-              />
-            </FieldGrid>
-          </Field>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Toggle label="Hidden" checked={!!item.hidden} onChange={(v) => upsertItem({ ...item, hidden: v })} />
-            <Toggle
-              label="Permanent"
-              checked={!!item.permanent}
-              onChange={(v) => upsertItem({ ...item, permanent: v })}
-              hint="Not consumed when used."
-            />
-            <Toggle
-              label="Tradeable"
-              checked={!!item.tradeable}
-              onChange={(v) => upsertItem({ ...item, tradeable: v })}
-            />
-            <Toggle
-              label="Equipable"
-              checked={!!item.equipable}
-              onChange={(v) => upsertItem({ ...item, equipable: v })}
-            />
-          </div>
-
-          {item.equipable && (
-            <FieldGrid>
-              <SelectField
-                label="Equipment slot"
-                value={item.equipSlot ?? "accessory"}
-                onChange={(v) => upsertItem({ ...item, equipSlot: v })}
-                options={EQUIP_SLOTS}
-              />
-            </FieldGrid>
-          )}
-
-          {Object.keys(activities).length > 0 && (
-            <Field
-              label="Gathering tool"
-              hint="The best tool in a player's bag counts automatically, no equipping. Each bonus point is +1 try in Grid, +0.3 s in Timing, +1 s in Find it."
-            >
-              <FieldGrid>
-                <SelectField
-                  label="Tool for"
-                  value={item.tool?.activityId ?? ""}
-                  onChange={(v) => upsertItem({ ...item, tool: v ? { tier: 1, bonus: 1, ...item.tool, activityId: v } : undefined })}
-                  options={[
-                    { value: "", label: "Not a tool" },
-                    ...Object.entries(activities).map(([id, a]) => ({ value: id, label: `${a.emoji ?? ""} ${a.name ?? id}`.trim() })),
-                  ]}
-                />
-                {item.tool && (
-                  <>
-                    <NumberField
-                      label="Tier"
-                      value={item.tool.tier ?? 1}
-                      min={1}
-                      onChange={(v) => upsertItem({ ...item, tool: { ...item.tool!, tier: v } })}
-                      hint="Locations can need a minimum tier."
-                    />
-                    <NumberField
-                      label="Bonus"
-                      value={item.tool.bonus ?? 0}
-                      min={0}
-                      onChange={(v) => upsertItem({ ...item, tool: { ...item.tool!, bonus: v } })}
-                    />
-                  </>
-                )}
-              </FieldGrid>
-            </Field>
-          )}
-
-          <Field label="Equipped stat bonuses">
-            <FieldGrid>
-              {(["hp", "atk", "def", "spd", "crit"] as const).map((stat) => (
-                <NumberField
-                  key={stat}
-                  label={stat.toUpperCase()}
-                  value={effects.stats?.[stat] ?? 0}
-                  step={stat === "crit" ? 0.01 : 1}
-                  onChange={(v) => patchEffects({ stats: { ...(effects.stats ?? {}), [stat]: v } })}
-                />
-              ))}
-            </FieldGrid>
-          </Field>
-
-          <Field label="Boosts">
-            <FieldGrid>
-              <NumberField
-                label="XP multiplier"
-                value={effects.boosts?.xpMultiplier ?? 1}
-                step={0.1}
-                min={0}
-                onChange={(v) =>
-                  patchEffects({ boosts: { ...(effects.boosts ?? {}), xpMultiplier: v } })
-                }
-              />
-              <NumberField
-                label="Gold multiplier"
-                value={effects.boosts?.goldMultiplier ?? 1}
-                step={0.1}
-                min={0}
-                onChange={(v) =>
-                  patchEffects({ boosts: { ...(effects.boosts ?? {}), goldMultiplier: v } })
-                }
-              />
-            </FieldGrid>
-          </Field>
-
-          <Field label="Cosmetic">
-            <FieldGrid>
-              <TextField
-                label="Title"
-                value={effects.cosmetic?.title ?? ""}
-                onChange={(v) => patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), title: v } })}
-              />
-              <TextField
-                label="Name emoji"
-                value={effects.cosmetic?.nameEmoji ?? ""}
-                onChange={(v) =>
-                  patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), nameEmoji: v } })
-                }
-              />
-              <TextField
-                label="Accent hex"
-                value={effects.cosmetic?.accentHex ?? ""}
-                onChange={(v) =>
-                  patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), accentHex: v } })
-                }
-                placeholder="#00AE86"
-                mono
-              />
-              <TextField
-                label="Text hex"
-                value={effects.cosmetic?.textHex ?? ""}
-                onChange={(v) =>
-                  patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), textHex: v } })
-                }
-                placeholder="#FFFFFF"
-                mono
-              />
-              <SelectField
-                label="Font"
-                value={effects.cosmetic?.fontPreset ?? "inter"}
-                onChange={(v) =>
-                  patchEffects({ cosmetic: { ...(effects.cosmetic ?? {}), fontPreset: v } })
-                }
-                options={FONT_PRESETS}
-              />
-              <TextField
-                label="Unlocks quest IDs"
-                value={toCsv(effects.quest?.canStartQuestIds)}
-                onChange={(v) => patchEffects({ quest: { canStartQuestIds: fromCsv(v) } })}
-                placeholder="Comma-separated"
-                mono
-              />
-            </FieldGrid>
-          </Field>
-
-          <Field label="Actions on use">
-            <div className="space-y-3">
-              {actionKeys.length === 0 && (
-                <p className="text-xs text-[var(--muted)]">
-                  Nothing happens when this item is used.
-                </p>
-              )}
-
-              {actionKeys.map((key) => {
-                const action = actions[key] ?? { type: "sendMessage" as const };
-                const patch = (p: Partial<shopItemAction>) =>
-                  upsertItem({ ...item, actions: { ...actions, [key]: { ...action, ...p } } });
-
-                return (
-                  <div
-                    key={key}
-                    className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs text-[var(--muted)]">Action {key}</span>
-                      <button
-                        type="button"
-                        aria-label="Remove action"
-                        onClick={() => {
-                          const next = { ...actions };
-                          delete next[key];
-                          upsertItem({ ...item, actions: next });
-                        }}
-                        className="text-[var(--muted)] transition-colors hover:text-red-400"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-
-                    <FieldGrid>
-                      <SelectField
-                        label="Type"
-                        value={action.type}
-                        onChange={(v) => patch({ type: v })}
-                        options={ITEM_ACTION_TYPES}
-                      />
-
-                      {(action.type === "assignRole" || action.type === "removeRole") && (
-                        <RoleField
-                          label="Role"
-                          value={action.roleId ?? ""}
-                          onChange={(v) => patch({ roleId: v })}
-                        />
-                      )}
-
-                      {action.type === "sendMessage" && (
-                        <>
-                          <ChannelField
-                            label="Channel"
-                            value={action.channelId ?? ""}
-                            onChange={(v) => patch({ channelId: v })}
-                          />
-                          <TextField
-                            wide
-                            label="Message"
-                            value={action.message ?? ""}
-                            onChange={(v) => patch({ message: v })}
-                          />
-                        </>
-                      )}
-
-                      {action.type === "giveStat" && (
-                        <>
-                          <TextField
-                            label="Stat ID"
-                            value={action.statId ?? ""}
-                            onChange={(v) => patch({ statId: v })}
-                            placeholder="gold, xp or health"
-                            mono
-                          />
-                          <NumberField
-                            label="Amount"
-                            value={action.amount ?? 0}
-                            onChange={(v) => patch({ amount: v })}
-                          />
-                        </>
-                      )}
-
-                      {action.type === "giveItem" && (
-                        <>
-                          <ItemField items={local.items ?? {}}
-                            label="Item"
-                            value={action.itemId ?? ""}
-                            onChange={(v) => patch({ itemId: v })}
-                          />
-                          <NumberField
-                            label="Quantity"
-                            value={action.quantity ?? 1}
-                            min={1}
-                            onChange={(v) => patch({ quantity: v })}
-                          />
-                        </>
-                      )}
-                    </FieldGrid>
-                  </div>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() => {
-                  const nextKey = actionKeys.length ? Math.max(...actionKeys) + 1 : 0;
-                  upsertItem({
-                    ...item,
-                    actions: { ...actions, [nextKey]: { type: "sendMessage", message: "" } },
-                  });
-                }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
-              >
-                <Plus size={14} /> Add action
-              </button>
-            </div>
-          </Field>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
-      <Section
-        title="Items"
-        description="What is for sale, and what it does. Hover an item to see how members see it, click it to edit."
-      >
-        <ContentBrowser<shopItemConfig>
-          entries={visibleItems}
-          newLabel="New item"
-          empty="No items for sale yet."
-          above={
-            <>
-            {categoryEntries.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {[["all", "All"] as const, ...categoryEntries.map(([id, c]) => [id, `${c.icon ?? ""} ${c.name || id}`.trim()] as const)].map(
-                  ([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={categoryFilter === id}
-                      onClick={() => setCategoryFilter(id)}
-                      className={`rounded-sm border px-2 py-1 text-xs transition-colors ${
-                        categoryFilter === id
-                          ? "border-[var(--accent)] text-[var(--accent)]"
-                          : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--border-bright)]"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-            </>
-          }
-          look={(id, item) => ({
-            icon: item.emoji,
-            label: item.name || id,
-            colour: RARITIES.find((r) => r.value === item.rarity)?.colour,
-            faded: item.hidden,
-          })}
-          tooltip={(_, item) => <ItemTooltip item={item} />}
-          onCreate={(name) => {
-            const id = idFromName(name, Object.keys(local.items ?? {}));
-            const categoryId = categoryFilter !== "all" ? categoryFilter : (categoryEntries[0]?.[0] ?? "");
-            upsertItem({ id, name, categoryId, price: 100 });
-            return id;
-          }}
-          onRemove={(id) => {
-            const next = { ...(local.items ?? {}) };
-            delete next[id];
-            updateRoot({ items: next });
-          }}
-          renderItem={(_, item) => itemEditor(item)}
-        />
+      <Section title="Preview" description="/shop as members see it, before you save. Click Browse to open a category.">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
+          <ShopPreview shop={local} goldIcon={goldIcon} serverName={serverName} />
+          <p className="text-sm leading-6 text-[var(--muted)]">
+            Items are made on the <Link href={`/dashboard/${guildId}/items`} className="text-[var(--accent)] underline">Items</Link> page.
+            Anything with a price that isn&apos;t hidden shows here, in its category. Categories are listed by their sort order.
+          </p>
+        </div>
       </Section>
 
       <Section title="General" description="Whether the shop is open, and how gifting works." defaultOpen={!local.enabled}>
