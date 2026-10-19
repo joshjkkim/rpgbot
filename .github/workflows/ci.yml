@@ -39,6 +39,13 @@ jobs:
         working-directory: web
         run: npx tsc --noEmit
 
+      # The docs' command reference is generated from the bot's command list.
+      - name: Command reference is up to date
+        working-directory: havocish
+        run: |
+          npm run docs:commands
+          git diff --exit-code -- ../web/app/docs/commands.json || (echo "Run 'npm run docs:commands' in havocish/ and commit the result." && exit 1)
+
       # Advisory, not blocking. The dashboard currently has 37 pre-existing
       # `@typescript-eslint/no-explicit-any` errors, mostly untyped config
       # objects in the editors. Making this required today would mean CI is red

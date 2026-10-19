@@ -17,7 +17,8 @@
     "migrate": "./scripts/migrate.sh --all",
     "migrate:status": "./scripts/migrate.sh --status",
     "start": "node dist/index.js",
-    "changelog:post": "tsx scripts/changelog-post.ts"
+    "changelog:post": "tsx scripts/changelog-post.ts",
+    "docs:commands": "tsx scripts/dump-commands.ts"
   },
   "keywords": [],
   "author": "",
