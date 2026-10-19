@@ -22,7 +22,7 @@ export default function ShopPageClient({ guildId }: { guildId: string }) {
     >
       {config && (
         <ShopEconomyEditor
-          activities={config.gathering?.activities ?? {}}
+          guildId={guildId}
           value={shop}
           onChange={(next) => setConfig((prev) => ({ ...prev, shop: next }))}
         />

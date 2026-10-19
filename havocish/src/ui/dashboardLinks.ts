@@ -7,7 +7,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, type
 const DASHBOARD_URL = (process.env.DASHBOARD_URL?.trim() || "https://havocish.com").replace(/\/+$/, "");
 
 /** Pages under /dashboard/<guildId>/ in the web app. */
-export type DashboardPage = "setup" | "presets" | "xp" | "levels" | "shop" | "combat" | "quests" | "achievements" | "styles" | "logging" | "gathering";
+export type DashboardPage = "setup" | "presets" | "xp" | "levels" | "shop" | "combat" | "quests" | "achievements" | "styles" | "logging" | "gathering" | "items";
 
 export function dashboardButton(guildId: string, page?: DashboardPage, label = "Open dashboard") {
     return new ButtonBuilder()

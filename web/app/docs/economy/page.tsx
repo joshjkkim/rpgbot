@@ -14,12 +14,18 @@ export default function Economy() {
 
       <H2>The shop</H2>
       <P>
-        Turn the shop on and stock it at <Where>Economy</Where>. Items sit in <b>categories</b> (like Armoury or
+        Turn the shop on at <Where>Economy</Where>, and make items at <Where>Items</Where>. Items sit in <b>categories</b> (like Armoury or
         Apothecary), each with an icon and description. A category can be hidden, or limited to members with a role.
         Members browse with <C>/shop</C>, which lists what each item does next to its price.
       </P>
 
       <H2>Designing an item</H2>
+      <P>
+        Every item lives on <Where>Items</Where>. Click one to see it as members do, with two lists above its settings:
+        <b> comes from</b> (the shop, enemy drops with their chance, gathering locations with their share of finds, quest
+        and achievement rewards, and other items that give it) and <b>used for</b> (gear slot, tool, use effects, selling,
+        trading). Each one links to where it&apos;s set. Warnings appear right there too, like an item that nothing gives.
+      </P>
       <H3>Basics</H3>
       <Table
         head={["Field", "What it does"]}
