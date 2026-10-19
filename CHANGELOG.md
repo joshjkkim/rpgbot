@@ -2,7 +2,7 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.11 · October 18, 2026
 
 ### New
 - **Gathering.** Mine, fish and forage with `/gather`, each its own minigame. Mining: swing at a grid of rocks, and leave before a cave-in takes half your haul. Fishing: cast, wait for the bite, and reel in time; rare fish fight back. Foraging: spot the herb among the weeds before time runs out. Each activity has its own energy bar of 10 runs that refills over an hour, so you can settle in for a proper session.
@@ -10,11 +10,11 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **For server owners: make your own gathering.** On the new Gathering page of the dashboard, create any activity you like (salvaging, baking, stargazing), pick one of three minigames for it, and write every word players see. Set its locations, what each one finds and how often. Any shop item can be a tool. Classic Fantasy now includes Mining, Fishing and Foraging, and if you added it before, click **Add to my server** on Starter packs to get them.
 
 ### Improved
+- **A new home on the web.** havocish.com/features shows everything the bot does (you can even try a round of mining there), and havocish.com/docs has setup guides for every feature and a list of every command.
 - **See what an item does before you buy it.** The shop now lists each item's stats, equip bonuses and use effects, like *+12 Attack · Equip: Fights award 10% more gold* or *Use: Gives 30 health.*
 - **For server owners: your moderators can use the dashboard.** Anyone with **Manage Server** in Discord can now open and edit your server on havocish.com, not just the owner. They could already change settings with commands, so this gives them the easier way to do it.
 - **For server owners: `/config` is now a row of switches.** Click Shop, Quests, Duels, World bosses and the rest to turn them on or off, right in Discord. Setting things up (items, enemies, quests, levels) happens on the dashboard.
 - **For server owners: `/set` and `/admin-inv` are now `/admin set` and `/admin items`.** Same options, one command.
-
 - **For server owners: items have their own page.** On the dashboard's new Items page, every item shows where it comes from (the shop, which enemies drop it and how often, where it's gathered, which quests reward it) and what it's for, with links to each. It also warns you about items nothing gives. Economy now shows a live preview of `/shop` as members see it.
 
 ### Fixed
