@@ -15,7 +15,10 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **For server owners: `/config` is now a row of switches.** Click Shop, Quests, Duels, World bosses and the rest to turn them on or off, right in Discord. Setting things up (items, enemies, quests, levels) happens on the dashboard.
 - **For server owners: `/set` and `/admin-inv` are now `/admin set` and `/admin items`.** Same options, one command.
 
+- **For server owners: items have their own page.** On the dashboard's new Items page, every item shows where it comes from (the shop, which enemies drop it and how often, where it's gathered, which quests reward it) and what it's for, with links to each. It also warns you about items nothing gives. Economy now shows a live preview of `/shop` as members see it.
+
 ### Fixed
+- Shop categories now follow their sort order, and hidden categories and categories limited to a role are kept from members who shouldn't see them. All three settings were ignored before.
 - Voice XP was paid even with Voice XP turned off. The switch now works. If your server wants voice XP, turn it on in `/config`.
 - Renaming an item, or changing its emoji or description, now shows up everywhere. Items people already owned kept the old name in `/inventory`, `/me` and `/trade`.
 

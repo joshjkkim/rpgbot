@@ -12,6 +12,7 @@ import {
 } from "@/app/components/ui/form";
 import type { ItemRarity } from "./itemTooltip";
 import Link from "next/link";
+import ShopPreview from "./shopPreview";
 import { ChannelField, RolesField } from "@/app/components/ui/pickers";
 
 type EquipSlot =
@@ -106,6 +107,9 @@ type Props = {
   onChange: (next: ShopConfig) => void;
   /** For the link to the Items page. */
   guildId: string;
+  /** For the preview's header and prices. */
+  serverName: string;
+  goldIcon: string;
 };
 
 
@@ -113,7 +117,7 @@ type Props = {
 
 
 
-export default function ShopEconomyEditor({ value, onChange, guildId }: Props) {
+export default function ShopEconomyEditor({ value, onChange, guildId, serverName, goldIcon }: Props) {
   const [local, setLocal] = useState<ShopConfig>(value ?? {});
 
   useEffect(() => {
@@ -164,9 +168,15 @@ export default function ShopEconomyEditor({ value, onChange, guildId }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="rounded-sm border border-[var(--border)] bg-black/20 px-4 py-3 text-sm text-[var(--muted)]">
-        Items have their own page now: see <Link href={`/dashboard/${guildId}/items`} className="text-[var(--accent)] underline">Items</Link>. This page sets up the shop itself.
-      </p>
+      <Section title="Preview" description="/shop as members see it, before you save. Click Browse to open a category.">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
+          <ShopPreview shop={local} goldIcon={goldIcon} serverName={serverName} />
+          <p className="text-sm leading-6 text-[var(--muted)]">
+            Items are made on the <Link href={`/dashboard/${guildId}/items`} className="text-[var(--accent)] underline">Items</Link> page.
+            Anything with a price that isn&apos;t hidden shows here, in its category. Categories are listed by their sort order.
+          </p>
+        </div>
+      </Section>
 
       <Section title="General" description="Whether the shop is open, and how gifting works." defaultOpen={!local.enabled}>
         <Toggle
