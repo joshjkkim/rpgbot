@@ -266,10 +266,13 @@ function LocationEditor({
 }
 
 export default function GatheringEditor({ value, onChange, shopItems }: Props) {
-  const [local, setLocal] = useState<GatheringConfig>(value ?? DEFAULT_GATHERING);
+  // A pack can add activities to a server that never saved gathering settings, so fill in the rest.
+  const withDefaults = (v: GatheringConfig | null | undefined): GatheringConfig =>
+    ({ ...DEFAULT_GATHERING, ...(v ?? {}), skill: { ...DEFAULT_GATHERING.skill, ...(v?.skill ?? {}) } });
+  const [local, setLocal] = useState<GatheringConfig>(withDefaults(value));
 
   useEffect(() => {
-    setLocal(value ?? DEFAULT_GATHERING);
+    setLocal(withDefaults(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(value)]);
 

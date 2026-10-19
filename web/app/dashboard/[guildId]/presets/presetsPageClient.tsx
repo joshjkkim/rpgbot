@@ -9,6 +9,7 @@ import {
   hasEntry,
   missingCount,
   PACK_FEATURES,
+  packFeatures,
   type GuildConfigJson,
   type StarterPack,
 } from "@/app/lib/starterPacks";
@@ -18,6 +19,7 @@ const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   combat: "Combat",
   quests: "Quests",
   achievements: "Achievements",
+  gathering: "Gathering",
 };
 
 type Row = { id: string; label: string; detail?: string; colour?: string };
@@ -42,9 +44,9 @@ function PackColumn({ title, rows, taken }: { title: string; rows: Row[]; taken:
 }
 
 function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: GuildConfigJson; saving: boolean; onAdd: () => void }) {
-  const { shop, combat, quests, achievements } = pack.content;
+  const { shop, combat, quests, achievements, gathering } = pack.content;
   const missing = missingCount(config, pack);
-  const featuresOff = PACK_FEATURES.filter((f) => !config?.[f]?.enabled);
+  const featuresOff = packFeatures(pack).filter((f) => !config?.[f]?.enabled);
   const upToDate = missing === 0 && featuresOff.length === 0;
 
   const items: Row[] = Object.entries(shop.items ?? {}).map(([id, item]) => ({
@@ -60,6 +62,11 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
   }));
   const questRows: Row[] = Object.entries(quests.quests ?? {}).map(([id, q]) => ({ id, label: q.name }));
   const achievementRows: Row[] = Object.entries(achievements.achievements ?? {}).map(([id, a]) => ({ id, label: a.name }));
+  const activityRows: Row[] = Object.entries(gathering?.activities ?? {}).map(([id, a]) => ({
+    id,
+    label: `${a.emoji ?? ""} ${a.name}`.trim(),
+    detail: `${Object.keys(a.locations ?? {}).length} locations`,
+  }));
 
   return (
     <section className="frame space-y-5 p-5">
@@ -87,6 +94,9 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
           rows={achievementRows}
           taken={(id) => hasEntry(config, "achievements", "achievements", id)}
         />
+        {activityRows.length > 0 && (
+          <PackColumn title="Gathering" rows={activityRows} taken={(id) => hasEntry(config, "gathering", "activities", id)} />
+        )}
       </div>
     </section>
   );

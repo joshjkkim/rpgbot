@@ -3,7 +3,7 @@ import type { GatheringActivity, GatheringLocation, GatheringLoot } from "../typ
 import type { item } from "../types/userprofile.js";
 import type { shopItemConfig } from "../types/economy.js";
 import type { PendingProfileChanges } from "../types/cache.js";
-import { calculateLevelFromXp } from "../leveling/levels.js";
+import { calculateLevelFromXp, calculateTotalXpForLevel } from "../leveling/levels.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 
 /**
@@ -12,11 +12,24 @@ import { getOrCreateProfile, commitProfileChanges } from "../cache/profileServic
  * themselves (commands/user/gather.ts) only decide how many finds a run makes.
  */
 
+// The chat level code already handles every curve type; it only reads `levels`.
+const asLevels = (config: GuildConfig) => {
+    const { maxLevel, curveType, curveParams } = config.gathering.skill;
+    return { levels: { maxLevel, curveType, curveParams, xpOverrides: {} } } as unknown as GuildConfig;
+};
+
 /** A gathering skill level from its XP, on the server's gathering curve. */
 export function skillLevel(xp: number, config: GuildConfig): number {
-    const { maxLevel, curveType, curveParams } = config.gathering.skill;
-    // The chat level code already handles every curve type; it only reads `levels`.
-    return calculateLevelFromXp(xp, { levels: { maxLevel, curveType, curveParams, xpOverrides: {} } } as unknown as GuildConfig);
+    return calculateLevelFromXp(xp, asLevels(config));
+}
+
+/** Level, and XP into it out of what it takes, for progress bars. `span` is 0 at the cap. */
+export function skillProgress(xp: number, config: GuildConfig) {
+    const level = skillLevel(xp, config);
+    if (level >= config.gathering.skill.maxLevel) return { level, into: 0, span: 0 };
+    const from = calculateTotalXpForLevel(level, asLevels(config));
+    const to = calculateTotalXpForLevel(level + 1, asLevels(config));
+    return { level, into: Math.max(0, xp - from), span: Math.max(1, to - from) };
 }
 
 export function enabledActivities(config: GuildConfig): GatheringActivity[] {

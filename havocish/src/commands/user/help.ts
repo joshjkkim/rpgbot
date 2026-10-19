@@ -14,11 +14,12 @@ export const data = new SlashCommandBuilder()
     .setName("help")
     .setDescription("How havocish works and which commands to use");
 
-type Page = "start" | "combat" | "items" | "social" | "owner";
+type Page = "start" | "combat" | "gathering" | "items" | "social" | "owner";
 
 const TABS: Array<{ page: Page; label: string; emoji: string }> = [
     { page: "start", label: "Getting started", emoji: "🌱" },
     { page: "combat", label: "Combat", emoji: "⚔️" },
+    { page: "gathering", label: "Gathering", emoji: "⛏️" },
     { page: "items", label: "Items", emoji: "🎒" },
     { page: "social", label: "Quests & friends", emoji: "📜" },
     { page: "owner", label: "Server owners", emoji: "🛠️" },
@@ -66,6 +67,22 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                     ].filter((l, i, all) => l !== "" || all[i - 1] !== "")
                     : [off("Combat")],
             };
+        case "gathering": {
+            const activities = Object.values(config.gathering?.activities ?? {}).filter((a) => a.enabled !== false);
+            return {
+                title: "⛏️ Gathering",
+                lines: config.gathering?.enabled && activities.length
+                    ? [
+                        "`/gather` pick an activity and play its minigame to find materials. Sell them in `/inventory`.",
+                        ...activities.map((a) => `${a.emoji} **${a.name}** trains your ${a.skillName} skill`),
+                        "",
+                        "📈 **Skills** go up every run. Higher skill opens better locations and makes the game easier.",
+                        "🧰 **Tools** from the shop make it easier still, and some locations need one. The best tool in your bag counts.",
+                        "`/me` shows your skills and tools.",
+                    ]
+                    : [off("Gathering")],
+            };
+        }
         case "items":
             return {
                 title: "🎒 Items",
@@ -124,16 +141,15 @@ function render(page: Page, config: GuildConfig, guildId: string, isOwner: boole
         .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
         .setDescription(lines.join("\n"));
 
-    const tabs = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        TABS.filter((t) => t.page !== "owner" || isOwner).map((t) =>
-            new ButtonBuilder()
-                .setCustomId(`help:${t.page}`)
-                .setLabel(t.label)
-                .setEmoji(t.emoji)
-                .setStyle(t.page === page ? ButtonStyle.Primary : ButtonStyle.Secondary),
-        ),
+    const buttons = TABS.filter((t) => t.page !== "owner" || isOwner).map((t) =>
+        new ButtonBuilder()
+            .setCustomId(`help:${t.page}`)
+            .setLabel(t.label)
+            .setEmoji(t.emoji)
+            .setStyle(t.page === page ? ButtonStyle.Primary : ButtonStyle.Secondary),
     );
-    const rows = [tabs];
+    // A row holds five buttons.
+    const rows = [buttons.slice(0, 3), buttons.slice(3)].map((b) => new ActionRowBuilder<ButtonBuilder>().addComponents(b));
     if (page === "owner" && isOwner) {
         rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(dashboardButton(guildId, undefined, "Open dashboard")));
     }
