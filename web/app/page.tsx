@@ -28,7 +28,7 @@ const SHOWCASE = [
 ];
 
 const ALSO: Array<[SpriteName, string]> = [
-  ["pickaxe", "Mining, fishing and foraging minigames, or your own"],
+  ["pickaxe", "Gathering skills you invent, each played as a minigame"],
   ["skull", "Turn-based fights against enemies you write"],
   ["swords", "Duels between members, with gold on the line"],
   ["scroll", "Quests and achievements with custom rewards"],
