@@ -36,6 +36,9 @@ export function SiteHeader() {
         <Link href="/features" className="hidden text-sm text-[var(--muted)] hover:text-[var(--accent)] sm:inline">
           Features
         </Link>
+        <Link href="/docs" className="hidden text-sm text-[var(--muted)] hover:text-[var(--accent)] sm:inline">
+          Docs
+        </Link>
       </div>
 
       {session ? (
@@ -66,6 +69,8 @@ export function SiteFooter() {
       features on and off.
       <div className="mt-3">
         <a href="/features" className="hover:text-[var(--accent)]">Features</a>
+        {" · "}
+        <a href="/docs" className="hover:text-[var(--accent)]">Docs</a>
         {" · "}
         <a href="/changelog" className="hover:text-[var(--accent)]">Changelog</a>
         {" · "}

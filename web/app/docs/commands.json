@@ -1,0 +1,2691 @@
+[
+  {
+    "name": "daily",
+    "description": "Claim your daily reward",
+    "managersOnly": false,
+    "options": []
+  },
+  {
+    "name": "duel",
+    "description": "Challenge another member to a duel",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "opponent",
+        "description": "Who to challenge",
+        "type": "user",
+        "required": true
+      },
+      {
+        "name": "wager",
+        "description": "Gold each side stakes (0 for a friendly duel)",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "equip",
+    "description": "Equip an item from your inventory",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "item_id",
+        "description": "The item to equip",
+        "type": "text",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "fight",
+    "description": "Fight an enemy for XP and gold!",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "enemy",
+        "description": "Enemy ID to fight (leave blank for a random eligible enemy)",
+        "type": "text",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "gather",
+    "description": "Go gathering: pick one of this server's activities",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "activity",
+        "description": "What to do",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "location",
+        "description": "Where to go (defaults to your best one)",
+        "type": "text",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "gift",
+    "description": "Gift an item to another player",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "receiver",
+        "description": "The player to receive the gift",
+        "type": "user",
+        "required": true
+      },
+      {
+        "name": "item_id",
+        "description": "The item to gift",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "quantity",
+        "description": "The quantity of the item to gift",
+        "type": "number",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "help",
+    "description": "How havocish works and which commands to use",
+    "managersOnly": false,
+    "options": []
+  },
+  {
+    "name": "inventory",
+    "description": "View your inventory",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "user",
+        "description": "The user whose inventory you want to view",
+        "type": "user",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "item",
+    "description": "Look up what an item does",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "item_id",
+        "description": "The item to inspect",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "share",
+        "description": "Post the card in the channel instead of only to you",
+        "type": "true/false",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "leaderboard",
+    "description": "View the server leaderboard",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "type",
+        "description": "The type of leaderboard to view",
+        "type": "text",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "levels",
+    "description": "View info about levels and XP",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "info",
+        "description": "View server info about levels and XP",
+        "kind": "subcommand"
+      },
+      {
+        "name": "calculate",
+        "description": "Calculate XP needed for a level",
+        "options": [
+          {
+            "name": "level",
+            "description": "The level to calculate XP for",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "me",
+    "description": "Your character at a glance: HP, stats and gear",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "user",
+        "description": "Look at someone else's character instead",
+        "type": "user",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "profile",
+    "description": "View your profile",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "user",
+        "description": "The user to view the profile of",
+        "type": "user",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "quests",
+    "description": "Your quest log: what to do, your progress and the rewards",
+    "managersOnly": false,
+    "options": []
+  },
+  {
+    "name": "settings",
+    "description": "Manage your user settings",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "view",
+        "description": "View your current settings",
+        "kind": "subcommand"
+      },
+      {
+        "name": "update",
+        "description": "Update your user settings",
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "shop",
+    "description": "View the shop and your balance",
+    "managersOnly": false,
+    "options": []
+  },
+  {
+    "name": "trade",
+    "description": "Trade items/gold with another player",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "offer",
+        "description": "Open your inventory and start a trade offer",
+        "options": [
+          {
+            "name": "receiver",
+            "description": "The player to send the trade offer to",
+            "type": "user",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "inbound",
+        "description": "View your inbound trade offers",
+        "kind": "subcommand"
+      },
+      {
+        "name": "outbound",
+        "description": "View your outbound trade offers",
+        "kind": "subcommand"
+      },
+      {
+        "name": "accept",
+        "description": "Accept a trade offer",
+        "options": [
+          {
+            "name": "trade_id",
+            "description": "The trade to accept",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "deny",
+        "description": "Deny an inbound trade offer",
+        "options": [
+          {
+            "name": "trade_id",
+            "description": "The trade to deny",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "cancel",
+        "description": "Cancel one of your outbound trade offers",
+        "options": [
+          {
+            "name": "trade_id",
+            "description": "The trade to cancel",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "unequip",
+    "description": "Unequip a slot from your equipment",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "slot",
+        "description": "The slot id to unequip",
+        "type": "text",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "use",
+    "description": "Use an item from your inventory",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "item_id",
+        "description": "The item to use",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "quantity",
+        "description": "The quantity of the item to use",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "admin",
+    "description": "Change a member's XP, level, gold, streak or items",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "set",
+        "description": "Set a member's XP, level, gold or streak",
+        "options": [
+          {
+            "name": "xp",
+            "description": "Set the XP of a user",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user to set XP for",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "amount",
+                "description": "The amount of XP to set to",
+                "type": "number",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          },
+          {
+            "name": "level",
+            "description": "Set the level of a user",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user to set level for",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "level",
+                "description": "The level to set to",
+                "type": "number",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          },
+          {
+            "name": "gold",
+            "description": "Set the gold of a user",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user to set gold for",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "amount",
+                "description": "The amount of gold to set to",
+                "type": "number",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          },
+          {
+            "name": "streak",
+            "description": "Set the streak count of a user",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user to set streak count for",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "count",
+                "description": "The streak count to set to",
+                "type": "number",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          }
+        ],
+        "kind": "group"
+      },
+      {
+        "name": "items",
+        "description": "View, give or remove a member's items",
+        "options": [
+          {
+            "name": "view",
+            "description": "View a user's inventory",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user whose inventory to view",
+                "type": "user",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          },
+          {
+            "name": "clear",
+            "description": "Clear a user's inventory",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user whose inventory to clear",
+                "type": "user",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          },
+          {
+            "name": "remove",
+            "description": "Remove a specific item from a user's inventory",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user whose item to remove",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "item_id",
+                "description": "The item to remove",
+                "type": "text",
+                "required": true
+              },
+              {
+                "name": "quantity",
+                "description": "The quantity of the item to remove",
+                "type": "number",
+                "required": false
+              }
+            ],
+            "kind": "subcommand"
+          },
+          {
+            "name": "give",
+            "description": "Give a specific item to a user's inventory",
+            "options": [
+              {
+                "name": "user",
+                "description": "The user to give the item to",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "item_id",
+                "description": "The item to give",
+                "type": "text",
+                "required": true
+              },
+              {
+                "name": "quantity",
+                "description": "The quantity of the item to give",
+                "type": "number",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          }
+        ],
+        "kind": "group"
+      }
+    ]
+  },
+  {
+    "name": "boss",
+    "description": "World bosses the whole server fights together",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "summon",
+        "description": "Summon a world boss in this channel",
+        "options": [
+          {
+            "name": "boss",
+            "description": "Boss ID (leave blank for a random boss)",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config",
+    "description": "Turn havocish features on or off. Everything else is on the dashboard.",
+    "managersOnly": true,
+    "options": []
+  },
+  {
+    "name": "config-achievements",
+    "description": "Configure Achievement settings for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current achievement configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "enable-achievements",
+        "description": "Enable achievements system in this server",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable achievements",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-achievements",
+        "description": "List all configured achievements",
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-achievement",
+        "description": "Add a new achievement",
+        "options": [
+          {
+            "name": "id",
+            "description": "String ID (must be unique)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "Name of the achievement",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "description",
+            "description": "Description of the achievement",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "category",
+            "description": "Category of the achievement",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "condition",
+            "description": "Condition JSON (see /config-achievements help)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "reward",
+            "description": "Reward JSON (optional, see help)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "secret",
+            "description": "Hide this achievement until unlocked",
+            "type": "true/false",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "edit-achievement",
+        "description": "Edit an existing achievement",
+        "options": [
+          {
+            "name": "id",
+            "description": "ID of the achievement to edit",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "field",
+            "description": "Field of the achievement to edit (name, description, category, condition, reward, secret)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "value",
+            "description": "New value for the field",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-achievement",
+        "description": "Remove an achievement by ID",
+        "options": [
+          {
+            "name": "id",
+            "description": "ID of the achievement to remove",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "help",
+        "description": "Show examples for condition/reward JSON",
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-combat",
+    "description": "Configure combat settings for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current combat configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "enabled",
+        "description": "Enable or disable combat",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable combat",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "hp",
+        "description": "Set HP base and per-level values",
+        "options": [
+          {
+            "name": "base",
+            "description": "Base HP (default: 100)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "per_level",
+            "description": "HP added per level (default: 10)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "attack",
+        "description": "Set attack base and per-level values",
+        "options": [
+          {
+            "name": "base",
+            "description": "Base attack (default: 10)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "per_level",
+            "description": "Attack added per level (default: 2)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "defense",
+        "description": "Set defense base and per-level values",
+        "options": [
+          {
+            "name": "base",
+            "description": "Base defense (default: 5)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "per_level",
+            "description": "Defense added per level (default: 1)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "speed",
+        "description": "Set speed base and per-level values",
+        "options": [
+          {
+            "name": "base",
+            "description": "Base speed (default: 5)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "per_level",
+            "description": "Speed added per level (default: 1)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "crit",
+        "description": "Set crit chance and multiplier base/per-level values",
+        "options": [
+          {
+            "name": "chance_base",
+            "description": "Base crit chance % (default: 5)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "chance_per_level",
+            "description": "Crit chance % added per level (default: 0.5)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "multiplier_base",
+            "description": "Base crit damage multiplier (default: 1.5)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "multiplier_per_level",
+            "description": "Crit multiplier added per level (default: 0.05)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "pve-death-penalty",
+        "description": "Configure gold/XP loss when a player dies in PvE combat",
+        "options": [
+          {
+            "name": "gold_percent",
+            "description": "% of current gold lost on death (e.g. 5 = 5%). Default: 0",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "gold_flat",
+            "description": "Minimum flat gold always lost on death. Default: 0",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "xp_percent",
+            "description": "% of current XP lost on death. Default: 0 (not recommended)",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "pvp-death-penalty",
+        "description": "Configure gold/XP loss when a player dies in PvP combat",
+        "options": [
+          {
+            "name": "gold_percent",
+            "description": "% of current gold lost on death. Default: 0",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "gold_flat",
+            "description": "Minimum flat gold always lost on death. Default: 0",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "xp_percent",
+            "description": "% of current XP lost on death. Default: 0",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "duels",
+        "description": "Configure /duel: auto-resolved fights between two members",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Allow members to challenge each other",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "min_wager",
+            "description": "Smallest stake allowed. 0 permits friendly duels",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "max_wager",
+            "description": "Largest stake allowed. 0 means no limit",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "rake_percent",
+            "description": "Cut of the pot removed from circulation. The only part that drains gold",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "timeout_seconds",
+            "description": "How long a challenge waits for an answer. Default: 120",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "max_rounds",
+            "description": "Rounds before a duel is called a draw. Default: 50",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "cooldown_seconds",
+            "description": "Wait between duels per member. 0 disables the cooldown",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-enemy",
+    "description": "Configure enemies that players can fight",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "List all configured enemies",
+        "kind": "subcommand"
+      },
+      {
+        "name": "add",
+        "description": "Add a new enemy",
+        "options": [
+          {
+            "name": "id",
+            "description": "Unique ID for this enemy (cannot be changed later)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "Display name of the enemy",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "emoji",
+            "description": "Emoji representing the enemy",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "hp",
+            "description": "Enemy max HP",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "atk",
+            "description": "Enemy attack stat",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "def",
+            "description": "Enemy defense stat",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "spd",
+            "description": "Enemy speed stat",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "xp-reward",
+            "description": "XP awarded on kill",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "gold-reward",
+            "description": "Gold awarded on kill",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "min-level",
+            "description": "Minimum player level to encounter (default: 1)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "max-level",
+            "description": "Maximum player level to encounter (leave blank for no cap)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "crit-chance",
+            "description": "Crit chance % (default: 5)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "crit-multiplier",
+            "description": "Crit damage multiplier (default: 1.5)",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "edit",
+        "description": "Edit an existing enemy",
+        "options": [
+          {
+            "name": "id",
+            "description": "The ID of the enemy to edit",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "New display name",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "emoji",
+            "description": "New emoji",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "hp",
+            "description": "New max HP",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "atk",
+            "description": "New attack stat",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "def",
+            "description": "New defense stat",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "spd",
+            "description": "New speed stat",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "xp-reward",
+            "description": "New XP reward on kill",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "gold-reward",
+            "description": "New gold reward on kill",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "min-level",
+            "description": "New minimum player level",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "max-level",
+            "description": "New maximum player level (-1 to remove the cap)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "crit-chance",
+            "description": "New crit chance %",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "crit-multiplier",
+            "description": "New crit damage multiplier",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove",
+        "description": "Remove an enemy",
+        "options": [
+          {
+            "name": "id",
+            "description": "The ID of the enemy to remove",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-drop",
+        "description": "Add an item drop to an enemy",
+        "options": [
+          {
+            "name": "enemy-id",
+            "description": "The ID of the enemy",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "item-id",
+            "description": "The ID of the shop item to drop",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "chance",
+            "description": "Drop chance 0–1 (e.g. 0.25 = 25%)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "quantity",
+            "description": "How many of the item to drop",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-drop",
+        "description": "Remove a drop from an enemy",
+        "options": [
+          {
+            "name": "enemy-id",
+            "description": "The ID of the enemy",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "drop-index",
+            "description": "Index of the drop to remove (use /config-enemy list-drops to see indices)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-drops",
+        "description": "List all drops configured for an enemy",
+        "options": [
+          {
+            "name": "enemy-id",
+            "description": "The ID of the enemy",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-levels",
+    "description": "Configure level settings for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show the current level configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-max-level",
+        "description": "Set the maximum level a user can reach",
+        "options": [
+          {
+            "name": "level",
+            "description": "The maximum level (leave empty for no limit)",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-announcement-channel",
+        "description": "Set the channel where level up announcements will be sent",
+        "options": [
+          {
+            "name": "channel",
+            "description": "The channel for level up announcements (leave empty to disable)",
+            "type": "channel",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-announcement-message",
+        "description": "Set the message to announce level ups",
+        "options": [
+          {
+            "name": "message",
+            "description": "The message to announce level ups (use {user}, {level} placeholders)",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-curve",
+        "description": "Set the XP curve type",
+        "options": [
+          {
+            "name": "type",
+            "description": "The type of XP curve",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "rate",
+            "description": "For linear: XP per level",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "base",
+            "description": "For exponential/logarithmic: growth base",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "factor",
+            "description": "For polynomial/exponential/logarithmic: growth factor",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "degree",
+            "description": "For polynomial: exponent of the polynomial",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-xp-override",
+        "description": "Set a custom total XP required for a specific level",
+        "options": [
+          {
+            "name": "level",
+            "description": "The level to set the XP override for",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "total_xp",
+            "description": "The total XP required to reach this level",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-xp-override",
+        "description": "Remove a custom XP override for a specific level",
+        "options": [
+          {
+            "name": "level",
+            "description": "The level to remove the XP override from",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-level-actions",
+        "description": "List all level actions configured for this server",
+        "options": [
+          {
+            "name": "level",
+            "description": "The level to list actions for",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-level-action",
+        "description": "Add an action to to perform at a certain level (Multiple actions can be added per level)",
+        "options": [
+          {
+            "name": "level",
+            "description": "The level to add the action for",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "type",
+            "description": "The type of action to perform",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "role",
+            "description": "The role to assign/remove (required for assignRole/removeRole)",
+            "type": "role",
+            "required": false
+          },
+          {
+            "name": "channel",
+            "description": "The channel to send the message in (required for sendMessage)",
+            "type": "channel",
+            "required": false
+          },
+          {
+            "name": "message",
+            "description": "The message to send (required for sendMessage)",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-level-action",
+        "description": "Remove an action from a specific level",
+        "options": [
+          {
+            "name": "level",
+            "description": "The level to remove the action from",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "action_index",
+            "description": "The index of the action to remove (use 'list-level-actions' to see indices)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-logging",
+    "description": "Configure event logging for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current logging configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "toggle",
+        "description": "Enable or disable event logging",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Whether to enable or disable logging",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-main-channel",
+        "description": "Set the main channel for event logs",
+        "options": [
+          {
+            "name": "channel_id",
+            "description": "The channel ID where logs will be sent",
+            "type": "channel",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-category",
+        "description": "Add a category to look to log events",
+        "options": [
+          {
+            "name": "category",
+            "description": "The event category to log",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "channel_id",
+            "description": "Specific Channel ID for this Category (Leave Blank to use main channel)",
+            "type": "channel",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-category",
+        "description": "Remove a category to stop logging events",
+        "options": [
+          {
+            "name": "category",
+            "description": "The event category to log",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-quests",
+    "description": "Configure Quest settings for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current quest configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "enable-quests",
+        "description": "Enable quests system in this server",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable quests",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-quests",
+        "description": "List all configured quests",
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-quest",
+        "description": "Add a new quest",
+        "options": [
+          {
+            "name": "id",
+            "description": "String ID (must be unique)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "Name of the achievement",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "description",
+            "description": "Description of the quest",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "condition",
+            "description": "Condition JSON (see /config-quests help)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "cooldown",
+            "description": "Cooldown before user can do quest again (seconds)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "active",
+            "description": "If the quest is active",
+            "type": "true/false",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-reward",
+        "description": "Add a reward to a quest",
+        "options": [
+          {
+            "name": "id",
+            "description": "ID of the quest to add reward to",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "reward",
+            "description": "Reward JSON (see /config-quests help)",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-reward",
+        "description": "Remove a reward from a quest",
+        "options": [
+          {
+            "name": "id",
+            "description": "ID of the quest to remove reward from",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "reward-id",
+            "description": "Reward ID (see /config-quests list-rewards)",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-rewards",
+        "description": "List all rewards for a quest",
+        "options": [
+          {
+            "name": "id",
+            "description": "ID of the quest to list rewards for",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "edit-quest",
+        "description": "Edit an existing quest",
+        "options": [
+          {
+            "name": "id",
+            "description": "ID of the quest to edit",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "field",
+            "description": "Field of the quest to edit (name, description, active, condition, reward, cooldown)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "value",
+            "description": "New value for the field",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-quest",
+        "description": "Remove a quest by ID",
+        "options": [
+          {
+            "name": "id",
+            "description": "ID of the quest to remove",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "toggle-dm",
+        "description": "Toggle DM notifications for quest completions",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable DM notifications",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "toggle-reply",
+        "description": "Toggle reply notifications for quest completions",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable reply notifications",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "help",
+        "description": "Show examples for condition/reward JSON",
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-shop",
+    "description": "Configure the shop settings",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "toggle",
+        "description": "Enable/disable the shop",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable the shop",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "create-category",
+        "description": "Create a new shop category",
+        "options": [
+          {
+            "name": "id",
+            "description": "The unique ID for the category (Cannot be changed later)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "The display name of the category",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "icon",
+            "description": "The icon for the category (emoji or URL)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "description",
+            "description": "The description of the category",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "hidden",
+            "description": "Whether the category is hidden",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "role-required-ids",
+            "description": "Comma-separated role IDs required to access this category",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "delete-category",
+        "description": "Delete a shop category",
+        "options": [
+          {
+            "name": "id",
+            "description": "The ID of the category to delete",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "edit-category",
+        "description": "Edit a shop category",
+        "options": [
+          {
+            "name": "id",
+            "description": "The ID of the category to edit",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "The new display name of the category",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "icon",
+            "description": "The new icon for the category (emoji or URL)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "description",
+            "description": "The new description of the category",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "hidden",
+            "description": "Whether the category is hidden",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "role-required-ids",
+            "description": "(Overwrites) Comma-separated role IDs required to access this category",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-item-effects",
+        "description": "Set effects for a shop item",
+        "options": [
+          {
+            "name": "item-id",
+            "description": "The ID of the item to set effects for",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "accent-hex",
+            "description": "Accent/aura hex color (e.g. #ff0000) (none for no accent)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "border-hex",
+            "description": "Border hex color (e.g. #ff0000) (none for no border)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "title",
+            "description": "Title shown on the user's card (none for no title)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "name-emoji",
+            "description": "Emoji shown near username on card (none for no emoji)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "font-preset",
+            "description": "Font preset for the user's card",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "xp-multiplier",
+            "description": "XP multiplier boost (e.g. 1.5 for 1.5x) (none for no boost)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "gold-multiplier",
+            "description": "Gold multiplier boost (e.g. 1.5 for 1.5x) (none for no boost)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "can-start-quest-ids",
+            "description": "Comma-separated quest IDs this item can start (none for no quests)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "stat-hp",
+            "description": "Bonus max HP granted when equipped",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "stat-atk",
+            "description": "Bonus attack granted when equipped",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "stat-def",
+            "description": "Bonus defense granted when equipped",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "stat-spd",
+            "description": "Bonus speed granted when equipped",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "stat-crit",
+            "description": "Bonus crit chance % granted when equipped (e.g. 5 for +5%)",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-categories",
+        "description": "List all shop categories",
+        "kind": "subcommand"
+      },
+      {
+        "name": "create-item",
+        "description": "Create a new shop item (Actions assigned separately",
+        "options": [
+          {
+            "name": "id",
+            "description": "The unique ID for the item (Cannot be changed later)",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "The display name of the item",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "category-id",
+            "description": "The ID of the category this item belongs to",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "price",
+            "description": "The price of the item in gold",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "equipable",
+            "description": "Whether the item is equipable (leave blank for false)",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "equip-slot",
+            "description": "The slot this item can be equipped to (if equipable)",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "sell-price",
+            "description": "The sell price for the item (leave blank/0 or do not enter for unsellable)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "emoji",
+            "description": "The emoji for the item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "description",
+            "description": "The description of the item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "min-level",
+            "description": "The minimum level required to purchase this item",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "requires-role-ids",
+            "description": "Comma-separated role IDs required to purchase this item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "max-per-user",
+            "description": "The maximum number of this item a user can own",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "stock",
+            "description": "The stock quantity of this item (leave empty for unlimited)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "hidden",
+            "description": "Whether the item is hidden",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "permanent",
+            "description": "Whether the item is permanent (not consumed on use)",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "tradeable",
+            "description": "Whether the item is tradeable between users",
+            "type": "true/false",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "delete-item",
+        "description": "Delete a shop item",
+        "options": [
+          {
+            "name": "id",
+            "description": "The ID of the item to delete",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "edit-item",
+        "description": "Edit a shop item",
+        "options": [
+          {
+            "name": "id",
+            "description": "The ID of the item to edit",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "name",
+            "description": "The new display name of the item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "emoji",
+            "description": "The new emoji for the item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "description",
+            "description": "The new description of the item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "category-id",
+            "description": "The new category ID this item belongs to",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "price",
+            "description": "The new price of the item in gold",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "equipable",
+            "description": "The new equipable type of the item",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "equip-slot",
+            "description": "The new equip slot of the item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "min-level",
+            "description": "The new minimum level required to purchase this item",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "requires-role-ids",
+            "description": "Comma-separated role IDs required to purchase this item",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "max-per-user",
+            "description": "The new maximum number of this item a user can own",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "stock",
+            "description": "The new stock quantity of this item (put negative for unlimited)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "hidden",
+            "description": "Whether the item is hidden",
+            "type": "true/false",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-items",
+        "description": "List all shop items",
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-item-action",
+        "description": "Add an action to a shop item",
+        "options": [
+          {
+            "name": "item-id",
+            "description": "The ID of the item to add the action to",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "action-type",
+            "description": "The type of action to add",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "role-id",
+            "description": "The role ID for assign/remove role actions",
+            "type": "role",
+            "required": false
+          },
+          {
+            "name": "message",
+            "description": "The message to send for send message actions",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "channel-id",
+            "description": "The channel ID to send the message in for send message actions",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "stat",
+            "description": "The stat to give for give stat actions",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "amount",
+            "description": "The amount of the stat to give for give stat actions",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "give-item-id",
+            "description": "The item ID to give for give item actions",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "quantity",
+            "description": "The quantity of the item to give for give item actions",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "hexcode",
+            "description": "The hex code to change for change style actions",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "emoji",
+            "description": "The emoji to use for change style actions",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-item-action",
+        "description": "Remove an action from a shop item",
+        "options": [
+          {
+            "name": "item-id",
+            "description": "The ID of the item to remove the action from",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "action-index",
+            "description": "The index of the action to remove (starting from 0)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-item-actions",
+        "description": "List all actions for a shop item",
+        "options": [
+          {
+            "name": "item-id",
+            "description": "The ID of the item to list actions for",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-streak",
+    "description": "Configure Streak settings for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current streak configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-announcement-channel",
+        "description": "Set the channel to announce streak milestones",
+        "options": [
+          {
+            "name": "channel",
+            "description": "The channel to announce streak milestones (Leave blank to disable)",
+            "type": "channel",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-announcement-message",
+        "description": "Set the message to announce streak milestones",
+        "options": [
+          {
+            "name": "message",
+            "description": "The announcement message. Use {user}, {streak}, {xp}, and {gold} as placeholders.",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-streak-rewards",
+        "description": "List all configured streak rewards",
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-streak-reward",
+        "description": "Add a streak reward",
+        "options": [
+          {
+            "name": "streak-count",
+            "description": "The streak count to reward (e.g. 7 for a 7-day streak)",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "xp-reward",
+            "description": "The amount of XP to reward",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "gold-reward",
+            "description": "The amount of Gold to reward",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "announcement-channel",
+            "description": "The channel to announce this reward (Leave blank to use default)",
+            "type": "channel",
+            "required": false
+          },
+          {
+            "name": "custom-message",
+            "description": "A custom message for this reward. Use {user}, {streak}, {xp}, and {gold} as placeholders.",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-streak-reward",
+        "description": "Remove a streak reward",
+        "options": [
+          {
+            "name": "streak-count",
+            "description": "The streak count of the reward to remove",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-styles",
+    "description": "Configure styles settings for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current style configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-main-theme-color",
+        "description": "Set the main theme color for embeds (other specifics override this)",
+        "options": [
+          {
+            "name": "color",
+            "description": "The main theme color in hex format (e.g. #3498db)",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-main-text-color",
+        "description": "Set the main text color for embeds (other specifics override this)",
+        "options": [
+          {
+            "name": "color",
+            "description": "The main text color in hex format (e.g. #FFFFFF)",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-theme-template",
+        "description": "Set a predefined theme template for the server",
+        "options": [
+          {
+            "name": "template",
+            "description": "The name of the theme template to apply",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-xp",
+        "description": "Set name and icon for XP (any leveling thing)",
+        "options": [
+          {
+            "name": "name",
+            "description": "The name for XP (e.g. 'Experience, Mana, Life')",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "icon",
+            "description": "The icon for XP (e.g. ⭐)",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "set-gold",
+        "description": "Set name and icon for gold (any currency thing)",
+        "options": [
+          {
+            "name": "name",
+            "description": "The name for gold (e.g. 'Gold, Coins, Money')",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "icon",
+            "description": "The icon for gold (e.g. 💰)",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-trading",
+    "description": "Configure trading settings for the server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current trading configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "gifting",
+        "description": "Configure gifting settings for the server",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable gifting",
+            "type": "true/false",
+            "required": true
+          },
+          {
+            "name": "message",
+            "description": "Custom message for gifting | type none for no message announcement and dm",
+            "type": "text",
+            "required": false
+          },
+          {
+            "name": "announce-channel",
+            "description": "Channel to announce gifts in",
+            "type": "channel",
+            "required": false
+          },
+          {
+            "name": "dm",
+            "description": "Send a DM to the receiver",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "level-requirement",
+            "description": "Minimum level required to gift and receive gifts",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  },
+  {
+    "name": "config-xp",
+    "description": "Configure XP settings for this server",
+    "managersOnly": true,
+    "options": [
+      {
+        "name": "show",
+        "description": "Show current XP configuration",
+        "kind": "subcommand"
+      },
+      {
+        "name": "base-xp",
+        "description": "Set base XP per message",
+        "options": [
+          {
+            "name": "amount",
+            "description": "Base XP amount (0-100)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "base-xp-cooldown",
+        "description": "Set base XP message cooldown in seconds",
+        "options": [
+          {
+            "name": "seconds",
+            "description": "Cooldown in seconds(0 to disable)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "base-daily-xp",
+        "description": "Set base daily XP reward amount",
+        "options": [
+          {
+            "name": "amount",
+            "description": "Daily XP amount",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "base-gold-xp",
+        "description": "Set base daily gold reward amount",
+        "options": [
+          {
+            "name": "amount",
+            "description": "Daily gold amount)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "streak-multiplier",
+        "description": "Set daily streak multiplier",
+        "options": [
+          {
+            "name": "multiplier",
+            "description": "Streak multiplier (e.g., 0.1 for 10%)",
+            "type": "number",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "auto-daily",
+        "description": "Enable or disable automatic daily rewards",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable auto daily rewards (instead of actively using /daily trigger on first message)",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "announce-daily-channel",
+        "description": "Set channel to announce daily rewards in",
+        "options": [
+          {
+            "name": "channel",
+            "description": "Channel to announce daily rewards in (leave empty to disable)",
+            "type": "channel",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "announce-daily-message",
+        "description": "Set message to announce daily rewards",
+        "options": [
+          {
+            "name": "message",
+            "description": "Message to announce daily rewards",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "reply-to-daily-in-channel",
+        "description": "Enable or disable replying to daily command in channel",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable replying to daily command in channel",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "reply-to-daily-ephemeral",
+        "description": "Enable or disable replying to daily command ephemerally",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable replying to daily command ephemerally",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "reply-to-daily-message",
+        "description": "Set message to reply to daily command in channel",
+        "options": [
+          {
+            "name": "message",
+            "description": "Message to reply to daily command in channel",
+            "type": "text",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "role-xp",
+        "description": "Configure XP settings for a specific role",
+        "options": [
+          {
+            "name": "role",
+            "description": "Role to configure XP settings for",
+            "type": "role",
+            "required": true
+          },
+          {
+            "name": "extra-xp",
+            "description": "Extra XP amount for this role (0-100)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "multiplier",
+            "description": "XP multiplier for this role (e.g., 1.5 for 150%)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "cooldown-seconds",
+            "description": "Cooldown in seconds for this role (0 to disable)",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "role-daily",
+        "description": "Configure daily bonus for a specific role",
+        "options": [
+          {
+            "name": "role",
+            "description": "Role to configure daily bonus for",
+            "type": "role",
+            "required": true
+          },
+          {
+            "name": "daily-xp-bonus",
+            "description": "Extra daily XP bonus for this role",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "daily-gold-bonus",
+            "description": "Extra daily gold bonus for this role",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "daily-streak-multiplier",
+            "description": "Extra daily streak multiplier bonus for this role (e.g., 1 for 100%)",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-role-temp",
+        "description": "Configure temporary role settings for a specific role",
+        "options": [
+          {
+            "name": "role",
+            "description": "Role to configure temporary role settings for",
+            "type": "role",
+            "required": true
+          },
+          {
+            "name": "default-duration-minutes",
+            "description": "Default duration in minutes for temporary roles assigned to users)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "hard-expiryat",
+            "description": "Optional hard expiry in ISO format, e.g. 2025-12-31T23:59:59Z",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-role-temp",
+        "description": "Remove temporary role settings for a specific role",
+        "options": [
+          {
+            "name": "role",
+            "description": "Role to remove temporary role settings for",
+            "type": "role",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "list-channel-xp-config",
+        "description": "List all channel-specific XP configurations",
+        "options": [
+          {
+            "name": "type",
+            "description": "Type of channels to list (text/voice/all)",
+            "type": "text",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "add-channel-xp-config",
+        "description": "Add or update XP configuration for a specific channel",
+        "options": [
+          {
+            "name": "channel",
+            "description": "Channel to configure XP settings for",
+            "type": "channel",
+            "required": true
+          },
+          {
+            "name": "enabled",
+            "description": "Enable or disable XP for this channel",
+            "type": "true/false",
+            "required": true
+          },
+          {
+            "name": "multiplier",
+            "description": "XP multiplier for this channel (e.g., 1.5 for 150%)",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "flat-bonus",
+            "description": "Flat XP bonus for this channel",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "cooldown-override",
+            "description": "Cooldown override in seconds for this channel leave blank for no override",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "remove-channel-xp-config",
+        "description": "Remove XP configuration for a specific channel",
+        "options": [
+          {
+            "name": "channel",
+            "description": "Channel to remove XP configuration for",
+            "type": "channel",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "vc-xp",
+        "description": "Configure voice channel XP settings",
+        "options": [
+          {
+            "name": "enabled",
+            "description": "Enable or disable voice channel XP",
+            "type": "true/false",
+            "required": false
+          },
+          {
+            "name": "base-per-minute",
+            "description": "Base XP per minute spent in voice channels",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "min-minutes-for-xp",
+            "description": "Minimum minutes required in a voice channel to earn XP",
+            "type": "number",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      }
+    ]
+  }
+]
