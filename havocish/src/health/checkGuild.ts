@@ -168,6 +168,9 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                 issues.push({ severity: "warning", message: `Nobody can start ${a.name}: it has no location open at skill 1.`, page: "gathering" });
             }
             for (const l of locations) {
+                if ((l.minToolTier ?? 0) > 0 && !Object.values(items).some((i) => i.tool?.activityId === a.id && (i.tool.tier ?? 1) >= l.minToolTier!)) {
+                    issues.push({ severity: "warning", message: `${a.name} at ${l.name} needs a tier ${l.minToolTier} tool, but no item is one.`, page: "gathering" });
+                }
                 if (!(l.loot ?? []).some((x) => x.chance > 0 && items[x.itemId])) {
                     issues.push({ severity: "warning", message: `${a.name} at ${l.name} has nothing to find.`, page: "gathering" });
                 }

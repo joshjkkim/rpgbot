@@ -73,4 +73,10 @@ export interface shopItemConfig {
     effects?: ItemEffects;
 
     actions?: Record<number, shopItemAction>;
+
+    /**
+     * Makes the item a gathering tool. The best one in a player's bag counts,
+     * no equipping. `bonus` is per game: Grid +1 try, Timing +0.3 s, Find it +1 s a point.
+     */
+    tool?: { activityId: string; tier: number; bonus: number };
 }

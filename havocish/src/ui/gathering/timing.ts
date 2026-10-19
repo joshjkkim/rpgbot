@@ -15,9 +15,9 @@ import { addFind, fill, itemLabel, type Game, type Run } from "./run.js";
 
 const RARITY_ROUNDS: Record<string, number> = { uncommon: 1, rare: 2, epic: 3, legendary: 3 };
 
-/** The window after skill eases it: +30 ms a level, never under 2.5 s. */
-export function timingWindowMs(location: GatheringLocation, skill: number) {
-    return Math.max(2500, (location.difficulty?.windowMs ?? 3000) + 30 * (skill - 1));
+/** The window after skill (+30 ms a level) and a tool (+300 ms a point) ease it, never under 2.5 s. */
+export function timingWindowMs(location: GatheringLocation, skill: number, toolBonus = 0) {
+    return Math.max(2500, (location.difficulty?.windowMs ?? 3000) + 30 * (skill - 1) + 300 * toolBonus);
 }
 
 /** Pull rounds for a find: more for rarer items, capped, and one fewer from skill 25. */
@@ -113,7 +113,7 @@ export const timing: Game<State> = {
                 await ctx.refresh();
                 s.signalAt = Date.now();
                 // A second of grace past the window before calling it, for slow connections.
-                ctx.later(timingWindowMs(run.location, run.skill) + 1000, async () => {
+                ctx.later(timingWindowMs(run.location, run.skill, run.toolBonus) + 1000, async () => {
                     if (!ctx.alive() || s.attempt !== attempt || s.phase !== "signal") return;
                     const end = settle(s, run, w.late!);
                     await (end ? ctx.end(end) : ctx.refresh());
@@ -125,7 +125,7 @@ export const timing: Game<State> = {
         if (action === "act" && Number(arg) === s.attempt) {
             if (s.phase === "waiting") return settle(s, run, w.early!);
             if (s.phase !== "signal") return;
-            if (at - s.signalAt > timingWindowMs(run.location, run.skill) || !s.pending) return settle(s, run, w.late!);
+            if (at - s.signalAt > timingWindowMs(run.location, run.skill, run.toolBonus) || !s.pending) return settle(s, run, w.late!);
 
             const rarity = ctx.config.shop?.items?.[s.pending.itemId]?.rarity;
             s.roundsLeft = pullRounds(run.location, run.skill, rarity);

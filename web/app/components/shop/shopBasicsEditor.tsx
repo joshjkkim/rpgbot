@@ -94,6 +94,8 @@ export interface shopItemConfig {
   tradeable?: boolean;
   actions?: Record<number, shopItemAction>;
   effects?: ItemEffects;
+  /** A gathering tool (mirrored from havocish/src/types/economy.ts). */
+  tool?: { activityId: string; tier: number; bonus: number };
 }
 
 export type ShopConfig = {
@@ -112,6 +114,8 @@ export type ShopConfig = {
 type Props = {
   value: ShopConfig | null | undefined;
   onChange: (next: ShopConfig) => void;
+  /** Gathering activities, so an item can be made a tool for one. */
+  activities?: Record<string, { name?: string; emoji?: string }>;
 };
 
 const EQUIP_SLOTS = [
@@ -175,7 +179,7 @@ function dropRetiredActions(config: ShopConfig): ShopConfig {
   return { ...config, items: cleaned };
 }
 
-export default function ShopEconomyEditor({ value, onChange }: Props) {
+export default function ShopEconomyEditor({ value, onChange, activities = {} }: Props) {
   const [local, setLocal] = useState<ShopConfig>(dropRetiredActions(value ?? {}));
 
   useEffect(() => {
@@ -360,6 +364,42 @@ export default function ShopEconomyEditor({ value, onChange }: Props) {
                 options={EQUIP_SLOTS}
               />
             </FieldGrid>
+          )}
+
+          {Object.keys(activities).length > 0 && (
+            <Field
+              label="Gathering tool"
+              hint="The best tool in a player's bag counts automatically, no equipping. Each bonus point is +1 try in Grid, +0.3 s in Timing, +1 s in Find it."
+            >
+              <FieldGrid>
+                <SelectField
+                  label="Tool for"
+                  value={item.tool?.activityId ?? ""}
+                  onChange={(v) => upsertItem({ ...item, tool: v ? { tier: 1, bonus: 1, ...item.tool, activityId: v } : undefined })}
+                  options={[
+                    { value: "", label: "Not a tool" },
+                    ...Object.entries(activities).map(([id, a]) => ({ value: id, label: `${a.emoji ?? ""} ${a.name ?? id}`.trim() })),
+                  ]}
+                />
+                {item.tool && (
+                  <>
+                    <NumberField
+                      label="Tier"
+                      value={item.tool.tier ?? 1}
+                      min={1}
+                      onChange={(v) => upsertItem({ ...item, tool: { ...item.tool!, tier: v } })}
+                      hint="Locations can need a minimum tier."
+                    />
+                    <NumberField
+                      label="Bonus"
+                      value={item.tool.bonus ?? 0}
+                      min={0}
+                      onChange={(v) => upsertItem({ ...item, tool: { ...item.tool!, bonus: v } })}
+                    />
+                  </>
+                )}
+              </FieldGrid>
+            </Field>
           )}
 
           <Field label="Equipped stat bonuses">

@@ -20,6 +20,8 @@ export interface GatheringLocation {
     name: string;
     emoji: string;
     minSkill: number;
+    /** A tool of at least this tier for the activity is needed. */
+    minToolTier?: number;
     /** Skill XP for finishing a run here. */
     skillXp: number;
     loot: GatheringLoot[];

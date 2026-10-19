@@ -7,7 +7,7 @@ import { respondFiltered } from "../../ui/autocomplete.js";
 import { accentColor } from "../../ui/pager.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import {
-    cooldownLeft, enabledActivities, finishRun, rollLoot, skillLevel, startCooldown, unlockedLocations,
+    bestTool, cooldownLeft, enabledActivities, finishRun, rollLoot, skillLevel, startCooldown, toolsAtTier, unlockedLocations,
 } from "../../player/gathering.js";
 import type { GameType, GatheringActivity } from "../../types/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
@@ -52,6 +52,7 @@ function render(run: Run, config: GuildConfig) {
         .setAccentColor(accentColor(config.style.mainThemeColor))
         .addTextDisplayComponents((t) => t.setContent([
             `## ${run.activity.emoji} ${run.activity.name} · ${run.location.emoji} ${run.location.name}`,
+            ...(run.toolId ? [`-# with ${itemLabel(config, run.toolId)}`] : []),
             `Found: ${Object.keys(run.found).length ? foundLine(run.found, config) : "nothing yet"}`,
             ...(run.status ? [`-# ${run.status}`] : []),
             text,
@@ -103,13 +104,21 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
 
     const skill = skillLevel(progress?.xp ?? 0, config);
+    const tool = bestTool(profile.inventory, config, activity.id);
     const open = unlockedLocations(activity, skill);
     const asked = interaction.options.getString("location");
-    const location = asked ? open.find((l) => l.id === asked || l.name.toLowerCase() === asked.toLowerCase()) : open.at(-1);
+    // Without a choice, the best place the player's skill and tool both reach.
+    const location = asked
+        ? open.find((l) => l.id === asked || l.name.toLowerCase() === asked.toLowerCase())
+        : open.filter((l) => (l.minToolTier ?? 0) <= (tool?.tier ?? 0)).at(-1);
     if (!location) {
         return void await say(asked
             ? `You can't reach that yet. Your ${activity.skillName} is ${skill}.`
             : `There's nowhere to go ${activity.name.toLowerCase()} at ${activity.skillName} ${skill} yet.`);
+    }
+    if ((location.minToolTier ?? 0) > (tool?.tier ?? 0)) {
+        const options = toolsAtTier(config, activity.id, location.minToolTier!).map((i) => `${i.emoji ?? ""} **${i.name}**`.trim());
+        return void await say(`${location.emoji} ${location.name} needs a better tool${options.length ? `, like ${options.slice(0, 3).join(" or ")}` : ""}.`);
     }
     if (!rollLoot(location.loot ?? [], config)) return void await say(`${location.name} has nothing to find yet.`);
 
@@ -117,7 +126,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (runs.has(key)) return void await say("You're already out gathering.");
     const run = {
         ownerId: interaction.user.id, discordGuildId: interaction.guildId, userId: user.id, guildId: guild.id,
-        activity, location, skill, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
+        activity, location, skill, toolId: tool?.itemId ?? null, toolBonus: tool?.bonus ?? 0, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
     } as unknown as LiveRun;
     run.ctx = {
         config,
@@ -216,5 +225,9 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     const { user } = await getOrCreateDbUser({ discordUserId: interaction.user.id });
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
     const skill = skillLevel(profile.user_stats?.gathering?.[activity.id]?.xp ?? 0, config);
-    return respondFiltered(interaction, unlockedLocations(activity, skill).map((l) => ({ name: `${l.emoji} ${l.name}`, value: l.id })));
+    const tier = bestTool(profile.inventory, config, activity.id)?.tier ?? 0;
+    return respondFiltered(interaction, unlockedLocations(activity, skill).map((l) => ({
+        name: `${l.emoji} ${l.name}${(l.minToolTier ?? 0) > tier ? ` (needs a tier ${l.minToolTier} tool)` : ""}`,
+        value: l.id,
+    })));
 }

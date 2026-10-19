@@ -67,6 +67,7 @@ export default function ItemTooltip({ item }: { item: shopItemConfig }) {
       </p>
       {cap > 0 && <p>{cap === 1 ? "Unique" : `Unique (${cap})`}</p>}
       {item.equipable && <p className="capitalize">{item.equipSlot ?? "accessory"}</p>}
+      {item.tool && <p>Tool, tier {item.tool.tier ?? 1}</p>}
       {baseStats.map((k) => (
         <p key={k}>
           {signed(stats[k]!)} {STAT_NAMES[k]}

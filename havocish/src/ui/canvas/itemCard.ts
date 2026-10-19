@@ -62,6 +62,7 @@ export function itemEffects(item: shopItemConfig) {
             cosmetic.title ? `Equip: Grants the title "${cosmetic.title}".` : null,
         ].filter((l): l is string => !!l),
         use: Object.values(item.actions ?? {}).map((a) => `Use: ${describeAction(a)}`),
+        tool: item.tool ? `Tool, tier ${item.tool.tier ?? 1}` : null,
     };
 }
 
@@ -86,6 +87,7 @@ export function itemCardLines(item: shopItemConfig): Line[] {
         const slot = item.equipSlot ?? "accessory";
         lines.push({ text: slot.charAt(0).toUpperCase() + slot.slice(1), colour: PARCHMENT });
     }
+    if (item.tool) lines.push({ text: `Tool, tier ${item.tool.tier ?? 1}`, colour: PARCHMENT });
 
     for (const text of effects.stats) lines.push({ text, colour: PARCHMENT });
     for (const text of effects.equip) lines.push({ text, colour: GREEN });
