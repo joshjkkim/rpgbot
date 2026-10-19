@@ -1,4 +1,4 @@
-import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, Message } from "discord.js";
+import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -7,11 +7,14 @@ import { respondFiltered } from "../../ui/autocomplete.js";
 import { accentColor } from "../../ui/pager.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import {
-    cooldownLeft, enabledActivities, finishRun, gridRules, makeGrid, rollLoot, skillLevel, startCooldown, unlockedLocations,
-    type GridCell,
+    cooldownLeft, enabledActivities, finishRun, rollLoot, skillLevel, startCooldown, unlockedLocations,
 } from "../../player/gathering.js";
-import type { GatheringActivity, GatheringLocation } from "../../types/gathering.js";
+import type { GameType, GatheringActivity } from "../../types/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
+import { itemLabel, type Ctx, type EndReason, type Game, type Run, type Words } from "../../ui/gathering/run.js";
+import { grid } from "../../ui/gathering/grid.js";
+import { timing } from "../../ui/gathering/timing.js";
+import { find } from "../../ui/gathering/find.js";
 
 export const data = new SlashCommandBuilder()
     .setName("gather")
@@ -19,41 +22,19 @@ export const data = new SlashCommandBuilder()
     .addStringOption((o) => o.setName("activity").setDescription("What to do").setRequired(true).setAutocomplete(true))
     .addStringOption((o) => o.setName("location").setDescription("Where to go (defaults to your best one)").setAutocomplete(true));
 
-/** Every word a player sees in the grid game. Owners override any of them per activity. */
-const GRID_WORDS = {
-    tile: "❔",
-    empty: "·",
-    hazard: "💥",
-    hazardLine: "Disaster! You get away with half of what you found.",
-    leave: "Leave",
-    tries: "tries",
-    verb: "found",
-};
+const GAMES: Record<GameType, Game> = { grid, timing, find };
 
 /** An unattended run ends itself after this long, keeping what was found. */
 const RUN_TIMEOUT_MS = 2 * 60 * 1000;
 
-type GridRun = {
-    ownerId: string;
-    discordGuildId: string;
-    userId: number;
-    guildId: number;
-    activity: GatheringActivity;
-    location: GatheringLocation;
-    cells: GridCell[];
-    /** What each revealed tile shows, by index. */
-    shown: (string | null)[];
-    triesLeft: number;
-    found: Record<string, number>;
-    message: Message | null;
-    timer: NodeJS.Timeout | null;
-};
+type LiveRun = Run & { ctx: Ctx };
 
 // ponytail: in memory, so a restart drops runs in progress; they last 2 minutes at most.
-const runs = new Map<string, GridRun>();
+const runs = new Map<string, LiveRun>();
 const runKey = (discordUserId: string, discordGuildId: string) => `${discordUserId}-${discordGuildId}`;
 
-const words = (a: GatheringActivity) => ({ ...GRID_WORDS, ...(a.words ?? {}) });
+const gameOf = (a: GatheringActivity) => GAMES[a.game] ?? grid;
+const wordsOf = (a: GatheringActivity): Words => ({ ...gameOf(a).words, ...(a.words ?? {}) });
 
 function findActivity(config: GuildConfig, typed: string): GatheringActivity | undefined {
     const all = enabledActivities(config);
@@ -61,40 +42,23 @@ function findActivity(config: GuildConfig, typed: string): GatheringActivity | u
     return all.find((a) => a.id === typed) ?? all.find((a) => a.name.toLowerCase() === t);
 }
 
-function foundLine(found: Record<string, number>, config: GuildConfig) {
-    const parts = Object.entries(found).map(([id, n]) => {
-        const def = config.shop?.items?.[id];
-        return `${def?.emoji ? `${def.emoji} ` : ""}${def?.name ?? id} ×${n}`;
-    });
-    return parts.join(", ");
-}
+const foundLine = (found: Record<string, number>, config: GuildConfig) =>
+    Object.entries(found).map(([id, n]) => itemLabel(config, id, n)).join(", ");
 
-function renderRun(run: GridRun, config: GuildConfig) {
-    const w = words(run.activity);
-    const over = run.triesLeft <= 0;
+function render(run: Run, config: GuildConfig) {
+    const w = wordsOf(run.activity);
+    const { text, rows } = gameOf(run.activity).body(run, run.state, w, config);
     const container = new ContainerBuilder()
         .setAccentColor(accentColor(config.style.mainThemeColor))
-        .addTextDisplayComponents((t) => t.setContent(
-            `## ${run.activity.emoji} ${run.activity.name} · ${run.location.emoji} ${run.location.name}\n` +
-            `**${run.triesLeft}** ${w.tries} left · ${Object.keys(run.found).length ? foundLine(run.found, config) : "nothing yet"}`,
-        ));
-
-    for (let row = 0; row < 4; row++) {
-        const buttons = [0, 1, 2, 3].map((col) => {
-            const i = row * 4 + col;
-            const shown = run.shown[i];
-            const cell = run.cells[i];
-            // Labels, not emoji fields: an owner's emoji text can't make Discord reject the message.
-            return new ButtonBuilder()
-                .setCustomId(`gather:tile:${run.ownerId}:${i}`)
-                .setLabel(shown ?? w.tile)
-                .setStyle(shown == null ? ButtonStyle.Secondary : cell === "find" ? ButtonStyle.Success : cell === "hazard" ? ButtonStyle.Danger : ButtonStyle.Secondary)
-                .setDisabled(shown != null || over);
-        });
-        container.addActionRowComponents(new ActionRowBuilder<ButtonBuilder>().addComponents(buttons));
-    }
+        .addTextDisplayComponents((t) => t.setContent([
+            `## ${run.activity.emoji} ${run.activity.name} · ${run.location.emoji} ${run.location.name}`,
+            `Found: ${Object.keys(run.found).length ? foundLine(run.found, config) : "nothing yet"}`,
+            ...(run.status ? [`-# ${run.status}`] : []),
+            text,
+        ].join("\n")));
+    for (const row of rows) container.addActionRowComponents(row);
     container.addActionRowComponents(new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId(`gather:leave:${run.ownerId}`).setLabel(w.leave).setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(`gather:leave:${run.ownerId}:0`).setLabel(w.leave ?? "Leave").setStyle(ButtonStyle.Danger),
     ));
     return { components: [container], flags: MessageFlags.IsComponentsV2 as const };
 }
@@ -123,7 +87,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const activity = findActivity(config, interaction.options.getString("activity", true));
     if (!activity) return void await say("That isn't one of this server's activities. Pick one from the list.");
 
-    const existing = runs.get(runKey(interaction.user.id, interaction.guildId));
+    const key = runKey(interaction.user.id, interaction.guildId);
+    const existing = runs.get(key);
     if (existing) {
         const where = existing.message ? ` ([jump to it](${existing.message.url}))` : "";
         return void await say(`You're already out ${existing.activity.name.toLowerCase()}${where}. Finish that run first.`);
@@ -148,41 +113,53 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
     if (!rollLoot(location.loot ?? [], config)) return void await say(`${location.name} has nothing to find yet.`);
 
-    await startCooldown(user.id, guild.id, activity.id);
-
-    const rules = gridRules(location, skill);
-    const run: GridRun = {
+    // Checked again after the awaits, so a double-tapped command can't start two runs.
+    if (runs.has(key)) return void await say("You're already out gathering.");
+    const run = {
         ownerId: interaction.user.id, discordGuildId: interaction.guildId, userId: user.id, guildId: guild.id,
-        activity, location, cells: makeGrid(rules), shown: Array(rules.size).fill(null),
-        triesLeft: rules.tries, found: {}, message: null, timer: null,
+        activity, location, skill, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
+    } as unknown as LiveRun;
+    run.ctx = {
+        config,
+        alive: () => runs.get(key) === run,
+        refresh: async () => {
+            if (runs.get(key) === run) await run.message?.edit(render(run, config)).catch(() => null);
+        },
+        end: (why) => endRun(run, why),
+        later: (ms, fn) => {
+            if (run.timer) clearTimeout(run.timer);
+            run.timer = setTimeout(() => void Promise.resolve(fn()).catch((err) => console.error("Gathering timer failed:", err)), ms);
+            run.timer.unref();
+        },
     };
-    runs.set(runKey(run.ownerId, run.discordGuildId), run);
+    runs.set(key, run);
+    run.state = gameOf(activity).start(run, wordsOf(activity), run.ctx);
 
-    const response = await interaction.reply({ ...renderRun(run, config), withResponse: true });
+    await startCooldown(user.id, guild.id, activity.id);
+    const response = await interaction.reply({ ...render(run, config), withResponse: true });
     run.message = response.resource?.message ?? null;
-    run.timer = setTimeout(() => void endRun(run, "timeout").catch((err) => console.error("Gathering timeout failed:", err)), RUN_TIMEOUT_MS);
-    run.timer.unref();
+    run.deadline = setTimeout(() => void endRun(run, "timeout").catch((err) => console.error("Gathering timeout failed:", err)), RUN_TIMEOUT_MS);
+    run.deadline.unref();
 }
 
-/** Pays out and collapses the game into one line. `update` answers the click that ended it. */
-async function endRun(run: GridRun, why: "leave" | "out" | "hazard" | "timeout", interaction?: ButtonInteraction) {
-    // Taken out first, synchronously, so a second click can't end it twice.
-    if (runs.get(runKey(run.ownerId, run.discordGuildId)) !== run) return;
-    runs.delete(runKey(run.ownerId, run.discordGuildId));
+/** Pays out and collapses the game into one line. `interaction` answers the click that ended it. */
+async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction) {
+    // Taken out first, synchronously, so a second click or a timer can't end it twice.
+    const key = runKey(run.ownerId, run.discordGuildId);
+    if (runs.get(key) !== run) return;
+    runs.delete(key);
     if (run.timer) clearTimeout(run.timer);
+    if (run.deadline) clearTimeout(run.deadline);
 
     const { config } = await getOrCreateGuildConfig({ discordGuildId: run.discordGuildId });
-    const w = words(run.activity);
-    if (why === "hazard") {
-        // Rounded up: rounding down wiped out small hauls, which read as a bug.
-        for (const id of Object.keys(run.found)) run.found[id] = Math.ceil(run.found[id]! / 2);
-    }
+    const w = wordsOf(run.activity);
+    // Rounded up: rounding down wiped out small hauls, which read as a bug.
+    if (why === "hazard") for (const id of Object.keys(run.found)) run.found[id] = Math.ceil(run.found[id]! / 2);
     const result = await finishRun({ userId: run.userId, guildId: run.guildId, config, activity: run.activity, location: run.location, found: run.found });
 
-    const got = foundLine(result.kept, config);
     const lines = [
         ...(why === "hazard" ? [`${w.hazard} ${w.hazardLine}`] : []),
-        `<@${run.ownerId}> ${w.verb} ${got || "nothing"} at ${run.location.emoji} ${run.location.name}.`,
+        `<@${run.ownerId}> ${w.verb} ${foundLine(result.kept, config) || "nothing"} at ${run.location.emoji} ${run.location.name}.`,
         `-# +${result.skillXp} ${run.activity.skillName} XP`,
     ];
     if (result.skillAfter > result.skillBefore) {
@@ -203,50 +180,26 @@ async function endRun(run: GridRun, why: "leave" | "out" | "hazard" | "timeout",
 }
 
 export async function handleGatherButton(interaction: ButtonInteraction) {
-    const [, action, ownerId, index] = interaction.customId.split(":");
+    // When Discord stamped the click, so timing games don't count the bot's own lag against the player.
+    const at = interaction.createdTimestamp;
+    const [, action = "", ownerId, arg = ""] = interaction.customId.split(":");
     if (interaction.user.id !== ownerId) {
         await interaction.reply({ content: "That's someone else's run. Start your own with `/gather`.", flags: MessageFlags.Ephemeral });
         return;
     }
-    const run = runs.get(runKey(ownerId, interaction.guildId ?? ""));
+    const key = runKey(ownerId, interaction.guildId ?? "");
+    const run = runs.get(key);
     if (!run || run.message?.id !== interaction.message.id) {
         await interaction.reply({ content: "This run is already over.", flags: MessageFlags.Ephemeral });
         return;
     }
 
     if (action === "leave") return endRun(run, "leave", interaction);
-
-    const i = Number(index);
-    if (!(i >= 0 && i < run.cells.length) || run.shown[i] != null || run.triesLeft <= 0) {
-        await interaction.deferUpdate();
-        return;
-    }
-
-    const { config } = await getOrCreateGuildConfig({ discordGuildId: run.discordGuildId });
-    const w = words(run.activity);
-    // Re-checked after the await: a quick second click may have used this tile or the last try.
-    if (run.shown[i] != null || run.triesLeft <= 0) return void await interaction.deferUpdate();
-    run.triesLeft--;
-    const cell = run.cells[i];
-
-    if (cell === "hazard") {
-        run.shown[i] = w.hazard;
-        return endRun(run, "hazard", interaction);
-    }
-    if (cell === "find") {
-        const drop = rollLoot(run.location.loot ?? [], config);
-        if (drop) {
-            run.found[drop.itemId] = (run.found[drop.itemId] ?? 0) + drop.quantity;
-            run.shown[i] = config.shop?.items?.[drop.itemId]?.emoji || "✨";
-        } else {
-            run.shown[i] = w.empty;
-        }
-    } else {
-        run.shown[i] = w.empty;
-    }
-
-    if (run.triesLeft <= 0) return endRun(run, "out", interaction);
-    await interaction.update(renderRun(run, config));
+    const end = await gameOf(run.activity).click(run, run.state, wordsOf(run.activity), action, arg, at, run.ctx);
+    // A timer may have ended the run while the click was being handled.
+    if (runs.get(key) !== run) return void await interaction.deferUpdate().catch(() => null);
+    if (end) return endRun(run, end, interaction);
+    await interaction.update(render(run, run.ctx.config));
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction) {

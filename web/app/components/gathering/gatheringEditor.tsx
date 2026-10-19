@@ -17,7 +17,7 @@ import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
 
 // ─── Types (mirrored from havocish/src/types/gathering.ts) ──────────────────────
 
-export type GameType = "grid";
+export type GameType = "grid" | "timing" | "find";
 
 export interface GatheringLoot {
   itemId: string;
@@ -72,11 +72,13 @@ const GAMES: Record<GameType, {
   blurb: string;
   words: Array<{ key: string; label: string; fallback: string; hint?: string }>;
   difficulty: Array<{ key: string; label: string; fallback: number; hint?: string }>;
+  difficultyLabel: string;
   /** One line on what the difficulty numbers add up to. */
   summary: (d: (key: string) => number) => string;
 }> = {
   grid: {
     label: "Grid: push your luck",
+    difficultyLabel: "How often players find something",
     blurb: "A 4×4 grid and a few tries. Each tile is a find, nothing, or a hazard that ends the run with half the haul. Players can leave any time.",
     words: [
       { key: "tile", label: "Hidden tile", fallback: "❔", hint: "Shown on tiles not yet revealed, like 🪨." },
@@ -97,6 +99,55 @@ const GAMES: Record<GameType, {
       const hazards = Math.min(d("hazards"), 16 - finds);
       return `${finds} finds · ${hazards} hazards · ${16 - finds - hazards} empty, out of 16 tiles, with ${d("tries")} tries. More finds mean something almost every run; fewer finds and better loot make a location feel rich but risky.`;
     },
+  },
+  timing: {
+    label: "Timing: react to the signal",
+    difficultyLabel: "How hard it is to land a find",
+    blurb: "Players start an attempt, wait for the signal, and click in time. Uncommon and rarer finds then pull left or right before they're landed. A few attempts a run.",
+    words: [
+      { key: "start", label: "Start button", fallback: "Start", hint: "Like Cast." },
+      { key: "waiting", label: "While waiting", fallback: "Wait for it…" },
+      { key: "signal", label: "The signal", fallback: "❗ Now!", hint: "Like ❗ Bite!" },
+      { key: "action", label: "React button", fallback: "Go", hint: "Like Reel. Clicking it before the signal fails the attempt." },
+      { key: "early", label: "Clicked too early", fallback: "Too early, it got away." },
+      { key: "late", label: "Clicked too late", fallback: "Too slow, it got away." },
+      { key: "pull", label: "A find pulls", fallback: "It pulls {dir}!", hint: "{dir} becomes the left or right button's words." },
+      { key: "left", label: "Left button", fallback: "⬅️ Left" },
+      { key: "right", label: "Right button", fallback: "Right ➡️" },
+      { key: "lost", label: "Wrong way", fallback: "Wrong way, it got away." },
+      { key: "landed", label: "Landed", fallback: "Got it:", hint: "Followed by the item, like \"Landed: 🐟 Perch ×1\"." },
+      { key: "attempts", label: "What attempts are called", fallback: "attempts", hint: "Like casts." },
+      { key: "leave", label: "Leave button", fallback: "Leave" },
+      { key: "verb", label: "Result verb", fallback: "got", hint: "As in \"@Ana caught Perch ×2\"." },
+    ],
+    difficulty: [
+      { key: "attempts", label: "Attempts per run", fallback: 3 },
+      { key: "windowMs", label: "Reaction window (ms)", fallback: 3000, hint: "Skill adds 30 ms a level. Never under 2500, since Discord clicks can arrive late." },
+      { key: "maxRounds", label: "Most pulls", fallback: 3, hint: "Uncommon finds pull once, rare twice, epic and legendary three times, up to this." },
+    ],
+    summary: (d) =>
+      `${d("attempts")} attempts a run, each one find if landed, with ${(d("windowMs") / 1000).toFixed(1)} s to react. Finds come from the loot table, so set rare items' chances to decide how often a fight-back happens.`,
+  },
+  find: {
+    label: "Find it: spot the target",
+    difficultyLabel: "How hard it is to spot",
+    blurb: "A 4×4 patch of look-alikes hides the item being searched for. Players click it before time runs out; a wrong click costs two seconds. A few rounds a run.",
+    words: [
+      { key: "prompt", label: "The task", fallback: "Find the {target}!", hint: "{target} becomes the item's name." },
+      { key: "decoys", label: "Look-alikes", fallback: "🌱 ☘️ 🍀 🌿 🍃 🌾", hint: "Emoji separated by spaces. Pick ones close to your items' emoji to make it harder." },
+      { key: "wrong", label: "Wrong click", fallback: "Not that one!" },
+      { key: "slow", label: "Ran out of time", fallback: "Too slow, it's gone." },
+      { key: "rounds", label: "What rounds are called", fallback: "rounds" },
+      { key: "leave", label: "Leave button", fallback: "Leave" },
+      { key: "verb", label: "Result verb", fallback: "found", hint: "As in \"@Ana foraged Silverleaf ×3\"." },
+    ],
+    difficulty: [
+      { key: "rounds", label: "Rounds per run", fallback: 3 },
+      { key: "seconds", label: "Seconds per round", fallback: 8, hint: "Skill adds a second every 8 levels or so." },
+      { key: "decoyKinds", label: "Kinds of look-alike", fallback: 3, hint: "More kinds make the target harder to pick out. Skill 20 removes one." },
+    ],
+    summary: (d) =>
+      `${d("rounds")} rounds a run, each one find if spotted in ${d("seconds")} s among ${d("decoyKinds")} kinds of look-alike. Every item needs an emoji, since that's what players look for.`,
   },
 };
 
@@ -186,7 +237,7 @@ function LocationEditor({
       </Field>
 
       <Field
-        label="How often players find something"
+        label={GAMES[game].difficultyLabel}
         hint={GAMES[game].summary((key) => location.difficulty?.[key] ?? GAMES[game].difficulty.find((d) => d.key === key)?.fallback ?? 0)}
       >
           <FieldGrid>
