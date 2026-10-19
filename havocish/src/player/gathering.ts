@@ -170,6 +170,26 @@ export async function spendEnergy(userId: number, guildId: number, activity: Gat
 }
 
 /**
+ * Puts items in a bag, respecting the item's max per member. Returns how many
+ * went in (0 for a deleted item or a full cap). Mutates `inv`.
+ */
+export function addToBag(inv: Record<string, item>, config: GuildConfig, itemId: string, qty: number): number {
+    const def = config.shop?.items?.[itemId];
+    if (!def || qty <= 0) return 0;
+    const have = inv[itemId]?.quantity ?? 0;
+    const add = def.maxPerUser != null ? Math.min(qty, def.maxPerUser - have) : qty;
+    if (add <= 0) return 0;
+    inv[itemId] = {
+        id: itemId,
+        name: def.name,
+        ...(def.emoji && { emoji: def.emoji }),
+        ...(def.description && { description: def.description }),
+        quantity: have + add,
+    };
+    return add;
+}
+
+/**
  * Pays out a finished run: items into the bag (respecting maxPerUser), skill XP,
  * and the run count. Returns the skill before and after, for the result line.
  */
@@ -188,19 +208,8 @@ export async function finishRun(opts: {
     const inv: Record<string, item> = { ...(p.inventory ?? {}) };
     const kept: Record<string, number> = {};
     for (const [itemId, qty] of Object.entries(found)) {
-        const def = config.shop?.items?.[itemId];
-        if (!def || qty <= 0) continue;
-        const have = inv[itemId]?.quantity ?? 0;
-        const add = def.maxPerUser != null ? Math.min(qty, def.maxPerUser - have) : qty;
-        if (add <= 0) continue;
-        inv[itemId] = {
-            id: itemId,
-            name: def.name,
-            ...(def.emoji && { emoji: def.emoji }),
-            ...(def.description && { description: def.description }),
-            quantity: have + add,
-        };
-        kept[itemId] = add;
+        const add = addToBag(inv, config, itemId, qty);
+        if (add > 0) kept[itemId] = add;
     }
 
     const stats = { ...(p.user_stats ?? {}) } as NonNullable<typeof p.user_stats>;

@@ -179,6 +179,27 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
+    // ── Crafting ──
+    if (config.crafting?.enabled) {
+        const stations = Object.values(config.crafting.stations ?? {}).filter((s) => s.enabled !== false);
+        if (stations.length === 0) {
+            issues.push({ severity: "warning", message: "Crafting is on but there are no stations.", page: "crafting" });
+        }
+        for (const st of stations) {
+            const recipes = Object.values(st.recipes ?? {});
+            if (!recipes.some((r) => (r.minSkill ?? 1) <= 1 && !r.hidden)) {
+                issues.push({ severity: "warning", message: `Nobody can start ${st.name}: it has no recipe open at skill 1.`, page: "crafting" });
+            }
+            for (const r of recipes) {
+                const name = items[r.output?.itemId]?.name ?? "a recipe";
+                item(r.output?.itemId, `${st.name}'s recipe for ${name}`, "crafting");
+                if ((r.inputs ?? []).some((i) => !items[i.itemId])) {
+                    issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} needs an item that no longer exists, so nobody can make it.`, page: "crafting" });
+                }
+            }
+        }
+    }
+
     // ── Logging ──
     if (config.logging?.enabled) {
         if (!config.logging.mainChannelId) {

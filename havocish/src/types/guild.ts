@@ -4,6 +4,7 @@ import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
 import type { EnemyConfig } from "./combat.js";
 import type { GatheringConfig } from "./gathering.js";
+import type { CraftingConfig } from "./crafting.js";
 export interface DbGuild {
     id: number;
     discord_guild_id: string;
@@ -201,6 +202,7 @@ export interface GuildConfig {
         allowedCategories?: Record<EventCategory, string | null | false>; // category -> channelId to override log if so needed
     },
     gathering: GatheringConfig;
+    crafting: CraftingConfig;
 }
 
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {
@@ -327,5 +329,10 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         // About 25 runs to skill 10 and 400 to skill 50, at roughly 20 skill XP a run.
         skill: { maxLevel: 50, curveType: "polynomial", curveParams: { factor: 13, degree: 1.62 } },
         activities: {},
+    },
+    // Crafting skills share gathering's skill curve (gathering.skill).
+    crafting: {
+        enabled: false,
+        stations: {},
     },
 };

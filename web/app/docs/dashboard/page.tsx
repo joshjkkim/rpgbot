@@ -32,6 +32,7 @@ export default function Dashboard() {
           ["Achievements, Levels, Quests", "As described in their guides."],
           ["Combat", "Enemies, player stats, death penalties, encounters, bosses and duels."],
           ["Gathering", "Activities, their minigames, locations and loot."],
+          ["Crafting", "Stations, their recipes and masterwork tables."],
           ["Logging", "Which events get posted to which log channel."],
           ["Logs", "A history of the events your server logs."],
         ]}
@@ -56,7 +57,7 @@ export default function Dashboard() {
       <Table
         head={["Command", "Use it to"]}
         rows={[
-          [<C key="c">/config</C>, "Switch features on and off with one click each: the shop, gifting, quests, achievements, voice XP, combat, duels, encounters, world bosses, gathering and logging."],
+          [<C key="c">/config</C>, "Switch features on and off with one click each: the shop, gifting, quests, achievements, voice XP, combat, duels, encounters, world bosses, gathering, crafting and logging."],
           [<C key="c">/admin set</C>, "Set a member's XP, level, gold or streak."],
           [<C key="c">/admin items</C>, "View, give, remove or clear a member's items."],
           [<C key="c">/boss summon</C>, "Call a world boss right now."],
