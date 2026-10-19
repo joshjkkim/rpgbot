@@ -5,7 +5,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### New
-- **Gathering.** Mine, fish and forage with `/gather`, each its own minigame. Mining: swing at a grid of rocks, and leave before a cave-in takes half your haul. Fishing: cast, wait for the bite, and reel in time; rare fish fight back. Foraging: spot the herb among the weeds before time runs out.
+- **Gathering.** Mine, fish and forage with `/gather`, each its own minigame. Mining: swing at a grid of rocks, and leave before a cave-in takes half your haul. Fishing: cast, wait for the bite, and reel in time; rare fish fight back. Foraging: spot the herb among the weeds before time runs out. Each activity has its own energy bar of 10 runs that refills over an hour, so you can settle in for a proper session.
 - **Skills and tools.** Each activity has its own skill, from 1 to 50. Higher skill opens better locations with better finds, and makes the game a little easier. Pickaxes, rods and sickles from the new Tools shop help too, and the best spots need one. See your skills on `/me`. Everything you find sells in `/inventory`.
 - **For server owners: make your own gathering.** On the new Gathering page of the dashboard, create any activity you like (salvaging, baking, stargazing), pick one of three minigames for it, and write every word players see. Set its locations, what each one finds and how often. Any shop item can be a tool. Classic Fantasy now includes Mining, Fishing and Foraging, and if you added it before, click **Add to my server** on Starter packs to get them.
 

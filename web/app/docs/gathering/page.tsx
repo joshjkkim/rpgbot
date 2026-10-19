@@ -26,7 +26,7 @@ export default function Gathering() {
 
       <H2>Make an activity</H2>
       <Steps>
-        <li>Click <b>New activity</b> and name it. Set its emoji, skill name and cooldown (5 minutes by default; each activity has its own).</li>
+        <li>Click <b>New activity</b> and name it. Set its emoji, skill name and energy (below).</li>
         <li>Pick a <b>minigame</b> (below).</li>
         <li>Fill in the <b>wording</b>. Every box shows its default as grey text, and blank boxes use it. Change only what fits your theme.</li>
         <li>Add <b>locations</b>, each with the skill it needs, the skill XP it gives and its loot. One location must need skill 1, or nobody can start.</li>
@@ -66,6 +66,19 @@ export default function Gathering() {
         ]}
       />
       <Note kind="warning">Find it shows each item&apos;s emoji as the target, so every item in its loot needs an emoji, and the look-alikes (set in the wording) shouldn&apos;t include it.</Note>
+
+      <H2>Energy</H2>
+      <P>
+        Each activity has its own energy bar. A run uses one point, and points refill over time, so members can sit down
+        for a proper session and then come back later. Members see their energy in every run and on <C>/me</C>.
+      </P>
+      <Table
+        head={["Setting", "Default", "What it does"]}
+        rows={[
+          ["Energy", "10", "Runs a full bar holds."],
+          ["Minutes per energy", "6", "How long one point takes to refill, so a full bar refills in an hour."],
+        ]}
+      />
 
       <H2>Loot tables</H2>
       <P>

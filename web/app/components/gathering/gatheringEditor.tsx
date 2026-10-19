@@ -44,7 +44,9 @@ export interface GatheringActivity {
   emoji: string;
   skillName: string;
   enabled: boolean;
-  cooldownSeconds: number;
+  /** Runs a full bar holds, and seconds per point refilled. Mirrored from havocish/src/types/gathering.ts. */
+  energyMax?: number;
+  energyRefillSeconds?: number;
   game: GameType;
   words?: Record<string, string>;
   locations: Record<string, GatheringLocation>;
@@ -310,11 +312,19 @@ export default function GatheringEditor({ value, onChange, shopItems }: Props) {
           <TextField label="Emoji" value={a.emoji ?? ""} onChange={(v) => upsertActivity({ ...a, emoji: v })} />
           <TextField label="Skill name" value={a.skillName} onChange={(v) => upsertActivity({ ...a, skillName: v })} hint="Like Mining or Salvaging." />
           <NumberField
-            label="Cooldown (seconds)"
-            value={a.cooldownSeconds ?? 300}
-            min={0}
-            onChange={(v) => upsertActivity({ ...a, cooldownSeconds: v })}
-            hint="Each activity has its own, so players can rotate."
+            label="Energy (runs)"
+            value={a.energyMax ?? 10}
+            min={1}
+            onChange={(v) => upsertActivity({ ...a, energyMax: v })}
+            hint="Each run uses one. A full bar is one sitting's worth of play."
+          />
+          <NumberField
+            label="Minutes per energy"
+            value={Math.round(((a.energyRefillSeconds ?? 360) / 60) * 10) / 10}
+            min={0.5}
+            step={0.5}
+            onChange={(v) => upsertActivity({ ...a, energyRefillSeconds: Math.round(v * 60) })}
+            hint={`A full bar refills in about ${Math.round(((a.energyMax ?? 10) * (a.energyRefillSeconds ?? 360)) / 60)} minutes. Each activity has its own bar.`}
           />
           <SelectField label="Minigame" value={game} options={GAME_OPTIONS} onChange={(v) => upsertActivity({ ...a, game: v })} hint={GAMES[game].blurb} wide />
         </FieldGrid>
@@ -372,7 +382,7 @@ export default function GatheringEditor({ value, onChange, shopItems }: Props) {
               title={`${a.emoji ?? ""} ${a.name || id}`}
               lines={[
                 `${a.skillName} · ${GAMES[a.game]?.label ?? a.game}`,
-                `${Object.keys(a.locations ?? {}).length} location${Object.keys(a.locations ?? {}).length === 1 ? "" : "s"} · ${a.cooldownSeconds ?? 300}s cooldown`,
+                `${Object.keys(a.locations ?? {}).length} location${Object.keys(a.locations ?? {}).length === 1 ? "" : "s"} · ⚡ ${a.energyMax ?? 10}, +1 every ${Math.round((a.energyRefillSeconds ?? 360) / 60)} min`,
                 a.enabled === false && "Inactive",
               ]}
             />
@@ -385,7 +395,8 @@ export default function GatheringEditor({ value, onChange, shopItems }: Props) {
               emoji: "⛏️",
               skillName: name,
               enabled: true,
-              cooldownSeconds: 300,
+              energyMax: 10,
+              energyRefillSeconds: 360,
               game: "grid",
               words: {},
               locations: { start: { id: "start", name: "First location", emoji: "📍", minSkill: 1, skillXp: 20, loot: [] } },

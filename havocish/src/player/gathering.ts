@@ -83,11 +83,40 @@ export function rollLoot(loot: GatheringLoot[], config: GuildConfig, roll = Math
     return { itemId: last.itemId, quantity: Math.max(1, last.min ?? 1) };
 }
 
-/** Seconds left on this activity's cooldown, 0 when ready. */
-export function cooldownLeft(lastAt: string | null | undefined, activity: GatheringActivity, now = Date.now()): number {
-    if (!lastAt) return 0;
-    const readyAt = Date.parse(lastAt) + (activity.cooldownSeconds ?? 300) * 1000;
-    return readyAt <= now ? 0 : Math.ceil((readyAt - now) / 1000);
+type Progress = { energy?: number; energyAt?: string | null } | undefined;
+
+export function energyRules(activity: GatheringActivity) {
+    return {
+        max: Math.max(1, activity.energyMax ?? 10),
+        refillMs: Math.max(1, activity.energyRefillSeconds ?? 360) * 1000,
+    };
+}
+
+/**
+ * Energy right now, from what was stored and when, plus when the next point
+ * and a full bar arrive (null when already full). Pure arithmetic on read:
+ * there are no timers, however many players there are.
+ */
+export function energyNow(p: Progress, activity: GatheringActivity, now = Date.now()) {
+    const { max, refillMs } = energyRules(activity);
+    if (p?.energy == null || !p.energyAt) return { energy: max, max, nextAt: null, fullAt: null };
+    const since = Math.max(0, now - Date.parse(p.energyAt));
+    const gained = Math.floor(since / refillMs);
+    const energy = Math.min(max, Math.max(0, p.energy) + gained);
+    if (energy >= max) return { energy: max, max, nextAt: null, fullAt: null };
+    const nextAt = Date.parse(p.energyAt) + (gained + 1) * refillMs;
+    return { energy, max, nextAt, fullAt: nextAt + (max - energy - 1) * refillMs };
+}
+
+/** The stored pair after spending one point. Progress toward the next point carries over. */
+export function spentEnergy(p: Progress, activity: GatheringActivity, now = Date.now()) {
+    const { max, refillMs } = energyRules(activity);
+    const { energy } = energyNow(p, activity, now);
+    // A full bar starts its refill clock now; otherwise the clock keeps its phase.
+    const at = energy >= max || !p?.energyAt
+        ? now
+        : Date.parse(p.energyAt) + Math.floor((now - Date.parse(p.energyAt)) / refillMs) * refillMs;
+    return { energy: energy - 1, energyAt: new Date(at).toISOString() };
 }
 
 export type GridCell = "find" | "hazard" | "empty";
@@ -122,14 +151,14 @@ export function makeGrid(rules: { size: number; finds: number; hazards: number }
     return cells;
 }
 
-/** Marks the activity's cooldown as started. Called when a run begins, so quitting early doesn't skip it. */
-export async function startCooldown(userId: number, guildId: number, activityId: string) {
+/** Spends a point of energy. Called when a run begins, so quitting early still costs it. Returns energy left. */
+export async function spendEnergy(userId: number, guildId: number, activity: GatheringActivity): Promise<number> {
     const cached = await getOrCreateProfile({ userId, guildId });
     const p = cached.profile;
     const stats = { ...(p.user_stats ?? {}) } as NonNullable<typeof p.user_stats>;
     const progress = { ...(stats.gathering ?? {}) };
-    const mine = progress[activityId] ?? { xp: 0, lastAt: null, runs: 0 };
-    progress[activityId] = { ...mine, lastAt: new Date().toISOString() };
+    const mine = progress[activity.id] ?? { xp: 0, runs: 0 };
+    progress[activity.id] = { ...mine, ...spentEnergy(mine, activity) };
     stats.gathering = progress;
     p.user_stats = stats;
     commitProfileChanges({
@@ -137,6 +166,7 @@ export async function startCooldown(userId: number, guildId: number, activityId:
         changes: { ...(cached.pendingChanges ?? {}), user_stats: stats } as PendingProfileChanges,
         baseline: { xp: p.xp, gold: p.gold },
     });
+    return progress[activity.id]!.energy!;
 }
 
 /**
@@ -175,7 +205,7 @@ export async function finishRun(opts: {
 
     const stats = { ...(p.user_stats ?? {}) } as NonNullable<typeof p.user_stats>;
     const progress = { ...(stats.gathering ?? {}) };
-    const mine = progress[activity.id] ?? { xp: 0, lastAt: null, runs: 0 };
+    const mine = progress[activity.id] ?? { xp: 0, runs: 0 };
     const before = skillLevel(mine.xp, config);
     const xp = mine.xp + Math.max(0, location.skillXp ?? 0);
     progress[activity.id] = { ...mine, xp, runs: mine.runs + 1 };

@@ -7,7 +7,7 @@ import { respondFiltered } from "../../ui/autocomplete.js";
 import { accentColor } from "../../ui/pager.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import {
-    bestTool, cooldownLeft, enabledActivities, finishRun, rollLoot, skillLevel, startCooldown, toolsAtTier, unlockedLocations,
+    bestTool, enabledActivities, energyNow, finishRun, rollLoot, skillLevel, spendEnergy, toolsAtTier, unlockedLocations,
 } from "../../player/gathering.js";
 import type { GameType, GatheringActivity } from "../../types/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
@@ -52,7 +52,7 @@ function render(run: Run, config: GuildConfig) {
         .setAccentColor(accentColor(config.style.mainThemeColor))
         .addTextDisplayComponents((t) => t.setContent([
             `## ${run.activity.emoji} ${run.activity.name} · ${run.location.emoji} ${run.location.name}`,
-            ...(run.toolId ? [`-# with ${itemLabel(config, run.toolId)}`] : []),
+            `-# ${run.energyLabel}${run.toolId ? ` · with ${itemLabel(config, run.toolId)}` : ""}`,
             `Found: ${Object.keys(run.found).length ? foundLine(run.found, config) : "nothing yet"}`,
             ...(run.status ? [`-# ${run.status}`] : []),
             text,
@@ -98,9 +98,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const { user } = await getOrCreateDbUser({ discordUserId: interaction.user.id, username: interaction.user.username });
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
     const progress = profile.user_stats?.gathering?.[activity.id];
-    const wait = cooldownLeft(progress?.lastAt, activity);
-    if (wait > 0) {
-        return void await say(`You can go ${activity.name.toLowerCase()} again <t:${Math.floor(Date.now() / 1000) + wait}:R>.`);
+    const power = energyNow(progress, activity);
+    if (power.energy < 1) {
+        const t = (ms: number) => `<t:${Math.ceil(ms / 1000)}:R>`;
+        return void await say(`⚡ You're out of energy for ${activity.name}. One more point ${t(power.nextAt!)}, full ${t(power.fullAt!)}.`);
     }
 
     const skill = skillLevel(progress?.xp ?? 0, config);
@@ -126,7 +127,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (runs.has(key)) return void await say("You're already out gathering.");
     const run = {
         ownerId: interaction.user.id, discordGuildId: interaction.guildId, userId: user.id, guildId: guild.id,
-        activity, location, skill, toolId: tool?.itemId ?? null, toolBonus: tool?.bonus ?? 0, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
+        activity, location, skill, toolId: tool?.itemId ?? null, toolBonus: tool?.bonus ?? 0,
+        energyLabel: `⚡ ${power.energy - 1}/${power.max}`, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
     } as unknown as LiveRun;
     run.ctx = {
         config,
@@ -144,7 +146,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     runs.set(key, run);
     run.state = gameOf(activity).start(run, wordsOf(activity), run.ctx);
 
-    await startCooldown(user.id, guild.id, activity.id);
+    await spendEnergy(user.id, guild.id, activity);
     const response = await interaction.reply({ ...render(run, config), withResponse: true });
     run.message = response.resource?.message ?? null;
     run.deadline = setTimeout(() => void endRun(run, "timeout").catch((err) => console.error("Gathering timeout failed:", err)), RUN_TIMEOUT_MS);
@@ -169,7 +171,7 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
     const lines = [
         ...(why === "hazard" ? [`${w.hazard} ${w.hazardLine}`] : []),
         `<@${run.ownerId}> ${w.verb} ${foundLine(result.kept, config) || "nothing"} at ${run.location.emoji} ${run.location.name}.`,
-        `-# +${result.skillXp} ${run.activity.skillName} XP`,
+        `-# +${result.skillXp} ${run.activity.skillName} XP · ${run.energyLabel} left`,
     ];
     if (result.skillAfter > result.skillBefore) {
         lines.push(`**${run.activity.skillName} ${result.skillAfter}!**`);
