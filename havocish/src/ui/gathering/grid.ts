@@ -18,7 +18,7 @@ export const grid: Game<State> = {
     },
 
     start(run) {
-        const rules = gridRules(run.location, run.skill);
+        const rules = gridRules(run.location, run.skill, run.toolBonus);
         return { cells: makeGrid(rules), shown: Array(rules.size).fill(null), triesLeft: rules.tries };
     },
 

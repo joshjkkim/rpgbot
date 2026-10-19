@@ -9,11 +9,11 @@ import { addFind, fill, itemLabel, type Ctx, type Game, type Run, type Words } f
  */
 
 /** Seconds a round, and how many kinds of look-alike, after skill eases them. */
-export function findRules(location: GatheringLocation, skill: number) {
+export function findRules(location: GatheringLocation, skill: number, toolBonus = 0) {
     const d = location.difficulty ?? {};
     return {
         rounds: d.rounds ?? 3,
-        seconds: (d.seconds ?? 8) + Math.floor((skill - 1) * 0.12),
+        seconds: (d.seconds ?? 8) + Math.floor((skill - 1) * 0.12) + toolBonus,
         decoyKinds: Math.max(1, (d.decoyKinds ?? 3) - (skill >= 20 ? 1 : 0)),
     };
 }
@@ -45,7 +45,7 @@ function nextRound(run: Run, s: State, w: Words, ctx: Ctx): "out" | undefined {
     s.roundsLeft--;
     s.round++;
 
-    const rules = findRules(run.location, run.skill);
+    const rules = findRules(run.location, run.skill, run.toolBonus);
     const label = ctx.config.shop?.items?.[drop.itemId]?.emoji || "✨";
     const decoys = shuffle((w.decoys ?? "").split(/\s+/).filter((d) => d && d !== label)).slice(0, rules.decoyKinds);
     if (!decoys.length) decoys.push("▫️");
@@ -82,7 +82,7 @@ export const find: Game<State> = {
     },
 
     start(run, w, ctx) {
-        const s: State = { roundsLeft: findRules(run.location, run.skill).rounds, round: 0, target: null, cells: [], targetIndex: -1, endsAt: 0 };
+        const s: State = { roundsLeft: findRules(run.location, run.skill, run.toolBonus).rounds, round: 0, target: null, cells: [], targetIndex: -1, endsAt: 0 };
         nextRound(run, s, w, ctx);
         return s;
     },

@@ -16,6 +16,9 @@ export type Run = {
     activity: GatheringActivity;
     location: GatheringLocation;
     skill: number;
+    /** The tool in use, if any, and its bonus (0 without one). */
+    toolId: string | null;
+    toolBonus: number;
     /** Item id -> quantity found so far. */
     found: Record<string, number>;
     /** What just happened, shown under the header. */

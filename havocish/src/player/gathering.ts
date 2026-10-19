@@ -1,6 +1,7 @@
 import type { GuildConfig } from "../types/guild.js";
 import type { GatheringActivity, GatheringLocation, GatheringLoot } from "../types/gathering.js";
 import type { item } from "../types/userprofile.js";
+import type { shopItemConfig } from "../types/economy.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
@@ -28,6 +29,25 @@ export function unlockedLocations(activity: GatheringActivity, skill: number): G
     return Object.values(activity.locations)
         .filter((l) => (l.minSkill ?? 1) <= skill)
         .sort((a, b) => (a.minSkill ?? 1) - (b.minSkill ?? 1));
+}
+
+export type Tool = { itemId: string; tier: number; bonus: number };
+
+/** The best tool for an activity in a bag: highest tier, then biggest bonus. Null when there is none. */
+export function bestTool(inventory: Record<string, item> | null | undefined, config: GuildConfig, activityId: string): Tool | null {
+    let best: Tool | null = null;
+    for (const [itemId, owned] of Object.entries(inventory ?? {})) {
+        const t = (config.shop?.items?.[itemId] as shopItemConfig | undefined)?.tool;
+        if (!t || t.activityId !== activityId || owned.quantity <= 0) continue;
+        const tier = t.tier ?? 1, bonus = t.bonus ?? 0;
+        if (!best || tier > best.tier || (tier === best.tier && bonus > best.bonus)) best = { itemId, tier, bonus };
+    }
+    return best;
+}
+
+/** Shop items that are tools for this activity at this tier or better, for "you need a …" messages. */
+export function toolsAtTier(config: GuildConfig, activityId: string, tier: number): shopItemConfig[] {
+    return Object.values(config.shop?.items ?? {}).filter((i) => i.tool?.activityId === activityId && (i.tool.tier ?? 1) >= tier);
 }
 
 /** One weighted pick from a loot table, or null when it has nothing to give. */
@@ -63,14 +83,14 @@ export type GridCell = "find" | "hazard" | "empty";
  * The grid game's difficulty after skill eases it: one extra try per 12 skill
  * levels, one fewer hazard per 15 (never below 1 while the location has any).
  */
-export function gridRules(location: GatheringLocation, skill: number) {
+export function gridRules(location: GatheringLocation, skill: number, toolBonus = 0) {
     const d = location.difficulty ?? {};
     const hazards = d.hazards ?? 2;
     return {
         size: 16,
         finds: Math.min(d.finds ?? 5, 15),
         hazards: hazards > 0 ? Math.max(1, hazards - Math.floor(skill / 15)) : 0,
-        tries: (d.tries ?? 5) + Math.floor((skill - 1) / 12),
+        tries: (d.tries ?? 5) + Math.floor((skill - 1) / 12) + toolBonus,
     };
 }
 

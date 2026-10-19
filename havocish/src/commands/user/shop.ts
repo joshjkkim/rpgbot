@@ -117,7 +117,7 @@ function renderCategory(container: ContainerBuilder, config: GuildConfig, catego
         ].filter(Boolean).join(" · ");
         // Equip bonuses only apply to gear, so they are left off anything that can't be worn.
         const fx = itemEffects(item);
-        const effects = [...(item.equipable ? [...fx.stats, ...fx.equip] : []), ...fx.use].join(" · ");
+        const effects = [...(fx.tool ? [fx.tool] : []), ...(item.equipable ? [...fx.stats, ...fx.equip] : []), ...fx.use].join(" · ");
 
         container.addSectionComponents(new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(

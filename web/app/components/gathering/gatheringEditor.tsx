@@ -32,6 +32,7 @@ export interface GatheringLocation {
   name: string;
   emoji: string;
   minSkill: number;
+  minToolTier?: number;
   skillXp: number;
   loot: GatheringLoot[];
   difficulty?: Record<string, number>;
@@ -189,6 +190,13 @@ function LocationEditor({
           min={1}
           onChange={(v) => onChange({ ...location, minSkill: v })}
           hint="Players see it once their skill reaches this."
+        />
+        <NumberField
+          label="Tool tier needed"
+          value={location.minToolTier ?? 0}
+          min={0}
+          onChange={(v) => onChange({ ...location, minToolTier: v > 0 ? v : undefined })}
+          hint="0 means no tool needed. Make tools on the Economy page."
         />
         <NumberField
           label="Skill XP per run"
