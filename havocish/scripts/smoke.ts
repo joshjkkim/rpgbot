@@ -48,7 +48,7 @@ import { checkGuild, type Access } from "../src/health/checkGuild.js";
 import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
-import { gridRules, makeGrid, rollLoot, skillLevel } from "../src/player/gathering.js";
+import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
 
@@ -1393,6 +1393,16 @@ async function main() {
         check("a rare find pulls twice", pullRounds({ difficulty: {} } as any, 1, "rare"), 2);
         check("skill 25 drops a pull, but rares keep one", pullRounds({ difficulty: {} } as any, 30, "rare"), 1);
         check("find gets more time with skill", findRules({ difficulty: {} } as any, 50).seconds, 13);
+
+        // Energy is worked out on read: no timers, partial refills carry over, never over the max.
+        const act = { id: "m", energyMax: 10, energyRefillSeconds: 360 } as any;
+        const t0 = Date.parse("2026-10-19T00:00:00Z");
+        let e: any;
+        for (let i = 0; i < 4; i++) e = spentEnergy(e, act, t0 + i * 1000);
+        check("four runs leave six", energyNow(e, act, t0 + 5000).energy, 6);
+        check("a point refills every 6 minutes", energyNow(e, act, t0 + 13 * 60_000).energy, 8);
+        check("energy never passes the max", energyNow(e, act, t0 + 86_400_000).energy, 10);
+        check("spending mid-refill keeps the refill's progress", spentEnergy(e, act, t0 + 13 * 60_000).energyAt, new Date(t0 + 720_000).toISOString());
     });
 
     await test("an item card reads the same lines as the dashboard tooltip", async () => {

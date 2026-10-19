@@ -36,7 +36,10 @@ export interface GatheringActivity {
     /** What the skill is called on /me and in result lines: "Mining", "Salvaging". */
     skillName: string;
     enabled: boolean;
-    cooldownSeconds: number;
+    /** Runs a full bar holds (default 10). A run costs one. */
+    energyMax?: number;
+    /** Seconds for one point to refill (default 360, so a full bar in an hour). */
+    energyRefillSeconds?: number;
     game: GameType;
     /** Per game, every player-visible word. Grid: tile, empty, hazard, hazardLine, leave, tries, verb. */
     words?: Record<string, string>;
@@ -56,4 +59,9 @@ export interface GatheringConfig {
 }
 
 /** Per activity id, stored in user_stats.gathering. */
-export type GatheringProgress = Record<string, { xp: number; lastAt: string | null; runs: number }>;
+/**
+ * Per activity id, stored in user_stats.gathering. Energy is stored as the
+ * amount at a moment (`energy` at `energyAt`) and worked out when read, so
+ * nothing ticks in the background. No `energy` yet means a full bar.
+ */
+export type GatheringProgress = Record<string, { xp: number; runs: number; energy?: number; energyAt?: string | null }>;

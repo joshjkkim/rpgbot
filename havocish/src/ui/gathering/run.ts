@@ -19,6 +19,8 @@ export type Run = {
     /** The tool in use, if any, and its bonus (0 without one). */
     toolId: string | null;
     toolBonus: number;
+    /** "⚡ 6/10": energy left after this run's point was spent. */
+    energyLabel: string;
     /** Item id -> quantity found so far. */
     found: Record<string, number>;
     /** What just happened, shown under the header. */
