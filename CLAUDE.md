@@ -44,7 +44,13 @@ env $(grep '^DISCORD_TOKEN=' .env.prod.bak | xargs) CLIENT_ID=144016937843504337
 
 ## Workflow
 
-- Branch from `main`, one PR per change, **squash merge** (`gh pr merge N --squash --delete-branch`).
+**Releases go through a `dev` branch** (since 2026-10-19). Merging to `main` deploys the dashboard to production straight away (Vercel), so work collects on `dev` and ships in batches:
+
+- Feature PRs branch from `dev` and target `dev` (`gh pr create --base dev`). Test on the dev bot; Vercel builds a preview for `dev`.
+- Release: one PR `dev` → `main` (merge, don't squash, so `dev` and `main` share history). Then `fly deploy`, prod command registration if commands changed, and the changelog post.
+- Urgent fixes branch from `main`, merge to `main`, deploy, then merge `main` back into `dev`.
+
+- One PR per change, **squash merge** (`gh pr merge N --squash --delete-branch`).
 - **Wait for CI to pass before merging.** It runs typecheck, lint, build, the smoke suite, the schema check, the Docker build and the command-reference check.
 - Don't stack a PR on another PR's branch: `--delete-branch` on the base closes the stacked PR. Merge, then branch from main.
 - Player-facing changes add a bullet under `## Unreleased` in `CHANGELOG.md`. Use only `##`/`###` headings, flat `- ` bullets and `**bold**`/`*italic*`/`` `code` ``, since the changelog page's parser handles nothing else.
