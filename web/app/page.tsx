@@ -1,7 +1,8 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
+import Link from "next/link";
+import { SiteFooter, SiteHeader, afterSignIn } from "./components/siteChrome";
 import { inviteUrl } from "./lib/invite";
 import { FIREFLIES, SCENE, STARS, WINDOWS } from "./scene";
 import { FLAME_FRAMES, type SpriteName } from "./sprites";
@@ -27,6 +28,7 @@ const SHOWCASE = [
 ];
 
 const ALSO: Array<[SpriteName, string]> = [
+  ["pickaxe", "Mining, fishing and foraging minigames, or your own"],
   ["skull", "Turn-based fights against enemies you write"],
   ["swords", "Duels between members, with gold on the line"],
   ["scroll", "Quests and achievements with custom rewards"],
@@ -41,51 +43,6 @@ const CAMP = { w: 320, h: 90, fireX: 160, ground: 70 };
 const primaryButton = "btn";
 const ghostButton = "btn btn-stone";
 
-/** Where to go after signing in: a same-site ?callbackUrl path, else the dashboard. */
-function afterSignIn() {
-  const next = new URLSearchParams(window.location.search).get("callbackUrl");
-  return next && /^\/(?![/\\])/.test(next) ? next : "/dashboard";
-}
-
-function Wordmark() {
-  return (
-    <span className="flex items-center gap-2.5 font-display text-xl text-[var(--gold)] [text-shadow:0_1px_0_#000]">
-      {/* eslint-disable-next-line @next/next/no-img-element -- a 64px pixel-art PNG */}
-      <img src="/logo.png" alt="" width={32} height={32} className="[image-rendering:pixelated]" />
-      havocish
-    </span>
-  );
-}
-
-function Header() {
-  const { data: session } = useSession();
-  const router = useRouter();
-
-  return (
-    <header className="flex items-center justify-between px-6 py-4">
-      <Wordmark />
-
-      {session ? (
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:inline text-sm text-[var(--muted)]">
-            {session.user?.name}
-          </span>
-          <button onClick={() => router.push("/dashboard")} className={`${primaryButton} px-3 py-1.5 text-sm`}>
-            Dashboard
-          </button>
-          <button onClick={() => signOut()} className={`${ghostButton} px-3 py-1.5 text-sm`}>
-            Sign out
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => signIn("discord", { callbackUrl: afterSignIn() })} className={`${primaryButton} px-3 py-1.5 text-sm`}>
-          Sign in with Discord
-        </button>
-      )}
-    </header>
-  );
-}
-
 export default function Home() {
   const { data: session } = useSession();
   const invite = inviteUrl();
@@ -94,7 +51,7 @@ export default function Home() {
     // The page is the ground below the hero's cliff: it starts at the scene's foreground
     // colour and darkens to the campfire's ground, so scrolling reads as one landscape.
     <div className="min-h-screen flex flex-col bg-[linear-gradient(#0f0b0e,#0a0807)]">
-      <Header />
+      <SiteHeader />
 
       <main className="flex-1">
         <section className="relative isolate overflow-hidden">
@@ -181,6 +138,9 @@ export default function Home() {
               </li>
             ))}
           </ul>
+          <Link href="/features" className="mt-8 inline-block text-[var(--accent)] hover:text-[var(--accent-hover)]">
+            See everything havocish does →
+          </Link>
         </section>
 
         {/* The page ends at a campfire, answering the castle at the top. */}
@@ -223,19 +183,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--border)] px-6 py-6 text-center text-sm text-[var(--muted)]">
-        Configure everything from the dashboard, or with <code className="font-mono">/config-*</code>{" "}
-        commands in Discord.
-        <div className="mt-3">
-          <a href="/legal/terms" className="hover:text-[var(--accent)]">Terms of Service</a>
-          {" · "}
-          <a href="/legal/privacy" className="hover:text-[var(--accent)]">Privacy Policy</a>
-          {" · "}
-          <a href="/changelog" className="hover:text-[var(--accent)]">Changelog</a>
-          {" · "}
-          <a href="https://discord.gg/9dV5NnV9tq" target="_blank" rel="noreferrer" className="hover:text-[var(--accent)]">Support server</a>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
