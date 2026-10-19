@@ -7,6 +7,7 @@ import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
 import { calculateLevelFromXp, calculateTotalXpForLevel, levelStartXp } from "../../leveling/levels.js";
 import { accentColor } from "../../ui/pager.js";
 import { SLOT_META } from "./inventory.js";
+import { bestTool, enabledActivities, skillProgress } from "../../player/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 
@@ -78,6 +79,18 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
         return `${emoji} ${label} · **${itemName}**${bonus ? ` (${bonus})` : ""}`;
     });
     c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(`**Equipped**\n${gear.join("\n")}`));
+
+    const activities = enabledActivities(config);
+    if (activities.length) {
+        const skills = activities.map((a) => {
+            const { level, into, span } = skillProgress(profile.user_stats?.gathering?.[a.id]?.xp ?? 0, config);
+            const tool = bestTool(inventory, config, a.id);
+            const toolName = tool ? config.shop?.items?.[tool.itemId]?.name : null;
+            const progress = span ? `\`${bar(into / span)}\` ${into} / ${span}` : "max";
+            return `${a.emoji} **${a.skillName} ${level}** ${progress}${toolName ? ` · ${toolName}` : ""}`;
+        });
+        c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(`**Skills**\n${skills.join("\n")}\n-# Train them with \`/gather\`.`));
+    }
 
     c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(
         `${config.style.gold.icon || "💰"} ${Number(profile.gold ?? 0).toLocaleString()} ${goldName}  ·  🔥 ${profile.streak_count ?? 0}-day streak`,

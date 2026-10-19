@@ -22,6 +22,8 @@ export type StarterPack = {
     combat: { enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }> };
     quests: { quests: Record<string, Named> };
     achievements: { achievements: Record<string, Named> };
+    /** Optional: packs from before gathering existed have none. */
+    gathering?: { activities: Record<string, Named & { emoji?: string; skillName?: string; locations?: Record<string, unknown> }> };
   };
 };
 
@@ -34,14 +36,20 @@ const TARGETS = [
   ["combat", "enemies"],
   ["quests", "quests"],
   ["achievements", "achievements"],
+  ["gathering", "activities"],
 ] as const;
 
 /** Features a pack switches on, so its content works straight away. */
-export const PACK_FEATURES = ["shop", "combat", "quests", "achievements"] as const;
+export const PACK_FEATURES = ["shop", "combat", "quests", "achievements", "gathering"] as const;
 
 function packMap(pack: StarterPack, section: string, map: string) {
   const content = pack.content as unknown as Record<string, Record<string, Record<string, unknown>>>;
   return content[section]?.[map] ?? {};
+}
+
+/** The features a pack switches on: the four every pack has, plus gathering when it brings activities. */
+export function packFeatures(pack: StarterPack) {
+  return PACK_FEATURES.filter((f) => f !== "gathering" || Object.keys(packMap(pack, "gathering", "activities")).length > 0);
 }
 
 export function hasEntry(config: GuildConfigJson | null, section: string, map: string, id: string) {
@@ -75,7 +83,7 @@ export function applyPack(config: GuildConfigJson | null, pack: StarterPack) {
     }
   }
 
-  for (const feature of PACK_FEATURES) next[feature]!.enabled = true;
+  for (const feature of packFeatures(pack)) next[feature]!.enabled = true;
 
   // Servers created before the default was fixed store crit as 0.05 / 0.01,
   // which combat reads as percentages -- effectively never a crit. Repair only
