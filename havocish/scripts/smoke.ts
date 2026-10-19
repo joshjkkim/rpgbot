@@ -1585,13 +1585,14 @@ async function main() {
             update: async (p: any) => { shown.push(p); },
         });
         const text = (p: any) => p.embeds[0].data.description as string;
-        const tabs = (p: any) => p.components[0].components.map((b: any) => b.data.custom_id);
+        // Tabs span two rows; every row's buttons count.
+        const tabs = (p: any) => p.components.flatMap((r: any) => r.components.map((b: any) => b.data.custom_id));
 
         await helpCommand(base(false) as any);
         check("opens on getting started, privately", `${shown[0].embeds[0].data.title}|${!!shown[0].flags}`, "🌱 Getting started|true");
         check("members get no owner tab", tabs(shown[0]).includes("help:owner"), false);
 
-        for (const page of ["combat", "items", "social"]) {
+        for (const page of ["combat", "gathering", "items", "social"]) {
             await handleHelpButton({ ...base(false), customId: `help:${page}` } as any);
             const body = text(shown.at(-1));
             check(`${page} page has content`, body.length > 0 && body.length < 4096, true);
@@ -1602,7 +1603,9 @@ async function main() {
         await handleHelpButton({ ...base(false), customId: "help:owner" } as any);
         check("a member asking for the owner page gets the start page", shown.at(-1).embeds[0].data.title, "🌱 Getting started");
         await handleHelpButton({ ...base(true), customId: "help:owner" } as any);
-        check("owners get the owner page and a dashboard link", `${shown.at(-1).embeds[0].data.title}|${shown.at(-1).components.length}`, "🛠️ For server owners|2");
+        check("owners get the owner page", shown.at(-1).embeds[0].data.title, "🛠️ For server owners");
+        check("owners get a dashboard link under the tabs", shown.at(-1).components.at(-1).components[0].data.style, 5);
+        check("every tab row fits Discord's five buttons", shown.at(-1).components.every((r: any) => r.components.length <= 5), true);
     });
 
     await test("level 1 starts at 0 XP, so the bar, the level and total XP agree", async () => {
