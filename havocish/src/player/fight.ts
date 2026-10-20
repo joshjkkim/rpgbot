@@ -559,8 +559,8 @@ export function getEligibleEnemies(config: GuildConfig, playerLevel: number): En
 /**
  * Picks a random eligible enemy. Returns null if none are configured/eligible.
  */
-export function pickRandomEnemy(config: GuildConfig, playerLevel: number): EnemyConfig | null {
-    const eligible = getEligibleEnemies(config, playerLevel);
+export function pickRandomEnemy(config: GuildConfig, playerLevel: number, allowed: (e: EnemyConfig) => boolean = () => true): EnemyConfig | null {
+    const eligible = getEligibleEnemies(config, playerLevel).filter(allowed);
     if (eligible.length === 0) return null;
     return eligible[Math.floor(Math.random() * eligible.length)] ?? null;
 }

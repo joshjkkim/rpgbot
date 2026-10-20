@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Field, FieldGrid, NumberField, SelectField, TextAreaField, TextField, Toggle } from "@/app/components/ui/form";
-import { ChannelField, ItemField, RoleField, RolesField } from "@/app/components/ui/pickers";
+import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import RequirementsField, { type SkillOption } from "@/app/components/ui/requirementsField";
 import { RARITIES } from "@/app/components/shop/itemTooltip";
 import type { ShopConfig, shopItemAction, shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
 
@@ -98,6 +99,7 @@ export default function ItemForm({
   allItems,
   categoryOptions,
   activities,
+  skills,
 }: {
   item: shopItemConfig;
   onChange: (next: shopItemConfig) => void;
@@ -106,6 +108,8 @@ export default function ItemForm({
   categoryOptions: ReadonlyArray<{ value: string; label: string }>;
   /** Gathering activities, so an item can be a tool for one. */
   activities: Record<string, { name?: string; emoji?: string }>;
+  /** Skills a requirement can name. */
+  skills: SkillOption[];
 }) {
   const [tab, setTab] = useState<Tab>("basics");
   const upsertItem = onChange;
@@ -185,12 +189,6 @@ export default function ItemForm({
                 hint="0 means it cannot be sold back."
               />
               <NumberField
-                label="Minimum level"
-                value={item.minLevel ?? 0}
-                min={0}
-                onChange={(v) => upsertItem({ ...item, minLevel: v })}
-              />
-              <NumberField
                 label="Stock"
                 value={item.stock ?? 0}
                 min={0}
@@ -204,14 +202,20 @@ export default function ItemForm({
                 onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
                 hint="0 means no cap."
               />
-              <RolesField
-                wide
-                label="Required roles"
-                value={item.requiresRoleIds ?? []}
-                onChange={(v) => upsertItem({ ...item, requiresRoleIds: v })}
-              />
             </FieldGrid>
           </Field>
+
+          {/* The item's old level and role fields are shown here and moved into requirements on the first edit. */}
+          <RequirementsField
+            value={{
+              ...item.requirements,
+              ...(item.minLevel ? { chatLevel: Math.max(item.minLevel, item.requirements?.chatLevel ?? 0) } : {}),
+              ...(item.requiresRoleIds?.length ? { roles: [...new Set([...(item.requirements?.roles ?? []), ...item.requiresRoleIds])] } : {}),
+            }}
+            onChange={(next) => upsertItem({ ...item, requirements: next, minLevel: undefined, requiresRoleIds: undefined })}
+            skills={skills}
+            hint="Who can buy, use or equip it. Everything set here must be met."
+          />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Toggle label="Hidden" checked={!!item.hidden} onChange={(v) => upsertItem({ ...item, hidden: v })} />

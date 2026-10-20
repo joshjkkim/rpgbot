@@ -1,3 +1,5 @@
+import type { Requirements } from "./requirements.js";
+
 /**
  * Crafting: owner-made stations (Smithing, Alchemy, Engineering...), each a
  * skill with recipes that turn items into other items. Like gathering, nothing
@@ -20,6 +22,8 @@ export interface Recipe {
     skillXp: number;
     /** Not known until learned from a recipe scroll (coming with the scroll action). */
     hidden?: boolean;
+    /** Gates beyond the station's own skill. */
+    requirements?: Requirements;
     /** What a masterwork roll can give instead of the plain output, weighted like gathering loot. */
     masterwork?: { itemId: string; chance: number; quantity: number }[];
 }

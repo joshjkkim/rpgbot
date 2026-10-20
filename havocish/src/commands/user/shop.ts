@@ -8,6 +8,7 @@ import { purchaseItem } from "../../db/shop.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 import { itemEffects } from "../../ui/canvas/itemCard.js";
+import { checkRequirements, describeRequirements, itemRequirements, memberFacts } from "../../player/requirements.js";
 import { updateUserStats } from "../../db/userGuildProfiles.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../../player/achievements.js";
@@ -129,8 +130,7 @@ function renderCategory(container: ContainerBuilder, config: GuildConfig, catego
         const soldOut = item.stock === 0;
         const details = [
             item.stock != null ? `Stock: ${item.stock}` : "",
-            item.minLevel ? `Level ${item.minLevel}+` : "",
-            item.requiresRoleIds?.length ? "Role required" : "",
+            ...describeRequirements(itemRequirements(item), config).map((r) => `Needs ${r}`),
         ].filter(Boolean).join(" · ");
         // Equip bonuses only apply to gear, so they are left off anything that can't be worn.
         const fx = itemEffects(item);
@@ -217,13 +217,10 @@ async function buyItem(interaction: ButtonInteraction, itemId: string, quantity:
         return "❌ That item isn't for sale to you.";
     }
 
-    if (configItem.requiresRoleIds && configItem.requiresRoleIds.length > 0) {
-        const member = await interaction.guild?.members.fetch(interaction.user.id);
-        const hasRequiredRole = configItem.requiresRoleIds.some(roleId => member?.roles.cache.has(roleId));
-        if (!hasRequiredRole) {
-            return "❌ You do not have the required role to purchase this item.";
-        }
-    }
+    // Level, roles, skills, membership age and boosting, all in one check.
+    const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+    const gate = checkRequirements(itemRequirements(configItem), { profile, config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) return `❌ ${gate.message}`;
 
     const purchase = await purchaseItem({
         userId: dbUser.id,

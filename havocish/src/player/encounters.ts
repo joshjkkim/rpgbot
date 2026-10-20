@@ -3,6 +3,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlag
 import type { EnemyConfig } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
 import { canPost } from "./canPost.js";
+import { checkRequirements, memberFacts } from "./requirements.js";
 import { pickRandomEnemy, startFight } from "./fight.js";
 import { buildActionRow, buildStartEmbed, readyToFight } from "../commands/user/fight.js";
 
@@ -103,6 +104,11 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
             content: `You need to be level **${enemy.minLevel}**${enemy.maxLevel !== null ? `–${enemy.maxLevel}` : "+"} to fight **${enemy.emoji} ${enemy.name}**.`,
             flags: MessageFlags.Ephemeral,
         });
+        return;
+    }
+    const gate = checkRequirements(enemy.requirements, { profile: ready.profile, config: ready.config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) {
+        await interaction.reply({ content: `**${enemy.emoji} ${enemy.name}**: ${gate.message}`, flags: MessageFlags.Ephemeral });
         return;
     }
 

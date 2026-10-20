@@ -3,6 +3,7 @@
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import QuestsBasicsEditor from "@/app/components/quests/questsBasicEditor";
+import { skillOptions } from "@/app/components/ui/requirementsField";
 
 export default function QuestsPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
@@ -22,6 +23,7 @@ export default function QuestsPageClient({ guildId }: { guildId: string }) {
     >
       {config && (
         <QuestsBasicsEditor
+          skills={skillOptions(config)}
           value={quests}
           shopItems={config.shop?.items ?? {}}
           enemies={config.combat?.enemies ?? {}}

@@ -8,6 +8,7 @@ import ItemTooltip, { RARITIES } from "@/app/components/shop/itemTooltip";
 import type { ShopConfig, shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
 import type { DashboardConfig } from "@/app/lib/dashboardConfig";
 import ItemForm, { dropRetiredActions } from "./itemForm";
+import { skillOptions } from "@/app/components/ui/requirementsField";
 import { itemConnections, type ItemLink } from "./itemConnections";
 
 type Filter = "all" | "shop" | "drop" | "gear" | "tool" | "usable" | "material";
@@ -148,7 +149,7 @@ export default function ItemsEditor({
                   {warnings.map((w) => <li key={w}>{w}</li>)}
                 </ul>
               )}
-              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} />
+              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} skills={skillOptions(config)} />
             </div>
           );
         }}

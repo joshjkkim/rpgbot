@@ -49,6 +49,7 @@ import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
+import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { craftOnce, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
@@ -1370,6 +1371,26 @@ async function main() {
         await flushDirtyProfiles(true);
         const row = await query<{ gold: string }>(`SELECT gold FROM user_guild_profiles WHERE user_id = $1 AND guild_id = $2`, [userId, guildId]);
         check("gold persisted", row.rows[0]?.gold, "40");
+    });
+
+    await test("requirements: one check for every gate", async () => {
+        const config = { ...DEFAULT_GUILD_CONFIG, gathering: { ...DEFAULT_GUILD_CONFIG.gathering, activities: { mining: { id: "mining", skillName: "Mining" } } } } as any;
+        const profile = { level: 5, user_stats: { gathering: { mining: { xp: 0 } } } } as any;
+        const now = Date.parse("2026-10-19T00:00:00Z");
+        const facts = { roleIds: ["vet"], joinedAt: now - 40 * 86_400_000, boosting: false };
+        const ok = (req: any) => checkRequirements(req, { profile, config, facts, now });
+
+        check("no requirements pass", ok(undefined).ok, true);
+        check("chat level", ok({ chatLevel: 6 }).message, "Needs level 6.");
+        check("a role from any bot", ok({ roles: ["vet"] }).ok, true);
+        check("any one of several roles", ok({ roles: ["x", "vet"] }).ok, true);
+        check("a missing role is named", ok({ roles: ["x"] }).message, "Needs the <@&x> role.");
+        check("membership age", ok({ memberDays: 30 }).ok && !ok({ memberDays: 60 }).ok, true);
+        check("booster", ok({ booster: true }).message, "Needs boosting the server.");
+        check("a skill", ok({ skills: { mining: 15 } }).message, "Needs Mining 15.");
+        check("a deleted skill fails open", ok({ skills: { gone: 99 } }).ok, true);
+        check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs level 9, the <@&x> role and boosting the server.");
+        check("an item's old fields fold in", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ chatLevel: 3, roles: ["r"] }));
     });
 
     await test("crafting: what a member can make, and making it", async () => {

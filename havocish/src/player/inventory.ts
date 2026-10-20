@@ -8,6 +8,7 @@ import { calculateLevelFromXp } from "../leveling/levels.js";
 import type { ButtonInteraction, ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
+import { checkRequirements, itemRequirements, memberFacts } from "./requirements.js";
 import type { item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
@@ -289,16 +290,11 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
         return { success: false, message: `Item \`${itemId}\` cannot be used.`  };
     }
 
-    if (items[itemId].minLevel && profile.level < items[itemId].minLevel) {
-        return { success: false, message: `You are underleveled to use item \`${itemId}\`.` };
-    }
+    const gate = checkRequirements(itemRequirements(items[itemId]), { profile, config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) return { success: false, message: `${named(items[itemId], itemId)}: ${gate.message}` };
 
+    // The full member, for role actions below.
     const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-
-    if (items[itemId].requiresRoleIds?.length) {
-        const ok = items[itemId].requiresRoleIds.some(rid => member?.roles.cache.has(rid));
-        if (!ok) return { success: false, message: `You do not have the required roles to use item \`${itemId}\`.` };
-    }
 
     let xpGained = 0;
     let goldGained = 0;
@@ -608,6 +604,10 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
     if(!item.equipSlot) {
         return { success: false, message: `Item with ID \`${itemId}\` cannot be equipped in any slot.` };
     }
+
+    // Equipping used to skip the item's level and role requirements entirely.
+    const gate = checkRequirements(itemRequirements(item), { profile, config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) return { success: false, message: `${named(item, itemId)}: ${gate.message}` };
 
     const currentEquipped = profile.equips?.[item.equipSlot];
     if (currentEquipped === itemId) {
