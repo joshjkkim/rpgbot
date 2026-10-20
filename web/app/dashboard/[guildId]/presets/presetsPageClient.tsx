@@ -20,6 +20,7 @@ const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   quests: "Quests",
   achievements: "Achievements",
   gathering: "Gathering",
+  crafting: "Crafting",
 };
 
 type Row = { id: string; label: string; detail?: string; colour?: string };
@@ -44,7 +45,7 @@ function PackColumn({ title, rows, taken }: { title: string; rows: Row[]; taken:
 }
 
 function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: GuildConfigJson; saving: boolean; onAdd: () => void }) {
-  const { shop, combat, quests, achievements, gathering } = pack.content;
+  const { shop, combat, quests, achievements, gathering, crafting } = pack.content;
   const missing = missingCount(config, pack);
   const featuresOff = packFeatures(pack).filter((f) => !config?.[f]?.enabled);
   const upToDate = missing === 0 && featuresOff.length === 0;
@@ -66,6 +67,11 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
     id,
     label: `${a.emoji ?? ""} ${a.name}`.trim(),
     detail: `${Object.keys(a.locations ?? {}).length} locations`,
+  }));
+  const stationRows: Row[] = Object.entries(crafting?.stations ?? {}).map(([id, s]) => ({
+    id,
+    label: `${s.emoji ?? ""} ${s.name}`.trim(),
+    detail: `${Object.keys(s.recipes ?? {}).length} recipes`,
   }));
 
   return (
@@ -96,6 +102,9 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
         />
         {activityRows.length > 0 && (
           <PackColumn title="Gathering" rows={activityRows} taken={(id) => hasEntry(config, "gathering", "activities", id)} />
+        )}
+        {stationRows.length > 0 && (
+          <PackColumn title="Crafting" rows={stationRows} taken={(id) => hasEntry(config, "crafting", "stations", id)} />
         )}
       </div>
     </section>

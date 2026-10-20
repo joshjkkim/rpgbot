@@ -35,6 +35,7 @@ export async function loadStarterPacks(): Promise<StarterPack[]> {
             quests: { quests: c?.quests?.quests ?? {} },
             achievements: { achievements: c?.achievements?.achievements ?? {} },
             gathering: { activities: c?.gathering?.activities ?? {} },
+            crafting: { stations: c?.crafting?.stations ?? {} },
         } as StarterPack["content"],
     }));
 
