@@ -2,6 +2,7 @@ import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { DashboardPage } from "../ui/dashboardLinks.js";
+import type { Requirements } from "../types/requirements.js";
 
 /**
  * The server health check behind the dashboard Overview: everything in a
@@ -177,6 +178,48 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                 for (const x of l.loot ?? []) item(x.itemId, `${a.name} at ${l.name}`, "gathering");
             }
         }
+    }
+
+    // ── Crafting ──
+    if (config.crafting?.enabled) {
+        const stations = Object.values(config.crafting.stations ?? {}).filter((s) => s.enabled !== false);
+        if (stations.length === 0) {
+            issues.push({ severity: "warning", message: "Crafting is on but there are no stations.", page: "crafting" });
+        }
+        for (const st of stations) {
+            const recipes = Object.values(st.recipes ?? {});
+            if (!recipes.some((r) => (r.minSkill ?? 1) <= 1 && !r.hidden)) {
+                issues.push({ severity: "warning", message: `Nobody can start ${st.name}: it has no recipe open at skill 1.`, page: "crafting" });
+            }
+            for (const r of recipes) {
+                const name = items[r.output?.itemId]?.name ?? "a recipe";
+                item(r.output?.itemId, `${st.name}'s recipe for ${name}`, "crafting");
+                if ((r.inputs ?? []).some((i) => !items[i.itemId])) {
+                    issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} needs an item that no longer exists, so nobody can make it.`, page: "crafting" });
+                }
+            }
+        }
+    }
+
+    // ── Requirements ── (a gate on a deleted role or skill quietly stops gating)
+    const reqs = (req: Requirements | undefined, what: string, page: DashboardPage) => {
+        for (const id of req?.roles ?? []) {
+            if (access.roleName(id) === null) issues.push({ severity: "warning", message: `${what} needs a role that was deleted, so that condition is ignored.`, page });
+        }
+        for (const id of Object.keys(req?.skills ?? {})) {
+            if (!config.gathering?.activities?.[id] && !config.crafting?.stations?.[id]) {
+                issues.push({ severity: "warning", message: `${what} needs a skill that no longer exists, so that condition is ignored.`, page });
+            }
+        }
+    };
+    for (const it of Object.values(items)) reqs(it.requirements, `The item ${it.name}`, "items");
+    for (const e of Object.values(config.combat.enemies ?? {})) reqs(e.requirements, `The enemy ${e.name}`, "combat");
+    for (const q of Object.values(config.quests?.quests ?? {})) reqs(q.requirements, `The quest ${q.name}`, "quests");
+    for (const a of Object.values(config.gathering?.activities ?? {})) {
+        for (const l of Object.values(a.locations ?? {})) reqs(l.requirements, `${a.name} at ${l.name}`, "gathering");
+    }
+    for (const st of Object.values(config.crafting?.stations ?? {})) {
+        for (const r of Object.values(st.recipes ?? {})) reqs(r.requirements, `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "an item"}`, "crafting");
     }
 
     // ── Logging ──

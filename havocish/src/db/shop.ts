@@ -77,9 +77,8 @@ export async function purchaseItem(opts: {
                 return { success: false, message: "You do not have a profile in this server yet." };
             }
 
-            if (shopItem.minLevel !== undefined && profile.level < shopItem.minLevel) {
-                return { success: false, message: `You need to be at least level ${shopItem.minLevel} to purchase this item.` };
-            }
+            // The item's level requirement is a Combat level, checked with its other
+            // requirements before the purchase starts (shop.ts, itemRequirements).
 
             const gold = BigInt(profile.gold ?? 0);
             if (gold < price) {

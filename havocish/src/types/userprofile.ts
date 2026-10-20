@@ -1,4 +1,5 @@
 import type { GatheringProgress } from "./gathering.js";
+import type { CraftingProgress } from "./crafting.js";
 import type { QueryResultRow } from "pg";
 import type { UserQuestState } from "./quest.js";
 
@@ -34,6 +35,10 @@ export interface UserStats {
 
     /** Skill XP, cooldown and run count per gathering activity. */
     gathering?: GatheringProgress;
+    /** Skill XP, craft count and learned hidden recipes per crafting station. */
+    crafting?: CraftingProgress;
+    /** Combat XP. Missing means "not split off yet": combatLevel.ts starts it from chat XP. */
+    combat?: { xp: number };
 }
 export interface item {
     id: string;

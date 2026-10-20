@@ -4,6 +4,7 @@ import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
 import type { EnemyConfig } from "./combat.js";
 import type { GatheringConfig } from "./gathering.js";
+import type { CraftingConfig } from "./crafting.js";
 export interface DbGuild {
     id: number;
     discord_guild_id: string;
@@ -72,6 +73,8 @@ export interface GuildConfig {
     },
     combat: {
         enabled: boolean;
+        /** Combat level's own curve and cap, separate from chat levels. */
+        curve?: { maxLevel: number; curveType: "linear" | "exponential" | "polynomial" | "logarithmic"; curveParams: Record<string, number> };
         hpBase?: number;
         hpPerLevel?: number;
         attackBase?: number;
@@ -201,6 +204,7 @@ export interface GuildConfig {
         allowedCategories?: Record<EventCategory, string | null | false>; // category -> channelId to override log if so needed
     },
     gathering: GatheringConfig;
+    crafting: CraftingConfig;
 }
 
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {
@@ -219,6 +223,8 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
     },
     combat: {
         enabled: false,
+        // Tuned for fighting: about 60 early fights to Combat 10, a few hundred to 30, a long road to 99.
+        curve: { maxLevel: 99, curveType: "polynomial", curveParams: { factor: 15, degree: 2.2 } },
         hpBase: 100,
         hpPerLevel: 10,
         attackBase: 10,
@@ -327,5 +333,10 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         // About 25 runs to skill 10 and 400 to skill 50, at roughly 20 skill XP a run.
         skill: { maxLevel: 50, curveType: "polynomial", curveParams: { factor: 13, degree: 1.62 } },
         activities: {},
+    },
+    // Crafting skills share gathering's skill curve (gathering.skill).
+    crafting: {
+        enabled: false,
+        stations: {},
     },
 };

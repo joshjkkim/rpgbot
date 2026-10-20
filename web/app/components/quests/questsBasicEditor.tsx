@@ -1,5 +1,6 @@
 "use client";
 
+import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -48,6 +49,7 @@ export interface QuestConfig {
   cooldown: number;
   overrideChannelId?: string | null;
   overrideAnnouncement?: string | null;
+  requirements?: Requirements;
 }
 
 export type QuestsConfig = {
@@ -66,6 +68,8 @@ type Props = {
   enemies: Record<string, { name?: string; emoji?: string }>;
   value: QuestsConfig | null | undefined;
   onChange: (next: QuestsConfig) => void;
+  /** Skills a requirement can name. */
+  skills: SkillOption[];
 };
 
 const CONDITIONS = [
@@ -120,7 +124,7 @@ function normalizeQuests(raw: Record<string, any> | undefined): Record<string, Q
   return out;
 }
 
-export default function QuestsBasicEditor({ value, onChange, shopItems, enemies }: Props) {
+export default function QuestsBasicEditor({ value, onChange, shopItems, enemies, skills }: Props) {
   const [local, setLocal] = useState<QuestsConfig>(() => ({
     ...(value ?? {}),
     quests: normalizeQuests(value?.quests),
@@ -284,6 +288,13 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies 
                   />
                 </FieldGrid>
 
+                <RequirementsField
+                  value={quest.requirements}
+                  onChange={(next) => upsertQuest({ ...quest, requirements: next })}
+                  skills={skills}
+                  hint="Who can take this quest on. Everything set here must be met."
+                />
+
                 <Field label="Rewards">
                   <div className="space-y-3">
                     {rewardKeys.length === 0 && (
@@ -320,7 +331,7 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies 
 
                           <FieldGrid>
                             <NumberField
-                              label="XP"
+                              label="Combat XP"
                               value={reward.xp ?? 0}
                               min={0}
                               onChange={(v) => patch({ xp: v || undefined })}

@@ -1,6 +1,5 @@
 import { query } from "../db/index.js";
 import { busyFighting } from "./fight.js";
-import { addMessageXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
@@ -8,6 +7,8 @@ import { calculateLevelFromXp } from "../leveling/levels.js";
 import type { ButtonInteraction, ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
+import { checkRequirements, itemRequirements, memberFacts } from "./requirements.js";
+import { addCombatXp, combatLevel, combatXp } from "./combatLevel.js";
 import type { item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
@@ -25,7 +26,7 @@ function snapshot(profile: Parameters<typeof calculateStats>[0], config: Paramet
     const stats = calculateStats(profile, config, config.shop?.items ?? {});
     return {
         hp: resolveCurrentHp(profile, stats), maxHp: stats.maxHp,
-        xp: BigInt(profile.xp ?? 0), gold: BigInt(profile.gold ?? 0), level: profile.level ?? 1, stats,
+        xp: BigInt(combatXp(profile)), gold: BigInt(profile.gold ?? 0), level: combatLevel(profile, config), stats,
     };
 }
 
@@ -34,10 +35,10 @@ export function describeChange(before: Snapshot, after: Snapshot, config: Parame
     const parts: string[] = [];
     if (config.combat?.enabled && after.hp !== before.hp) parts.push(`❤️ ${before.hp} → ${after.hp} / ${after.maxHp} HP`);
     const xp = after.xp - before.xp;
-    if (xp !== 0n) parts.push(`${xp > 0n ? "+" : ""}${xp} ${config.style.xp.name || "XP"}`);
+    if (xp !== 0n) parts.push(`${xp > 0n ? "+" : ""}${xp} Combat XP`);
     const gold = after.gold - before.gold;
     if (gold !== 0n) parts.push(`${gold > 0n ? "+" : ""}${gold} ${config.style.gold.name || "gold"}`);
-    if (after.level > before.level) parts.push(`**Level ${after.level}!**`);
+    if (after.level > before.level) parts.push(`**Combat ${after.level}!**`);
     return parts.join(" · ");
 }
 
@@ -289,16 +290,11 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
         return { success: false, message: `Item \`${itemId}\` cannot be used.`  };
     }
 
-    if (items[itemId].minLevel && profile.level < items[itemId].minLevel) {
-        return { success: false, message: `You are underleveled to use item \`${itemId}\`.` };
-    }
+    const gate = checkRequirements(itemRequirements(items[itemId]), { profile, config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) return { success: false, message: `${named(items[itemId], itemId)}: ${gate.message}` };
 
+    // The full member, for role actions below.
     const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-
-    if (items[itemId].requiresRoleIds?.length) {
-        const ok = items[itemId].requiresRoleIds.some(rid => member?.roles.cache.has(rid));
-        if (!ok) return { success: false, message: `You do not have the required roles to use item \`${itemId}\`.` };
-    }
 
     let xpGained = 0;
     let goldGained = 0;
@@ -406,22 +402,20 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                         break;
                     }
 
+                    // Items are part of the RPG, so "xp" gives Combat XP, never chat XP.
                     case "xp": {
                         xpGained += action.amount;
-                        await addMessageXp({
-                            client: interaction.client,
-                            discordGuildId: interaction.guild.id,
-                            discordUserId: interaction.user.id,
-                            member: member ?? null,
-
+                        const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+                        const p = cached.profile;
+                        addCombatXp(p, config, action.amount ?? 0);
+                        commitProfileChanges({
                             userId: dbUser.id,
                             guildId: dbGuild.id,
-                            channelId: interaction.channelId,
-                            config: config,
-                            roleIds: member?.roles.cache.map(r => r.id) ?? [],
-                            amount: action.amount,
+                            profile: p,
+                            changes: { ...(cached.pendingChanges ?? {}), user_stats: p.user_stats } as PendingProfileChanges,
+                            baseline: { xp: p.xp, gold: p.gold },
                         });
-                        break; 
+                        break;
                     }
 
                     case "health": {
@@ -608,6 +602,10 @@ export async function equipItemFromInventory(interaction: ChatInputCommandIntera
     if(!item.equipSlot) {
         return { success: false, message: `Item with ID \`${itemId}\` cannot be equipped in any slot.` };
     }
+
+    // Equipping used to skip the item's level and role requirements entirely.
+    const gate = checkRequirements(itemRequirements(item), { profile, config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) return { success: false, message: `${named(item, itemId)}: ${gate.message}` };
 
     const currentEquipped = profile.equips?.[item.equipSlot];
     if (currentEquipped === itemId) {

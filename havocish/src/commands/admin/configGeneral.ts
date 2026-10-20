@@ -23,6 +23,7 @@ const TOGGLES = [
     { key: "encounters", label: "Wild encounters", emoji: "🐺", path: ["combat", "encounters", "enabled"], needsCombat: true },
     { key: "bosses", label: "World bosses", emoji: "👑", path: ["combat", "bosses", "enabled"], needsCombat: true },
     { key: "gathering", label: "Gathering", emoji: "⛏️", path: ["gathering", "enabled"] },
+    { key: "crafting", label: "Crafting", emoji: "⚒️", path: ["crafting", "enabled"] },
     { key: "logging", label: "Event log", emoji: "🗒️", path: ["logging", "enabled"] },
 ] as const;
 

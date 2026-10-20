@@ -8,6 +8,8 @@ import { calculateLevelFromXp, calculateTotalXpForLevel, levelStartXp } from "..
 import { accentColor } from "../../ui/pager.js";
 import { SLOT_META } from "./inventory.js";
 import { bestTool, enabledActivities, energyNow, skillProgress } from "../../player/gathering.js";
+import { enabledStations } from "../../player/crafting.js";
+import { combatProgress } from "../../player/combatLevel.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 
@@ -26,7 +28,7 @@ export const data = new SlashCommandBuilder()
 
 const STAT_LABELS = { hp: "HP", atk: "ATK", def: "DEF", spd: "SPD", crit: "% crit" } as const;
 
-function bar(fraction: number, length = 12) {
+export function bar(fraction: number, length = 12) {
     const filled = Math.max(0, Math.min(length, Math.round(fraction * length)));
     return "█".repeat(filled) + "░".repeat(length - filled);
 }
@@ -59,7 +61,9 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
     if (config.combat?.enabled) {
         const stats = calculateStats(profile, config, config.shop?.items ?? {});
         const hp = resolveCurrentHp(profile, stats);
+        const cp = combatProgress(profile, config);
         c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent([
+            `⚔️ **Combat ${cp.level}** ${cp.span ? `\`${bar(cp.into / cp.span)}\` ${cp.into.toLocaleString()} / ${cp.span.toLocaleString()} XP` : "max"}`,
             `❤️ **HP** \`${bar(hp / stats.maxHp)}\` ${hp} / ${stats.maxHp}`,
             `⚔️ **ATK** ${stats.atk}  ·  🛡️ **DEF** ${stats.def}  ·  💨 **SPD** ${stats.spd}  ·  🎯 **CRIT** ${stats.critChance.toFixed(1)}%`,
             hp <= 0
@@ -81,7 +85,8 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
     c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(`**Equipped**\n${gear.join("\n")}`));
 
     const activities = enabledActivities(config);
-    if (activities.length) {
+    const stations = enabledStations(config);
+    if (activities.length || stations.length) {
         const skills = activities.map((a) => {
             const mine = profile.user_stats?.gathering?.[a.id];
             const { level, into, span } = skillProgress(mine?.xp ?? 0, config);
@@ -91,7 +96,12 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
             const progress = span ? `\`${bar(into / span)}\` ${into} / ${span}` : "max";
             return `${a.emoji} **${a.skillName} ${level}** ${progress} · ⚡ ${energy}/${max}${toolName ? ` · ${toolName}` : ""}`;
         });
-        c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(`**Skills**\n${skills.join("\n")}\n-# Train them with \`/gather\`.`));
+        for (const st of stations) {
+            const { level, into, span } = skillProgress(profile.user_stats?.crafting?.[st.id]?.xp ?? 0, config);
+            skills.push(`${st.emoji} **${st.skillName} ${level}** ${span ? `\`${bar(into / span)}\` ${into}/${span}` : "max"}`);
+        }
+        const how = [activities.length ? "`/gather`" : "", stations.length ? "`/craft`" : ""].filter(Boolean).join(" and ");
+        c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(`**Skills**\n${skills.join("\n")}\n-# Train them with ${how}.`));
     }
 
     c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(

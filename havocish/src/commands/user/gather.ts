@@ -11,6 +11,7 @@ import {
 } from "../../player/gathering.js";
 import type { GameType, GatheringActivity } from "../../types/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
+import { checkRequirements, memberFacts } from "../../player/requirements.js";
 import { itemLabel, type Ctx, type EndReason, type Game, type Run, type Words } from "../../ui/gathering/run.js";
 import { grid } from "../../ui/gathering/grid.js";
 import { timing } from "../../ui/gathering/timing.js";
@@ -109,14 +110,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const open = unlockedLocations(activity, skill);
     const asked = interaction.options.getString("location");
     // Without a choice, the best place the player's skill and tool both reach.
+    const facts = memberFacts(interaction.member);
+    const meets = (l: (typeof open)[number]) => checkRequirements(l.requirements, { profile, config, facts }).ok;
     const location = asked
         ? open.find((l) => l.id === asked || l.name.toLowerCase() === asked.toLowerCase())
-        : open.filter((l) => (l.minToolTier ?? 0) <= (tool?.tier ?? 0)).at(-1);
+        : open.filter((l) => (l.minToolTier ?? 0) <= (tool?.tier ?? 0) && meets(l)).at(-1);
     if (!location) {
         return void await say(asked
             ? `You can't reach that yet. Your ${activity.skillName} is ${skill}.`
             : `There's nowhere to go ${activity.name.toLowerCase()} at ${activity.skillName} ${skill} yet.`);
     }
+    const gate = checkRequirements(location.requirements, { profile, config, facts });
+    if (!gate.ok) return void await say(`${location.emoji} ${location.name}: ${gate.message}`);
     if ((location.minToolTier ?? 0) > (tool?.tier ?? 0)) {
         const options = toolsAtTier(config, activity.id, location.minToolTier!).map((i) => `${i.emoji ?? ""} **${i.name}**`.trim());
         return void await say(`${location.emoji} ${location.name} needs a better tool${options.length ? `, like ${options.slice(0, 3).join(" or ")}` : ""}.`);

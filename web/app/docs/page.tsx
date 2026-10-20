@@ -80,6 +80,12 @@ export default function GettingStarted() {
         Every command is listed in the <Link href="/docs/commands" className="text-[var(--accent)] underline">command reference</Link>.
       </P>
 
+      <H2>Already have a leveling bot?</H2>
+      <P>
+        havocish works alongside it. Gate any item, location, recipe, enemy or quest behind the roles your leveling bot
+        gives at each level, using a requirement (see <Link href="/docs/dashboard#requirements" className="text-[var(--accent)] underline">Requirements</Link>).
+      </P>
+
       <H2>Who can configure havocish</H2>
       <P>
         The server owner and anyone with <b>Manage Server</b> (or Administrator) can use the dashboard and the manager

@@ -18,6 +18,7 @@ import { handleBossButton } from "../player/bosses.js";
 import { handleHelpButton } from "../commands/user/help.js";
 import { handleConfigButton } from "../commands/admin/configGeneral.js";
 import { handleGatherButton } from "../commands/user/gather.js";
+import { handleCraftButton } from "../commands/user/craft.js";
 import { busyFighting } from "../player/fight.js";
 
 /** While fighting, you fight: /fight (which brings the fight back) and /help are all that work. */
@@ -90,6 +91,8 @@ export function registerInteractionCreate(client: Client) {
                     await handleConfigButton(interaction);
                 } else if (interaction.customId.startsWith("gather:")) {
                     await handleGatherButton(interaction);
+                } else if (interaction.customId.startsWith("craft:")) {
+                    await handleCraftButton(interaction);
                 }
 
                 return;

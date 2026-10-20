@@ -11,6 +11,7 @@ import type { QuestConfig, QuestCondition, UserQuestState } from "../../types/qu
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
+import { checkRequirements, memberFacts } from "../../player/requirements.js";
 
 /**
  * /quests: the quest log. Every quest is a card saying what to do, how far
@@ -79,7 +80,7 @@ function repeats(cooldown: number): string {
 export function rewardLine(def: QuestConfig, config: GuildConfig): string {
     const parts: string[] = [];
     for (const r of Object.values(def.reward ?? {})) {
-        if (r.xp) parts.push(`${config.style.xp.icon || "⭐"} ${r.xp} ${config.style.xp.name || "XP"}`);
+        if (r.xp) parts.push(`⚔️ ${r.xp} Combat XP`);
         if (r.gold) parts.push(`${config.style.gold.icon || "💰"} ${r.gold} ${config.style.gold.name || "gold"}`);
         if (r.itemId) {
             const item = config.shop?.items?.[r.itemId];
@@ -214,6 +215,8 @@ async function acceptQuest(interaction: ButtonInteraction, questId: string): Pro
     const { dbUser, dbGuild, config, cached } = await load(interaction);
     const qc = config.quests?.quests?.[questId];
     if (!config.quests?.enabled || !qc || qc.active === false) return "❌ That quest is no longer on the board.";
+    const gate = checkRequirements(qc.requirements, { profile: cached.profile, config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) return `🔒 **${qc.name}**: ${gate.message}`;
 
     const userQuests = { ...(cached.profile.quests ?? {}) } as Record<string, UserQuestState>;
     const check = canStartQuest(userQuests[questId], qc, Date.now());
@@ -295,7 +298,7 @@ async function claimQuests(interaction: ButtonInteraction, questIds: string[]): 
     if (claimed.length === 0) return "❌ Nothing to claim right now.";
     const { config } = await load(interaction);
     const gains = [
-        totals.xp && `+${totals.xp} ${config.style.xp.name || "XP"}`,
+        totals.xp && `+${totals.xp} Combat XP`,
         totals.gold && `+${totals.gold} ${config.style.gold.name || "gold"}`,
         ...totals.items,
     ].filter(Boolean).join(", ");

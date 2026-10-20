@@ -2,6 +2,21 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## v0.12 · October 19, 2026
+
+### New
+- **Combat level.** The RPG now has its own level, from Combat 1 to 99, separate from chat level. Fights, world bosses, quests, achievements and items that give XP pay Combat XP, and your Combat level sets your stats, which enemies you meet and which gear you can use. Chat level is for chatting. Nobody gets weaker: your Combat level starts at your chat level today, and from there it grows only by fighting. See it on `/me`.
+- **Crafting.** Turn what you gather and loot into better things with `/craft`. Each crafting station is its own skill: better recipes open as it grows. Most stations use the forge meter: strike as the bar crosses the zone to make the item, hit the centre for a masterwork (sometimes something rarer than the recipe's usual result), or miss and lose some of your materials. Higher skill widens the zone.
+- **For server owners: requirements on anything.** Items, gathering spots, recipes, enemies and quests can now require any mix of skill levels, roles, days in the server or boosting. Already use another leveling bot? Require the role it gives at a level, and havocish follows your existing levels. Members are told exactly what they're missing.
+- **For server owners: build your own stations.** On the dashboard's new Crafting page, create any station (smithing, cooking, engineering), write its recipes, and decide what a masterwork can turn into. Pick the forge meter for skill and risk, or a plain Craft button, and tune how forgiving the forge is. Every item's page now shows which recipes make it and which use it.
+- **Classic Fantasy: Smithing, Alchemy and Cooking.** The starter pack now comes with three stations and twelve recipes built from what you gather: forge pickaxes and swords (some weapons only a smith can make), brew healing draughts and a Charm of the Grove, and cook your catch into healing food. Servers that already added the pack can add it again from Starter packs to get them; nothing you changed is touched.
+
+### Changed
+- **For server owners: a tidier dashboard.** The sidebar is grouped into Server, Leveling, RPG and Analytics, and Economy is now called Shop.
+
+### Fixed
+- Equipping an item ignored its level and role requirements. It now checks them, like buying and using do.
+
 ## v0.11 · October 18, 2026
 
 ### New

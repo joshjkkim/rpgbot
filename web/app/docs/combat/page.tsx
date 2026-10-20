@@ -12,18 +12,30 @@ export default function Combat() {
         lead="Turn-based fights against enemies you write, wild encounters in chat, world bosses for the whole server, and duels between members."
       />
 
+      <H2>Combat level</H2>
+      <P>
+        Combat is the RPG&apos;s own level, separate from chat level. Fights, world bosses, quest and achievement rewards,
+        and items that give XP all pay <b>Combat XP</b>; none of it raises chat level. Combat level sets a member&apos;s
+        stats, which enemies they meet, and which gear they can use. It has its own curve, from Combat 1 to 99 by default,
+        tuned for fighting: about 60 early fights to Combat 10. Change it under Combat (Advanced).
+      </P>
+      <Note>
+        When Combat split off from chat level, every existing member started at the Combat level matching their chat level
+        (capped at 99), so nobody got weaker. New members start at Combat 1, and from then on the two grow separately. Members see their Combat level on <C>/me</C>.
+      </Note>
+
       <H2>How a fight works</H2>
       <List>
         <li><C>/fight</C> picks an enemy suited to the member&apos;s level, or one they name.</li>
         <li>Each round they choose an action: <b>Attack</b>, drink a healing potion from their bag, or <b>Flee</b>. Drinking uses the turn, so the enemy still swings.</li>
-        <li>A win pays the enemy&apos;s XP and gold, and rolls its drops.</li>
+        <li>A win pays the enemy&apos;s Combat XP and gold, and rolls its drops.</li>
         <li><b>HP carries over</b> between fights. Members heal with <C>/daily</C> or a potion.</li>
         <li>One fight at a time. While fighting, other commands wait, and <C>/fight</C> brings the fight back if it scrolled away.</li>
         <li>Walking away, or a bot restart, counts as fleeing: no penalty, but the damage taken stays.</li>
       </List>
 
       <H2>Player stats</H2>
-      <P>Every member&apos;s stats are a base plus a bit per level, plus whatever their gear adds. Tune them at <Where>Combat</Where> (Advanced).</P>
+      <P>Every member&apos;s stats are a base plus a bit per Combat level, plus whatever their gear adds. Tune them at <Where>Combat</Where> (Advanced).</P>
       <Table
         head={["Stat", "Base", "Per level"]}
         rows={[
@@ -42,8 +54,8 @@ export default function Combat() {
         head={["Field", "What it does"]}
         rows={[
           ["HP, attack, defence, speed, crit", "How tough it is."],
-          ["Min and max level", <>Which members can meet it in <C>/fight</C> and encounters. A max of 0 means no upper limit.</>],
-          ["XP and gold reward", "What beating it pays."],
+          ["Min and max Combat level", <>Which members can meet it in <C>/fight</C> and encounters. A max of 0 means no upper limit.</>],
+          ["Combat XP and gold reward", "What beating it pays."],
           ["Drops", "Items it can drop, each with a chance from 0 to 1 and a quantity."],
           ["World boss", "Makes it a server-wide boss instead (below)."],
         ]}
@@ -52,7 +64,7 @@ export default function Combat() {
       <H2>Losing</H2>
       <P>
         Death penalties are separate for enemies and for duels. Each can take a percentage of gold, a flat amount (whichever
-        is larger), and a percentage of XP. XP loss is off by default, since it can undo a level.
+        is larger), and a percentage of Combat XP. Combat XP loss is off by default, since it can undo a level.
       </P>
 
       <H2>Wild encounters</H2>

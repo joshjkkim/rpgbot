@@ -3,6 +3,8 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlag
 import type { EnemyConfig } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
 import { canPost } from "./canPost.js";
+import { checkRequirements, memberFacts } from "./requirements.js";
+import { combatLevel } from "./combatLevel.js";
 import { pickRandomEnemy, startFight } from "./fight.js";
 import { buildActionRow, buildStartEmbed, readyToFight } from "../commands/user/fight.js";
 
@@ -62,15 +64,14 @@ export async function maybeSpawnEncounter(message: Message<true>, config: GuildC
 }
 
 function encounterEmbed(enemy: EnemyConfig, config: GuildConfig, fleeSeconds: number) {
-    const xpIcon = config.style.xp.icon || "⭐";
     const goldIcon = config.style.gold.icon || "💰";
-    const level = enemy.maxLevel !== null ? `Level ${enemy.minLevel}–${enemy.maxLevel}` : `Level ${enemy.minLevel}+`;
+    const level = enemy.maxLevel !== null ? `Combat ${enemy.minLevel}–${enemy.maxLevel}` : `Combat ${enemy.minLevel}+`;
     return new EmbedBuilder()
         .setTitle(`${enemy.emoji} A wild ${enemy.name} appears!`)
         .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
         .setDescription([
             `❤️ ${enemy.hp} HP · ⚔️ ${enemy.atk} ATK · 🛡️ ${enemy.def} DEF`,
-            `Reward: ${xpIcon} ${enemy.xpReward} · ${goldIcon} ${enemy.goldReward}`,
+            `Reward: ⚔️ ${enemy.xpReward} Combat XP · ${goldIcon} ${enemy.goldReward}`,
             "",
             `First to click **Fight** takes it on. It leaves <t:${Math.floor(Date.now() / 1000) + fleeSeconds}:R>.`,
         ].join("\n"))
@@ -97,12 +98,17 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
         await interaction.reply({ content: ready.message, flags: MessageFlags.Ephemeral });
         return;
     }
-    const level = ready.profile.level ?? 1;
+    const level = combatLevel(ready.profile, ready.config);
     if (level < enemy.minLevel || (enemy.maxLevel !== null && level > enemy.maxLevel)) {
         await interaction.reply({
-            content: `You need to be level **${enemy.minLevel}**${enemy.maxLevel !== null ? `–${enemy.maxLevel}` : "+"} to fight **${enemy.emoji} ${enemy.name}**.`,
+            content: `You need Combat **${enemy.minLevel}**${enemy.maxLevel !== null ? `–${enemy.maxLevel}` : "+"} to fight **${enemy.emoji} ${enemy.name}**.`,
             flags: MessageFlags.Ephemeral,
         });
+        return;
+    }
+    const gate = checkRequirements(enemy.requirements, { profile: ready.profile, config: ready.config, facts: memberFacts(interaction.member) });
+    if (!gate.ok) {
+        await interaction.reply({ content: `**${enemy.emoji} ${enemy.name}**: ${gate.message}`, flags: MessageFlags.Ephemeral });
         return;
     }
 

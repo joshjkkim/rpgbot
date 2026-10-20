@@ -35,8 +35,8 @@ export async function upsertUserGuildProfile(args: UpsertArgs): Promise<DbUserGu
 
     const result = await query<DbUserGuildProfile>(
         `
-        INSERT INTO user_guild_profiles (user_id, guild_id)
-        VALUES ($1, $2)
+        INSERT INTO user_guild_profiles (user_id, guild_id, user_stats)
+        VALUES ($1, $2, '{"combat":{"xp":0}}'::jsonb)
         ON CONFLICT (user_id, guild_id)
         DO UPDATE SET
         updated_at = NOW()

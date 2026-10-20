@@ -49,6 +49,10 @@ import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
+import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
+import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
+import { calculateStats } from "../src/player/combat.js";
+import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
@@ -904,7 +908,7 @@ async function main() {
         check("unlimited item delivered", await qty(fx.a, g, "potion"), 4);
     });
 
-    await test("a purchase is refused on gold or level, charging nothing", async () => {
+    await test("a purchase is refused on gold, charging nothing; the level gate is a requirement", async () => {
         const fx = await resetTrades();
         const g = fx.guild.id;
         await seed(fx.a, g, {}, 50);
@@ -914,9 +918,12 @@ async function main() {
         check("gold untouched", await goldOf(fx.a, g), "50");
         check("no item delivered", await qty(fx.a, g, "sword"), 0);
 
-        await patchShopItem(fx, "potion", { minLevel: 10 });
-        const underLevelled = await purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "potion", quantity: 1 });
-        check("under the level requirement is refused", underLevelled.success, "false");
+        // An item's level is a Combat level now, checked with its other requirements before
+        // purchaseItem runs (buyItem in shop.ts), from the cache rather than the database row.
+        const gate = checkRequirements(itemRequirements({ minLevel: 10 } as any), {
+            profile: { xp: "0", level: 1, user_stats: {} } as any, config: DEFAULT_GUILD_CONFIG, facts: { roleIds: [], joinedAt: null, boosting: false },
+        });
+        check("under the level requirement is refused", gate.message, "Needs Combat 10.");
         check("still nothing charged", await goldOf(fx.a, g), "50");
     });
 
@@ -1031,7 +1038,7 @@ async function main() {
         await flushDirtyProfiles(true);
         const after = await row(fx.a, g);
         check("fight gold paid", after.gold, "25");
-        check("fight xp paid", after.xp, "50");
+        check("fight XP is Combat XP, not chat XP", `${after.xp}|${after.user_stats?.combat?.xp}`, "0|50");
         check("the write that landed first survived", after.inventory?.potion?.quantity, 1);
         check("fight counters survived", after.user_stats?.fightsWon, 1);
     });
@@ -1371,6 +1378,109 @@ async function main() {
         check("gold persisted", row.rows[0]?.gold, "40");
     });
 
+    await test("combat: its own level and curve, split once from chat level", async () => {
+        const cfg = DEFAULT_GUILD_CONFIG;
+        const p = { xp: "999999", level: 40, user_stats: {} } as any;
+        check("no Combat XP means Combat 1, whatever the chat level", combatLevel(p, cfg), 1);
+        const weak = calculateStats(p, cfg, {}).atk;
+        const up = addCombatXp(p, cfg, 1885);
+        check("Combat XP is stored on its own", p.user_stats.combat.xp, 1885);
+        check("chat XP is untouched", p.xp, "999999");
+        check("1885 Combat XP reaches Combat 10 on the fighting curve", combatLevel(p, cfg), 10);
+        check("the level-up is reported", up.after > up.before, true);
+        check("stats grow with Combat level", calculateStats(p, cfg, {}).atk > weak, true);
+        addCombatXp(p, cfg, -999999);
+        check("Combat XP never goes below 0", p.user_stats.combat.xp, 0);
+
+        // The one-time split: pre-split rows get the Combat level of their chat level; new rows start at 0.
+        const { userId, guildId } = await reset();
+        check("a new profile starts with Combat XP 0", (await getOrCreateProfile({ userId, guildId })).profile.user_stats?.combat?.xp, 0);
+        await flushDirtyProfiles(true);
+        userGuildProfileCache.clear();
+        await query(`UPDATE user_guild_profiles SET level = 30, user_stats = user_stats - 'combat' WHERE user_id = $1 AND guild_id = $2`, [userId, guildId]);
+        await convertLegacyCombat();
+        const converted = (await getOrCreateProfile({ userId, guildId })).profile;
+        check("a pre-split member starts at the Combat level of their chat level", combatLevel(converted, cfg), 30);
+        check("running the split again changes nothing", await convertLegacyCombat(), 0);
+    });
+
+    await test("requirements: one check for every gate", async () => {
+        const config = { ...DEFAULT_GUILD_CONFIG, gathering: { ...DEFAULT_GUILD_CONFIG.gathering, activities: { mining: { id: "mining", skillName: "Mining" } } } } as any;
+        const profile = { level: 5, user_stats: { gathering: { mining: { xp: 0 } } } } as any;
+        const now = Date.parse("2026-10-19T00:00:00Z");
+        const facts = { roleIds: ["vet"], joinedAt: now - 40 * 86_400_000, boosting: false };
+        const ok = (req: any) => checkRequirements(req, { profile, config, facts, now });
+
+        check("no requirements pass", ok(undefined).ok, true);
+        check("chat level", ok({ chatLevel: 6 }).message, "Needs chat level 6.");
+        check("combat level (carried over from chat XP)", ok({ combatLevel: 99 }).message, "Needs Combat 99.");
+        check("a role from any bot", ok({ roles: ["vet"] }).ok, true);
+        check("any one of several roles", ok({ roles: ["x", "vet"] }).ok, true);
+        check("a missing role is named", ok({ roles: ["x"] }).message, "Needs the <@&x> role.");
+        check("membership age", ok({ memberDays: 30 }).ok && !ok({ memberDays: 60 }).ok, true);
+        check("booster", ok({ booster: true }).message, "Needs boosting the server.");
+        check("a skill", ok({ skills: { mining: 15 } }).message, "Needs Mining 15.");
+        check("a deleted skill fails open", ok({ skills: { gone: 99 } }).ok, true);
+        check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs chat level 9, the <@&x> role and boosting the server.");
+        check("an item's old level folds in as Combat", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ combatLevel: 3, roles: ["r"] }));
+    });
+
+    await test("crafting: what a member can make, and making it", async () => {
+        const ids = await reset();
+        const config = ids.config;
+        config.shop = { ...config.shop, items: {
+            ore: { id: "ore", name: "Ore", categoryId: "", price: 0 },
+            sword: { id: "sword", name: "Sword", categoryId: "", price: 0 },
+            fine: { id: "fine", name: "Fine Sword", categoryId: "", price: 0 },
+        } } as any;
+        const station = { id: "smith", name: "Smithing", emoji: "⚒️", skillName: "Smithing", enabled: true, style: "simple", recipes: {} } as any;
+        const recipe = { id: "sword", inputs: [{ itemId: "ore", quantity: 3 }], gold: 5, output: { itemId: "sword", quantity: 1 }, minSkill: 1, skillXp: 40 } as any;
+        const p = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        p.inventory = { ore: { id: "ore", name: "Ore", quantity: 4 } } as any;
+        p.gold = "10";
+
+        check("one craft's worth is affordable", recipeState(recipe, p, config, 1, []).affordable, true);
+        check("a skill gate locks it", recipeState({ ...recipe, minSkill: 5 }, p, config, 1, []).locked, "skill");
+        check("a hidden recipe stays locked until known", recipeState({ ...recipe, hidden: true }, p, config, 1, []).locked, "hidden");
+        check("a missing output item breaks it", recipeState({ ...recipe, output: { itemId: "gone", quantity: 1 } }, p, config, 1, []).locked, "broken");
+
+        const made = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station, recipe, roll: () => 0.99 });
+        const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("crafting gives the output", after.inventory.sword?.quantity, 1);
+        check("crafting takes the inputs", after.inventory.ore?.quantity, 1);
+        check("crafting takes the gold", after.gold, "5");
+        check("crafting gives skill XP", after.user_stats.crafting?.smith?.xp, 40);
+        check("the craft reports success", made.ok, true);
+
+        const again = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station, recipe });
+        check("not enough ore refuses, and takes nothing", `${again.ok}|${(await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile.inventory.ore?.quantity}`, "false|1");
+
+        // A masterwork roll picks from the table.
+        const lucky = { ...station, masterworkChance: 100 };
+        const fresh = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        fresh.inventory = { ...fresh.inventory, ore: { id: "ore", name: "Ore", quantity: 3 } } as any;
+        fresh.gold = "5";
+        const mw = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station: lucky, recipe: { ...recipe, masterwork: [{ itemId: "fine", chance: 1, quantity: 1 }] } });
+        check("a masterwork gives the table's item", mw.ok && !mw.ruined && mw.masterwork && mw.gave.itemId, "fine");
+
+        // Forge: a ruined strike loses half of each ingredient (rounded down), no gold, no XP.
+        const forge = { ...station, style: "forge" } as any;
+        const before = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        before.inventory = { ...before.inventory, ore: { id: "ore", name: "Ore", quantity: 3 } } as any;
+        const goldBefore = before.gold;
+        const xpBefore = before.user_stats.crafting?.smith?.xp;
+        const ruined = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station: forge, recipe: { ...recipe, gold: 0 }, outcome: "ruin" });
+        const afterRuin = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("a ruin loses half the ingredients", `${ruined.ok && ruined.ruined}|${afterRuin.inventory.ore?.quantity}`, "true|2");
+        check("a ruin keeps the gold and gives no XP", `${afterRuin.gold === goldBefore}|${afterRuin.user_stats.crafting?.smith?.xp === xpBefore}`, "true|true");
+
+        // The bar: zone 5 of 15 at skill 1, 8 at the top; the centre sits inside it.
+        check("forge zone at skill 1", forgeRules(forge, 1, 50).zone, 5);
+        check("forge zone at the top skill", forgeRules(forge, 50, 50).zone, 8);
+        const spot = placeForge({ zone: 5, centre: 1 }, () => 0);
+        check("forge judging", [2, 0, 5].map((cell) => judgeForge(cell, spot)).join(","), "perfect,made,ruin");
+    });
+
     await test("shop categories follow their sort order, hidden flag and roles", async () => {
         const cfg = { shop: { categories: {
             b: { id: "b", name: "B", sortOrder: 2 },
@@ -1433,7 +1543,7 @@ async function main() {
         check("crit reads as an equip line", lines.includes("Equip: +5% critical strike chance."), true);
         check("gold boost as a percentage", lines.includes("Equip: Fights award 10% more gold."), true);
         check("flavour text is quoted", lines.includes('"Still remembers the fire."'), true);
-        check("level requirement", lines.includes("Requires Level 10"), true);
+        check("level requirement reads as Combat", lines.includes("Requires Combat 10"), true);
         check("sell price", lines.includes("Sell Price: 300 gold"), true);
 
         // A 1.0 multiplier is not a bonus, so it must not show as one.
@@ -1557,8 +1667,8 @@ async function main() {
         check("the boss is gone", liveBoss(TEST_DISCORD_GUILD), null);
         check("the message shows it fell", JSON.stringify(edits.at(-1)).includes("has fallen"), true);
         check("the fighter's damage counted", live.fighters.get(TEST_DISCORD_USER)?.damage, 1);
-        const xpAfter = BigInt((await getOrCreateProfile({ userId, guildId })).profile.xp);
-        check("the whole pool went to the only fighter", (xpAfter - xpBefore).toString(), "1000");
+        const after = (await getOrCreateProfile({ userId, guildId })).profile;
+        check("the whole pool went to the only fighter, as Combat XP", `${BigInt(after.xp) - xpBefore}|${after.user_stats?.combat?.xp}`, "0|1000");
         const leftover = await query(`SELECT 1 FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
         check("a fallen boss leaves no saved row", leftover.rowCount, 0);
     });
@@ -1768,7 +1878,7 @@ async function main() {
         check("objective in words", objective(config.quests.quests.chatter!.conditions, config), "Send 25 messages in <#111>");
         const fresh = JSON.stringify(renderQuestLog(config, {}, 0).map((c: any) => c.toJSON()));
         check("shows the description", fresh.includes("Share stories."), true);
-        check("shows rewards with item names", fresh.includes("Healing Draught ×2") && fresh.includes("75 XP"), true);
+        check("shows rewards with item names", fresh.includes("Healing Draught ×2") && fresh.includes("75 Combat XP"), true);
         check("says how often it repeats", fresh.includes("daily"), true);
         check("offers Accept, not a typed id", fresh.includes("quests:accept:chatter:0"), true);
 

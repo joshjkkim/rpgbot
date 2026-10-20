@@ -27,11 +27,12 @@ export default function Dashboard() {
           ["Starter packs", "Ready-made content to add in one click."],
           ["Style", "Your theme colour, profile card style, and what XP and gold are called (with their icons), with live previews."],
           ["XP", "Message, voice and daily XP, streaks, and channel and role bonuses."],
-          ["Economy", "The shop switch, its categories, and gifting."],
+          ["Shop", "The shop switch, its categories, gifting, and a live preview of /shop."],
           ["Items", "Every item: where it comes from, what it's for, and all its settings."],
           ["Achievements, Levels, Quests", "As described in their guides."],
           ["Combat", "Enemies, player stats, death penalties, encounters, bosses and duels."],
           ["Gathering", "Activities, their minigames, locations and loot."],
+          ["Crafting", "Stations, their recipes and masterwork tables."],
           ["Logging", "Which events get posted to which log channel."],
           ["Logs", "A history of the events your server logs."],
         ]}
@@ -41,6 +42,28 @@ export default function Dashboard() {
         <li><b>Saving:</b> changes are kept until you save, from the bar at the bottom or with <C>Ctrl+S</C> / <C>⌘S</C>. If someone else saved in the meantime, you&apos;re asked to reload rather than overwrite them.</li>
       </List>
 
+      <H2>Requirements</H2>
+      <P>
+        Items, gathering locations, crafting recipes, enemies and quests each have a <b>Requirements</b> block that decides
+        who can use them. Everything set there must be met:
+      </P>
+      <Table
+        head={["Condition", "Use it for"]}
+        rows={[
+          ["Combat level", "The RPG's own level, earned by fighting."],
+          ["Has any of these roles", "Gating by another bot's level roles, or by roles you hand out yourself."],
+          ["Skill levels", "Mining 15 for the Old Quarry, Smithing 25 for a blade."],
+          ["Days in the server", "Rewards for members who stuck around."],
+          ["Server boosters only", "A perk or cosmetic for boosters."],
+          ["Chat level", "havocish's own level, for servers that use it."],
+        ]}
+      />
+      <Note>
+        <b>Already use MEE6, Arcane or another leveling bot?</b> Those bots give roles at levels. Pick that role in a
+        requirement, and havocish gates its content by your existing levels without knowing anything about the other bot.
+      </Note>
+      <P>When a member doesn&apos;t qualify, the bot tells them exactly what&apos;s missing: <i>Needs Mining 15 and the @Veteran role.</i></P>
+
       <H2>The health check</H2>
       <P>
         The Overview checks your setup for things that would fail quietly, and links to the page that fixes each one:
@@ -48,6 +71,7 @@ export default function Dashboard() {
       <List>
         <li>Channels havocish can&apos;t post in, or that were deleted.</li>
         <li>Roles it can&apos;t hand out (usually because they sit above its own role).</li>
+        <li>Requirements that name a deleted role or skill.</li>
         <li>Rewards and drops pointing at deleted items.</li>
         <li>Features switched on with nothing in them, like combat with no enemies or a gathering location with nothing to find.</li>
       </List>
@@ -56,7 +80,7 @@ export default function Dashboard() {
       <Table
         head={["Command", "Use it to"]}
         rows={[
-          [<C key="c">/config</C>, "Switch features on and off with one click each: the shop, gifting, quests, achievements, voice XP, combat, duels, encounters, world bosses, gathering and logging."],
+          [<C key="c">/config</C>, "Switch features on and off with one click each: the shop, gifting, quests, achievements, voice XP, combat, duels, encounters, world bosses, gathering, crafting and logging."],
           [<C key="c">/admin set</C>, "Set a member's XP, level, gold or streak."],
           [<C key="c">/admin items</C>, "View, give, remove or clear a member's items."],
           [<C key="c">/boss summon</C>, "Call a world boss right now."],

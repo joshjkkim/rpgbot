@@ -1,3 +1,4 @@
+import { combatLevel } from "./combatLevel.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { shopItemConfig } from "../types/economy.js";
@@ -23,7 +24,8 @@ export function calculateStats(
     guildItems: Record<string, shopItemConfig>, // config.shop.items
 ): CombatStats {
     const c = config.combat;
-    const level = profile.level ?? 1;
+    // Combat level, not chat level: the RPG levels itself.
+    const level = combatLevel(profile, config);
 
     // Base stats from level formula
     let maxHp  = (c.hpBase          ?? 100) + level * (c.hpPerLevel          ?? 10);

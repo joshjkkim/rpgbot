@@ -31,7 +31,7 @@ export default function Quests() {
       />
       <List>
         <li><b>Target:</b> how many it takes.</li>
-        <li><b>Rewards:</b> any mix of XP, gold, items, a role and a message to a channel.</li>
+        <li><b>Rewards:</b> any mix of Combat XP, gold, items, a role and a message to a channel. Quest XP is Combat XP; it never raises chat level.</li>
         <li><b>Repeat cooldown:</b> how long after claiming before it can be taken again. 86400 seconds reads as daily, 604800 as weekly.</li>
         <li><b>Active:</b> switch a quest off to take it off the board without deleting it.</li>
       </List>

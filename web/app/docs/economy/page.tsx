@@ -14,7 +14,7 @@ export default function Economy() {
 
       <H2>The shop</H2>
       <P>
-        Turn the shop on at <Where>Economy</Where>, and make items at <Where>Items</Where>. Items sit in <b>categories</b> (like Armoury or
+        Turn the shop on at <Where>Shop</Where>, and make items at <Where>Items</Where>. Items sit in <b>categories</b> (like Armoury or
         Apothecary), each with an icon and description. A category can be hidden, or limited to members with a role.
         Members browse with <C>/shop</C>, which lists what each item does next to its price.
       </P>
@@ -40,7 +40,7 @@ export default function Economy() {
       <Table
         head={["Field", "What it does"]}
         rows={[
-          ["Required level", "Members below it can't buy it."],
+          ["Required level", "A Combat level: members below it can't buy, use or equip it. Set more conditions under Requirements."],
           ["Required roles", "Only members with one of these roles can buy it."],
           ["Stock", "How many the shop has in total. Empty means unlimited."],
           ["Max per member", "A cap on how many one member can own."],
@@ -88,7 +88,7 @@ export default function Economy() {
       <List>
         <li><b>Selling:</b> <C>/inventory</C> has a menu to sell any item with a sell price.</li>
         <li><b>Trading:</b> <C>/trade offer</C> swaps items and gold between two members. Both sides confirm before anything moves.</li>
-        <li><b>Gifting:</b> <C>/gift</C> gives an item away. Turn it on at <Where>Economy</Where>, with an optional minimum level and announcement.</li>
+        <li><b>Gifting:</b> <C>/gift</C> gives an item away. Turn it on at <Where>Shop</Where>, with an optional minimum level and announcement.</li>
       </List>
       <P>
         Managers can fix a member&apos;s bag with <C>/admin items</C>: view, give, remove or clear.

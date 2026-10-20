@@ -61,6 +61,17 @@ export function itemConnections(config: DashboardConfig, id: string) {
       if (act.type === "giveItem" && act.itemId === id) from.push({ label: name(other, otherId), detail: `gives ×${act.quantity ?? 1} when used`, itemId: otherId });
     }
   }
+  type Station = { name: string; emoji: string; skillName: string; recipes?: Record<string, { output?: { itemId: string; quantity?: number }; inputs?: Array<{ itemId: string; quantity?: number }>; minSkill?: number; masterwork?: Array<{ itemId: string }> }> };
+  const stations = Object.values(c.crafting?.stations ?? {}) as Station[];
+  for (const st of stations) {
+    for (const r of Object.values(st.recipes ?? {})) {
+      if (r.output?.itemId === id) from.push({ label: `${st.emoji} ${st.name}`, detail: `crafted, ${st.skillName} ${r.minSkill ?? 1}`, page: "crafting" });
+      if ((r.masterwork ?? []).some((m) => m.itemId === id)) {
+        const base = items[r.output?.itemId ?? ""];
+        from.push({ label: `${st.emoji} ${st.name}`, detail: `masterwork of ${base?.name ?? "a recipe"}`, page: "crafting" });
+      }
+    }
+  }
 
   // ── Used for ──
   if (item.equipable) to.push({ label: "Gear", detail: `${item.equipSlot ?? "accessory"} slot` });
@@ -80,11 +91,19 @@ export function itemConnections(config: DashboardConfig, id: string) {
       to.push({ label: `Use: ${act.type === "assignRole" ? "gives a role" : act.type === "removeRole" ? "removes a role" : "posts a message"}` });
     }
   }
+  for (const st of stations) {
+    for (const r of Object.values(st.recipes ?? {})) {
+      const used = (r.inputs ?? []).find((i) => i.itemId === id);
+      if (!used) continue;
+      const made = items[r.output?.itemId ?? ""];
+      to.push({ label: `Ingredient: ${name(made, "a recipe")}`, detail: `×${used.quantity ?? 1}, ${st.emoji} ${st.name}`, itemId: made ? r.output!.itemId : undefined, page: made ? undefined : "crafting" });
+    }
+  }
   if ((item.sellPrice ?? 0) > 0) to.push({ label: "Sells back", detail: `${item.sellPrice} gold` });
   if (item.tradeable) to.push({ label: "Trading and gifting" });
 
   // ── Warnings ──
-  if (from.length === 0) warnings.unshift("Nothing gives this item: it isn't sold, dropped, found or rewarded anywhere.");
+  if (from.length === 0) warnings.unshift("Nothing gives this item: it isn't sold, dropped, found, crafted or rewarded anywhere.");
   const stats = Object.values(item.effects?.stats ?? {}).some((v) => v);
   if (stats && !item.equipable) warnings.push("It has stats but can't be equipped, so they never apply.");
 

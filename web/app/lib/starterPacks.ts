@@ -24,6 +24,8 @@ export type StarterPack = {
     achievements: { achievements: Record<string, Named> };
     /** Optional: packs from before gathering existed have none. */
     gathering?: { activities: Record<string, Named & { emoji?: string; skillName?: string; locations?: Record<string, unknown> }> };
+    /** Optional, like gathering. */
+    crafting?: { stations: Record<string, Named & { emoji?: string; recipes?: Record<string, unknown> }> };
   };
 };
 
@@ -37,19 +39,23 @@ const TARGETS = [
   ["quests", "quests"],
   ["achievements", "achievements"],
   ["gathering", "activities"],
+  ["crafting", "stations"],
 ] as const;
 
 /** Features a pack switches on, so its content works straight away. */
-export const PACK_FEATURES = ["shop", "combat", "quests", "achievements", "gathering"] as const;
+export const PACK_FEATURES = ["shop", "combat", "quests", "achievements", "gathering", "crafting"] as const;
+
+/** Features only some packs bring, and the map that holds their content. */
+const OPTIONAL: Partial<Record<(typeof PACK_FEATURES)[number], string>> = { gathering: "activities", crafting: "stations" };
 
 function packMap(pack: StarterPack, section: string, map: string) {
   const content = pack.content as unknown as Record<string, Record<string, Record<string, unknown>>>;
   return content[section]?.[map] ?? {};
 }
 
-/** The features a pack switches on: the four every pack has, plus gathering when it brings activities. */
+/** The features a pack switches on: the four every pack has, plus gathering and crafting when it brings them. */
 export function packFeatures(pack: StarterPack) {
-  return PACK_FEATURES.filter((f) => f !== "gathering" || Object.keys(packMap(pack, "gathering", "activities")).length > 0);
+  return PACK_FEATURES.filter((f) => !OPTIONAL[f] || Object.keys(packMap(pack, f, OPTIONAL[f])).length > 0);
 }
 
 export function hasEntry(config: GuildConfigJson | null, section: string, map: string, id: string) {
