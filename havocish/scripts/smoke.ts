@@ -1405,6 +1405,16 @@ async function main() {
         check("gold persisted", row.rows[0]?.gold, "40");
     });
 
+    await test("chat level adds a small bonus on top of Combat stats", async () => {
+        const cfg = DEFAULT_GUILD_CONFIG;
+        const chat1 = calculateStats({ level: 1, user_stats: {} } as any, cfg, {});
+        const chat41 = calculateStats({ level: 41, user_stats: {} } as any, cfg, {});
+        check("40 chat levels add 80 HP", chat41.maxHp - chat1.maxHp, 80);
+        check("and 20 attack", chat41.atk - chat1.atk, 20);
+        const off = { ...cfg, combat: { ...cfg.combat, chatBonus: { hp: 0, atk: 0 } } };
+        check("an owner can turn it off", calculateStats({ level: 41, user_stats: {} } as any, off, {}).maxHp, chat1.maxHp - 2);
+    });
+
     await test("combat: its own level and curve, split once from chat level", async () => {
         const cfg = DEFAULT_GUILD_CONFIG;
         const p = { xp: "999999", level: 40, user_stats: {} } as any;

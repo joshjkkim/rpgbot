@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { C, DocTitle, H2, List, Note, P, Table, Where } from "../ui";
+import { C, DocTitle, H2, H3, List, Note, P, Table, Where } from "../ui";
 
 export const metadata: Metadata = { title: "Combat" };
 
@@ -47,6 +47,13 @@ export default function Combat() {
           ["Crit multiplier", "1.5×", "+0.1×"],
         ]}
       />
+
+      <H3>Chat level bonus</H3>
+      <P>
+        Chatting makes members a little stronger too: each chat level adds <b>+2 HP</b> and <b>+0.5 attack</b> by default,
+        on top of the Combat-level stats. A member at chat level 40 gets +80 HP and +20 attack, shown on <C>/me</C>. It is
+        kept well below the per-Combat-level values so fighting stays the main way up. Change it, or set it to 0, at <Where>Combat</Where>.
+      </P>
 
       <H2>Enemies</H2>
       <P>Each enemy is a slot on the Combat page. Enemies are what make combat work, so start from a starter pack if you&apos;re unsure.</P>
