@@ -209,7 +209,7 @@ export default function ItemForm({
           <RequirementsField
             value={{
               ...item.requirements,
-              ...(item.minLevel ? { chatLevel: Math.max(item.minLevel, item.requirements?.chatLevel ?? 0) } : {}),
+              ...(item.minLevel ? { combatLevel: Math.max(item.minLevel, item.requirements?.combatLevel ?? 0) } : {}),
               ...(item.requiresRoleIds?.length ? { roles: [...new Set([...(item.requirements?.roles ?? []), ...item.requiresRoleIds])] } : {}),
             }}
             onChange={(next) => upsertItem({ ...item, requirements: next, minLevel: undefined, requiresRoleIds: undefined })}
@@ -418,7 +418,7 @@ export default function ItemForm({
                             label="Stat ID"
                             value={action.statId ?? ""}
                             onChange={(v) => patch({ statId: v })}
-                            placeholder="gold, xp or health"
+                            placeholder="gold, xp (Combat XP) or health"
                             mono
                           />
                           <NumberField

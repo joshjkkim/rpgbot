@@ -21,6 +21,7 @@ import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import type { shopItemConfig } from "../../types/economy.js";
 import { renderItemCard } from "../../ui/canvas/itemCard.js";
 import { checkRequirements, memberFacts } from "../../player/requirements.js";
+import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
@@ -77,8 +78,6 @@ function buildEndEmbed(
     log: string[],
 ): EmbedBuilder {
     const { outcome } = summary;
-    const xpName   = config.style.xp.name   || "XP";
-    const xpIcon   = config.style.xp.icon   || "⭐";
     const goldIcon = config.style.gold.icon  || "💰";
 
     const title =
@@ -98,7 +97,8 @@ function buildEndEmbed(
 
     // Rewards
     const rewardLines: string[] = [];
-    if (summary.xpGained > 0)   rewardLines.push(`${xpIcon} **+${summary.xpGained}** ${xpName}`);
+    if (summary.xpGained > 0)   rewardLines.push(`⚔️ **+${summary.xpGained}** Combat XP`);
+    if (summary.combatLevelUp)  rewardLines.push(`**Combat ${summary.combatLevelUp}!**`);
     if (summary.goldGained > 0) rewardLines.push(`${goldIcon} **+${summary.goldGained}** gold`);
     for (const drop of summary.itemsDropped) {
         const itemDef = config.shop?.items?.[drop.itemId];
@@ -276,10 +276,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             });
             return;
         }
-        const level = profile.level ?? 1;
+        const level = combatLevel(profile, config);
         if (level < enemy.minLevel || (enemy.maxLevel !== null && level > enemy.maxLevel)) {
             await interaction.reply({
-                content: `You need to be level **${enemy.minLevel}**${enemy.maxLevel !== null ? `–${enemy.maxLevel}` : "+"}  to fight **${enemy.emoji} ${enemy.name}**.`,
+                content: `You need Combat **${enemy.minLevel}**${enemy.maxLevel !== null ? `–${enemy.maxLevel}` : "+"}  to fight **${enemy.emoji} ${enemy.name}**.`,
                 flags: MessageFlags.Ephemeral,
             });
             return;
@@ -291,7 +291,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         }
     } else {
         const facts = memberFacts(interaction.member);
-        enemy = pickRandomEnemy(config, profile.level ?? 1, (e) => checkRequirements(e.requirements, { profile, config, facts }).ok);
+        enemy = pickRandomEnemy(config, combatLevel(profile, config), (e) => checkRequirements(e.requirements, { profile, config, facts }).ok);
         if (!enemy) {
             await interaction.reply({
                 content: "No foes roam at your level yet.",

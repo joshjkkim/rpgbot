@@ -195,7 +195,7 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
           onChange={(v) => updateDeathPenalty(which, { goldFlat: v })}
         />
         <NumberField
-          label="XP lost (%)"
+          label="Combat XP lost (%)"
           value={penalty.xpPercent ?? 0}
           min={0}
           max={100}
@@ -293,15 +293,15 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
 
               <Field label="Availability and rewards">
                 <FieldGrid>
-                  <NumberField label="Min level" value={enemy.minLevel} min={0} onChange={(v) => upsertEnemy({ ...enemy, minLevel: v })} />
+                  <NumberField label="Min Combat level" value={enemy.minLevel} min={0} onChange={(v) => upsertEnemy({ ...enemy, minLevel: v })} />
                   <NumberField
-                    label="Max level"
+                    label="Max Combat level"
                     value={enemy.maxLevel ?? 0}
                     min={0}
                     onChange={(v) => upsertEnemy({ ...enemy, maxLevel: v > 0 ? v : null })}
                     hint="0 means no upper limit."
                   />
-                  <NumberField label="XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
+                  <NumberField label="Combat XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
                   <NumberField label="Gold reward" value={enemy.goldReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, goldReward: v })} />
                 </FieldGrid>
               </Field>
@@ -404,7 +404,7 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
         />
       </Section>
 
-      <Section advanced title="Player stats" description="Each stat starts at its base and grows every level.">
+      <Section advanced title="Player stats" description="Each stat starts at its base and grows with every Combat level. Combat is the RPG's own level, earned by fighting, not chatting.">
         <div className="space-y-4">
           {STATS.map(({ label, baseKey, perLevelKey, step }) => (
             <Field key={label} label={label}>

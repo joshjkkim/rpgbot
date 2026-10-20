@@ -9,6 +9,7 @@ import { accentColor } from "../../ui/pager.js";
 import { SLOT_META } from "./inventory.js";
 import { bestTool, enabledActivities, energyNow, skillProgress } from "../../player/gathering.js";
 import { enabledStations } from "../../player/crafting.js";
+import { combatProgress } from "../../player/combatLevel.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 
@@ -60,7 +61,9 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
     if (config.combat?.enabled) {
         const stats = calculateStats(profile, config, config.shop?.items ?? {});
         const hp = resolveCurrentHp(profile, stats);
+        const cp = combatProgress(profile, config);
         c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent([
+            `⚔️ **Combat ${cp.level}** ${cp.span ? `\`${bar(cp.into / cp.span)}\` ${cp.into.toLocaleString()} / ${cp.span.toLocaleString()} XP` : "max"}`,
             `❤️ **HP** \`${bar(hp / stats.maxHp)}\` ${hp} / ${stats.maxHp}`,
             `⚔️ **ATK** ${stats.atk}  ·  🛡️ **DEF** ${stats.def}  ·  💨 **SPD** ${stats.spd}  ·  🎯 **CRIT** ${stats.critChance.toFixed(1)}%`,
             hp <= 0

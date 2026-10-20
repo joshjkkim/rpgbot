@@ -131,6 +131,7 @@ export interface FightEndSummary {
     totalDamageDealt: number;
     totalDamageTaken: number;
     questsCompleted?: string[]; // quest names this fight finished, set in applyFightRewards
+    combatLevelUp?: number;     // the new Combat level, when this fight raised it
 }
 
 // ─── Skill config (future — add to GuildConfig.combat.skills later) ───────────

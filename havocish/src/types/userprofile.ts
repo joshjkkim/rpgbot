@@ -37,6 +37,8 @@ export interface UserStats {
     gathering?: GatheringProgress;
     /** Skill XP, craft count and learned hidden recipes per crafting station. */
     crafting?: CraftingProgress;
+    /** Combat XP. Missing means "not split off yet": combatLevel.ts starts it from chat XP. */
+    combat?: { xp: number };
 }
 export interface item {
     id: string;

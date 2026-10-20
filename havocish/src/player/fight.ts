@@ -15,6 +15,7 @@ import { getOrCreateProfile, commitProfileChanges } from "../cache/profileServic
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { runQuestPipeline } from "./quests.js";
+import { addCombatXp, combatXp } from "./combatLevel.js";
 import { EmbedBuilder, type Client } from "discord.js";
 import type { shopItemConfig } from "../types/economy.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -433,15 +434,10 @@ export async function applyFightRewards(
     const finalXp   = Math.round(summary.xpGained   * xpMult);
     const finalGold = Math.round(summary.goldGained  * goldMult);
 
-    // ── XP ──
+    // ── Combat XP ── (never chat XP: the RPG doesn't feed leveling)
     if (finalXp > 0) {
-        p.xp = (BigInt(p.xp) + BigInt(finalXp)).toString();
-        const newLevel = calculateLevelFromXp(Number(p.xp), config);
-        if (newLevel > p.level) {
-            p.level = newLevel;
-            pendingChanges.level = p.level;
-        }
-        pendingChanges.xp = p.xp;
+        const { before, after } = addCombatXp(p, config, finalXp);
+        if (after > before) summary.combatLevelUp = after;
     }
 
     // ── Gold ──
@@ -463,18 +459,7 @@ export async function applyFightRewards(
         }
         // XP loss (off by default — configurable but not recommended for PvE)
         const xpPct = penaltyConfig?.xpPercent ?? 0;
-        if (xpPct > 0) {
-            const xpLost = BigInt(Math.floor(Number(BigInt(p.xp)) * xpPct / 100));
-            if (xpLost > 0n) {
-                p.xp = (BigInt(p.xp) - xpLost).toString();
-                const newLevel = calculateLevelFromXp(Number(p.xp), config);
-                if (newLevel < p.level) {
-                    p.level = newLevel;
-                    pendingChanges.level = p.level;
-                }
-                pendingChanges.xp = p.xp;
-            }
-        }
+        if (xpPct > 0) addCombatXp(p, config, -Math.floor(combatXp(p) * xpPct / 100));
     }
 
     // ── Drops → inventory ──

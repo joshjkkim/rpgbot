@@ -9,7 +9,7 @@ export default function XpAndLevels() {
       <DocTitle
         path="xp-and-levels"
         title="XP and levels"
-        lead="Members earn XP by chatting, talking in voice, claiming dailies, fighting and questing. XP adds up to levels, and levels can hand out roles."
+        lead="Members earn chat XP by chatting, talking in voice and claiming dailies. Chat XP adds up to levels, and levels can hand out roles. Fights, quests and the rest of the RPG pay Combat XP instead (see Combat)."
       />
 
       <H2>Message XP</H2>

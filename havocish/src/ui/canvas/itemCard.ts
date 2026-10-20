@@ -103,7 +103,7 @@ export function itemCardLines(item: shopItemConfig): Line[] {
         lines.push({ text: `"${item.description}"`, colour: GOLD, gapAbove: 6 });
     }
     if (item.minLevel) {
-        lines.push({ text: `Requires Level ${item.minLevel}`, colour: PARCHMENT_DIM, gapAbove: 6 });
+        lines.push({ text: `Requires Combat ${item.minLevel}`, colour: PARCHMENT_DIM, gapAbove: 6 });
     }
     if (item.sellPrice) {
         lines.push({ text: `Sell Price: ${item.sellPrice} gold`, colour: PARCHMENT_DIM });

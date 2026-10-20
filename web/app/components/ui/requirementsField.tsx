@@ -6,6 +6,7 @@ import { RolesField } from "@/app/components/ui/pickers";
 
 /** Mirrored from havocish/src/types/requirements.ts. All set conditions must hold; roles are "any one of". */
 export interface Requirements {
+  combatLevel?: number;
   chatLevel?: number;
   skills?: Record<string, number>;
   roles?: string[];
@@ -19,6 +20,7 @@ export type SkillOption = { id: string; name: string };
 /** Drops empty conditions, so an untouched block saves as nothing. */
 function tidy(r: Requirements): Requirements | undefined {
   const out: Requirements = {};
+  if (r.combatLevel) out.combatLevel = r.combatLevel;
   if (r.chatLevel) out.chatLevel = r.chatLevel;
   if (r.skills && Object.keys(r.skills).length) out.skills = r.skills;
   if (r.roles?.length) out.roles = r.roles;
@@ -59,8 +61,9 @@ export default function RequirementsField({
             onChange={(v) => set({ roles: v })}
             hint="Works with any leveling bot: pick the role it gives at a level."
           />
+          <NumberField label="Combat level" value={r.combatLevel ?? 0} min={0} onChange={(v) => set({ combatLevel: v })} hint="The RPG's own level, from fighting. 0 means none." />
           <NumberField label="Days in the server" value={r.memberDays ?? 0} min={0} onChange={(v) => set({ memberDays: v })} hint="0 means no minimum." />
-          <NumberField label="Chat level" value={r.chatLevel ?? 0} min={0} onChange={(v) => set({ chatLevel: v })} hint="havocish's own level. 0 means none." />
+          <NumberField label="Chat level" value={r.chatLevel ?? 0} min={0} onChange={(v) => set({ chatLevel: v })} hint="havocish's chat level. 0 means none." />
         </FieldGrid>
         <Toggle label="Server boosters only" checked={!!r.booster} onChange={(v) => set({ booster: v })} />
 

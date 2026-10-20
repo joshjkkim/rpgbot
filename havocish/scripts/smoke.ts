@@ -50,6 +50,8 @@ import { equipItemFromInventory, useItemFromInventory } from "../src/player/inve
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
+import { addCombatXp, combatLevel, combatXp } from "../src/player/combatLevel.js";
+import { calculateStats } from "../src/player/combat.js";
 import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
@@ -906,7 +908,7 @@ async function main() {
         check("unlimited item delivered", await qty(fx.a, g, "potion"), 4);
     });
 
-    await test("a purchase is refused on gold or level, charging nothing", async () => {
+    await test("a purchase is refused on gold, charging nothing; the level gate is a requirement", async () => {
         const fx = await resetTrades();
         const g = fx.guild.id;
         await seed(fx.a, g, {}, 50);
@@ -916,9 +918,12 @@ async function main() {
         check("gold untouched", await goldOf(fx.a, g), "50");
         check("no item delivered", await qty(fx.a, g, "sword"), 0);
 
-        await patchShopItem(fx, "potion", { minLevel: 10 });
-        const underLevelled = await purchaseItem({ userId: fx.a.userId, guildId: g, discordGuildId: fx.guild.discord_guild_id, itemId: "potion", quantity: 1 });
-        check("under the level requirement is refused", underLevelled.success, "false");
+        // An item's level is a Combat level now, checked with its other requirements before
+        // purchaseItem runs (buyItem in shop.ts), from the cache rather than the database row.
+        const gate = checkRequirements(itemRequirements({ minLevel: 10 } as any), {
+            profile: { xp: "0", level: 1, user_stats: {} } as any, config: DEFAULT_GUILD_CONFIG, facts: { roleIds: [], joinedAt: null, boosting: false },
+        });
+        check("under the level requirement is refused", gate.message, "Needs Combat 10.");
         check("still nothing charged", await goldOf(fx.a, g), "50");
     });
 
@@ -1033,7 +1038,7 @@ async function main() {
         await flushDirtyProfiles(true);
         const after = await row(fx.a, g);
         check("fight gold paid", after.gold, "25");
-        check("fight xp paid", after.xp, "50");
+        check("fight XP is Combat XP, not chat XP", `${after.xp}|${after.user_stats?.combat?.xp}`, "0|50");
         check("the write that landed first survived", after.inventory?.potion?.quantity, 1);
         check("fight counters survived", after.user_stats?.fightsWon, 1);
     });
@@ -1373,6 +1378,23 @@ async function main() {
         check("gold persisted", row.rows[0]?.gold, "40");
     });
 
+    await test("combat: its own level, carried over once from chat XP", async () => {
+        const cfg = DEFAULT_GUILD_CONFIG;
+        const p = { xp: "500", level: 3, user_stats: {} } as any;
+        check("with no Combat XP yet, it starts from chat XP", combatXp(p), 500);
+        const lvl = combatLevel(p, cfg);
+        check("so Combat level matches the chat level it came from", lvl, levelFromXp(500, cfg));
+        const strong = calculateStats(p, cfg, {}).atk;
+
+        const up = addCombatXp(p, cfg, 5000);
+        check("Combat XP is stored separately once written", p.user_stats.combat.xp, 5500);
+        check("chat XP is untouched", p.xp, "500");
+        check("the level-up is reported", up.after > up.before, true);
+        check("stats grow with Combat level, not chat level", calculateStats(p, cfg, {}).atk > strong, true);
+        addCombatXp(p, cfg, -999999);
+        check("Combat XP never goes below 0", p.user_stats.combat.xp, 0);
+    });
+
     await test("requirements: one check for every gate", async () => {
         const config = { ...DEFAULT_GUILD_CONFIG, gathering: { ...DEFAULT_GUILD_CONFIG.gathering, activities: { mining: { id: "mining", skillName: "Mining" } } } } as any;
         const profile = { level: 5, user_stats: { gathering: { mining: { xp: 0 } } } } as any;
@@ -1381,7 +1403,8 @@ async function main() {
         const ok = (req: any) => checkRequirements(req, { profile, config, facts, now });
 
         check("no requirements pass", ok(undefined).ok, true);
-        check("chat level", ok({ chatLevel: 6 }).message, "Needs level 6.");
+        check("chat level", ok({ chatLevel: 6 }).message, "Needs chat level 6.");
+        check("combat level (carried over from chat XP)", ok({ combatLevel: 99 }).message, "Needs Combat 99.");
         check("a role from any bot", ok({ roles: ["vet"] }).ok, true);
         check("any one of several roles", ok({ roles: ["x", "vet"] }).ok, true);
         check("a missing role is named", ok({ roles: ["x"] }).message, "Needs the <@&x> role.");
@@ -1389,8 +1412,8 @@ async function main() {
         check("booster", ok({ booster: true }).message, "Needs boosting the server.");
         check("a skill", ok({ skills: { mining: 15 } }).message, "Needs Mining 15.");
         check("a deleted skill fails open", ok({ skills: { gone: 99 } }).ok, true);
-        check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs level 9, the <@&x> role and boosting the server.");
-        check("an item's old fields fold in", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ chatLevel: 3, roles: ["r"] }));
+        check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs chat level 9, the <@&x> role and boosting the server.");
+        check("an item's old level folds in as Combat", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ combatLevel: 3, roles: ["r"] }));
     });
 
     await test("crafting: what a member can make, and making it", async () => {
@@ -1511,7 +1534,7 @@ async function main() {
         check("crit reads as an equip line", lines.includes("Equip: +5% critical strike chance."), true);
         check("gold boost as a percentage", lines.includes("Equip: Fights award 10% more gold."), true);
         check("flavour text is quoted", lines.includes('"Still remembers the fire."'), true);
-        check("level requirement", lines.includes("Requires Level 10"), true);
+        check("level requirement reads as Combat", lines.includes("Requires Combat 10"), true);
         check("sell price", lines.includes("Sell Price: 300 gold"), true);
 
         // A 1.0 multiplier is not a bonus, so it must not show as one.
@@ -1635,8 +1658,8 @@ async function main() {
         check("the boss is gone", liveBoss(TEST_DISCORD_GUILD), null);
         check("the message shows it fell", JSON.stringify(edits.at(-1)).includes("has fallen"), true);
         check("the fighter's damage counted", live.fighters.get(TEST_DISCORD_USER)?.damage, 1);
-        const xpAfter = BigInt((await getOrCreateProfile({ userId, guildId })).profile.xp);
-        check("the whole pool went to the only fighter", (xpAfter - xpBefore).toString(), "1000");
+        const after = (await getOrCreateProfile({ userId, guildId })).profile;
+        check("the whole pool went to the only fighter, as Combat XP", `${BigInt(after.xp) - xpBefore}|${after.user_stats?.combat?.xp}`, `0|${Number(xpBefore) + 1000}`);
         const leftover = await query(`SELECT 1 FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
         check("a fallen boss leaves no saved row", leftover.rowCount, 0);
     });
@@ -1846,7 +1869,7 @@ async function main() {
         check("objective in words", objective(config.quests.quests.chatter!.conditions, config), "Send 25 messages in <#111>");
         const fresh = JSON.stringify(renderQuestLog(config, {}, 0).map((c: any) => c.toJSON()));
         check("shows the description", fresh.includes("Share stories."), true);
-        check("shows rewards with item names", fresh.includes("Healing Draught ×2") && fresh.includes("75 XP"), true);
+        check("shows rewards with item names", fresh.includes("Healing Draught ×2") && fresh.includes("75 Combat XP"), true);
         check("says how often it repeats", fresh.includes("daily"), true);
         check("offers Accept, not a typed id", fresh.includes("quests:accept:chatter:0"), true);
 

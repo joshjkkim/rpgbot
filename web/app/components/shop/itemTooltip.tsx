@@ -85,7 +85,7 @@ export default function ItemTooltip({ item }: { item: shopItemConfig }) {
         </p>
       ))}
       {item.description && <p className="mt-1 text-[var(--gold)]">&ldquo;{item.description}&rdquo;</p>}
-      {!!item.minLevel && <p className="mt-1">Requires Level {item.minLevel}</p>}
+      {!!item.minLevel && <p className="mt-1">Requires Combat {item.minLevel}</p>}
       {!!item.sellPrice && <p>Sell Price: {item.sellPrice} gold</p>}
     </div>
   );

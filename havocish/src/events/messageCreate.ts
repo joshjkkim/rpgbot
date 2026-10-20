@@ -1,3 +1,4 @@
+import { combatLevel } from "../player/combatLevel.js";
 import { Client, Events } from "discord.js";
 import { getActiveFight } from "../player/fight.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -44,7 +45,7 @@ export function registerMessageCreate(client: Client) {
       // Only messages that earned XP can draw an encounter, so the XP cooldown
       // and disabled channels keep spam from farming spawns.
       if (gave) {
-        await maybeSpawnEncounter(message, config, profile.level ?? 1)
+        await maybeSpawnEncounter(message, config, combatLevel(profile, config))
           .catch((err) => console.error("Encounter spawn failed:", err));
         await maybeSpawnBoss(message, config)
           .catch((err) => console.error("Boss spawn failed:", err));

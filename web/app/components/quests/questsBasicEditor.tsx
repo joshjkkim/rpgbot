@@ -331,7 +331,7 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies,
 
                           <FieldGrid>
                             <NumberField
-                              label="XP"
+                              label="Combat XP"
                               value={reward.xp ?? 0}
                               min={0}
                               onChange={(v) => patch({ xp: v || undefined })}

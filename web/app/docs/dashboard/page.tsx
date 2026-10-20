@@ -50,6 +50,7 @@ export default function Dashboard() {
       <Table
         head={["Condition", "Use it for"]}
         rows={[
+          ["Combat level", "The RPG's own level, earned by fighting."],
           ["Has any of these roles", "Gating by another bot's level roles, or by roles you hand out yourself."],
           ["Skill levels", "Mining 15 for the Old Quarry, Smithing 25 for a blade."],
           ["Days in the server", "Rewards for members who stuck around."],

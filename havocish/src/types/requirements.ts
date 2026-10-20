@@ -4,6 +4,8 @@
  * havocish works alongside other leveling bots: they hand out roles at levels.
  */
 export interface Requirements {
+    /** Combat level, the RPG's own level. */
+    combatLevel?: number;
     /** havocish chat level. Ignored while havocish's leveling is off. */
     chatLevel?: number;
     /** Gathering activity or crafting station id -> minimum skill level. */

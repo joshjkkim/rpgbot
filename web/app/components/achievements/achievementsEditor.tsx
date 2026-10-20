@@ -210,7 +210,7 @@ export default function AchievementsEditor({ value, onChange, shopItems }: Props
                 <Field label="Reward">
                   <FieldGrid>
                     <NumberField
-                      label="XP"
+                      label="Combat XP"
                       value={reward.xp ?? 0}
                       min={0}
                       onChange={(v) => patchReward({ xp: v || undefined })}

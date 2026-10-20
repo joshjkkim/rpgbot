@@ -80,7 +80,7 @@ function repeats(cooldown: number): string {
 export function rewardLine(def: QuestConfig, config: GuildConfig): string {
     const parts: string[] = [];
     for (const r of Object.values(def.reward ?? {})) {
-        if (r.xp) parts.push(`${config.style.xp.icon || "⭐"} ${r.xp} ${config.style.xp.name || "XP"}`);
+        if (r.xp) parts.push(`⚔️ ${r.xp} Combat XP`);
         if (r.gold) parts.push(`${config.style.gold.icon || "💰"} ${r.gold} ${config.style.gold.name || "gold"}`);
         if (r.itemId) {
             const item = config.shop?.items?.[r.itemId];
@@ -298,7 +298,7 @@ async function claimQuests(interaction: ButtonInteraction, questIds: string[]): 
     if (claimed.length === 0) return "❌ Nothing to claim right now.";
     const { config } = await load(interaction);
     const gains = [
-        totals.xp && `+${totals.xp} ${config.style.xp.name || "XP"}`,
+        totals.xp && `+${totals.xp} Combat XP`,
         totals.gold && `+${totals.gold} ${config.style.gold.name || "gold"}`,
         ...totals.items,
     ].filter(Boolean).join(", ");
