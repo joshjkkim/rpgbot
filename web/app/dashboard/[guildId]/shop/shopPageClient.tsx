@@ -11,7 +11,7 @@ export default function ShopPageClient({ guildId }: { guildId: string }) {
 
   return (
     <ConfigPage
-      title="Economy"
+      title="Shop"
       description="The shop: whether it's open, how it's grouped, and gifting. Items themselves are on the Items page."
       loading={loading}
       saving={saving}
