@@ -50,7 +50,7 @@ import { equipItemFromInventory, useItemFromInventory } from "../src/player/inve
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
-import { addCombatXp, combatLevel, combatXp } from "../src/player/combatLevel.js";
+import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
 import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
@@ -1378,21 +1378,30 @@ async function main() {
         check("gold persisted", row.rows[0]?.gold, "40");
     });
 
-    await test("combat: its own level, carried over once from chat XP", async () => {
+    await test("combat: its own level and curve, split once from chat level", async () => {
         const cfg = DEFAULT_GUILD_CONFIG;
-        const p = { xp: "500", level: 3, user_stats: {} } as any;
-        check("with no Combat XP yet, it starts from chat XP", combatXp(p), 500);
-        const lvl = combatLevel(p, cfg);
-        check("so Combat level matches the chat level it came from", lvl, levelFromXp(500, cfg));
-        const strong = calculateStats(p, cfg, {}).atk;
-
-        const up = addCombatXp(p, cfg, 5000);
-        check("Combat XP is stored separately once written", p.user_stats.combat.xp, 5500);
-        check("chat XP is untouched", p.xp, "500");
+        const p = { xp: "999999", level: 40, user_stats: {} } as any;
+        check("no Combat XP means Combat 1, whatever the chat level", combatLevel(p, cfg), 1);
+        const weak = calculateStats(p, cfg, {}).atk;
+        const up = addCombatXp(p, cfg, 1885);
+        check("Combat XP is stored on its own", p.user_stats.combat.xp, 1885);
+        check("chat XP is untouched", p.xp, "999999");
+        check("1885 Combat XP reaches Combat 10 on the fighting curve", combatLevel(p, cfg), 10);
         check("the level-up is reported", up.after > up.before, true);
-        check("stats grow with Combat level, not chat level", calculateStats(p, cfg, {}).atk > strong, true);
+        check("stats grow with Combat level", calculateStats(p, cfg, {}).atk > weak, true);
         addCombatXp(p, cfg, -999999);
         check("Combat XP never goes below 0", p.user_stats.combat.xp, 0);
+
+        // The one-time split: pre-split rows get the Combat level of their chat level; new rows start at 0.
+        const { userId, guildId } = await reset();
+        check("a new profile starts with Combat XP 0", (await getOrCreateProfile({ userId, guildId })).profile.user_stats?.combat?.xp, 0);
+        await flushDirtyProfiles(true);
+        userGuildProfileCache.clear();
+        await query(`UPDATE user_guild_profiles SET level = 30, user_stats = user_stats - 'combat' WHERE user_id = $1 AND guild_id = $2`, [userId, guildId]);
+        await convertLegacyCombat();
+        const converted = (await getOrCreateProfile({ userId, guildId })).profile;
+        check("a pre-split member starts at the Combat level of their chat level", combatLevel(converted, cfg), 30);
+        check("running the split again changes nothing", await convertLegacyCombat(), 0);
     });
 
     await test("requirements: one check for every gate", async () => {
@@ -1659,7 +1668,7 @@ async function main() {
         check("the message shows it fell", JSON.stringify(edits.at(-1)).includes("has fallen"), true);
         check("the fighter's damage counted", live.fighters.get(TEST_DISCORD_USER)?.damage, 1);
         const after = (await getOrCreateProfile({ userId, guildId })).profile;
-        check("the whole pool went to the only fighter, as Combat XP", `${BigInt(after.xp) - xpBefore}|${after.user_stats?.combat?.xp}`, `0|${Number(xpBefore) + 1000}`);
+        check("the whole pool went to the only fighter, as Combat XP", `${BigInt(after.xp) - xpBefore}|${after.user_stats?.combat?.xp}`, "0|1000");
         const leftover = await query(`SELECT 1 FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
         check("a fallen boss leaves no saved row", leftover.rowCount, 0);
     });

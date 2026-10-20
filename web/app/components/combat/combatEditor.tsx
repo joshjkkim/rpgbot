@@ -77,6 +77,8 @@ export interface CombatBossConfig {
 
 export interface CombatConfig {
   enabled: boolean;
+  /** Combat level's own curve and cap (mirrored from havocish/src/types/guild.ts). */
+  curve?: { maxLevel: number; curveType: string; curveParams: Record<string, number> };
   hpBase?: number;
   hpPerLevel?: number;
   attackBase?: number;
@@ -402,6 +404,35 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
           checked={!!local.enabled}
           onChange={(v) => updateRoot({ enabled: v })}
         />
+      </Section>
+
+      <Section advanced title="Combat level curve" description="How fast Combat levels come, separate from chat levels." defaultOpen={false}>
+        {(() => {
+          const curve = local.curve ?? { maxLevel: 99, curveType: "polynomial", curveParams: { factor: 15, degree: 2.2 } };
+          const setCurve = (p: Partial<NonNullable<CombatConfig["curve"]>>) => updateRoot({ curve: { ...curve, ...p } });
+          const xpFor = (lvl: number) => Math.floor((curve.curveParams.factor ?? 15) * Math.pow(Math.max(0, lvl - 1), curve.curveParams.degree ?? 2.2));
+          return (
+            <FieldGrid>
+              <NumberField label="Max Combat level" value={curve.maxLevel} min={2} onChange={(v) => setCurve({ maxLevel: v })} />
+              <NumberField
+                label="Curve factor"
+                value={curve.curveParams.factor ?? 15}
+                min={1}
+                step={0.5}
+                onChange={(v) => setCurve({ curveParams: { ...curve.curveParams, factor: v } })}
+                hint={`Combat 10 takes ${xpFor(10).toLocaleString()} Combat XP, Combat 30 takes ${xpFor(30).toLocaleString()}.`}
+              />
+              <NumberField
+                label="Curve steepness"
+                value={curve.curveParams.degree ?? 2.2}
+                min={1}
+                step={0.05}
+                onChange={(v) => setCurve({ curveParams: { ...curve.curveParams, degree: v } })}
+                hint="Higher makes late levels slower compared with early ones."
+              />
+            </FieldGrid>
+          );
+        })()}
       </Section>
 
       <Section advanced title="Player stats" description="Each stat starts at its base and grows with every Combat level. Combat is the RPG's own level, earned by fighting, not chatting.">

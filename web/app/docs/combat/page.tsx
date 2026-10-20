@@ -16,12 +16,12 @@ export default function Combat() {
       <P>
         Combat is the RPG&apos;s own level, separate from chat level. Fights, world bosses, quest and achievement rewards,
         and items that give XP all pay <b>Combat XP</b>; none of it raises chat level. Combat level sets a member&apos;s
-        stats, which enemies they meet, and which gear they can use. It follows the same level curve and cap as chat
-        levels (set on the Levels page), so enemy rewards keep their meaning.
+        stats, which enemies they meet, and which gear they can use. It has its own curve, from Combat 1 to 99 by default,
+        tuned for fighting: about 60 early fights to Combat 10. Change it under Combat (Advanced).
       </P>
       <Note>
-        When Combat split off from chat level, every member started with Combat XP equal to their chat XP at the time, so
-        nobody got weaker. From then on the two grow separately. Members see their Combat level on <C>/me</C>.
+        When Combat split off from chat level, every existing member started at the Combat level matching their chat level
+        (capped at 99), so nobody got weaker. New members start at Combat 1, and from then on the two grow separately. Members see their Combat level on <C>/me</C>.
       </Note>
 
       <H2>How a fight works</H2>
