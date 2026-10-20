@@ -6,6 +6,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 
 ### New
 - **Chatting makes you stronger.** Every chat level adds a little HP and attack on top of your Combat stats (+2 HP and +0.5 attack per level by default), so being active pays off in fights too. `/me` shows what your chat level adds. Server owners can tune it or turn it off on the Combat page.
+- **For server owners: level rewards can give gold, items and Combat XP.** Besides roles and messages, reaching a chat level can now pay into the RPG: a gold bonus at level 10, a weapon at 25, a Combat XP boost at 50. What a member got is listed under their level-up message. Set them on the Levels page under Level actions.
 
 ### Fixed
 - Duels ignored Combat level: both sides fought as Combat 1 plus their gear. Duels now use each side's real Combat level.

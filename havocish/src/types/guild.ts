@@ -34,10 +34,13 @@ export interface RoleTempConfig {
 }
 
 export interface LevelAction {
-    type: "assignRole" | "removeRole" | "sendMessage";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveGold" | "giveItem" | "giveCombatXp";
     roleId?: string; // for assignRole/removeRole
     message?: string; // for sendMessage
     channelId?: string; // for sendMessage
+    amount?: number; // for giveGold/giveCombatXp
+    itemId?: string; // for giveItem
+    quantity?: number; // for giveItem, default 1
 }
 
 export interface StreakReward {

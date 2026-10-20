@@ -85,7 +85,8 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     for (const [level, actions] of Object.entries(config.levels.levelActions ?? {})) {
         for (const a of actions ?? []) {
             if (a.type === "sendMessage") channel(a.channelId, `the level ${level} message`, "levels", POST);
-            else role(a.roleId, `the level ${level} reward`, "levels");
+            else if (a.type === "giveItem") item(a.itemId, `The level ${level} reward`, "levels");
+            else if (a.type === "assignRole" || a.type === "removeRole") role(a.roleId, `the level ${level} reward`, "levels");
         }
     }
 

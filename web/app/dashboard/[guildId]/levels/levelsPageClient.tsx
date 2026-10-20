@@ -24,6 +24,7 @@ export default function LevelsPageClient({ guildId }: { guildId: string }) {
         <LevelsEditor
           value={levels}
           onChange={(next) => setConfig((prev) => ({ ...prev, levels: next }))}
+          shopItems={config.shop?.items ?? {}}
         />
       )}
     </ConfigPage>

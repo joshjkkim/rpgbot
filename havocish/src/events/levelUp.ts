@@ -3,6 +3,7 @@ import { profileEvents } from "../cache/profileService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { query } from "../db/index.js";
 import { handleLevelUp } from "../leveling/levels.js";
+import { grantLevelRewards } from "../player/levelRewards.js";
 
 /**
  * Runs the level-up flow (announcement, level roles, level messages) for every
@@ -23,6 +24,10 @@ export function registerLevelUps(client: Client) {
             const member = await client.guilds.cache.get(ids.discord_guild_id)
                 ?.members.fetch(ids.discord_user_id).catch(() => null);
 
+            // Gold, items and Combat XP go to the profile first, so the announcement can list them.
+            const rewards = await grantLevelRewards({ userId: e.userId, guildId: e.guildId, config, fromLevel: e.fromLevel, toLevel: e.toLevel })
+                .catch((err) => { console.error("Level rewards failed:", err); return []; });
+
             await handleLevelUp({
                 client,
                 guildId: ids.discord_guild_id,
@@ -31,6 +36,7 @@ export function registerLevelUps(client: Client) {
                 config,
                 newLevel: e.toLevel,
                 fromLevel: e.fromLevel,
+                rewards,
             });
         } catch (err) {
             console.error("Level-up handling failed:", err);

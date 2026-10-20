@@ -52,6 +52,7 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
+import { grantLevelRewards } from "../src/player/levelRewards.js";
 import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
@@ -1460,6 +1461,28 @@ async function main() {
         check("a deleted skill fails open", ok({ skills: { gone: 99 } }).ok, true);
         check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs chat level 9, the <@&x> role and boosting the server.");
         check("an item's old level folds in as Combat", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ combatLevel: 3, roles: ["r"] }));
+    });
+
+    await test("level actions pay gold, items and Combat XP for every level crossed", async () => {
+        const ids = await reset();
+        const config = ids.config;
+        config.shop = { ...config.shop, items: { potion: { id: "potion", name: "Potion", emoji: "🧪", categoryId: "", price: 0 } } } as any;
+        config.levels.levelActions = {
+            5: [{ type: "giveGold", amount: 100 }, { type: "assignRole", roleId: "r" }],
+            6: [{ type: "giveItem", itemId: "potion", quantity: 2 }, { type: "giveItem", itemId: "gone" }],
+            7: [{ type: "giveCombatXp", amount: 1885 }],
+            9: [{ type: "giveGold", amount: 999 }],
+        };
+        const p = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        p.gold = "10";
+        const given = await grantLevelRewards({ userId: ids.userId, guildId: ids.guildId, config, fromLevel: 4, toLevel: 7 });
+        const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("gold from level 5, not level 9", after.gold, "110");
+        check("items from level 6; a deleted item gives nothing", after.inventory.potion?.quantity, 2);
+        check("Combat XP from level 7", after.user_stats.combat?.xp, 1885);
+        check("chat XP untouched", after.xp, p.xp);
+        check("the announcement lists it", given.join(", "), "+100 Gold, 2× 🧪 Potion, +1,885 ⚔️ Combat XP");
+        check("no reward actions, nothing given", (await grantLevelRewards({ userId: ids.userId, guildId: ids.guildId, config, fromLevel: 9, toLevel: 10 })).length, 0);
     });
 
     await test("crafting: what a member can make, and making it", async () => {
