@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Field, FieldGrid, NumberField, Section, TextField, Toggle } from "@/app/components/ui/form";
+import { Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ItemField } from "@/app/components/ui/pickers";
 
@@ -29,9 +29,26 @@ export interface CraftingStation {
   enabled: boolean;
   style: "simple" | "forge";
   masterworkChance?: number;
+  forge?: { zone?: [number, number]; centre?: [number, number]; ruinLoss?: number };
   words?: Record<string, string>;
   recipes: Record<string, Recipe>;
 }
+
+const STYLES = [
+  { value: "forge" as const, label: "Forge meter: time the strike" },
+  { value: "simple" as const, label: "Straightforward: a Craft button" },
+];
+
+/** Every word members see, per style, with the bot's defaults (havocish/src/commands/user/craft.ts). */
+const WORDS: Array<{ key: string; label: string; fallback: string; forgeOnly?: boolean }> = [
+  { key: "craft", label: "Craft button", fallback: "Craft" },
+  { key: "made", label: "Result verb", fallback: "Crafted" },
+  { key: "masterwork", label: "Masterwork line", fallback: "✨ Masterwork!" },
+  { key: "strike", label: "Strike button", fallback: "🔨 Strike", forgeOnly: true },
+  { key: "forging", label: "While forging", fallback: "Forging", forgeOnly: true },
+  { key: "ruined", label: "Ruined line", fallback: "💥 Ruined!", forgeOnly: true },
+  { key: "hesitated", label: "Too slow line", fallback: "Too slow. The moment passed.", forgeOnly: true },
+];
 
 export interface CraftingConfig {
   enabled: boolean;
@@ -91,7 +108,7 @@ function RecipeEditor({ recipe, station, shopItems, onChange, onRemove }: {
 
       <Field
         label="Masterwork table"
-        hint={`What a masterwork craft gives instead (${station.masterworkChance ?? 0}% of crafts at this station). Chances are weights. Leave empty to give a bonus copy instead.`}
+        hint={`What a masterwork gives instead (${station.style === "forge" ? "a strike dead centre" : `${station.masterworkChance ?? 0}% of crafts at this station`}). Chances are weights. Leave empty to give a bonus copy instead.`}
       >
         <div className="space-y-2">
           {masterwork.map((m, index) => (
@@ -147,23 +164,48 @@ export default function CraftingEditor({ value, onChange, shopItems }: {
           <TextField label="Name" value={st.name} onChange={(v) => upsertStation({ ...st, name: v })} hint="Members pick it in /craft." />
           <TextField label="Emoji" value={st.emoji ?? ""} onChange={(v) => upsertStation({ ...st, emoji: v })} />
           <TextField label="Skill name" value={st.skillName} onChange={(v) => upsertStation({ ...st, skillName: v })} hint="Like Smithing or Engineering." />
-          <NumberField
-            label="Masterwork chance (%)"
-            value={st.masterworkChance ?? 0}
-            min={0}
-            max={100}
-            step={0.5}
-            onChange={(v) => upsertStation({ ...st, masterworkChance: v })}
-            hint="The chance a craft gives a masterwork result. 0 turns masterworks off."
+          <SelectField
+            label="Crafting style"
+            value={st.style ?? "simple"}
+            options={STYLES}
+            onChange={(v) => upsertStation({ ...st, style: v })}
+            hint={st.style === "forge"
+              ? "A bar sweeps across; members strike to stop it. The yellow zone makes the item, the green centre makes a masterwork, anywhere else ruins it. Higher skill widens both."
+              : "Have the ingredients, click Craft, get the item. No timing and no ruin."}
           />
+          {st.style !== "forge" && (
+            <NumberField
+              label="Masterwork chance (%)"
+              value={st.masterworkChance ?? 0}
+              min={0}
+              max={100}
+              step={0.5}
+              onChange={(v) => upsertStation({ ...st, masterworkChance: v })}
+              hint="The chance a craft gives a masterwork result. 0 turns masterworks off."
+            />
+          )}
         </FieldGrid>
+        {st.style === "forge" && (() => {
+          const f = st.forge ?? {};
+          const zone = f.zone ?? [0.3, 0.5];
+          const centre = f.centre ?? [0.06, 0.1];
+          const pct = (n: number) => Math.round(n * 100);
+          const setForge = (p: Partial<NonNullable<CraftingStation["forge"]>>) => upsertStation({ ...st, forge: { ...f, ...p } });
+          return (
+            <Field label="Forge meter" hint="Shares of the 15-cell bar. Skill eases from the first number to the second.">
+              <FieldGrid>
+                <NumberField label="Zone at skill 1 (%)" value={pct(zone[0])} min={5} max={100} onChange={(v) => setForge({ zone: [v / 100, zone[1]] })} />
+                <NumberField label="Zone at top skill (%)" value={pct(zone[1])} min={5} max={100} onChange={(v) => setForge({ zone: [zone[0], v / 100] })} />
+                <NumberField label="Centre at skill 1 (%)" value={pct(centre[0])} min={1} max={100} onChange={(v) => setForge({ centre: [v / 100, centre[1]] })} hint="At least one cell, always." />
+                <NumberField label="Centre at top skill (%)" value={pct(centre[1])} min={1} max={100} onChange={(v) => setForge({ centre: [centre[0], v / 100] })} />
+                <NumberField label="Ingredients lost on a ruin (%)" value={pct(f.ruinLoss ?? 0.5)} min={0} max={100} onChange={(v) => setForge({ ruinLoss: v / 100 })} hint="0 makes a ruin cost nothing. A ruin never costs gold or gives XP." />
+              </FieldGrid>
+            </Field>
+          );
+        })()}
         <Field label="Wording" hint="Leave a box blank to use the default shown in it.">
           <FieldGrid>
-            {[
-              { key: "craft", label: "Craft button", fallback: "Craft" },
-              { key: "made", label: "Result verb", fallback: "Crafted" },
-              { key: "masterwork", label: "Masterwork line", fallback: "✨ Masterwork!" },
-            ].map((w) => (
+            {WORDS.filter((w) => !w.forgeOnly || st.style === "forge").map((w) => (
               <TextField
                 key={w.key}
                 label={w.label}
@@ -223,12 +265,12 @@ export default function CraftingEditor({ value, onChange, shopItems }: {
           tooltip={(id, st) => (
             <EntryTooltip
               title={`${st.emoji ?? ""} ${st.name || id}`}
-              lines={[st.skillName, `${Object.keys(st.recipes ?? {}).length} recipes`, st.enabled === false && "Inactive"]}
+              lines={[`${st.skillName} · ${st.style === "forge" ? "forge meter" : "straightforward"}`, `${Object.keys(st.recipes ?? {}).length} recipes`, st.enabled === false && "Inactive"]}
             />
           )}
           onCreate={(name) => {
             const id = idFromName(name, Object.keys(local.stations ?? {}));
-            upsertStation({ id, name, emoji: "⚒️", skillName: name, enabled: true, style: "simple", masterworkChance: 5, words: {}, recipes: {} });
+            upsertStation({ id, name, emoji: "⚒️", skillName: name, enabled: true, style: "forge", masterworkChance: 5, words: {}, recipes: {} });
             return id;
           }}
           onRemove={(id) => {

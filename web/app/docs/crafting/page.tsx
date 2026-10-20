@@ -24,10 +24,30 @@ export default function Crafting() {
       <H2>Make a station</H2>
       <Steps>
         <li>Click <b>New station</b> and name it. Set its emoji and skill name.</li>
-        <li>Set the <b>masterwork chance</b>: the share of crafts that roll the masterwork table. 0 turns masterworks off.</li>
+        <li>Pick its <b>crafting style</b> (below).</li>
         <li>Add <b>recipes</b>: the item it makes, how many, its ingredients, any gold cost, the skill it needs and the XP it gives. One recipe must need skill 1, or nobody can start.</li>
         <li>Save. Members can now <C>/craft</C> there.</li>
       </Steps>
+
+      <H2>Crafting styles</H2>
+      <P><b>Forge meter</b> (the default). A bar sweeps across the message and the member clicks <b>Strike</b> to stop it:</P>
+      <Table
+        head={["Where it stops", "Result"]}
+        rows={[
+          ["🟩 the centre", "A masterwork (below)."],
+          ["🟨 the zone", "The item is made."],
+          ["⬛ anywhere else", "Ruined: part of each ingredient is lost (half by default). No gold is charged and no XP given."],
+        ]}
+      />
+      <P>
+        The zone lands in a different place every craft. Higher skill widens it: by default from 30% of the bar at skill 1
+        to 50% at the top, with the centre growing from 6% to 10%. Members who wait two full sweeps miss. The strike is
+        judged by what was on their screen when they clicked, so a slow connection doesn&apos;t count against them.
+      </P>
+      <P>
+        <b>Straightforward.</b> A plain <b>Craft</b> button: have the ingredients, click, get the item. No timing and no
+        ruin. Set a <b>masterwork chance</b> to give each craft a little luck.
+      </P>
 
       <H2>Masterworks</H2>
       <P>
@@ -44,6 +64,14 @@ export default function Crafting() {
         ]}
       />
       <P>A recipe with an empty table gives a bonus copy of its normal result on a masterwork instead.</P>
+      <Table
+        head={["Forge setting", "Default"]}
+        rows={[
+          ["Zone at skill 1 / at the top", "30% / 50% of the bar"],
+          ["Centre at skill 1 / at the top", "6% / 10%, never less than one cell"],
+          ["Ingredients lost on a ruin", "50%, rounded down; 0 turns ruin off"],
+        ]}
+      />
 
       <H2>What members see</H2>
       <P>

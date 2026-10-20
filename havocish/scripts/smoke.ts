@@ -50,7 +50,7 @@ import { equipItemFromInventory, useItemFromInventory } from "../src/player/inve
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
-import { craftOnce, recipeState } from "../src/player/crafting.js";
+import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
@@ -1429,7 +1429,24 @@ async function main() {
         fresh.inventory = { ...fresh.inventory, ore: { id: "ore", name: "Ore", quantity: 3 } } as any;
         fresh.gold = "5";
         const mw = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station: lucky, recipe: { ...recipe, masterwork: [{ itemId: "fine", chance: 1, quantity: 1 }] } });
-        check("a masterwork gives the table's item", mw.ok && mw.masterwork && mw.gave.itemId, "fine");
+        check("a masterwork gives the table's item", mw.ok && !mw.ruined && mw.masterwork && mw.gave.itemId, "fine");
+
+        // Forge: a ruined strike loses half of each ingredient (rounded down), no gold, no XP.
+        const forge = { ...station, style: "forge" } as any;
+        const before = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        before.inventory = { ...before.inventory, ore: { id: "ore", name: "Ore", quantity: 3 } } as any;
+        const goldBefore = before.gold;
+        const xpBefore = before.user_stats.crafting?.smith?.xp;
+        const ruined = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station: forge, recipe: { ...recipe, gold: 0 }, outcome: "ruin" });
+        const afterRuin = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("a ruin loses half the ingredients", `${ruined.ok && ruined.ruined}|${afterRuin.inventory.ore?.quantity}`, "true|2");
+        check("a ruin keeps the gold and gives no XP", `${afterRuin.gold === goldBefore}|${afterRuin.user_stats.crafting?.smith?.xp === xpBefore}`, "true|true");
+
+        // The bar: zone 5 of 15 at skill 1, 8 at the top; the centre sits inside it.
+        check("forge zone at skill 1", forgeRules(forge, 1, 50).zone, 5);
+        check("forge zone at the top skill", forgeRules(forge, 50, 50).zone, 8);
+        const spot = placeForge({ zone: 5, centre: 1 }, () => 0);
+        check("forge judging", [2, 0, 5].map((cell) => judgeForge(cell, spot)).join(","), "perfect,made,ruin");
     });
 
     await test("shop categories follow their sort order, hidden flag and roles", async () => {
