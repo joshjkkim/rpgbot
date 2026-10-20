@@ -1,5 +1,18 @@
 [
   {
+    "name": "craft",
+    "description": "Craft at one of this server's stations",
+    "managersOnly": false,
+    "options": [
+      {
+        "name": "station",
+        "description": "Where to craft",
+        "type": "text",
+        "required": true
+      }
+    ]
+  },
+  {
     "name": "daily",
     "description": "Claim your daily reward",
     "managersOnly": false,

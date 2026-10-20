@@ -18,6 +18,7 @@ export const DOC_PAGES = [
       { href: "/docs/economy", label: "Economy and items" },
       { href: "/docs/combat", label: "Combat" },
       { href: "/docs/gathering", label: "Gathering" },
+      { href: "/docs/crafting", label: "Crafting" },
       { href: "/docs/quests", label: "Quests and achievements" },
       { href: "/docs/dashboard", label: "Dashboard and tools" },
     ],

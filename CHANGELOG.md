@@ -2,6 +2,12 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### New
+- **Crafting.** Turn what you gather and loot into better things with `/craft`. Each crafting station is its own skill: better recipes open as it grows. Every craft has a chance to come out as a masterwork, which can be something rarer than the recipe's usual result.
+- **For server owners: build your own stations.** On the dashboard's new Crafting page, create any station (smithing, cooking, engineering), write its recipes, and decide what a masterwork can turn into. Every item's page now shows which recipes make it and which use it.
+
 ## v0.11 · October 18, 2026
 
 ### New

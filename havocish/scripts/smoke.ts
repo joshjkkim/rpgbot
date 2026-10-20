@@ -49,6 +49,7 @@ import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
+import { craftOnce, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
@@ -1369,6 +1370,45 @@ async function main() {
         await flushDirtyProfiles(true);
         const row = await query<{ gold: string }>(`SELECT gold FROM user_guild_profiles WHERE user_id = $1 AND guild_id = $2`, [userId, guildId]);
         check("gold persisted", row.rows[0]?.gold, "40");
+    });
+
+    await test("crafting: what a member can make, and making it", async () => {
+        const ids = await reset();
+        const config = ids.config;
+        config.shop = { ...config.shop, items: {
+            ore: { id: "ore", name: "Ore", categoryId: "", price: 0 },
+            sword: { id: "sword", name: "Sword", categoryId: "", price: 0 },
+            fine: { id: "fine", name: "Fine Sword", categoryId: "", price: 0 },
+        } } as any;
+        const station = { id: "smith", name: "Smithing", emoji: "⚒️", skillName: "Smithing", enabled: true, style: "simple", recipes: {} } as any;
+        const recipe = { id: "sword", inputs: [{ itemId: "ore", quantity: 3 }], gold: 5, output: { itemId: "sword", quantity: 1 }, minSkill: 1, skillXp: 40 } as any;
+        const p = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        p.inventory = { ore: { id: "ore", name: "Ore", quantity: 4 } } as any;
+        p.gold = "10";
+
+        check("one craft's worth is affordable", recipeState(recipe, p, config, 1, []).affordable, true);
+        check("a skill gate locks it", recipeState({ ...recipe, minSkill: 5 }, p, config, 1, []).locked, "skill");
+        check("a hidden recipe stays locked until known", recipeState({ ...recipe, hidden: true }, p, config, 1, []).locked, "hidden");
+        check("a missing output item breaks it", recipeState({ ...recipe, output: { itemId: "gone", quantity: 1 } }, p, config, 1, []).locked, "broken");
+
+        const made = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station, recipe, roll: () => 0.99 });
+        const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("crafting gives the output", after.inventory.sword?.quantity, 1);
+        check("crafting takes the inputs", after.inventory.ore?.quantity, 1);
+        check("crafting takes the gold", after.gold, "5");
+        check("crafting gives skill XP", after.user_stats.crafting?.smith?.xp, 40);
+        check("the craft reports success", made.ok, true);
+
+        const again = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station, recipe });
+        check("not enough ore refuses, and takes nothing", `${again.ok}|${(await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile.inventory.ore?.quantity}`, "false|1");
+
+        // A masterwork roll picks from the table.
+        const lucky = { ...station, masterworkChance: 100 };
+        const fresh = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        fresh.inventory = { ...fresh.inventory, ore: { id: "ore", name: "Ore", quantity: 3 } } as any;
+        fresh.gold = "5";
+        const mw = await craftOnce({ userId: ids.userId, guildId: ids.guildId, config, station: lucky, recipe: { ...recipe, masterwork: [{ itemId: "fine", chance: 1, quantity: 1 }] } });
+        check("a masterwork gives the table's item", mw.ok && mw.masterwork && mw.gave.itemId, "fine");
     });
 
     await test("shop categories follow their sort order, hidden flag and roles", async () => {

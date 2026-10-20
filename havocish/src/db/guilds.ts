@@ -143,6 +143,11 @@ export function mergeConfig(raw: GuildConfig | null): GuildConfig {
             },
             activities: raw?.gathering?.activities ?? {},
         },
+        crafting: {
+            ...DEFAULT_GUILD_CONFIG.crafting,
+            ...(raw?.crafting ?? {}),
+            stations: raw?.crafting?.stations ?? {},
+        },
     }
 }
 
