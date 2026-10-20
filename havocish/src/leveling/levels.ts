@@ -12,6 +12,8 @@ interface HandleLevelUpArgs {
   newLevel: number;
   /** The level before this level-up. Rewards run for every level crossed, not just the last. */
   fromLevel?: number;
+  /** What the gold/item/Combat XP actions gave, already granted (player/levelRewards.ts). */
+  rewards?: string[];
 }
 
 /**
@@ -102,7 +104,8 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
     if (channel && channel.isTextBased() && channel.isSendable()) {
       const announceMessage = config.levels.announceLevelUpMessage
         .replace("{user}", `<@${userId}>`)
-        .replace("{level}", newLevel.toString());
+        .replace("{level}", newLevel.toString())
+        + (args.rewards?.length ? `\n🎁 ${args.rewards.join(", ")}` : "");
 
       // The banner is decoration: if it fails to render, the text still goes out.
       const banner = await (async () => {

@@ -20,13 +20,16 @@ import {
   suggestedCurveParams,
   type CurveType,
 } from "@/app/lib/levelCurve";
-import { ChannelField, RoleField } from "@/app/components/ui/pickers";
+import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
 
 export interface LevelAction {
-  type: "assignRole" | "removeRole" | "sendMessage";
+  type: "assignRole" | "removeRole" | "sendMessage" | "giveGold" | "giveItem" | "giveCombatXp";
   roleId?: string;
   message?: string;
   channelId?: string;
+  amount?: number;
+  itemId?: string;
+  quantity?: number;
 }
 
 export type LevelsConfig = {
@@ -42,6 +45,8 @@ export type LevelsConfig = {
 type Props = {
   value: LevelsConfig | null | undefined;
   onChange: (next: LevelsConfig) => void;
+  /** Shop items, for the Give item action. */
+  shopItems: Record<string, { name?: string; emoji?: string }>;
 };
 
 const CURVES = [
@@ -55,6 +60,9 @@ const ACTION_TYPES = [
   { value: "assignRole" as const, label: "Assign role" },
   { value: "removeRole" as const, label: "Remove role" },
   { value: "sendMessage" as const, label: "Send message" },
+  { value: "giveGold" as const, label: "Give gold" },
+  { value: "giveItem" as const, label: "Give item" },
+  { value: "giveCombatXp" as const, label: "Give Combat XP" },
 ];
 
 /**
@@ -82,7 +90,7 @@ function fromStored(config: LevelsConfig): LevelsConfig {
   return { ...cleaned, curveParams: normalizeCurveParams(cleaned.curveType, cleaned.curveParams) };
 }
 
-export default function LevelsEditor({ value, onChange }: Props) {
+export default function LevelsEditor({ value, onChange, shopItems }: Props) {
   const defaults: LevelsConfig = useMemo(
     () => ({
       maxLevel: null,
@@ -230,7 +238,7 @@ export default function LevelsEditor({ value, onChange }: Props) {
 
       <Section
         title="Level actions"
-        description="What happens when someone reaches a level."
+        description="What happens when someone reaches a level. Gold, items and Combat XP are how chatting pays off in the RPG; they're listed under the level-up announcement."
         defaultOpen={false}
       >
         <KeyedList<LevelAction[]>
@@ -299,6 +307,48 @@ export default function LevelsEditor({ value, onChange }: Props) {
                           )
                         }
                       />
+                    )}
+
+                    {(action.type === "giveGold" || action.type === "giveCombatXp") && (
+                      <NumberField
+                        label="Amount"
+                        value={action.amount ?? 0}
+                        min={0}
+                        onChange={(v) =>
+                          setLevelActions(
+                            level,
+                            actions.map((a, i) => (i === index ? { ...a, amount: v } : a))
+                          )
+                        }
+                      />
+                    )}
+
+                    {action.type === "giveItem" && (
+                      <>
+                        <ItemField
+                          items={shopItems}
+                          label="Item"
+                          value={action.itemId ?? ""}
+                          onChange={(v) =>
+                            setLevelActions(
+                              level,
+                              actions.map((a, i) => (i === index ? { ...a, itemId: v } : a))
+                            )
+                          }
+                          emptyLabel="Choose an item"
+                        />
+                        <NumberField
+                          label="Quantity"
+                          value={action.quantity ?? 1}
+                          min={1}
+                          onChange={(v) =>
+                            setLevelActions(
+                              level,
+                              actions.map((a, i) => (i === index ? { ...a, quantity: v } : a))
+                            )
+                          }
+                        />
+                      </>
                     )}
 
                     {action.type === "sendMessage" && (

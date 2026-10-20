@@ -90,8 +90,9 @@ export default function XpAndLevels() {
         the member was chatting. The message accepts <C>{"{user}"}</C> and <C>{"{level}"}</C>.
       </P>
       <P>
-        <b>Level rewards</b> run when a member reaches a level: give a role, take a role, or post a message. Members who
-        jump several levels at once get every reward they passed.
+        <b>Level rewards</b> run when a member reaches a level: give a role, take a role, post a message, or pay into the
+        RPG with <b>gold</b>, an <b>item</b> or <b>Combat XP</b>. The RPG rewards are listed under the level-up message.
+        Members who jump several levels at once get every reward they passed. Set them at <Where>Levels</Where> under Level actions.
       </P>
       <Note kind="warning">
         Role rewards need the havocish role above the roles it gives. See{" "}
