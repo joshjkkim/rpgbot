@@ -35,6 +35,11 @@ export interface CraftingStation {
     style: "simple" | "forge";
     /** Simple style: percent chance a craft rolls the masterwork table (or a bonus copy without one). */
     masterworkChance?: number;
+    /**
+     * Forge style. Shares of the bar at skill 1 and at the top skill (eased in
+     * between), and the share of each ingredient a ruined craft loses.
+     */
+    forge?: { zone?: [number, number]; centre?: [number, number]; ruinLoss?: number };
     /** Every player-visible word, overridable. */
     words?: Record<string, string>;
     recipes: Record<string, Recipe>;
