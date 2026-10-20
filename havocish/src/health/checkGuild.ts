@@ -2,6 +2,7 @@ import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { DashboardPage } from "../ui/dashboardLinks.js";
+import type { Requirements } from "../types/requirements.js";
 
 /**
  * The server health check behind the dashboard Overview: everything in a
@@ -198,6 +199,27 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                 }
             }
         }
+    }
+
+    // ── Requirements ── (a gate on a deleted role or skill quietly stops gating)
+    const reqs = (req: Requirements | undefined, what: string, page: DashboardPage) => {
+        for (const id of req?.roles ?? []) {
+            if (access.roleName(id) === null) issues.push({ severity: "warning", message: `${what} needs a role that was deleted, so that condition is ignored.`, page });
+        }
+        for (const id of Object.keys(req?.skills ?? {})) {
+            if (!config.gathering?.activities?.[id] && !config.crafting?.stations?.[id]) {
+                issues.push({ severity: "warning", message: `${what} needs a skill that no longer exists, so that condition is ignored.`, page });
+            }
+        }
+    };
+    for (const it of Object.values(items)) reqs(it.requirements, `The item ${it.name}`, "items");
+    for (const e of Object.values(config.combat.enemies ?? {})) reqs(e.requirements, `The enemy ${e.name}`, "combat");
+    for (const q of Object.values(config.quests?.quests ?? {})) reqs(q.requirements, `The quest ${q.name}`, "quests");
+    for (const a of Object.values(config.gathering?.activities ?? {})) {
+        for (const l of Object.values(a.locations ?? {})) reqs(l.requirements, `${a.name} at ${l.name}`, "gathering");
+    }
+    for (const st of Object.values(config.crafting?.stations ?? {})) {
+        for (const r of Object.values(st.recipes ?? {})) reqs(r.requirements, `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "an item"}`, "crafting");
     }
 
     // ── Logging ──

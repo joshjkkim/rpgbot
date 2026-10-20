@@ -1,3 +1,4 @@
+import type { Requirements } from "./requirements.js";
 import type { GuildConfig } from "./guild.js";
 import type { DbUserGuildProfile } from "./userprofile.js";
 import type { PendingProfileChanges } from "./cache.js";
@@ -47,6 +48,8 @@ export interface QuestConfig {
     cooldown: number; // in seconds
     overrideChannelId?: string | null;
     overrideAnnouncement?: string | null;
+    /** Who can take the quest on. */
+    requirements?: Requirements;
 }
 
 export interface QuestCheckArgs {

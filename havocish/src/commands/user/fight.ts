@@ -20,6 +20,7 @@ import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import type { shopItemConfig } from "../../types/economy.js";
 import { renderItemCard } from "../../ui/canvas/itemCard.js";
+import { checkRequirements, memberFacts } from "../../player/requirements.js";
 import { questCompleteLines } from "../../player/quests.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
@@ -283,8 +284,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             });
             return;
         }
+        const gate = checkRequirements(enemy.requirements, { profile, config, facts: memberFacts(interaction.member) });
+        if (!gate.ok) {
+            await interaction.reply({ content: `**${enemy.emoji} ${enemy.name}**: ${gate.message}`, flags: MessageFlags.Ephemeral });
+            return;
+        }
     } else {
-        enemy = pickRandomEnemy(config, profile.level ?? 1);
+        const facts = memberFacts(interaction.member);
+        enemy = pickRandomEnemy(config, profile.level ?? 1, (e) => checkRequirements(e.requirements, { profile, config, facts }).ok);
         if (!enemy) {
             await interaction.reply({
                 content: "No foes roam at your level yet.",

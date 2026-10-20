@@ -42,6 +42,27 @@ export default function Dashboard() {
         <li><b>Saving:</b> changes are kept until you save, from the bar at the bottom or with <C>Ctrl+S</C> / <C>⌘S</C>. If someone else saved in the meantime, you&apos;re asked to reload rather than overwrite them.</li>
       </List>
 
+      <H2>Requirements</H2>
+      <P>
+        Items, gathering locations, crafting recipes, enemies and quests each have a <b>Requirements</b> block that decides
+        who can use them. Everything set there must be met:
+      </P>
+      <Table
+        head={["Condition", "Use it for"]}
+        rows={[
+          ["Has any of these roles", "Gating by another bot's level roles, or by roles you hand out yourself."],
+          ["Skill levels", "Mining 15 for the Old Quarry, Smithing 25 for a blade."],
+          ["Days in the server", "Rewards for members who stuck around."],
+          ["Server boosters only", "A perk or cosmetic for boosters."],
+          ["Chat level", "havocish's own level, for servers that use it."],
+        ]}
+      />
+      <Note>
+        <b>Already use MEE6, Arcane or another leveling bot?</b> Those bots give roles at levels. Pick that role in a
+        requirement, and havocish gates its content by your existing levels without knowing anything about the other bot.
+      </Note>
+      <P>When a member doesn&apos;t qualify, the bot tells them exactly what&apos;s missing: <i>Needs Mining 15 and the @Veteran role.</i></P>
+
       <H2>The health check</H2>
       <P>
         The Overview checks your setup for things that would fail quietly, and links to the page that fixes each one:
@@ -49,6 +70,7 @@ export default function Dashboard() {
       <List>
         <li>Channels havocish can&apos;t post in, or that were deleted.</li>
         <li>Roles it can&apos;t hand out (usually because they sit above its own role).</li>
+        <li>Requirements that name a deleted role or skill.</li>
         <li>Rewards and drops pointing at deleted items.</li>
         <li>Features switched on with nothing in them, like combat with no enemies or a gathering location with nothing to find.</li>
       </List>

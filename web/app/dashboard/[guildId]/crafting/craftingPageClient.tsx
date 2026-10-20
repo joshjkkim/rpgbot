@@ -3,6 +3,7 @@
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import CraftingEditor from "@/app/components/crafting/craftingEditor";
+import { skillOptions } from "@/app/components/ui/requirementsField";
 
 export default function CraftingPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
@@ -21,6 +22,7 @@ export default function CraftingPageClient({ guildId }: { guildId: string }) {
     >
       {config && (
         <CraftingEditor
+          skills={skillOptions(config)}
           value={crafting}
           shopItems={config.shop?.items ?? {}}
           onChange={(next) => setConfig((prev) => ({ ...prev, crafting: next }))}

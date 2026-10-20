@@ -1,5 +1,6 @@
 "use client";
 
+import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -38,6 +39,7 @@ export interface EnemyConfig {
   drops: EnemyDrop[];
   /** Fought by the whole server at once; never by /fight or encounters. */
   boss?: boolean;
+  requirements?: Requirements;
 }
 
 export interface CombatDeathPenalty {
@@ -100,6 +102,8 @@ type Props = {
   shopItems: Record<string, { name?: string; emoji?: string }>;
   value: CombatConfig | null | undefined;
   onChange: (next: CombatConfig) => void;
+  /** Skills a requirement can name. */
+  skills: SkillOption[];
 };
 
 /** Each player stat is a base plus a per-level increment. */
@@ -122,7 +126,7 @@ const STATS: Array<{
   },
 ];
 
-export default function CombatEditor({ value, onChange, shopItems }: Props) {
+export default function CombatEditor({ value, onChange, shopItems, skills }: Props) {
   const defaults: CombatConfig = useMemo(() => ({ enabled: false, enemies: {} }), []);
 
   const [local, setLocal] = useState<CombatConfig>(value ?? defaults);
@@ -301,6 +305,15 @@ export default function CombatEditor({ value, onChange, shopItems }: Props) {
                   <NumberField label="Gold reward" value={enemy.goldReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, goldReward: v })} />
                 </FieldGrid>
               </Field>
+
+              {!enemy.boss && (
+                <RequirementsField
+                  value={enemy.requirements}
+                  onChange={(next) => upsertEnemy({ ...enemy, requirements: next })}
+                  skills={skills}
+                  hint="Who can fight it, on top of its level range. Members who don't qualify never meet it in /fight or encounters."
+                />
+              )}
 
               <Field label="Drops">
                 <div className="space-y-3">

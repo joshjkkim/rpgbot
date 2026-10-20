@@ -1,5 +1,6 @@
 "use client";
 
+import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -33,6 +34,7 @@ export interface GatheringLocation {
   emoji: string;
   minSkill: number;
   minToolTier?: number;
+  requirements?: Requirements;
   skillXp: number;
   loot: GatheringLoot[];
   difficulty?: Record<string, number>;
@@ -160,6 +162,8 @@ type ShopItems = Record<string, { name?: string; emoji?: string }>;
 
 type Props = {
   shopItems: ShopItems;
+  /** Skills a requirement can name. */
+  skills: SkillOption[];
   value: GatheringConfig | null | undefined;
   onChange: (next: GatheringConfig) => void;
 };
@@ -168,11 +172,13 @@ function LocationEditor({
   location,
   game,
   shopItems,
+  skills,
   onChange,
 }: {
   location: GatheringLocation;
   game: GameType;
   shopItems: ShopItems;
+  skills: SkillOption[];
   onChange: (next: GatheringLocation) => void;
 }) {
   const loot = location.loot ?? [];
@@ -208,6 +214,13 @@ function LocationEditor({
           hint="About 20 a run takes 25 runs to reach skill 10."
         />
       </FieldGrid>
+
+      <RequirementsField
+        value={location.requirements}
+        onChange={(next) => onChange({ ...location, requirements: next })}
+        skills={skills}
+        hint="On top of the skill and tool it needs. A location a member doesn't qualify for is skipped when /gather picks one for them."
+      />
 
       <Field label="Loot" hint="Each find picks one entry. Chances are weights, so 3 and 1 means a 75% and 25% split.">
         <div className="space-y-2">
@@ -267,7 +280,7 @@ function LocationEditor({
   );
 }
 
-export default function GatheringEditor({ value, onChange, shopItems }: Props) {
+export default function GatheringEditor({ value, onChange, shopItems, skills }: Props) {
   // A pack can add activities to a server that never saved gathering settings, so fill in the rest.
   const withDefaults = (v: GatheringConfig | null | undefined): GatheringConfig =>
     ({ ...DEFAULT_GATHERING, ...(v ?? {}), skill: { ...DEFAULT_GATHERING.skill, ...(v?.skill ?? {}) } });
@@ -360,6 +373,7 @@ export default function GatheringEditor({ value, onChange, shopItems }: Props) {
                 location={l}
                 game={game}
                 shopItems={shopItems}
+                skills={skills}
                 onChange={(next) => upsertActivity({ ...a, locations: { ...(a.locations ?? {}), [lid]: next } })}
               />
             )}

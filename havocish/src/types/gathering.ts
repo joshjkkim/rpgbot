@@ -1,3 +1,5 @@
+import type { Requirements } from "./requirements.js";
+
 /**
  * Gathering: owner-made activities, each played as one of a set of button
  * minigames. Nothing here is specific to mining or fishing; those are just how
@@ -22,6 +24,8 @@ export interface GatheringLocation {
     minSkill: number;
     /** A tool of at least this tier for the activity is needed. */
     minToolTier?: number;
+    /** Gates beyond the activity's own skill: other skills, roles, membership age... */
+    requirements?: Requirements;
     /** Skill XP for finishing a run here. */
     skillXp: number;
     loot: GatheringLoot[];

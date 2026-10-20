@@ -3,6 +3,7 @@
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import CombatEditor from "@/app/components/combat/combatEditor";
+import { skillOptions } from "@/app/components/ui/requirementsField";
 
 export default function CombatPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
@@ -22,6 +23,7 @@ export default function CombatPageClient({ guildId }: { guildId: string }) {
     >
       {config && (
         <CombatEditor
+          skills={skillOptions(config)}
           value={combat}
           shopItems={config.shop?.items ?? {}}
           onChange={(next) => setConfig((prev) => ({ ...prev, combat: next }))}

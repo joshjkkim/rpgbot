@@ -1,3 +1,4 @@
+import type { Requirements } from "./requirements.js";
 import type { CombatStats } from "../player/combat.js";
 import type { DbUserGuildProfile } from "./userprofile.js";
 import type { GuildConfig } from "./guild.js";
@@ -36,6 +37,8 @@ export interface EnemyConfig {
      * by /fight or random encounters. Its XP and gold are the pool split by damage.
      */
     boss?: boolean;
+    /** Who may fight it, beyond its level range: roles, skills, membership age... */
+    requirements?: Requirements;
 }
 
 // ─── In-memory fight state ────────────────────────────────────────────────────

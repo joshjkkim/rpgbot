@@ -11,6 +11,7 @@ import {
   Toggle,
 } from "@/app/components/ui/form";
 import type { ItemRarity } from "./itemTooltip";
+import type { Requirements } from "@/app/components/ui/requirementsField";
 import Link from "next/link";
 import ShopPreview from "./shopPreview";
 import { ChannelField, RolesField } from "@/app/components/ui/pickers";
@@ -87,6 +88,7 @@ export interface shopItemConfig {
   effects?: ItemEffects;
   /** A gathering tool (mirrored from havocish/src/types/economy.ts). */
   tool?: { activityId: string; tier: number; bonus: number };
+  requirements?: Requirements;
 }
 
 export type ShopConfig = {

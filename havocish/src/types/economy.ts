@@ -1,3 +1,4 @@
+import type { Requirements } from "./requirements.js";
 export interface shopCategoryConfig {
     id: string;
     name: string;
@@ -79,4 +80,7 @@ export interface shopItemConfig {
      * no equipping. `bonus` is per game: Grid +1 try, Timing +0.3 s, Find it +1 s a point.
      */
     tool?: { activityId: string; tier: number; bonus: number };
+
+    /** Who can buy, use or equip it. `minLevel` and `requiresRoleIds` are read into this too. */
+    requirements?: Requirements;
 }
