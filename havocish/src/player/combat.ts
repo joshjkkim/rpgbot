@@ -1,6 +1,6 @@
 import { combatLevel } from "./combatLevel.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
-import type { GuildConfig } from "../types/guild.js";
+import { DEFAULT_GUILD_CONFIG, type GuildConfig } from "../types/guild.js";
 import type { shopItemConfig } from "../types/economy.js";
 
 // ─── Computed stat block ──────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ export function calculateStats(
     guildItems: Record<string, shopItemConfig>, // config.shop.items
 ): CombatStats {
     const c = config.combat;
-    // Combat level, not chat level: the RPG levels itself.
+    // Combat level sets the stats; chat level adds a smaller bonus below.
     const level = combatLevel(profile, config);
 
     // Base stats from level formula
@@ -34,6 +34,13 @@ export function calculateStats(
     let spd    = (c.speedBase        ?? 5)   + level * (c.speedPerLevel        ?? 1);
     let crit   = (c.critChanceBase   ?? 5)   + level * (c.critChancePerLevel   ?? 0.5);
     let critMul = (c.critMultiplierBase ?? 1.5) + level * (c.critMultiplierPerLevel ?? 0.05);
+
+    const bonus = chatLevelBonus(profile, config);
+    maxHp += bonus.hp;
+    atk   += bonus.atk;
+    def   += bonus.def;
+    spd   += bonus.spd;
+    crit  += bonus.crit;
 
     // Add bonuses from every equipped item
     const equips = profile.equips ?? {};
@@ -56,6 +63,22 @@ export function calculateStats(
         spd:            Math.max(1, Math.round(spd)),
         critChance:     Math.min(100, Math.max(0, crit)),
         critMultiplier: Math.max(1, critMul),
+    };
+}
+
+// ─── chatLevelBonus ───────────────────────────────────────────────────────────
+// What chat level adds to the stats, so /me can show it on its own line.
+
+export function chatLevelBonus(profile: DbUserGuildProfile, config: GuildConfig) {
+    const per = config.combat?.chatBonus ?? DEFAULT_GUILD_CONFIG.combat.chatBonus!;
+    const level = profile.level ?? 1;
+    return {
+        level,
+        hp:   level * (per.hp   ?? 0),
+        atk:  level * (per.atk  ?? 0),
+        def:  level * (per.def  ?? 0),
+        spd:  level * (per.spd  ?? 0),
+        crit: level * (per.crit ?? 0),
     };
 }
 

@@ -87,6 +87,12 @@ export interface GuildConfig {
         critChancePerLevel?: number;
         critMultiplierBase?: number;
         critMultiplierPerLevel?: number;
+        /**
+         * Stats added per chat level, on top of the Combat-level stats: chatting
+         * makes you a bit stronger (leveling feeds the RPG, never the reverse).
+         * Kept well below the per-Combat-level values so fighting stays the way up.
+         */
+        chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
         enemies?: Record<string, EnemyConfig>;
         pveDeathPenalty?: {
             goldPercent?: number;   // % of current gold lost (e.g. 5 = 5%). Default: 0
@@ -238,6 +244,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         critChancePerLevel: 0.5,
         critMultiplierBase: 1.5,
         critMultiplierPerLevel: 0.1,
+        chatBonus: { hp: 2, atk: 0.5 },
         enemies: {},
         pvp: {
             enabled: false,
