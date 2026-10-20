@@ -1,6 +1,5 @@
 import { query } from "../db/index.js";
 import { busyFighting } from "./fight.js";
-import { addMessageXp } from "../db/userGuildProfiles.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
@@ -9,6 +8,7 @@ import type { ButtonInteraction, ChatInputCommandInteraction, StringSelectMenuIn
 import { logAndBroadcastEvent } from "../db/events.js";
 import { applyRoleWithTemp } from "./roles.js";
 import { checkRequirements, itemRequirements, memberFacts } from "./requirements.js";
+import { addCombatXp, combatLevel, combatXp } from "./combatLevel.js";
 import type { item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
@@ -26,7 +26,7 @@ function snapshot(profile: Parameters<typeof calculateStats>[0], config: Paramet
     const stats = calculateStats(profile, config, config.shop?.items ?? {});
     return {
         hp: resolveCurrentHp(profile, stats), maxHp: stats.maxHp,
-        xp: BigInt(profile.xp ?? 0), gold: BigInt(profile.gold ?? 0), level: profile.level ?? 1, stats,
+        xp: BigInt(combatXp(profile)), gold: BigInt(profile.gold ?? 0), level: combatLevel(profile, config), stats,
     };
 }
 
@@ -35,10 +35,10 @@ export function describeChange(before: Snapshot, after: Snapshot, config: Parame
     const parts: string[] = [];
     if (config.combat?.enabled && after.hp !== before.hp) parts.push(`❤️ ${before.hp} → ${after.hp} / ${after.maxHp} HP`);
     const xp = after.xp - before.xp;
-    if (xp !== 0n) parts.push(`${xp > 0n ? "+" : ""}${xp} ${config.style.xp.name || "XP"}`);
+    if (xp !== 0n) parts.push(`${xp > 0n ? "+" : ""}${xp} Combat XP`);
     const gold = after.gold - before.gold;
     if (gold !== 0n) parts.push(`${gold > 0n ? "+" : ""}${gold} ${config.style.gold.name || "gold"}`);
-    if (after.level > before.level) parts.push(`**Level ${after.level}!**`);
+    if (after.level > before.level) parts.push(`**Combat ${after.level}!**`);
     return parts.join(" · ");
 }
 
@@ -402,22 +402,20 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                         break;
                     }
 
+                    // Items are part of the RPG, so "xp" gives Combat XP, never chat XP.
                     case "xp": {
                         xpGained += action.amount;
-                        await addMessageXp({
-                            client: interaction.client,
-                            discordGuildId: interaction.guild.id,
-                            discordUserId: interaction.user.id,
-                            member: member ?? null,
-
+                        const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+                        const p = cached.profile;
+                        addCombatXp(p, config, action.amount ?? 0);
+                        commitProfileChanges({
                             userId: dbUser.id,
                             guildId: dbGuild.id,
-                            channelId: interaction.channelId,
-                            config: config,
-                            roleIds: member?.roles.cache.map(r => r.id) ?? [],
-                            amount: action.amount,
+                            profile: p,
+                            changes: { ...(cached.pendingChanges ?? {}), user_stats: p.user_stats } as PendingProfileChanges,
+                            baseline: { xp: p.xp, gold: p.gold },
                         });
-                        break; 
+                        break;
                     }
 
                     case "health": {

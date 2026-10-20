@@ -177,7 +177,6 @@ function topFighters(fighters: Map<string, Fighter>, n: number) {
 
 function bossEmbed(boss: Pick<LiveBoss, "enemy" | "hp" | "endsAt" | "fighters">, config: GuildConfig) {
     const { enemy } = boss;
-    const xpIcon = config.style.xp.icon || "⭐";
     const goldIcon = config.style.gold.icon || "💰";
     const top = topFighters(boss.fighters, 5)
         .map(([id, f], i) => `${["🥇", "🥈", "🥉", "4.", "5."][i]} <@${id}> · ${f.damage} dmg`);
@@ -189,7 +188,7 @@ function bossEmbed(boss: Pick<LiveBoss, "enemy" | "hp" | "endsAt" | "fighters">,
             `\`${hpBar(boss.hp, enemy.hp)}\``,
             `❤️ **${boss.hp.toLocaleString()}** / ${enemy.hp.toLocaleString()} · ⚔️ ${enemy.atk} ATK · 🛡️ ${enemy.def} DEF`,
             "",
-            `Everyone can fight! Rewards are split by damage: ${xpIcon} ${enemy.xpReward} · ${goldIcon} ${enemy.goldReward}`,
+            `Everyone can fight! Rewards are split by damage: ⚔️ ${enemy.xpReward} Combat XP · ${goldIcon} ${enemy.goldReward}`,
             `It escapes <t:${Math.floor(boss.endsAt / 1000)}:R>.`,
         ].join("\n"))
         .addFields({ name: `Fighters (${boss.fighters.size})`, value: top.length ? top.join("\n") : "Nobody yet. Be the first!" });
@@ -324,7 +323,6 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
 
     const config = known ?? (await getOrCreateGuildConfig({ discordGuildId: boss.discordGuildId })).config;
     const { enemy } = boss;
-    const xpIcon = config.style.xp.icon || "⭐";
     const goldIcon = config.style.gold.icon || "💰";
 
     if (outcome === "escaped") {
@@ -352,7 +350,7 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
             const item = config.shop?.items?.[d.itemId];
             return item ? `${item.emoji ?? "🎁"} ${item.name}` : d.itemId;
         });
-        lines.push(`<@${pay.discordUserId}> · ${fighter.damage} dmg · ${xpIcon} ${pay.xp} · ${goldIcon} ${pay.gold}${drops.length ? ` · ${drops.join(", ")}` : ""}${quests.map((q) => ` · 📜 ${q}`).join("")}`);
+        lines.push(`<@${pay.discordUserId}> · ${fighter.damage} dmg · ⚔️ ${pay.xp} · ${goldIcon} ${pay.gold}${drops.length ? ` · ${drops.join(", ")}` : ""}${quests.map((q) => ` · 📜 ${q}`).join("")}`);
     }
 
     await boss.message.edit({

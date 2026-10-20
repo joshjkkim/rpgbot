@@ -4,6 +4,7 @@ import type { PendingProfileChanges } from "../types/cache.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { TextBasedChannel, Client, TextChannel, GuildMember } from "discord.js";
 import { bestEffort } from "../ui/bestEffort.js";
+import { combatXp } from "./combatLevel.js";
 
 function questTarget(cond: any): number {
   return cond.target ?? cond.value ?? 0; // support your existing naming
@@ -153,11 +154,10 @@ export function applyQuestRewards(args: {
 
     if (!reward) continue;
 
-    // XP
+    // Combat XP: quests are part of the RPG, so they never pay chat XP.
     if (reward.xp && reward.xp > 0) {
       totalXp += reward.xp;
-      const currentXp = BigInt(profile.xp ?? "0");
-      profile.xp = (currentXp + BigInt(reward.xp)).toString();
+      stats.combat = { xp: combatXp(profile) + reward.xp };
     }
 
     // Gold

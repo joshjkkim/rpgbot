@@ -1,4 +1,5 @@
 import type { PendingProfileChanges } from "../types/cache.js";
+import { combatXp } from "./combatLevel.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
 import type { AchievementConfig, AchievementCondition, AchievementCheckArgs, AchievementCheckResult, AchievementRewardEffects } from "../types/achievement.js";
@@ -100,10 +101,10 @@ function applyAchievementRewards(args: { profile: DbUserGuildProfile; pending: P
         const reward = achievement.reward;
         if (!reward) continue;
 
+        // Combat XP: achievements are part of the RPG, so they never pay chat XP.
         if (reward.xp && reward.xp > 0) {
             totalXp += reward.xp;
-            const currentXp = BigInt(profile.xp ?? "0");
-            profile.xp = (currentXp + BigInt(reward.xp)).toString();
+            stats.combat = { xp: combatXp(profile) + reward.xp };
             stats.xpFromAchievements += reward.xp;
         }
 

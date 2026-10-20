@@ -77,6 +77,8 @@ export interface CombatBossConfig {
 
 export interface CombatConfig {
   enabled: boolean;
+  /** Combat level's own curve and cap (mirrored from havocish/src/types/guild.ts). */
+  curve?: { maxLevel: number; curveType: string; curveParams: Record<string, number> };
   hpBase?: number;
   hpPerLevel?: number;
   attackBase?: number;
@@ -195,7 +197,7 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
           onChange={(v) => updateDeathPenalty(which, { goldFlat: v })}
         />
         <NumberField
-          label="XP lost (%)"
+          label="Combat XP lost (%)"
           value={penalty.xpPercent ?? 0}
           min={0}
           max={100}
@@ -293,15 +295,15 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
 
               <Field label="Availability and rewards">
                 <FieldGrid>
-                  <NumberField label="Min level" value={enemy.minLevel} min={0} onChange={(v) => upsertEnemy({ ...enemy, minLevel: v })} />
+                  <NumberField label="Min Combat level" value={enemy.minLevel} min={0} onChange={(v) => upsertEnemy({ ...enemy, minLevel: v })} />
                   <NumberField
-                    label="Max level"
+                    label="Max Combat level"
                     value={enemy.maxLevel ?? 0}
                     min={0}
                     onChange={(v) => upsertEnemy({ ...enemy, maxLevel: v > 0 ? v : null })}
                     hint="0 means no upper limit."
                   />
-                  <NumberField label="XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
+                  <NumberField label="Combat XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
                   <NumberField label="Gold reward" value={enemy.goldReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, goldReward: v })} />
                 </FieldGrid>
               </Field>
@@ -404,7 +406,36 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
         />
       </Section>
 
-      <Section advanced title="Player stats" description="Each stat starts at its base and grows every level.">
+      <Section advanced title="Combat level curve" description="How fast Combat levels come, separate from chat levels." defaultOpen={false}>
+        {(() => {
+          const curve = local.curve ?? { maxLevel: 99, curveType: "polynomial", curveParams: { factor: 15, degree: 2.2 } };
+          const setCurve = (p: Partial<NonNullable<CombatConfig["curve"]>>) => updateRoot({ curve: { ...curve, ...p } });
+          const xpFor = (lvl: number) => Math.floor((curve.curveParams.factor ?? 15) * Math.pow(Math.max(0, lvl - 1), curve.curveParams.degree ?? 2.2));
+          return (
+            <FieldGrid>
+              <NumberField label="Max Combat level" value={curve.maxLevel} min={2} onChange={(v) => setCurve({ maxLevel: v })} />
+              <NumberField
+                label="Curve factor"
+                value={curve.curveParams.factor ?? 15}
+                min={1}
+                step={0.5}
+                onChange={(v) => setCurve({ curveParams: { ...curve.curveParams, factor: v } })}
+                hint={`Combat 10 takes ${xpFor(10).toLocaleString()} Combat XP, Combat 30 takes ${xpFor(30).toLocaleString()}.`}
+              />
+              <NumberField
+                label="Curve steepness"
+                value={curve.curveParams.degree ?? 2.2}
+                min={1}
+                step={0.05}
+                onChange={(v) => setCurve({ curveParams: { ...curve.curveParams, degree: v } })}
+                hint="Higher makes late levels slower compared with early ones."
+              />
+            </FieldGrid>
+          );
+        })()}
+      </Section>
+
+      <Section advanced title="Player stats" description="Each stat starts at its base and grows with every Combat level. Combat is the RPG's own level, earned by fighting, not chatting.">
         <div className="space-y-4">
           {STATS.map(({ label, baseKey, perLevelKey, step }) => (
             <Field key={label} label={label}>

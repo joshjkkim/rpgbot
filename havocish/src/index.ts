@@ -19,6 +19,7 @@ import { assertBotEnv } from "./env.js";
 import { alertsEnabled, crashMessage, postAlert } from "./alert.js";
 import { startPreviewServer } from "./http/previewServer.js";
 import { restoreBosses, saveLiveBosses } from "./player/bosses.js";
+import { convertLegacyCombat } from "./player/combatLevel.js";
 
 // Refuse to start on missing configuration, before a single event handler is
 // registered. An unset DATABASE_URL does not throw -- pg falls back to
@@ -143,4 +144,9 @@ function crashed(reason: string, detail: unknown) {
 process.on("unhandledRejection", (reason) => crashed("Unhandled rejection", reason));
 process.on("uncaughtException", (err) => crashed("Uncaught exception", err));
 
-client.login(token);
+// Once only (a no-op afterwards): Combat splits from chat level. Before login, so
+// no cached profile can overwrite it; see convertLegacyCombat.
+convertLegacyCombat()
+    .then((n) => { if (n) console.log(`Combat split: converted ${n} profiles.`); })
+    .catch((err) => console.error("Combat split failed; existing members start at Combat 1 until it runs:", err))
+    .finally(() => client.login(token));

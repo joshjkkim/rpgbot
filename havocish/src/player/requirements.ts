@@ -4,6 +4,7 @@ import type { Requirements } from "../types/requirements.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
 import type { shopItemConfig } from "../types/economy.js";
 import { skillLevel } from "./gathering.js";
+import { combatLevel } from "./combatLevel.js";
 
 /**
  * The one place RPG content is gated. Everything that can be locked (items,
@@ -28,12 +29,15 @@ export function memberFacts(member: any): MemberFacts {
     };
 }
 
-/** An item's own fields (minimum level, required roles) folded into its requirements. */
+/**
+ * An item's own fields folded into its requirements. Its "minimum level" is a
+ * Combat level now: gear is gated by the RPG, not by chatting.
+ */
 export function itemRequirements(item: shopItemConfig | undefined): Requirements {
     const req = item?.requirements ?? {};
     const roles = [...(req.roles ?? []), ...(item?.requiresRoleIds ?? [])];
-    const chatLevel = Math.max(req.chatLevel ?? 0, item?.minLevel ?? 0);
-    return { ...req, ...(chatLevel > 0 && { chatLevel }), ...(roles.length && { roles: [...new Set(roles)] }) };
+    const combat = Math.max(req.combatLevel ?? 0, item?.minLevel ?? 0);
+    return { ...req, ...(combat > 0 && { combatLevel: combat }), ...(roles.length && { roles: [...new Set(roles)] }) };
 }
 
 /** A skill's name and the member's level in it, from gathering or crafting. Null when the skill no longer exists. */
@@ -64,7 +68,8 @@ export function checkRequirements(
     const missing: string[] = [];
     if (!req) return { ok: true, missing, message: "" };
 
-    if (req.chatLevel && (profile.level ?? 1) < req.chatLevel) missing.push(`level ${req.chatLevel}`);
+    if (req.combatLevel && combatLevel(profile, config) < req.combatLevel) missing.push(`Combat ${req.combatLevel}`);
+    if (req.chatLevel && (profile.level ?? 1) < req.chatLevel) missing.push(`chat level ${req.chatLevel}`);
     for (const [id, need] of Object.entries(req.skills ?? {})) {
         const skill = skillOf(id, profile, config);
         if (skill && skill.level < need) missing.push(`${skill.name} ${need}`);
@@ -82,7 +87,8 @@ export function checkRequirements(
 export function describeRequirements(req: Requirements | undefined, config: GuildConfig): string[] {
     if (!req) return [];
     const out: string[] = [];
-    if (req.chatLevel) out.push(`Level ${req.chatLevel}`);
+    if (req.combatLevel) out.push(`Combat ${req.combatLevel}`);
+    if (req.chatLevel) out.push(`Chat level ${req.chatLevel}`);
     for (const [id, need] of Object.entries(req.skills ?? {})) {
         const name = config.gathering?.activities?.[id]?.skillName ?? config.crafting?.stations?.[id]?.skillName;
         if (name) out.push(`${name} ${need}`);

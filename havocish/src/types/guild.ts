@@ -73,6 +73,8 @@ export interface GuildConfig {
     },
     combat: {
         enabled: boolean;
+        /** Combat level's own curve and cap, separate from chat levels. */
+        curve?: { maxLevel: number; curveType: "linear" | "exponential" | "polynomial" | "logarithmic"; curveParams: Record<string, number> };
         hpBase?: number;
         hpPerLevel?: number;
         attackBase?: number;
@@ -221,6 +223,8 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
     },
     combat: {
         enabled: false,
+        // Tuned for fighting: about 60 early fights to Combat 10, a few hundred to 30, a long road to 99.
+        curve: { maxLevel: 99, curveType: "polynomial", curveParams: { factor: 15, degree: 2.2 } },
         hpBase: 100,
         hpPerLevel: 10,
         attackBase: 10,

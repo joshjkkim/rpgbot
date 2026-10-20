@@ -40,7 +40,7 @@ export default function Economy() {
       <Table
         head={["Field", "What it does"]}
         rows={[
-          ["Required level", "Members below it can't buy it."],
+          ["Required level", "A Combat level: members below it can't buy, use or equip it. Set more conditions under Requirements."],
           ["Required roles", "Only members with one of these roles can buy it."],
           ["Stock", "How many the shop has in total. Empty means unlimited."],
           ["Max per member", "A cap on how many one member can own."],

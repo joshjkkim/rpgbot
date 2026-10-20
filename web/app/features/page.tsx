@@ -64,7 +64,7 @@ export default function FeaturesPage() {
           >
             <p>Members earn XP for being part of the server, and watch their character grow.</p>
             <Points items={[
-              <><b>XP from everything:</b> chatting, voice, fights, quests and gathering.</>,
+              <><b>Chat levels for talking</b> and voice, and a separate <b>Combat level</b> for fighting, so the game never competes with your leveling bot.</>,
               <><b>Level-ups people notice:</b> a banner in your colours, and roles handed out at the levels you pick.</>,
               <><b>Daily rewards</b> with streak bonuses, and <b>/me</b>, a character sheet with stats, gear and skills.</>,
             ]} />
