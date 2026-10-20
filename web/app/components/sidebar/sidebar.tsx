@@ -6,23 +6,35 @@ import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { Sprite } from "@/app/components/ui/sprite";
 import type { SpriteName } from "@/app/sprites";
 
+// Grouped the way the product is: the server, its leveling (optional, and
+// replaceable by any leveling bot), the RPG, and what happened.
 const sections: Array<{ label: string; tabs: Array<{ href: string; label: string; sprite: SpriteName }> }> = [
     {
-        label: "Settings",
+        label: "Server",
         tabs: [
             { href: "", label: "Overview", sprite: "map" },
             { href: "presets", label: "Starter packs", sprite: "bag" },
             { href: "styles", label: "Style", sprite: "palette" },
+            { href: "logging", label: "Logging", sprite: "book" },
+        ],
+    },
+    {
+        label: "Leveling",
+        tabs: [
             { href: "xp", label: "XP", sprite: "potion" },
-            { href: "shop", label: "Economy", sprite: "coin" },
-            { href: "items", label: "Items", sprite: "chest" },
-            { href: "achievements", label: "Achievements", sprite: "trophy" },
             { href: "levels", label: "Levels", sprite: "star" },
-            { href: "quests", label: "Quests", sprite: "scroll" },
+        ],
+    },
+    {
+        label: "RPG",
+        tabs: [
+            { href: "items", label: "Items", sprite: "chest" },
+            { href: "shop", label: "Shop", sprite: "coin" },
             { href: "combat", label: "Combat", sprite: "swords" },
             { href: "gathering", label: "Gathering", sprite: "pickaxe" },
             { href: "crafting", label: "Crafting", sprite: "anvil" },
-            { href: "logging", label: "Logging", sprite: "book" },
+            { href: "quests", label: "Quests", sprite: "scroll" },
+            { href: "achievements", label: "Achievements", sprite: "trophy" },
         ],
     },
     {

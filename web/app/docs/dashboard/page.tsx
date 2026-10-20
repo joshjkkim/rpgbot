@@ -27,7 +27,7 @@ export default function Dashboard() {
           ["Starter packs", "Ready-made content to add in one click."],
           ["Style", "Your theme colour, profile card style, and what XP and gold are called (with their icons), with live previews."],
           ["XP", "Message, voice and daily XP, streaks, and channel and role bonuses."],
-          ["Economy", "The shop switch, its categories, and gifting."],
+          ["Shop", "The shop switch, its categories, gifting, and a live preview of /shop."],
           ["Items", "Every item: where it comes from, what it's for, and all its settings."],
           ["Achievements, Levels, Quests", "As described in their guides."],
           ["Combat", "Enemies, player stats, death penalties, encounters, bosses and duels."],

@@ -56,7 +56,7 @@ function describe(config: Record<string, any>): Row[] {
       ].join(", ") + ".",
     },
     {
-      href: "shop", title: "Economy", sprite: "coin", enabled: !!shop.enabled,
+      href: "shop", title: "Shop", sprite: "coin", enabled: !!shop.enabled,
       summary: count(shop.items)
         ? `${n(count(shop.items), "item")} in ${n(count(shop.categories), "category", "categories")}, gifting ${shop.gifting?.enabled ? "allowed" : "off"}.`
         : "No items for sale yet.",
