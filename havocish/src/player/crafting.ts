@@ -4,6 +4,7 @@ import type { DbUserGuildProfile, item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import { addToBag, rollLoot, skillLevel } from "./gathering.js";
+import { checkRequirements, type MemberFacts } from "./requirements.js";
 
 /**
  * Crafting's rules: which recipes a member can see and make, and making one.
@@ -22,7 +23,9 @@ export function stationProgress(profile: DbUserGuildProfile, stationId: string) 
 
 export type RecipeState = {
     /** Why it can't be crafted at all right now, or null. */
-    locked: "skill" | "hidden" | "broken" | null;
+    locked: "skill" | "hidden" | "broken" | "requirements" | null;
+    /** For a "requirements" lock: what's missing, worded for a message. */
+    needs?: string;
     /** Per input: what's needed and what the member has. */
     inputs: { itemId: string; need: number; have: number }[];
     gold: { need: number; have: number };
@@ -31,15 +34,21 @@ export type RecipeState = {
 };
 
 /** What a member sees for a recipe: whether it's locked, and what they have of each input. */
-export function recipeState(recipe: Recipe, profile: DbUserGuildProfile, config: GuildConfig, skill: number, known: string[]): RecipeState {
+export function recipeState(recipe: Recipe, profile: DbUserGuildProfile, config: GuildConfig, skill: number, known: string[], facts?: MemberFacts): RecipeState {
     const items = config.shop?.items ?? {};
     const inv = profile.inventory ?? {};
     const inputs = (recipe.inputs ?? []).map((i) => ({ itemId: i.itemId, need: Math.max(1, i.quantity ?? 1), have: inv[i.itemId]?.quantity ?? 0 }));
     const gold = { need: Math.max(0, recipe.gold ?? 0), have: Number(profile.gold ?? 0) };
     const broken = !items[recipe.output?.itemId] || inputs.some((i) => !items[i.itemId]);
-    const locked = broken ? "broken" : recipe.hidden && !known.includes(recipe.id) ? "hidden" : skill < (recipe.minSkill ?? 1) ? "skill" : null;
+    // Without facts (no Discord member to hand), requirements aren't checked; every craft path passes them.
+    const gate = facts ? checkRequirements(recipe.requirements, { profile, config, facts }) : { ok: true, message: "" };
+    const locked = broken ? "broken"
+        : recipe.hidden && !known.includes(recipe.id) ? "hidden"
+        : skill < (recipe.minSkill ?? 1) ? "skill"
+        : !gate.ok ? "requirements"
+        : null;
     const affordable = inputs.every((i) => i.have >= i.need) && gold.have >= gold.need;
-    return { locked, inputs, gold, affordable };
+    return { locked, inputs, gold, affordable, ...(locked === "requirements" && { needs: gate.message }) };
 }
 
 export type CraftResult =
@@ -91,17 +100,20 @@ export async function craftOnce(opts: {
     roll?: () => number;
     /** Forge style: the strike's result. Simple style rolls the station's masterwork chance instead. */
     outcome?: ForgeOutcome;
+    /** The member, for the recipe's requirements. */
+    facts?: MemberFacts;
 }): Promise<CraftResult> {
-    const { userId, guildId, config, station, recipe, roll = Math.random, outcome } = opts;
+    const { userId, guildId, config, station, recipe, roll = Math.random, outcome, facts } = opts;
     const cached = await getOrCreateProfile({ userId, guildId });
     const p = cached.profile;
 
     const mine = stationProgress(p, station.id);
     const skillBefore = skillLevel(mine.xp, config);
-    const state = recipeState(recipe, p, config, skillBefore, mine.known ?? []);
+    const state = recipeState(recipe, p, config, skillBefore, mine.known ?? [], facts);
     if (state.locked === "broken") return { ok: false, message: "This recipe uses or makes an item that no longer exists." };
     if (state.locked === "hidden") return { ok: false, message: "You haven't learned this recipe yet." };
     if (state.locked === "skill") return { ok: false, message: `This needs ${station.skillName} ${recipe.minSkill}.` };
+    if (state.locked === "requirements") return { ok: false, message: state.needs ?? "You can't craft this yet." };
     if (!state.affordable) return { ok: false, message: "You don't have everything this needs." };
 
     const inv: Record<string, item> = { ...(p.inventory ?? {}) };

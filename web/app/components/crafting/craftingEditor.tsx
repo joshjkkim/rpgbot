@@ -1,5 +1,6 @@
 "use client";
 
+import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
@@ -19,6 +20,7 @@ export interface Recipe {
   skillXp: number;
   hidden?: boolean;
   masterwork?: { itemId: string; chance: number; quantity: number }[];
+  requirements?: Requirements;
 }
 
 export interface CraftingStation {
@@ -62,10 +64,11 @@ type ShopItems = Record<string, { name?: string; emoji?: string }>;
 const smallButton = "inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]";
 const removeButton = "text-[var(--muted)] transition-colors hover:text-red-400";
 
-function RecipeEditor({ recipe, station, shopItems, onChange, onRemove }: {
+function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }: {
   recipe: Recipe;
   station: CraftingStation;
   shopItems: ShopItems;
+  skills: SkillOption[];
   onChange: (next: Recipe) => void;
   onRemove: () => void;
 }) {
@@ -106,6 +109,13 @@ function RecipeEditor({ recipe, station, shopItems, onChange, onRemove }: {
         </div>
       </Field>
 
+      <RequirementsField
+        value={recipe.requirements}
+        onChange={(next) => onChange({ ...recipe, requirements: next })}
+        skills={skills}
+        hint="On top of the station skill it needs. Locked recipes show what's missing in /craft."
+      />
+
       <Field
         label="Masterwork table"
         hint={`What a masterwork gives instead (${station.style === "forge" ? "a strike dead centre" : `${station.masterworkChance ?? 0}% of crafts at this station`}). Chances are weights. Leave empty to give a bonus copy instead.`}
@@ -132,10 +142,12 @@ function RecipeEditor({ recipe, station, shopItems, onChange, onRemove }: {
   );
 }
 
-export default function CraftingEditor({ value, onChange, shopItems }: {
+export default function CraftingEditor({ value, onChange, shopItems, skills }: {
   value: CraftingConfig | null | undefined;
   onChange: (next: CraftingConfig) => void;
   shopItems: ShopItems;
+  /** Skills a requirement can name. */
+  skills: SkillOption[];
 }) {
   const [local, setLocal] = useState<CraftingConfig>(value ?? DEFAULT_CRAFTING);
   useEffect(() => {
@@ -230,6 +242,7 @@ export default function CraftingEditor({ value, onChange, shopItems }: {
                 recipe={r}
                 station={st}
                 shopItems={shopItems}
+                skills={skills}
                 onChange={setRecipe}
                 onRemove={() => {
                   const next = { ...(st.recipes ?? {}) };

@@ -16,6 +16,7 @@ import type { CraftingStation, Recipe } from "../../types/crafting.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import { bar } from "./me.js";
+import { memberFacts, type MemberFacts } from "../../player/requirements.js";
 
 export const data = new SlashCommandBuilder()
     .setName("craft")
@@ -99,7 +100,7 @@ function findStation(config: GuildConfig, typed: string): CraftingStation | unde
 }
 
 /** The station's recipe list for one member: what they can make, what they're missing, what's locked. */
-function render(ownerId: string, station: CraftingStation, profile: DbUserGuildProfile, config: GuildConfig, page: number, status?: string) {
+function render(ownerId: string, station: CraftingStation, profile: DbUserGuildProfile, config: GuildConfig, page: number, status?: string, facts?: MemberFacts) {
     const w = { ...WORDS, ...(station.words ?? {}) };
     const mine = stationProgress(profile, station.id);
     const { level, into, span } = skillProgress(mine.xp, config);
@@ -118,7 +119,7 @@ function render(ownerId: string, station: CraftingStation, profile: DbUserGuildP
 
     if (!recipes.length) container.addTextDisplayComponents((t) => t.setContent("_No recipes here yet._"));
     for (const recipe of shelf.items) {
-        const state = recipeState(recipe, profile, config, level, mine.known ?? []);
+        const state = recipeState(recipe, profile, config, level, mine.known ?? [], facts);
         const hiddenNow = state.locked === "hidden";
         const title = hiddenNow
             ? `**???** · ${station.skillName} ${recipe.minSkill ?? 1}`
@@ -127,7 +128,7 @@ function render(ownerId: string, station: CraftingStation, profile: DbUserGuildP
         const needs = hiddenNow ? "-# An undiscovered recipe." : `-# ${[
             ...state.inputs.map((i) => `${i.have >= i.need ? "" : "❌ "}${itemLabel(config, i.itemId)} ${Math.min(i.have, i.need)}/${i.need}`),
             ...(state.gold.need ? [`${state.gold.have >= state.gold.need ? "" : "❌ "}${goldIcon} ${state.gold.need}`] : []),
-        ].join(" · ")}`;
+        ].join(" · ")}${state.locked === "requirements" ? `\n-# 🔒 ${state.needs}` : ""}`;
         container.addSectionComponents(new SectionBuilder()
             .addTextDisplayComponents((t) => t.setContent(`${title}\n${needs}`))
             .setButtonAccessory((b) => b
@@ -163,7 +164,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     }
     const { user } = await getOrCreateDbUser({ discordUserId: interaction.user.id, username: interaction.user.username });
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
-    const view = render(interaction.user.id, station, profile, config, 0);
+    const view = render(interaction.user.id, station, profile, config, 0, undefined, memberFacts(interaction.member));
     await interaction.reply({ ...view, flags: view.flags | MessageFlags.Ephemeral });
 }
 
@@ -183,7 +184,7 @@ export async function handleCraftButton(interaction: ButtonInteraction) {
 
     if (action === "page") {
         const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
-        await interaction.update(render(ownerId, station, profile, config, Number(a)));
+        await interaction.update(render(ownerId, station, profile, config, Number(a), undefined, memberFacts(interaction.member)));
         return;
     }
 
@@ -194,10 +195,10 @@ export async function handleCraftButton(interaction: ButtonInteraction) {
     if (recipe && station.style === "forge") return startForge(interaction, { userId: user.id, guildId: guild.id }, station, recipe, page, config);
 
     const status = recipe
-        ? resultLine(await craftOnce({ userId: user.id, guildId: guild.id, config, station, recipe }), station, config)
+        ? resultLine(await craftOnce({ userId: user.id, guildId: guild.id, config, station, recipe, facts: memberFacts(interaction.member) }), station, config)
         : "That recipe was removed.";
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
-    await interaction.update(render(ownerId, station, profile, config, page, status));
+    await interaction.update(render(ownerId, station, profile, config, page, status, memberFacts(interaction.member)));
 }
 
 /** Swaps the recipe list for the forge bar and starts it moving. Nothing is spent until the strike. */
@@ -206,10 +207,10 @@ async function startForge(interaction: ButtonInteraction, ids: { userId: number;
     const { profile } = await getOrCreateProfile(ids);
     const mine = stationProgress(profile, station.id);
     const skill = skillLevel(mine.xp, config);
-    const state = recipeState(recipe, profile, config, skill, mine.known ?? []);
+    const state = recipeState(recipe, profile, config, skill, mine.known ?? [], memberFacts(interaction.member));
     if (state.locked || !state.affordable || forges.has(key)) {
         const status = forges.has(key) ? "You're already at the forge." : "You don't have everything this needs.";
-        await interaction.update(render(interaction.user.id, station, profile, config, page, status));
+        await interaction.update(render(interaction.user.id, station, profile, config, page, status, memberFacts(interaction.member)));
         return;
     }
 
@@ -259,10 +260,10 @@ async function strike(source: ButtonInteraction, config: GuildConfig, timedOut: 
         const seen = [...run.frames].reverse().find((f) => f.shownAt <= at) ?? run.frames.at(0);
         outcome = judgeForge(seen?.cell ?? -1, run.place);
     }
-    const result = await craftOnce({ userId: run.userId, guildId: run.guildId, config, station: run.station, recipe: run.recipe, outcome });
+    const result = await craftOnce({ userId: run.userId, guildId: run.guildId, config, station: run.station, recipe: run.recipe, outcome, facts: memberFacts(source.member) });
     await run.pending;
     const { profile } = await getOrCreateProfile({ userId: run.userId, guildId: run.guildId });
-    const view = render(source.user.id, run.station, profile, config, run.page, resultLine(result, run.station, config, timedOut));
+    const view = render(source.user.id, run.station, profile, config, run.page, resultLine(result, run.station, config, timedOut), memberFacts(source.member));
     if (timedOut) await run.interaction.editReply(view).catch(() => null);
     else await source.update(view);
 }
