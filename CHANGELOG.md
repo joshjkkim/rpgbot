@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### Fixed
+- Duels ignored Combat level: both sides fought as Combat 1 plus their gear. Duels now use each side's real Combat level.
+
 ## v0.12 · October 19, 2026
 
 ### New
