@@ -73,6 +73,8 @@ export interface GuildConfig {
             icon?: string;
             name?: string;
         };
+        /** Banner cards for RPG level-ups. Unset means on. */
+        levelUpCards?: { combat?: boolean; skills?: boolean };
     },
     combat: {
         enabled: boolean;

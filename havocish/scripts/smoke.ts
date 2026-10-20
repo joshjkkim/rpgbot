@@ -53,6 +53,7 @@ import { checkRequirements, itemRequirements } from "../src/player/requirements.
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
 import { grantLevelRewards } from "../src/player/levelRewards.js";
+import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
@@ -1461,6 +1462,21 @@ async function main() {
         check("a deleted skill fails open", ok({ skills: { gone: 99 } }).ok, true);
         check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs chat level 9, the <@&x> role and boosting the server.");
         check("an item's old level folds in as Combat", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ combatLevel: 3, roles: ["r"] }));
+    });
+
+    await test("RPG level-up cards: Combat every level, skills at milestones, both switchable", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const user = { displayName: "Tester", displayAvatarURL: () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" } as any;
+        const card = (kind: "combat" | "skills", before: number, after: number) =>
+            rpgLevelUpCard({ config: cfg, kind, user, label: kind === "combat" ? "Combat" : "Mining", before, after }).then((c) => !!c);
+        check("Combat 4 → 5 gets a card", await card("combat", 4, 5), true);
+        check("a skill 11 → 12 does not", await card("skills", 11, 12), false);
+        check("a skill 9 → 10 does", await card("skills", 9, 10), true);
+        check("a skill reaching its cap does", await card("skills", 48, 50), true);
+        check("no level gained, no card", await card("combat", 5, 5), false);
+        cfg.style.levelUpCards = { combat: false };
+        check("an owner can turn Combat cards off", await card("combat", 4, 5), false);
+        check("which leaves skill cards on", await card("skills", 9, 10), true);
     });
 
     await test("level actions pay gold, items and Combat XP for every level crossed", async () => {

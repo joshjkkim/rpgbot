@@ -8,6 +8,7 @@ import {
   Section,
   SelectField,
   TextField,
+  Toggle,
 } from "@/app/components/ui/form";
 
 export type StyleConfig = {
@@ -22,6 +23,8 @@ export type StyleConfig = {
     icon?: string;
     name?: string;
   };
+  /** Banner cards for RPG level-ups. Unset means on. */
+  levelUpCards?: { combat?: boolean; skills?: boolean };
 };
 
 type Props = {
@@ -87,6 +90,9 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
       xp: { ...(style.xp ?? {}), icon: next.xpIcon, name: next.xpName },
     });
   }
+
+  const cards = style.levelUpCards ?? {};
+  const setCard = (kind: "combat" | "skills", on: boolean) => onChange({ ...style, levelUpCards: { ...cards, [kind]: on } });
 
   return (
     <div className="space-y-4">
@@ -163,6 +169,14 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
             </div>
           </Field>
         </FieldGrid>
+      </Section>
+
+      <Section
+        title="Level-up cards"
+        description="The banner card, like the chat level-up one, for the RPG. Combat gets one every level, attached to the fight result; skills get one every 10th level and at the cap, posted under the gathering or crafting result."
+      >
+        <Toggle label="Combat level-up cards" checked={cards.combat !== false} onChange={(v) => setCard("combat", v)} />
+        <Toggle label="Skill level-up cards" checked={cards.skills !== false} onChange={(v) => setCard("skills", v)} />
       </Section>
     </div>
   );
