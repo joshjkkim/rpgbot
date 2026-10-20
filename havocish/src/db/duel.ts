@@ -56,9 +56,9 @@ function toSide(
     displayName: string,
     config: GuildConfig
 ): DuelSide {
-    // calculateStats only reads level and equips, so a partial row is enough.
+    // calculateStats reads level, equips and user_stats (Combat XP), so a partial row is enough.
     const stats = calculateStats(
-        { level: profile.level, equips: profile.equips ?? {} } as DbUserGuildProfile,
+        { level: profile.level, equips: profile.equips ?? {}, user_stats: profile.user_stats ?? {} } as DbUserGuildProfile,
         config,
         config.shop?.items ?? {}
     );

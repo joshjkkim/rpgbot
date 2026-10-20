@@ -1160,6 +1160,33 @@ async function main() {
         check("hp was written back", typeof after.user_stats?.currentHp, "number");
     });
 
+    await test("a duel fights at each side's Combat level", async () => {
+        const fx = await resetTrades();
+        const g = fx.guild.id;
+        await seed(fx.a, g, {}, 500);
+        await seed(fx.b, g, {}, 500);
+        // A at Combat 30 against B at Combat 1: A cannot lose unless duels ignore Combat XP.
+        await query(
+            `UPDATE user_guild_profiles SET user_stats = '{"combat":{"xp":24738}}' WHERE user_id = $1 AND guild_id = $2`,
+            [fx.a.userId, g]
+        );
+        userGuildProfileCache.delete(profileKey(g, fx.a.userId));
+
+        const config = mergeConfig(fx.guild.config);
+        config.combat.enabled = true;
+        config.logging.enabled = false;
+        config.combat.pvp = { enabled: true };
+
+        const outcome = await resolveDuel({
+            guildId: g,
+            challenger: { userId: fx.a.userId, discordUserId: fx.a.discordId, displayName: "A" },
+            opponent: { userId: fx.b.userId, discordUserId: fx.b.discordId, displayName: "B" },
+            wager: 0n,
+            config,
+        });
+        check("the Combat 30 side won", outcome.success && outcome.result.winnerDiscordId, fx.a.discordId);
+    });
+
     await test("the simulation always produces a winner or a declared draw", async () => {
         const side = (id: string, atk: number, def: number, spd: number, hp: number) => ({
             userId: 0,
