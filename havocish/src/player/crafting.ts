@@ -44,7 +44,37 @@ export function recipeState(recipe: Recipe, profile: DbUserGuildProfile, config:
 
 export type CraftResult =
     | { ok: false; message: string }
-    | { ok: true; gave: { itemId: string; quantity: number }; masterwork: boolean; xp: number; skillBefore: number; skillAfter: number };
+    | { ok: true; ruined: false; gave: { itemId: string; quantity: number }; masterwork: boolean; xp: number; skillBefore: number; skillAfter: number }
+    | { ok: true; ruined: true; lost: { itemId: string; quantity: number }[]; xp: 0; skillBefore: number; skillAfter: number };
+
+/** The forge bar's length, in cells. */
+export const FORGE_CELLS = 15;
+
+/** Zone and centre sizes in cells at this skill, easing from skill 1 to the top skill. */
+export function forgeRules(station: CraftingStation, skill: number, maxSkill: number) {
+    const f = station.forge ?? {};
+    const [z1, z2] = f.zone ?? [0.3, 0.5];
+    const [c1, c2] = f.centre ?? [0.06, 0.1];
+    const t = Math.min(1, Math.max(0, (skill - 1) / Math.max(1, maxSkill - 1)));
+    const zone = Math.max(1, Math.min(FORGE_CELLS, Math.round(FORGE_CELLS * (z1 + (z2 - z1) * t))));
+    const centre = Math.max(1, Math.min(zone, Math.round(FORGE_CELLS * (c1 + (c2 - c1) * t))));
+    return { zone, centre, ruinLoss: Math.min(1, Math.max(0, f.ruinLoss ?? 0.5)) };
+}
+
+/** Where this craft's zone sits: a random spot each time, so the timing can't be memorised. */
+export function placeForge(rules: { zone: number; centre: number }, roll = Math.random) {
+    const zoneStart = Math.floor(roll() * (FORGE_CELLS - rules.zone + 1));
+    const centreStart = zoneStart + Math.floor((rules.zone - rules.centre) / 2);
+    return { zoneStart, zoneEnd: zoneStart + rules.zone - 1, centreStart, centreEnd: centreStart + rules.centre - 1 };
+}
+
+export type ForgeOutcome = "ruin" | "made" | "perfect";
+
+export function judgeForge(cell: number, place: ReturnType<typeof placeForge>): ForgeOutcome {
+    if (cell >= place.centreStart && cell <= place.centreEnd) return "perfect";
+    if (cell >= place.zoneStart && cell <= place.zoneEnd) return "made";
+    return "ruin";
+}
 
 /**
  * Makes one craft: takes the inputs and gold, gives the output (or, on a
@@ -59,8 +89,10 @@ export async function craftOnce(opts: {
     station: CraftingStation;
     recipe: Recipe;
     roll?: () => number;
+    /** Forge style: the strike's result. Simple style rolls the station's masterwork chance instead. */
+    outcome?: ForgeOutcome;
 }): Promise<CraftResult> {
-    const { userId, guildId, config, station, recipe, roll = Math.random } = opts;
+    const { userId, guildId, config, station, recipe, roll = Math.random, outcome } = opts;
     const cached = await getOrCreateProfile({ userId, guildId });
     const p = cached.profile;
 
@@ -73,14 +105,29 @@ export async function craftOnce(opts: {
     if (!state.affordable) return { ok: false, message: "You don't have everything this needs." };
 
     const inv: Record<string, item> = { ...(p.inventory ?? {}) };
-    for (const i of state.inputs) {
-        const left = (inv[i.itemId]?.quantity ?? 0) - i.need;
-        if (left > 0) inv[i.itemId] = { ...inv[i.itemId]!, quantity: left };
-        else delete inv[i.itemId];
+    const take = (itemId: string, n: number) => {
+        const left = (inv[itemId]?.quantity ?? 0) - n;
+        if (left > 0) inv[itemId] = { ...inv[itemId]!, quantity: left };
+        else delete inv[itemId];
+    };
+
+    // A ruined craft loses part of each ingredient, costs no gold and gives no XP.
+    if (outcome === "ruin") {
+        const { ruinLoss } = forgeRules(station, skillBefore, config.gathering.skill.maxLevel);
+        const lost = state.inputs.map((i) => ({ itemId: i.itemId, quantity: Math.floor(i.need * ruinLoss) })).filter((l) => l.quantity > 0);
+        for (const l of lost) take(l.itemId, l.quantity);
+        p.inventory = inv;
+        commitProfileChanges({
+            userId, guildId, profile: p,
+            changes: { ...(cached.pendingChanges ?? {}), inventory: inv } as PendingProfileChanges,
+            baseline: { xp: p.xp, gold: p.gold },
+        });
+        return { ok: true, ruined: true, lost, xp: 0, skillBefore, skillAfter: skillBefore };
     }
+    for (const i of state.inputs) take(i.itemId, i.need);
 
     let gave = { itemId: recipe.output.itemId, quantity: Math.max(1, recipe.output.quantity ?? 1) };
-    const masterwork = station.style === "simple" && roll() * 100 < (station.masterworkChance ?? 0);
+    const masterwork = outcome ? outcome === "perfect" : roll() * 100 < (station.masterworkChance ?? 0);
     if (masterwork) {
         const table = (recipe.masterwork ?? []).map((m) => ({ itemId: m.itemId, chance: m.chance, min: m.quantity ?? 1, max: m.quantity ?? 1 }));
         gave = rollLoot(table, config, roll) ?? { ...gave, quantity: gave.quantity * 2 };
@@ -101,5 +148,5 @@ export async function craftOnce(opts: {
         baseline,
     });
 
-    return { ok: true, gave, masterwork, xp, skillBefore, skillAfter: skillLevel(mine.xp + xp, config) };
+    return { ok: true, ruined: false, gave, masterwork, xp, skillBefore, skillAfter: skillLevel(mine.xp + xp, config) };
 }

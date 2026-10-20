@@ -7,9 +7,12 @@ import { respondFiltered } from "../../ui/autocomplete.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { itemLabel } from "../../ui/gathering/run.js";
-import { skillProgress } from "../../player/gathering.js";
-import { craftOnce, enabledStations, recipeState, stationProgress } from "../../player/crafting.js";
-import type { CraftingStation } from "../../types/crafting.js";
+import { skillLevel, skillProgress } from "../../player/gathering.js";
+import {
+    FORGE_CELLS, craftOnce, enabledStations, forgeRules, judgeForge, placeForge, recipeState, stationProgress,
+    type CraftResult, type ForgeOutcome,
+} from "../../player/crafting.js";
+import type { CraftingStation, Recipe } from "../../types/crafting.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import { bar } from "./me.js";
@@ -20,7 +23,74 @@ export const data = new SlashCommandBuilder()
     .addStringOption((o) => o.setName("station").setDescription("Where to craft").setRequired(true).setAutocomplete(true));
 
 /** Every word a player sees. Owners override any of them per station. */
-const WORDS = { craft: "Craft", made: "Crafted", masterwork: "✨ Masterwork!" };
+const WORDS = {
+    craft: "Craft",
+    made: "Crafted",
+    masterwork: "✨ Masterwork!",
+    strike: "🔨 Strike",
+    forging: "Forging",
+    ruined: "💥 Ruined!",
+    hesitated: "Too slow. The moment passed.",
+};
+
+/** How long each frame of the forge bar shows, and how many full sweeps before it counts as a miss. */
+const FORGE_FRAME_MS = 700;
+const FORGE_SWEEPS = 2;
+
+type ForgeRun = {
+    interaction: ButtonInteraction;
+    userId: number;
+    guildId: number;
+    station: CraftingStation;
+    recipe: Recipe;
+    page: number;
+    place: ReturnType<typeof placeForge>;
+    cell: number;
+    dir: 1 | -1;
+    sweeps: number;
+    /** When each frame was on screen, so a strike is judged by what the player saw. */
+    frames: { cell: number; shownAt: number }[];
+    timer: NodeJS.Timeout | null;
+    /** The edit in flight, awaited before the result replaces the bar. */
+    pending: Promise<unknown> | null;
+};
+
+// ponytail: in memory; a restart mid-forge drops that craft, taking nothing.
+const forges = new Map<string, ForgeRun>();
+const forgeKey = (discordUserId: string, discordGuildId: string) => `${discordUserId}-${discordGuildId}`;
+
+function renderForge(ownerId: string, run: ForgeRun, config: GuildConfig) {
+    const w = { ...WORDS, ...(run.station.words ?? {}) };
+    const { place } = run;
+    const bar = Array.from({ length: FORGE_CELLS }, (_, i) =>
+        i >= place.centreStart && i <= place.centreEnd ? "🟩" : i >= place.zoneStart && i <= place.zoneEnd ? "🟨" : "⬛").join("");
+    const marker = Array.from({ length: FORGE_CELLS }, (_, i) => (i === run.cell ? "🔺" : "▪️")).join("");
+    const container = new ContainerBuilder()
+        .setAccentColor(accentColor(config.style.mainThemeColor))
+        .addTextDisplayComponents((t) => t.setContent([
+            `## ${run.station.emoji} ${w.forging} ${itemLabel(config, run.recipe.output.itemId)}`,
+            bar,
+            marker,
+            `-# 🟩 for a masterwork, 🟨 to make it. Anywhere else ruins it.`,
+        ].join("\n")))
+        .addActionRowComponents(new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId(`craft:strike:${ownerId}:${run.station.id}`).setLabel(w.strike).setStyle(ButtonStyle.Danger),
+        ));
+    return { components: [container], flags: MessageFlags.IsComponentsV2 as const };
+}
+
+/** The result line under the recipe list. */
+function resultLine(result: CraftResult, station: CraftingStation, config: GuildConfig, hesitated = false) {
+    const w = { ...WORDS, ...(station.words ?? {}) };
+    if (!result.ok) return result.message;
+    if (result.ruined) {
+        const lost = result.lost.map((l) => itemLabel(config, l.itemId, l.quantity)).join(", ");
+        return `${hesitated ? `${w.hesitated} ` : ""}${w.ruined} ${lost ? `Lost ${lost}.` : "Nothing was lost."}`;
+    }
+    let line = `${result.masterwork ? `${w.masterwork} ` : ""}${w.made} ${itemLabel(config, result.gave.itemId, result.gave.quantity)} · +${result.xp} ${station.skillName} XP`;
+    if (result.skillAfter > result.skillBefore) line += ` · **${station.skillName} ${result.skillAfter}!**`;
+    return line;
+}
 
 function findStation(config: GuildConfig, typed: string): CraftingStation | undefined {
     const all = enabledStations(config);
@@ -117,22 +187,84 @@ export async function handleCraftButton(interaction: ButtonInteraction) {
         return;
     }
 
+    if (action === "strike") return strike(interaction, config, false);
+
     const recipe = station.recipes?.[a ?? ""];
     const page = Number(b) || 0;
-    let status: string;
-    if (!recipe) {
-        status = "That recipe was removed.";
-    } else {
-        const w = { ...WORDS, ...(station.words ?? {}) };
-        const result = await craftOnce({ userId: user.id, guildId: guild.id, config, station, recipe });
-        if (!result.ok) status = result.message;
-        else {
-            status = `${result.masterwork ? `${w.masterwork} ` : ""}${w.made} ${itemLabel(config, result.gave.itemId, result.gave.quantity)} · +${result.xp} ${station.skillName} XP`;
-            if (result.skillAfter > result.skillBefore) status += ` · **${station.skillName} ${result.skillAfter}!**`;
-        }
-    }
+    if (recipe && station.style === "forge") return startForge(interaction, { userId: user.id, guildId: guild.id }, station, recipe, page, config);
+
+    const status = recipe
+        ? resultLine(await craftOnce({ userId: user.id, guildId: guild.id, config, station, recipe }), station, config)
+        : "That recipe was removed.";
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
     await interaction.update(render(ownerId, station, profile, config, page, status));
+}
+
+/** Swaps the recipe list for the forge bar and starts it moving. Nothing is spent until the strike. */
+async function startForge(interaction: ButtonInteraction, ids: { userId: number; guildId: number }, station: CraftingStation, recipe: Recipe, page: number, config: GuildConfig) {
+    const key = forgeKey(interaction.user.id, interaction.guildId!);
+    const { profile } = await getOrCreateProfile(ids);
+    const mine = stationProgress(profile, station.id);
+    const skill = skillLevel(mine.xp, config);
+    const state = recipeState(recipe, profile, config, skill, mine.known ?? []);
+    if (state.locked || !state.affordable || forges.has(key)) {
+        const status = forges.has(key) ? "You're already at the forge." : "You don't have everything this needs.";
+        await interaction.update(render(interaction.user.id, station, profile, config, page, status));
+        return;
+    }
+
+    const run: ForgeRun = {
+        interaction, ...ids, station, recipe, page,
+        place: placeForge(forgeRules(station, skill, config.gathering.skill.maxLevel)),
+        cell: 0, dir: 1, sweeps: 0, frames: [], timer: null, pending: null,
+    };
+    forges.set(key, run);
+    await interaction.update(renderForge(interaction.user.id, run, config));
+    run.frames.push({ cell: 0, shownAt: Date.now() });
+
+    const tick = () => {
+        if (forges.get(key) !== run) return;
+        const next = run.cell + run.dir;
+        if (next < 0 || next >= FORGE_CELLS) {
+            run.dir = run.dir === 1 ? -1 : 1;
+            run.sweeps++;
+        }
+        if (run.sweeps >= FORGE_SWEEPS) return void strike(interaction, config, true).catch((err) => console.error("Forge timeout failed:", err));
+        run.cell += run.dir;
+        const cell = run.cell;
+        run.pending = interaction.editReply(renderForge(interaction.user.id, run, config))
+            .then(() => { run.frames.push({ cell, shownAt: Date.now() }); })
+            .catch(() => null);
+        run.timer = setTimeout(tick, FORGE_FRAME_MS);
+        run.timer.unref();
+    };
+    run.timer = setTimeout(tick, FORGE_FRAME_MS);
+    run.timer.unref();
+}
+
+/** Ends the forge: judges the frame the player saw when they clicked, crafts, and shows the list again. */
+async function strike(source: ButtonInteraction, config: GuildConfig, timedOut: boolean) {
+    const key = forgeKey(source.user.id, source.guildId!);
+    const run = forges.get(key);
+    if (!run) {
+        if (!timedOut) await source.deferUpdate().catch(() => null);
+        return;
+    }
+    forges.delete(key);
+    if (run.timer) clearTimeout(run.timer);
+
+    let outcome: ForgeOutcome = "ruin";
+    if (!timedOut) {
+        const at = source.createdTimestamp;
+        const seen = [...run.frames].reverse().find((f) => f.shownAt <= at) ?? run.frames.at(0);
+        outcome = judgeForge(seen?.cell ?? -1, run.place);
+    }
+    const result = await craftOnce({ userId: run.userId, guildId: run.guildId, config, station: run.station, recipe: run.recipe, outcome });
+    await run.pending;
+    const { profile } = await getOrCreateProfile({ userId: run.userId, guildId: run.guildId });
+    const view = render(source.user.id, run.station, profile, config, run.page, resultLine(result, run.station, config, timedOut));
+    if (timedOut) await run.interaction.editReply(view).catch(() => null);
+    else await source.update(view);
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction) {
