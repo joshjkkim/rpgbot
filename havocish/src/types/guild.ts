@@ -1,4 +1,4 @@
-import type { shopCategoryConfig, shopItemConfig } from "./economy.js";
+import type { ItemRarity, shopCategoryConfig, shopItemConfig } from "./economy.js";
 import type { EventCategory } from "./logging.js";
 import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
@@ -222,6 +222,8 @@ export interface GuildConfig {
     },
     gathering: GatheringConfig;
     crafting: CraftingConfig;
+    /** Announces rare items as they're found or made (ui/rareFinds.ts). Off without a channel. */
+    rareFinds?: { channelId?: string | null; minRarity?: ItemRarity };
     /**
      * Rewards for getting a role, from any source: another leveling bot's level
      * roles, a booster role, a role a mod hands out. Paid once per member per role.

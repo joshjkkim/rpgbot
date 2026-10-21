@@ -84,6 +84,14 @@ export default function Economy() {
         item editor. See <a href="/docs/gathering#tools" className="text-[var(--accent)] underline">Gathering → Tools</a>.
       </P>
 
+      <H2>Rare-find announcements</H2>
+      <P>
+        Pick a channel under <b>Rare-find announcements</b> at the top of <Where>Items</Where>, and havocish posts there
+        whenever someone loots, gathers or crafts an item at or above the rarity you choose (Epic and up by default):
+        &ldquo;✨ @member found 🌠 Starmetal Shard at Deep Veins!&rdquo; Fights, world bosses, gathering and crafting all
+        count. It&apos;s off until you pick a channel.
+      </P>
+
       <H2>Selling, trading and gifting</H2>
       <List>
         <li><b>Selling:</b> <C>/inventory</C> has a menu to sell any item with a sell price.</li>

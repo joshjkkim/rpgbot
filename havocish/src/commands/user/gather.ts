@@ -1,4 +1,5 @@
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
@@ -194,6 +195,13 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
     };
     if (interaction) await interaction.update(view);
     else await run.message?.edit(view).catch(() => null);
+
+    const client = interaction?.client ?? run.message?.client;
+    if (client) await announceRareFinds({
+        client, config, discordUserId: run.ownerId, verb: "found",
+        items: Object.entries(result.kept).map(([itemId, quantity]) => ({ itemId, quantity })),
+        where: `at ${run.location.emoji} ${run.location.name}`,
+    });
 
     const user = interaction?.user ?? await run.message?.client.users.fetch(run.ownerId).catch(() => null);
     const card = user && await rpgLevelUpCard({ config, kind: "skills", user, label: run.activity.skillName, before: result.skillBefore, after: result.skillAfter });

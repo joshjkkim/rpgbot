@@ -1,4 +1,5 @@
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SectionBuilder, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
@@ -81,9 +82,13 @@ function renderForge(ownerId: string, run: ForgeRun, config: GuildConfig) {
     return { components: [container], flags: MessageFlags.IsComponentsV2 as const };
 }
 
-/** A skill milestone's card, posted publicly under the (private) crafting window. */
+/** A skill milestone's card, posted publicly under the (private) crafting window, and a rare item's announcement. */
 async function skillCard(source: ButtonInteraction, result: CraftResult, station: CraftingStation, config: GuildConfig) {
     if (!result.ok) return;
+    if (!result.ruined) await announceRareFinds({
+        client: source.client, config, discordUserId: source.user.id, verb: "made",
+        items: [result.gave], where: `at ${station.emoji} ${station.name}`,
+    });
     const card = await rpgLevelUpCard({ config, kind: "skills", user: source.user, label: station.skillName, before: result.skillBefore, after: result.skillAfter });
     if (card) await source.followUp({ content: `<@${source.user.id}> reached **${station.skillName} ${result.skillAfter}**!`, files: [card], allowedMentions: { parse: [] } }).catch(() => null);
 }

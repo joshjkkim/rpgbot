@@ -19,6 +19,8 @@ export type DashboardConfig = {
   xp?: { enabled?: boolean } & Record<string, any>;
   levels?: LevelsConfig;
   roleRewards?: RoleRewardsConfig;
+  /** Mirrored from havocish/src/types/guild.ts. */
+  rareFinds?: { channelId?: string | null; minRarity?: string };
   shop?: ShopConfig;
   combat?: CombatConfig;
   gathering?: GatheringConfig;
