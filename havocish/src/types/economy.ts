@@ -11,7 +11,7 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe";
     roleId?: string;
     message?: string;
     channelId?: string;
@@ -19,6 +19,9 @@ export interface shopItemAction {
     quantity?: number;
     statId?: string;
     amount?: number;
+    /** learnRecipe: the station and its hidden recipe the item teaches. */
+    stationId?: string;
+    recipeId?: string;
 }
 
 export type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";

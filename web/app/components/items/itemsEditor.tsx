@@ -7,7 +7,7 @@ import { ContentBrowser, idFromName } from "@/app/components/ui/slots";
 import ItemTooltip, { RARITIES } from "@/app/components/shop/itemTooltip";
 import type { ShopConfig, shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
 import type { DashboardConfig } from "@/app/lib/dashboardConfig";
-import ItemForm, { dropRetiredActions } from "./itemForm";
+import ItemForm, { dropRetiredActions, type StationOptions } from "./itemForm";
 import { skillOptions } from "@/app/components/ui/requirementsField";
 import { itemConnections, type ItemLink } from "./itemConnections";
 
@@ -149,7 +149,7 @@ export default function ItemsEditor({
                   {warnings.map((w) => <li key={w}>{w}</li>)}
                 </ul>
               )}
-              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} skills={skillOptions(config)} />
+              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} skills={skillOptions(config)} stations={(config.crafting?.stations ?? {}) as StationOptions} />
             </div>
           );
         }}

@@ -31,6 +31,7 @@ function effectsLine(item: shopItemConfig) {
     : a.type === "removeRole" ? "Use: Removes a server role."
     : a.type === "sendMessage" ? "Use: Posts a message."
     : a.type === "giveStat" ? `Use: Gives ${a.amount ?? 0} ${a.statId || "of a stat"}.`
+    : a.type === "learnRecipe" ? "Use: Teaches a crafting recipe."
     : `Use: Gives ${a.quantity ?? 1} x ${a.itemId || "an item"}.`);
   return [...(item.tool ? [`Tool, tier ${item.tool.tier ?? 1}`] : []), ...(item.equipable ? [...statLines, ...equip] : []), ...use].join(" · ");
 }
