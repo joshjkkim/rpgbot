@@ -5,6 +5,7 @@ import ConfigPage from "@/app/components/configPage";
 import { Section, Toggle } from "@/app/components/ui/form";
 import XpBasicsEditor from "@/app/components/xp/xpBasicsEditor";
 import LevelsEditor from "@/app/components/levels/levelsEditor";
+import RoleRewardsEditor from "@/app/components/levels/roleRewardsEditor";
 
 /** XP and levels on one page, behind one switch: off for servers that keep another leveling bot. */
 export default function LevelingPageClient({ guildId }: { guildId: string }) {
@@ -20,7 +21,7 @@ export default function LevelingPageClient({ guildId }: { guildId: string }) {
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
-      rawSection={config ? { xp: config.xp, levels: config.levels } : undefined}
+      rawSection={config ? { xp: config.xp, levels: config.levels, roleRewards: config.roleRewards } : undefined}
     >
       {config && (
         <>
@@ -46,6 +47,12 @@ export default function LevelingPageClient({ guildId }: { guildId: string }) {
               />
             </>
           )}
+          {/* Outside the switch: role rewards are how another leveling bot's roles pay into the RPG. */}
+          <RoleRewardsEditor
+            value={config.roleRewards}
+            onChange={(next) => setConfig((prev) => ({ ...prev, roleRewards: next }))}
+            shopItems={config.shop?.items ?? {}}
+          />
         </>
       )}
     </ConfigPage>

@@ -90,6 +90,14 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
+    // ── Role rewards ── (the page is Leveling: they sit beside level rewards)
+    channel(config.roleRewards?.channelId, "role reward announcements", "leveling", POST);
+    for (const [roleId, actions] of Object.entries(config.roleRewards?.roles ?? {})) {
+        // Only read, never given, so havocish needs no permission over it.
+        if (access.roleName(roleId) === null) issues.push({ severity: "warning", message: `A role reward is for a role that was deleted (${roleId}).`, page: "leveling" });
+        for (const a of actions ?? []) if (a.type === "giveItem") item(a.itemId, "A role reward", "leveling");
+    }
+
     // ── XP and dailies ──
     channel(config.xp.announceDailyInChannelId, "daily reward announcements", "xp", POST);
     channel(config.xp.streakAnnounceChannelId, "streak announcements", "xp", POST);

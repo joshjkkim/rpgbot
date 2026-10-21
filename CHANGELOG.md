@@ -9,6 +9,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **For server owners: level rewards can give gold, items and Combat XP.** Besides roles and messages, reaching a chat level can now pay into the RPG: a gold bonus at level 10, a weapon at 25, a Combat XP boost at 50. What a member got is listed under their level-up message. Set them on the Levels page under Level actions.
 - **Level-up cards for Combat and skills.** Every new Combat level shows a level-up card on the fight result, and every 10th level of a skill (and its cap) posts one under your gathering or crafting. Server owners can switch either off on the Style page.
 - **For server owners: keep your leveling bot.** havocish's leveling can now be switched off, on the dashboard's new Leveling page (XP and Levels in one place) or with Leveling in `/config`. With it off, members earn no chat or voice XP from havocish and dailies pay only gold, while the whole RPG keeps working. Gate content by the roles your leveling bot gives, under Requirements.
+- **For server owners: role rewards.** Give gold, an item or Combat XP when a member gets a role, from any bot or a mod: reward the level roles your leveling bot hands out, and leveling up there pays off in the RPG here. Each member is paid once per role. Set them on the Leveling page; they work with havocish's leveling on or off.
 
 ### Fixed
 - Duels ignored Combat level: both sides fought as Combat 1 plus their gear. Duels now use each side's real Combat level.

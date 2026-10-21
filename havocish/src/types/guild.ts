@@ -222,6 +222,16 @@ export interface GuildConfig {
     },
     gathering: GatheringConfig;
     crafting: CraftingConfig;
+    /**
+     * Rewards for getting a role, from any source: another leveling bot's level
+     * roles, a booster role, a role a mod hands out. Paid once per member per role.
+     */
+    roleRewards?: {
+        /** Where "@member got the @Role reward" is posted. Unset: rewards arrive quietly. */
+        channelId?: string | null;
+        /** Role id → rewards. Only giveGold, giveItem and giveCombatXp apply. */
+        roles: Record<string, LevelAction[]>;
+    };
 }
 
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {

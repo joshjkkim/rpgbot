@@ -1,5 +1,6 @@
 import { combatLevel } from "../player/combatLevel.js";
 import { dailyTemplate } from "../leveling/levels.js";
+import { checkRoleRewards } from "./roleRewards.js";
 import { Client, Events } from "discord.js";
 import { getActiveFight } from "../player/fight.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -42,6 +43,9 @@ export function registerMessageCreate(client: Client) {
         config,
         roleIds,
       });
+
+      // Members who had a rewarded role before its reward was set get it here.
+      await checkRoleRewards(member).catch((err) => console.error("Role rewards failed:", err));
 
       // Only messages that earned XP can draw an encounter, so the XP cooldown
       // and disabled channels keep spam from farming spawns.
