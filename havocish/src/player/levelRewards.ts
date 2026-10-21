@@ -114,3 +114,25 @@ export async function grantRoleRewards(opts: {
     });
     return out;
 }
+
+/**
+ * Takes roles off a member's paid list, so those role rewards pay again the
+ * next time the member chats or their roles change. No role: the whole list.
+ * Returns how many roles were cleared.
+ */
+export async function resetRoleRewards(opts: { userId: number; guildId: number; roleId?: string | undefined }): Promise<number> {
+    const { userId, guildId, roleId } = opts;
+    const cached = await getOrCreateProfile({ userId, guildId });
+    const p = cached.profile;
+    const paid = p.user_stats?.roleRewards ?? [];
+    const kept = roleId ? paid.filter((id) => id !== roleId) : [];
+    if (kept.length === paid.length) return 0;
+
+    p.user_stats = { ...(p.user_stats ?? {}), roleRewards: kept } as typeof p.user_stats;
+    commitProfileChanges({
+        userId, guildId, profile: p,
+        changes: { ...(cached.pendingChanges ?? {}), user_stats: p.user_stats },
+        baseline: { xp: p.xp, gold: p.gold },
+    });
+    return paid.length - kept.length;
+}

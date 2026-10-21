@@ -52,7 +52,7 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
-import { grantLevelRewards, grantRoleRewards } from "../src/player/levelRewards.js";
+import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
@@ -1507,6 +1507,9 @@ async function main() {
         check("Combat XP once", after.user_stats.combat?.xp, 1885);
         check("chat XP untouched", after.xp, p.xp);
         check("losing and regaining a role pays nothing", (await grant(["lvl20"])).length + (await grant(["lvl10", "lvl20"])).length, 0);
+        check("an admin reset clears just that role", await resetRoleRewards({ userId: ids.userId, guildId: ids.guildId, roleId: "lvl10" }), 1);
+        check("which then pays once more", (await grant(["lvl10", "lvl20"])).map((r) => r.roleId).join(","), "lvl10");
+        check("resetting everything clears both", await resetRoleRewards({ userId: ids.userId, guildId: ids.guildId }), 2);
     });
 
     await test("RPG level-up cards: Combat every level, skills at milestones, both switchable", async () => {

@@ -341,7 +341,7 @@
   },
   {
     "name": "admin",
-    "description": "Change a member's XP, level, gold, streak or items",
+    "description": "Change a member's XP, level, gold, streak, items or role rewards",
     "managersOnly": true,
     "options": [
       {
@@ -509,6 +509,25 @@
           }
         ],
         "kind": "group"
+      },
+      {
+        "name": "reset-role-reward",
+        "description": "Let a member get a role reward again",
+        "options": [
+          {
+            "name": "member",
+            "description": "Whose role rewards to reset",
+            "type": "user",
+            "required": true
+          },
+          {
+            "name": "role",
+            "description": "Just this role's reward. Leave empty for all of them",
+            "type": "role",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
       }
     ]
   },
