@@ -62,7 +62,8 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
     const goldName = config.style.gold.name || "gold";
 
     const c = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
-    c.addTextDisplayComponents(t => t.setContent([
+    // Servers that keep another leveling bot turn havocish's off: no chat level to show.
+    c.addTextDisplayComponents(t => t.setContent(config.xp.enabled === false ? `## ${name}` : [
         `## ${name} · Level ${level}`,
         `\`${bar(into / span)}\` ${into.toLocaleString()} / ${span.toLocaleString()} ${xpName} to level ${level + 1}`,
     ].join("\n")));

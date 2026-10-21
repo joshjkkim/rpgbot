@@ -1,6 +1,7 @@
-import XpPageClient from "./xpPageClient";
+import { redirect } from "next/navigation";
 
-export default async function XpPage({ params }: { params: Promise<{ guildId: string }> }) {
+/** XP and Levels are one page now; old links (the bot's buttons, bookmarks) land there. */
+export default async function OldPage({ params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
-  return <XpPageClient guildId={guildId} />;
+  redirect(`/dashboard/${guildId}/leveling`);
 }

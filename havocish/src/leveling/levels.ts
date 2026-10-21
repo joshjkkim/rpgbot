@@ -150,3 +150,11 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
     }
   }
 }
+/**
+ * A daily message template, minus its XP part when the server's leveling is
+ * off (dailies then pay only gold): "reward of {xp} {xpName} {xpIcon} and {gold}..."
+ * becomes "reward of {gold}...". Custom wording without that phrase is left as written.
+ */
+export function dailyTemplate(template: string, config: GuildConfig) {
+  return config.xp.enabled === false ? template.replace(/\{xp\} \{xpName\} \{xpIcon\} and /g, "") : template;
+}

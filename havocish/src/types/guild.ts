@@ -150,6 +150,12 @@ export interface GuildConfig {
         };
     },
     xp: {
+        /**
+         * havocish's own leveling: chat and voice XP, daily XP, level-ups and the
+         * chat-level stat bonus. Off for servers that keep another leveling bot;
+         * the RPG runs either way, gated by that bot's roles through Requirements.
+         */
+        enabled: boolean;
         basePerMessage: number;
         xpMessageCooldown: number;
         xpChannelIds: Record<string, xpChannelConfig>; // channelId -> xp multiplier
@@ -263,6 +269,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         },
     },
     xp: {
+        enabled: true,
         // The wizard's Standard pace (web/app/lib/setupWizard.ts): level 10 is
         // about 1,250 XP-earning messages, so levels and gear feel earned.
         basePerMessage: 5,

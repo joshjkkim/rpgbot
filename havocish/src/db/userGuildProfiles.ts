@@ -120,6 +120,8 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
             }
         }
 
+        // Leveling off: the message still counts (quests, encounters, stats), it just gives no XP.
+        if (config.xp.enabled === false) xpAmount = 0;
         profile.user_stats.xpFromMessages += xpAmount;
         profile.user_stats.messagesSent += 1;
     } else {
@@ -379,7 +381,8 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         }
     }
 
-    let rewardXp = Math.floor((baseXp + extraXp) * bonusFactor);
+    // Leveling off: dailies still pay gold, never XP.
+    let rewardXp = config.xp.enabled === false ? 0 : Math.floor((baseXp + extraXp) * bonusFactor);
     let rewardGold = Math.floor((baseGold + extraGold) * bonusFactor);
     const oldStreak = profile.streak_count ?? 0;
 

@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js";
+import { dailyTemplate } from "../../leveling/levels.js";
 import { busyFighting } from "../../player/fight.js";
 import { SlashCommandBuilder } from "discord.js";
 import { grantDailyXp } from "../../db/userGuildProfiles.js";
@@ -47,7 +48,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     });
 
     if (granted) {  
-        const dailyMessage = config.xp.announceDailyMessage
+        const dailyMessage = dailyTemplate(config.xp.announceDailyMessage, config)
             .replace('{user}', `<@${interaction.user.id}>`)
             .replace('{xp}', rewardXp?.toString() ?? '0')
             .replace('{xpName}', config.style.xp.name || "XP")
@@ -66,7 +67,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const healNote = hpRestored ? `\n❤️ HP restored to full!` : "";
 
         if(config.xp.replyToDailyInChannel) {
-            const dailyReply = config.xp.replyToDailyMessage
+            const dailyReply = dailyTemplate(config.xp.replyToDailyMessage, config)
                 .replace('{user}', `<@${interaction.user.id}>`)
                 .replace('{xp}', rewardXp?.toString() ?? '0')
                 .replace('{xpName}', config.style.xp.name || "XP")
