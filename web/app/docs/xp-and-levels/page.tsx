@@ -19,6 +19,15 @@ export default function XpAndLevels() {
         RPG keeps working. To tie it to your other bot&apos;s levels, require the role it gives at a level on any item,
         recipe, gathering spot, enemy or quest (see Requirements).
       </P>
+      <H3>Role rewards</H3>
+      <P>
+        Give gold, an item or Combat XP when a member gets a role, whoever gave it: another leveling bot&apos;s level
+        role, a booster role, a mod. Set them under <b>Role rewards</b> at <Where>Leveling</Where>; they work whether
+        havocish&apos;s own leveling is on or off. Each member is paid once per role, so losing and regaining it pays
+        nothing; <C>/admin reset-role-reward</C> lets a member get one (or all) again. Members who already had the role
+        when you set its reward get it the next time they chat. Pick a
+        channel to announce them in, or leave it empty and rewards arrive quietly.
+      </P>
 
       <H2>Message XP</H2>
       <P>

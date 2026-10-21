@@ -39,6 +39,8 @@ export interface UserStats {
     crafting?: CraftingProgress;
     /** Combat XP. Missing means "not split off yet": combatLevel.ts starts it from chat XP. */
     combat?: { xp: number };
+    /** Role ids whose role reward this member has had, so re-adding a role pays nothing. */
+    roleRewards?: string[];
 }
 export interface item {
     id: string;

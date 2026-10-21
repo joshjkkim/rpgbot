@@ -1,39 +1,28 @@
-import type { GuildConfig } from "../types/guild.js";
+import type { GuildConfig, LevelAction } from "../types/guild.js";
+import type { DbUserGuildProfile } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import { addToBag } from "./gathering.js";
 import { addCombatXp } from "./combatLevel.js";
 
 /**
- * The level actions that pay out into the RPG: gold, items and Combat XP for
- * reaching a chat level. This is the bridge from leveling into the RPG (never
- * the other way: nothing here gives chat XP). Roles and messages stay in
- * handleLevelUp, which needs Discord; this needs only the profile.
- *
- * Returns what was given, worded for the level-up announcement: "+500 gold, 1× Iron Sword".
+ * The rewards that pay into the RPG: gold, items and Combat XP, for reaching a
+ * chat level or for getting a role. This is the bridge from leveling (havocish's
+ * own, or any other bot's roles) into the RPG, never the other way: nothing
+ * here gives chat XP. Roles and messages stay in handleLevelUp, which needs
+ * Discord; this needs only the profile.
  */
-export async function grantLevelRewards(opts: {
-    userId: number;
-    guildId: number;
-    config: GuildConfig;
-    fromLevel: number;
-    toLevel: number;
-}): Promise<string[]> {
-    const { userId, guildId, config, fromLevel, toLevel } = opts;
-    const actions = [];
-    for (let level = fromLevel + 1; level <= toLevel; level++) actions.push(...(config.levels.levelActions?.[level] ?? []));
-    const rewards = actions.filter((a) => a.type === "giveGold" || a.type === "giveItem" || a.type === "giveCombatXp");
-    if (!rewards.length) return [];
 
-    const cached = await getOrCreateProfile({ userId, guildId });
-    const p = cached.profile;
-    const baseline = { xp: p.xp, gold: p.gold };
+const REWARD_TYPES = new Set<LevelAction["type"]>(["giveGold", "giveItem", "giveCombatXp"]);
+
+/** Applies the reward actions to a profile in place. Returns the changed columns and the wording. */
+function applyRewards(p: DbUserGuildProfile, config: GuildConfig, actions: LevelAction[]) {
     const inv = { ...(p.inventory ?? {}) };
     let gold = 0n;
     let combatXp = 0;
     const given: string[] = [];
 
-    for (const a of rewards) {
+    for (const a of actions) {
         const amount = Math.max(0, Math.floor(a.amount ?? 0));
         if (a.type === "giveGold" && amount) gold += BigInt(amount);
         if (a.type === "giveCombatXp" && amount) combatXp += amount;
@@ -45,7 +34,7 @@ export async function grantLevelRewards(opts: {
         }
     }
 
-    const changes: PendingProfileChanges = { ...(cached.pendingChanges ?? {}), inventory: inv };
+    const changes: PendingProfileChanges = { inventory: inv } as PendingProfileChanges;
     p.inventory = inv;
     if (gold) {
         p.gold = (BigInt(p.gold) + gold).toString();
@@ -54,9 +43,96 @@ export async function grantLevelRewards(opts: {
     }
     if (combatXp) {
         addCombatXp(p, config, combatXp);
-        changes.user_stats = p.user_stats;
         given.push(`+${combatXp.toLocaleString()} ⚔️ Combat XP`);
     }
-    commitProfileChanges({ userId, guildId, profile: p, changes, baseline });
+    return { changes, given };
+}
+
+/**
+ * Every reward for the levels crossed, in one commit. Returns what was given,
+ * worded for the level-up announcement: "+500 gold, 1× Iron Sword".
+ */
+export async function grantLevelRewards(opts: {
+    userId: number;
+    guildId: number;
+    config: GuildConfig;
+    fromLevel: number;
+    toLevel: number;
+}): Promise<string[]> {
+    const { userId, guildId, config, fromLevel, toLevel } = opts;
+    const actions: LevelAction[] = [];
+    for (let level = fromLevel + 1; level <= toLevel; level++) actions.push(...(config.levels.levelActions?.[level] ?? []));
+    const rewards = actions.filter((a) => REWARD_TYPES.has(a.type));
+    if (!rewards.length) return [];
+
+    const cached = await getOrCreateProfile({ userId, guildId });
+    const p = cached.profile;
+    const baseline = { xp: p.xp, gold: p.gold };
+    const { changes, given } = applyRewards(p, config, rewards);
+    commitProfileChanges({
+        userId, guildId, profile: p,
+        changes: { ...(cached.pendingChanges ?? {}), ...changes, user_stats: p.user_stats },
+        baseline,
+    });
     return given;
+}
+
+/**
+ * Pays the reward of every rewarded role the member holds and hasn't been paid
+ * for yet, then marks those roles as paid. Safe to call on every member update
+ * and message: with nothing new it returns without touching the profile.
+ */
+export async function grantRoleRewards(opts: {
+    userId: number;
+    guildId: number;
+    config: GuildConfig;
+    roleIds: string[];
+}): Promise<{ roleId: string; given: string[] }[]> {
+    const { userId, guildId, config, roleIds } = opts;
+    const table = config.roleRewards?.roles ?? {};
+    const rewarded = roleIds.filter((id) => table[id]?.some((a) => REWARD_TYPES.has(a.type)));
+    if (!rewarded.length) return [];
+
+    const cached = await getOrCreateProfile({ userId, guildId });
+    const p = cached.profile;
+    const paid = p.user_stats?.roleRewards ?? [];
+    const due = rewarded.filter((id) => !paid.includes(id));
+    if (!due.length) return [];
+
+    const baseline = { xp: p.xp, gold: p.gold };
+    let changes: PendingProfileChanges = {} as PendingProfileChanges;
+    const out = due.map((roleId) => {
+        const r = applyRewards(p, config, table[roleId]!.filter((a) => REWARD_TYPES.has(a.type)));
+        changes = { ...changes, ...r.changes };
+        return { roleId, given: r.given };
+    });
+    p.user_stats = { ...(p.user_stats ?? {}), roleRewards: [...paid, ...due] } as typeof p.user_stats;
+    commitProfileChanges({
+        userId, guildId, profile: p,
+        changes: { ...(cached.pendingChanges ?? {}), ...changes, user_stats: p.user_stats },
+        baseline,
+    });
+    return out;
+}
+
+/**
+ * Takes roles off a member's paid list, so those role rewards pay again the
+ * next time the member chats or their roles change. No role: the whole list.
+ * Returns how many roles were cleared.
+ */
+export async function resetRoleRewards(opts: { userId: number; guildId: number; roleId?: string | undefined }): Promise<number> {
+    const { userId, guildId, roleId } = opts;
+    const cached = await getOrCreateProfile({ userId, guildId });
+    const p = cached.profile;
+    const paid = p.user_stats?.roleRewards ?? [];
+    const kept = roleId ? paid.filter((id) => id !== roleId) : [];
+    if (kept.length === paid.length) return 0;
+
+    p.user_stats = { ...(p.user_stats ?? {}), roleRewards: kept } as typeof p.user_stats;
+    commitProfileChanges({
+        userId, guildId, profile: p,
+        changes: { ...(cached.pendingChanges ?? {}), user_stats: p.user_stats },
+        baseline: { xp: p.xp, gold: p.gold },
+    });
+    return paid.length - kept.length;
 }
