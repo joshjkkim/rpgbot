@@ -103,12 +103,17 @@ const DEFAULT_STREAK_ANNOUNCE =
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the XP section has no typed config yet; read() supplies defaults
 type XpJson = Record<string, any>;
 
+/** Which sections to show; the Leveling page shows one group per tab. All when unset. */
+export type XpPart = "earning" | "daily" | "rewards";
+
 type Props = {
+  part?: XpPart;
   value: XpJson | null | undefined;
   onChange: (nextXp: XpJson) => void;
 };
 
-export default function XpBasicsEditor({ value, onChange }: Props) {
+export default function XpBasicsEditor({ value, onChange, part }: Props) {
+  const show = (p: XpPart) => !part || part === p;
   const xp = value ?? {};
 
   const read = (src: XpJson) => ({
@@ -206,459 +211,481 @@ export default function XpBasicsEditor({ value, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <Section title="Message XP" description="What a message is worth, and how often it can pay out.">
-        <FieldGrid>
-          <NumberField
-            label="Base XP per message"
-            value={form.basePerMessage}
-            onChange={(v) => commit({ basePerMessage: v })}
-            min={0}
-          />
-          <NumberField
-            label="Cooldown (seconds)"
-            value={form.xpMessageCooldown}
-            onChange={(v) => commit({ xpMessageCooldown: v })}
-            min={0}
-            hint="Messages inside this window earn nothing."
-          />
-        </FieldGrid>
-      </Section>
-
-      <Section advanced
-        title="Channel overrides"
-        description="Per-channel multipliers, bonuses and cooldowns for message XP."
-        defaultOpen={false}
-      >
-        <KeyedList<XpChannelConfig>
-          entries={Object.entries(form.xpChannelIds)}
-          addPlaceholder="Channel ID"
-          addOptions={channelOptions}
-          addLabel="Add channel"
-          empty="No channel overrides. Every channel uses the base rate."
-          onAdd={(channelId) =>
-            commit({
-              xpChannelIds: {
-                ...form.xpChannelIds,
-                [channelId]: { enabled: true, channelId, multiplier: 1, flatBonus: 0 },
-              },
-            })
-          }
-          onRemove={(id) => removeFromMap("xpChannelIds", id)}
-          renderItem={(id, cfg) => (
-            <div className="space-y-3">
-              <Toggle
-                label="Earns XP"
-                checked={cfg.enabled !== false}
-                onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { enabled: v })}
-              />
-              <FieldGrid>
-                <NumberField
-                  label="Multiplier"
-                  value={cfg.multiplier ?? 1}
-                  step={0.1}
-                  min={0}
-                  onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { multiplier: v })}
-                />
-                <NumberField
-                  label="Flat bonus"
-                  value={cfg.flatBonus ?? 0}
-                  min={0}
-                  onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { flatBonus: v })}
-                />
-                <NumberField
-                  label="Cooldown override (seconds)"
-                  value={cfg.cooldownOverride ?? 0}
-                  min={0}
-                  onChange={(v) =>
-                    patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { cooldownOverride: v })
-                  }
-                  hint="0 uses the global cooldown."
-                />
-              </FieldGrid>
-            </div>
-          )}
-        />
-      </Section>
-
-      <Section title="Daily reward" description="What /daily pays out, and where it is announced.">
-        <FieldGrid>
-          <NumberField
-            label="Daily XP"
-            value={form.dailyXp}
-            onChange={(v) => commit({ dailyXp: v })}
-            min={0}
-          />
-          <NumberField
-            label="Daily gold"
-            value={form.dailyGold}
-            onChange={(v) => commit({ dailyGold: v })}
-            min={0}
-          />
-        </FieldGrid>
-
-        <div className="mt-4 space-y-3">
-          <Toggle
-            label="Claim automatically on first message"
-            checked={form.autoDailyEnabled}
-            onChange={(v) => commit({ autoDailyEnabled: v })}
-            hint="Members get their daily without running the command."
-          />
-          <Toggle
-            label="Reply in the channel"
-            checked={form.replyToDailyInChannel}
-            onChange={(v) => commit({ replyToDailyInChannel: v })}
-          />
-          <Toggle
-            label="Keep the reply private"
-            checked={form.replyToDailyEphemeral}
-            onChange={(v) => commit({ replyToDailyEphemeral: v })}
-            hint="Only the claimer sees the /daily response."
-          />
-        </div>
-
-        <div className="mt-4">
+      {show("earning") && (
+        <Section title="Message XP" description="What a message is worth, and how often it can pay out.">
           <FieldGrid>
-            <TextAreaField
-              label="Reply message"
-              value={form.replyToDailyMessage}
-              onChange={(v) => commit({ replyToDailyMessage: v })}
-              rows={2}
-              hint="{user} {xp} {gold} {xpName} {xpIcon} {goldName} {goldIcon} {streak}"
+            <NumberField
+              label="Base XP per message"
+              value={form.basePerMessage}
+              onChange={(v) => commit({ basePerMessage: v })}
+              min={0}
+            />
+            <NumberField
+              label="Cooldown (seconds)"
+              value={form.xpMessageCooldown}
+              onChange={(v) => commit({ xpMessageCooldown: v })}
+              min={0}
+              hint="Messages inside this window earn nothing."
+            />
+          </FieldGrid>
+        </Section>
+      )}
+
+      {show("earning") && (
+        <Section advanced
+          title="Channel overrides"
+          description="Per-channel multipliers, bonuses and cooldowns for message XP."
+          defaultOpen={false}
+        >
+          <KeyedList<XpChannelConfig>
+            entries={Object.entries(form.xpChannelIds)}
+            addPlaceholder="Channel ID"
+            addOptions={channelOptions}
+            addLabel="Add channel"
+            empty="No channel overrides. Every channel uses the base rate."
+            onAdd={(channelId) =>
+              commit({
+                xpChannelIds: {
+                  ...form.xpChannelIds,
+                  [channelId]: { enabled: true, channelId, multiplier: 1, flatBonus: 0 },
+                },
+              })
+            }
+            onRemove={(id) => removeFromMap("xpChannelIds", id)}
+            renderItem={(id, cfg) => (
+              <div className="space-y-3">
+                <Toggle
+                  label="Earns XP"
+                  checked={cfg.enabled !== false}
+                  onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { enabled: v })}
+                />
+                <FieldGrid>
+                  <NumberField
+                    label="Multiplier"
+                    value={cfg.multiplier ?? 1}
+                    step={0.1}
+                    min={0}
+                    onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { multiplier: v })}
+                  />
+                  <NumberField
+                    label="Flat bonus"
+                    value={cfg.flatBonus ?? 0}
+                    min={0}
+                    onChange={(v) => patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { flatBonus: v })}
+                  />
+                  <NumberField
+                    label="Cooldown override (seconds)"
+                    value={cfg.cooldownOverride ?? 0}
+                    min={0}
+                    onChange={(v) =>
+                      patchMap<"xpChannelIds", XpChannelConfig>("xpChannelIds", id, { cooldownOverride: v })
+                    }
+                    hint="0 uses the global cooldown."
+                  />
+                </FieldGrid>
+              </div>
+            )}
+          />
+        </Section>
+      )}
+
+      {show("daily") && (
+        <Section title="Daily reward" description="What /daily pays out, and where it is announced.">
+          <FieldGrid>
+            <NumberField
+              label="Daily XP"
+              value={form.dailyXp}
+              onChange={(v) => commit({ dailyXp: v })}
+              min={0}
+            />
+            <NumberField
+              label="Daily gold"
+              value={form.dailyGold}
+              onChange={(v) => commit({ dailyGold: v })}
+              min={0}
+            />
+          </FieldGrid>
+
+          <div className="mt-4 space-y-3">
+            <Toggle
+              label="Claim automatically on first message"
+              checked={form.autoDailyEnabled}
+              onChange={(v) => commit({ autoDailyEnabled: v })}
+              hint="Members get their daily without running the command."
+            />
+            <Toggle
+              label="Reply in the channel"
+              checked={form.replyToDailyInChannel}
+              onChange={(v) => commit({ replyToDailyInChannel: v })}
+            />
+            <Toggle
+              label="Keep the reply private"
+              checked={form.replyToDailyEphemeral}
+              onChange={(v) => commit({ replyToDailyEphemeral: v })}
+              hint="Only the claimer sees the /daily response."
+            />
+          </div>
+
+          <div className="mt-4">
+            <FieldGrid>
+              <TextAreaField
+                label="Reply message"
+                value={form.replyToDailyMessage}
+                onChange={(v) => commit({ replyToDailyMessage: v })}
+                rows={2}
+                hint="{user} {xp} {gold} {xpName} {xpIcon} {goldName} {goldIcon} {streak}"
+              />
+              <ChannelField
+                label="Announce channel"
+                value={form.announceDailyInChannelId ?? ""}
+                onChange={(v) => commit({ announceDailyInChannelId: v || null })}
+                emptyLabel="Don't announce"
+              />
+              <TextAreaField
+                label="Announce message"
+                value={form.announceDailyMessage}
+                onChange={(v) => commit({ announceDailyMessage: v })}
+                rows={2}
+              />
+            </FieldGrid>
+          </div>
+        </Section>
+      )}
+
+      {show("daily") && (
+        <Section title="Streaks" description="The bonus for claiming daily rewards on consecutive days." defaultOpen={false}>
+          <FieldGrid>
+            <NumberField
+              label="Streak multiplier"
+              value={form.streakMultiplier}
+              step={0.01}
+              min={0}
+              onChange={(v) => commit({ streakMultiplier: v })}
+              hint="Added per streak day — 0.1 is +10% a day."
             />
             <ChannelField
               label="Announce channel"
-              value={form.announceDailyInChannelId ?? ""}
-              onChange={(v) => commit({ announceDailyInChannelId: v || null })}
+              value={form.streakAnnounceChannelId ?? ""}
+              onChange={(v) => commit({ streakAnnounceChannelId: v || null })}
               emptyLabel="Don't announce"
             />
             <TextAreaField
               label="Announce message"
-              value={form.announceDailyMessage}
-              onChange={(v) => commit({ announceDailyMessage: v })}
+              value={form.streakAnnounceMessage}
+              onChange={(v) => commit({ streakAnnounceMessage: v })}
               rows={2}
+              hint="{user} {streak} {xp} {gold}"
             />
           </FieldGrid>
-        </div>
-      </Section>
+        </Section>
+      )}
 
-      <Section title="Streaks" description="The bonus for claiming daily rewards on consecutive days." defaultOpen={false}>
-        <FieldGrid>
-          <NumberField
-            label="Streak multiplier"
-            value={form.streakMultiplier}
-            step={0.01}
-            min={0}
-            onChange={(v) => commit({ streakMultiplier: v })}
-            hint="Added per streak day — 0.1 is +10% a day."
-          />
-          <ChannelField
-            label="Announce channel"
-            value={form.streakAnnounceChannelId ?? ""}
-            onChange={(v) => commit({ streakAnnounceChannelId: v || null })}
-            emptyLabel="Don't announce"
-          />
-          <TextAreaField
-            label="Announce message"
-            value={form.streakAnnounceMessage}
-            onChange={(v) => commit({ streakAnnounceMessage: v })}
-            rows={2}
-            hint="{user} {streak} {xp} {gold}"
-          />
-        </FieldGrid>
-      </Section>
-
-      <Section advanced title="Streak milestones" description="One-off rewards at specific streak lengths." defaultOpen={false}>
-        <KeyedList<StreakReward>
-          entries={Object.entries(form.streakRewards).sort(sortedByNumber)}
-          addPlaceholder="Day count, e.g. 7"
-          addLabel="Add milestone"
-          empty="No milestones. Streaks still apply the multiplier above."
-          itemLabel={(count) => `${count}-day streak`}
-          onAdd={(raw) => {
-            const count = Number(raw);
-            if (!Number.isFinite(count) || count <= 0) return;
-            commit({
-              streakRewards: {
-                ...form.streakRewards,
-                [count]: {
-                  streakCount: count,
-                  xpBonus: 100,
-                  goldBonus: 50,
-                  message: null,
-                  channelId: null,
+      {show("daily") && (
+        <Section advanced title="Streak milestones" description="One-off rewards at specific streak lengths." defaultOpen={false}>
+          <KeyedList<StreakReward>
+            entries={Object.entries(form.streakRewards).sort(sortedByNumber)}
+            addPlaceholder="Day count, e.g. 7"
+            addLabel="Add milestone"
+            empty="No milestones. Streaks still apply the multiplier above."
+            itemLabel={(count) => `${count}-day streak`}
+            onAdd={(raw) => {
+              const count = Number(raw);
+              if (!Number.isFinite(count) || count <= 0) return;
+              commit({
+                streakRewards: {
+                  ...form.streakRewards,
+                  [count]: {
+                    streakCount: count,
+                    xpBonus: 100,
+                    goldBonus: 50,
+                    message: null,
+                    channelId: null,
+                  },
                 },
-              },
-            });
-          }}
-          onRemove={(id) => removeFromMap("streakRewards", id)}
-          renderItem={(id, reward) => (
-            <FieldGrid>
-              <NumberField
-                label="XP bonus"
-                value={reward.xpBonus ?? 0}
-                min={0}
-                onChange={(v) => patchMap<"streakRewards", StreakReward>("streakRewards", id, { xpBonus: v })}
-              />
-              <NumberField
-                label="Gold bonus"
-                value={reward.goldBonus ?? 0}
-                min={0}
-                onChange={(v) => patchMap<"streakRewards", StreakReward>("streakRewards", id, { goldBonus: v })}
-              />
-              <ChannelField
-                label="Channel"
-                value={reward.channelId ?? ""}
-                onChange={(v) =>
-                  patchMap<"streakRewards", StreakReward>("streakRewards", id, { channelId: v || null })
-                }
-                emptyLabel="Streak channel (default)"
-              />
-              <TextField
-                label="Custom message"
-                value={reward.message ?? ""}
-                onChange={(v) =>
-                  patchMap<"streakRewards", StreakReward>("streakRewards", id, { message: v || null })
-                }
-                placeholder="Optional"
-              />
-            </FieldGrid>
-          )}
-        />
-      </Section>
-
-      <Section advanced title="Role XP bonuses" description="Extra message XP for members holding a role." defaultOpen={false}>
-        <KeyedList<RoleXpConfig>
-          entries={Object.entries(form.roleXp)}
-          addPlaceholder="Role ID"
-          addOptions={roleOptions}
-          addLabel="Add role"
-          empty="No role bonuses configured."
-          onAdd={(roleId) =>
-            commit({ roleXp: { ...form.roleXp, [roleId]: { extraXp: 0, multiplier: 1 } } })
-          }
-          onRemove={(id) => removeFromMap("roleXp", id)}
-          renderItem={(id, cfg) => (
-            <FieldGrid>
-              <NumberField
-                label="Extra XP"
-                value={cfg.extraXp ?? 0}
-                min={0}
-                onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { extraXp: v })}
-              />
-              <NumberField
-                label="Multiplier"
-                value={cfg.multiplier ?? 1}
-                step={0.1}
-                min={0}
-                onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { multiplier: v })}
-              />
-              <NumberField
-                label="Cooldown (seconds)"
-                value={cfg.cooldownSeconds ?? 0}
-                min={0}
-                onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { cooldownSeconds: v })}
-                hint="The lowest cooldown among a member's roles wins."
-              />
-            </FieldGrid>
-          )}
-        />
-      </Section>
-
-      <Section advanced title="Role daily bonuses" description="Extra daily reward for members holding a role." defaultOpen={false}>
-        <KeyedList<RoleDailyBonusConfig>
-          entries={Object.entries(form.roleDailyBonus)}
-          addPlaceholder="Role ID"
-          addOptions={roleOptions}
-          addLabel="Add role"
-          empty="No role daily bonuses configured."
-          onAdd={(roleId) =>
-            commit({
-              roleDailyBonus: {
-                ...form.roleDailyBonus,
-                [roleId]: { xpBonus: 0, goldBonus: 0, multiplier: 1 },
-              },
-            })
-          }
-          onRemove={(id) => removeFromMap("roleDailyBonus", id)}
-          renderItem={(id, cfg) => (
-            <FieldGrid>
-              <NumberField
-                label="XP bonus"
-                value={cfg.xpBonus ?? 0}
-                min={0}
-                onChange={(v) =>
-                  patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { xpBonus: v })
-                }
-              />
-              <NumberField
-                label="Gold bonus"
-                value={cfg.goldBonus ?? 0}
-                min={0}
-                onChange={(v) =>
-                  patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { goldBonus: v })
-                }
-              />
-              <NumberField
-                label="Multiplier"
-                value={cfg.multiplier ?? 1}
-                step={0.1}
-                min={0}
-                onChange={(v) =>
-                  patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { multiplier: v })
-                }
-              />
-            </FieldGrid>
-          )}
-        />
-      </Section>
-
-      <Section advanced title="Temporary roles" description="How long roles granted by items and rewards last." defaultOpen={false}>
-        <KeyedList<RoleTempConfig>
-          entries={Object.entries(form.roleTemp)}
-          addPlaceholder="Role ID"
-          addOptions={roleOptions}
-          addLabel="Add role"
-          empty="No temporary roles configured."
-          onAdd={(roleId) =>
-            commit({
-              roleTemp: { ...form.roleTemp, [roleId]: { defaultDurationMinutes: 60, hardExpiryat: null } },
-            })
-          }
-          onRemove={(id) => removeFromMap("roleTemp", id)}
-          renderItem={(id, cfg) => (
-            <FieldGrid>
-              <NumberField
-                label="Default duration (minutes)"
-                value={cfg.defaultDurationMinutes ?? 0}
-                min={0}
-                onChange={(v) =>
-                  patchMap<"roleTemp", RoleTempConfig>("roleTemp", id, { defaultDurationMinutes: v })
-                }
-              />
-              <TextField
-                label="Hard expiry"
-                value={cfg.hardExpiryat ?? ""}
-                onChange={(v) =>
-                  patchMap<"roleTemp", RoleTempConfig>("roleTemp", id, { hardExpiryat: v || null })
-                }
-                placeholder="ISO timestamp, optional"
-                mono
-                hint="Removed at this moment regardless of duration."
-              />
-            </FieldGrid>
-          )}
-        />
-      </Section>
-
-      <Section title="Voice XP" description="XP earned for time spent in voice channels." defaultOpen={false}>
-        <Toggle
-          label="Enable voice XP"
-          checked={form.vcEnabled}
-          onChange={(v) => commit({ vcEnabled: v })}
-        />
-        <div className="mt-4">
-          <FieldGrid>
-            <NumberField
-              label="XP per minute"
-              value={form.vcBasePerMinute}
-              min={0}
-              onChange={(v) => commit({ vcBasePerMinute: v })}
-            />
-            <NumberField
-              label="Minimum minutes"
-              value={form.vcMinMinutesForXp}
-              min={0}
-              onChange={(v) => commit({ vcMinMinutesForXp: v })}
-              hint="Sessions shorter than this earn nothing."
-            />
-          </FieldGrid>
-        </div>
-      </Section>
-
-      <Section advanced title="Voice channel overrides" description="Per-channel voice rates." defaultOpen={false}>
-        <KeyedList<VcChannelConfig>
-          entries={Object.entries(form.vcChannelIds)}
-          addPlaceholder="Voice channel ID"
-          addOptions={voiceOptions}
-          addLabel="Add channel"
-          empty="No voice channel overrides."
-          onAdd={(channelId) =>
-            commit({
-              vcChannelIds: {
-                ...form.vcChannelIds,
-                [channelId]: { enabled: true, channelId, multiplier: 1, flatBonus: 0 },
-              },
-            })
-          }
-          onRemove={(id) => removeFromMap("vcChannelIds", id)}
-          renderItem={(id, cfg) => (
-            <div className="space-y-3">
-              <Toggle
-                label="Earns XP"
-                checked={cfg.enabled !== false}
-                onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { enabled: v })}
-              />
+              });
+            }}
+            onRemove={(id) => removeFromMap("streakRewards", id)}
+            renderItem={(id, reward) => (
               <FieldGrid>
+                <NumberField
+                  label="XP bonus"
+                  value={reward.xpBonus ?? 0}
+                  min={0}
+                  onChange={(v) => patchMap<"streakRewards", StreakReward>("streakRewards", id, { xpBonus: v })}
+                />
+                <NumberField
+                  label="Gold bonus"
+                  value={reward.goldBonus ?? 0}
+                  min={0}
+                  onChange={(v) => patchMap<"streakRewards", StreakReward>("streakRewards", id, { goldBonus: v })}
+                />
+                <ChannelField
+                  label="Channel"
+                  value={reward.channelId ?? ""}
+                  onChange={(v) =>
+                    patchMap<"streakRewards", StreakReward>("streakRewards", id, { channelId: v || null })
+                  }
+                  emptyLabel="Streak channel (default)"
+                />
+                <TextField
+                  label="Custom message"
+                  value={reward.message ?? ""}
+                  onChange={(v) =>
+                    patchMap<"streakRewards", StreakReward>("streakRewards", id, { message: v || null })
+                  }
+                  placeholder="Optional"
+                />
+              </FieldGrid>
+            )}
+          />
+        </Section>
+      )}
+
+      {show("earning") && (
+        <Section advanced title="Role XP bonuses" description="Extra message XP for members holding a role." defaultOpen={false}>
+          <KeyedList<RoleXpConfig>
+            entries={Object.entries(form.roleXp)}
+            addPlaceholder="Role ID"
+            addOptions={roleOptions}
+            addLabel="Add role"
+            empty="No role bonuses configured."
+            onAdd={(roleId) =>
+              commit({ roleXp: { ...form.roleXp, [roleId]: { extraXp: 0, multiplier: 1 } } })
+            }
+            onRemove={(id) => removeFromMap("roleXp", id)}
+            renderItem={(id, cfg) => (
+              <FieldGrid>
+                <NumberField
+                  label="Extra XP"
+                  value={cfg.extraXp ?? 0}
+                  min={0}
+                  onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { extraXp: v })}
+                />
                 <NumberField
                   label="Multiplier"
                   value={cfg.multiplier ?? 1}
                   step={0.1}
                   min={0}
-                  onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { multiplier: v })}
+                  onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { multiplier: v })}
                 />
                 <NumberField
-                  label="Flat bonus"
-                  value={cfg.flatBonus ?? 0}
+                  label="Cooldown (seconds)"
+                  value={cfg.cooldownSeconds ?? 0}
                   min={0}
-                  onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { flatBonus: v })}
-                />
-                <NumberField
-                  label="Minimum minutes override"
-                  value={cfg.minMinutesOverride ?? 0}
-                  min={0}
-                  onChange={(v) =>
-                    patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { minMinutesOverride: v })
-                  }
-                  hint="0 uses the global minimum."
+                  onChange={(v) => patchMap<"roleXp", RoleXpConfig>("roleXp", id, { cooldownSeconds: v })}
+                  hint="The lowest cooldown among a member's roles wins."
                 />
               </FieldGrid>
-            </div>
-          )}
-        />
-      </Section>
+            )}
+          />
+        </Section>
+      )}
 
-      <Section advanced title="Voice role bonuses" description="Extra voice XP for members holding a role." defaultOpen={false}>
-        <KeyedList<VcRoleBonusConfig>
-          entries={Object.entries(form.vcRoleXpBonus)}
-          addPlaceholder="Role ID"
-          addOptions={roleOptions}
-          addLabel="Add role"
-          empty="No voice role bonuses configured."
-          onAdd={(roleId) =>
-            commit({ vcRoleXpBonus: { ...form.vcRoleXpBonus, [roleId]: { extraXp: 0, multiplier: 1 } } })
-          }
-          onRemove={(id) => removeFromMap("vcRoleXpBonus", id)}
-          renderItem={(id, cfg) => (
+      {show("daily") && (
+        <Section advanced title="Role daily bonuses" description="Extra daily reward for members holding a role." defaultOpen={false}>
+          <KeyedList<RoleDailyBonusConfig>
+            entries={Object.entries(form.roleDailyBonus)}
+            addPlaceholder="Role ID"
+            addOptions={roleOptions}
+            addLabel="Add role"
+            empty="No role daily bonuses configured."
+            onAdd={(roleId) =>
+              commit({
+                roleDailyBonus: {
+                  ...form.roleDailyBonus,
+                  [roleId]: { xpBonus: 0, goldBonus: 0, multiplier: 1 },
+                },
+              })
+            }
+            onRemove={(id) => removeFromMap("roleDailyBonus", id)}
+            renderItem={(id, cfg) => (
+              <FieldGrid>
+                <NumberField
+                  label="XP bonus"
+                  value={cfg.xpBonus ?? 0}
+                  min={0}
+                  onChange={(v) =>
+                    patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { xpBonus: v })
+                  }
+                />
+                <NumberField
+                  label="Gold bonus"
+                  value={cfg.goldBonus ?? 0}
+                  min={0}
+                  onChange={(v) =>
+                    patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { goldBonus: v })
+                  }
+                />
+                <NumberField
+                  label="Multiplier"
+                  value={cfg.multiplier ?? 1}
+                  step={0.1}
+                  min={0}
+                  onChange={(v) =>
+                    patchMap<"roleDailyBonus", RoleDailyBonusConfig>("roleDailyBonus", id, { multiplier: v })
+                  }
+                />
+              </FieldGrid>
+            )}
+          />
+        </Section>
+      )}
+
+      {show("rewards") && (
+        <Section advanced title="Temporary roles" description="How long roles granted by items and rewards last." defaultOpen={false}>
+          <KeyedList<RoleTempConfig>
+            entries={Object.entries(form.roleTemp)}
+            addPlaceholder="Role ID"
+            addOptions={roleOptions}
+            addLabel="Add role"
+            empty="No temporary roles configured."
+            onAdd={(roleId) =>
+              commit({
+                roleTemp: { ...form.roleTemp, [roleId]: { defaultDurationMinutes: 60, hardExpiryat: null } },
+              })
+            }
+            onRemove={(id) => removeFromMap("roleTemp", id)}
+            renderItem={(id, cfg) => (
+              <FieldGrid>
+                <NumberField
+                  label="Default duration (minutes)"
+                  value={cfg.defaultDurationMinutes ?? 0}
+                  min={0}
+                  onChange={(v) =>
+                    patchMap<"roleTemp", RoleTempConfig>("roleTemp", id, { defaultDurationMinutes: v })
+                  }
+                />
+                <TextField
+                  label="Hard expiry"
+                  value={cfg.hardExpiryat ?? ""}
+                  onChange={(v) =>
+                    patchMap<"roleTemp", RoleTempConfig>("roleTemp", id, { hardExpiryat: v || null })
+                  }
+                  placeholder="ISO timestamp, optional"
+                  mono
+                  hint="Removed at this moment regardless of duration."
+                />
+              </FieldGrid>
+            )}
+          />
+        </Section>
+      )}
+
+      {show("earning") && (
+        <Section title="Voice XP" description="XP earned for time spent in voice channels." defaultOpen={false}>
+          <Toggle
+            label="Enable voice XP"
+            checked={form.vcEnabled}
+            onChange={(v) => commit({ vcEnabled: v })}
+          />
+          <div className="mt-4">
             <FieldGrid>
               <NumberField
-                label="Extra XP"
-                value={cfg.extraXp ?? 0}
+                label="XP per minute"
+                value={form.vcBasePerMinute}
                 min={0}
-                onChange={(v) => patchMap<"vcRoleXpBonus", VcRoleBonusConfig>("vcRoleXpBonus", id, { extraXp: v })}
+                onChange={(v) => commit({ vcBasePerMinute: v })}
               />
               <NumberField
-                label="Multiplier"
-                value={cfg.multiplier ?? 1}
-                step={0.1}
+                label="Minimum minutes"
+                value={form.vcMinMinutesForXp}
                 min={0}
-                onChange={(v) =>
-                  patchMap<"vcRoleXpBonus", VcRoleBonusConfig>("vcRoleXpBonus", id, { multiplier: v })
-                }
+                onChange={(v) => commit({ vcMinMinutesForXp: v })}
+                hint="Sessions shorter than this earn nothing."
               />
             </FieldGrid>
-          )}
-        />
-      </Section>
+          </div>
+        </Section>
+      )}
+
+      {show("earning") && (
+        <Section advanced title="Voice channel overrides" description="Per-channel voice rates." defaultOpen={false}>
+          <KeyedList<VcChannelConfig>
+            entries={Object.entries(form.vcChannelIds)}
+            addPlaceholder="Voice channel ID"
+            addOptions={voiceOptions}
+            addLabel="Add channel"
+            empty="No voice channel overrides."
+            onAdd={(channelId) =>
+              commit({
+                vcChannelIds: {
+                  ...form.vcChannelIds,
+                  [channelId]: { enabled: true, channelId, multiplier: 1, flatBonus: 0 },
+                },
+              })
+            }
+            onRemove={(id) => removeFromMap("vcChannelIds", id)}
+            renderItem={(id, cfg) => (
+              <div className="space-y-3">
+                <Toggle
+                  label="Earns XP"
+                  checked={cfg.enabled !== false}
+                  onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { enabled: v })}
+                />
+                <FieldGrid>
+                  <NumberField
+                    label="Multiplier"
+                    value={cfg.multiplier ?? 1}
+                    step={0.1}
+                    min={0}
+                    onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { multiplier: v })}
+                  />
+                  <NumberField
+                    label="Flat bonus"
+                    value={cfg.flatBonus ?? 0}
+                    min={0}
+                    onChange={(v) => patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { flatBonus: v })}
+                  />
+                  <NumberField
+                    label="Minimum minutes override"
+                    value={cfg.minMinutesOverride ?? 0}
+                    min={0}
+                    onChange={(v) =>
+                      patchMap<"vcChannelIds", VcChannelConfig>("vcChannelIds", id, { minMinutesOverride: v })
+                    }
+                    hint="0 uses the global minimum."
+                  />
+                </FieldGrid>
+              </div>
+            )}
+          />
+        </Section>
+      )}
+
+      {show("earning") && (
+        <Section advanced title="Voice role bonuses" description="Extra voice XP for members holding a role." defaultOpen={false}>
+          <KeyedList<VcRoleBonusConfig>
+            entries={Object.entries(form.vcRoleXpBonus)}
+            addPlaceholder="Role ID"
+            addOptions={roleOptions}
+            addLabel="Add role"
+            empty="No voice role bonuses configured."
+            onAdd={(roleId) =>
+              commit({ vcRoleXpBonus: { ...form.vcRoleXpBonus, [roleId]: { extraXp: 0, multiplier: 1 } } })
+            }
+            onRemove={(id) => removeFromMap("vcRoleXpBonus", id)}
+            renderItem={(id, cfg) => (
+              <FieldGrid>
+                <NumberField
+                  label="Extra XP"
+                  value={cfg.extraXp ?? 0}
+                  min={0}
+                  onChange={(v) => patchMap<"vcRoleXpBonus", VcRoleBonusConfig>("vcRoleXpBonus", id, { extraXp: v })}
+                />
+                <NumberField
+                  label="Multiplier"
+                  value={cfg.multiplier ?? 1}
+                  step={0.1}
+                  min={0}
+                  onChange={(v) =>
+                    patchMap<"vcRoleXpBonus", VcRoleBonusConfig>("vcRoleXpBonus", id, { multiplier: v })
+                  }
+                />
+              </FieldGrid>
+            )}
+          />
+        </Section>
+      )}
     </div>
   );
 }
