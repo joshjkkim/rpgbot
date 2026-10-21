@@ -1,4 +1,5 @@
 import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable, User } from "discord.js";
+import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import {
     ActionRowBuilder, ButtonBuilder, ButtonStyle,
     EmbedBuilder, MessageFlags, SlashCommandBuilder,
@@ -428,10 +429,13 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
         const endEmbed = buildEndEmbed(
             updatedFight, summary, config, interaction.user.displayName, result.log,
         );
+        const levelCard = summary.combatLevelUp
+            ? await rpgLevelUpCard({ config, kind: "combat", user: interaction.user, label: "Combat", before: summary.combatLevelUp - 1, after: summary.combatLevelUp })
+            : null;
         await interaction.editReply({
             embeds: [endEmbed],
             components: [],
-            files: await lootCards(summary, config),
+            files: [...(levelCard ? [levelCard] : []), ...await lootCards(summary, config)],
         });
         return;
     }

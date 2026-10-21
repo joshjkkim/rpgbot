@@ -30,6 +30,8 @@ export async function renderLevelUpBanner(args: {
     level: number;
     /** The server's theme colour; tints the label and number like the profile card. */
     accent?: string;
+    /** What levelled: "Combat", "Mining". Chat levels leave it out. */
+    label?: string;
 }): Promise<AttachmentBuilder> {
     registerCardFonts();
     const accent = args.accent || GOLD;
@@ -68,15 +70,17 @@ export async function renderLevelUpBanner(args: {
     ctx.textAlign = "right";
     ctx.fillStyle = PARCHMENT_DIM;
     ctx.font = "12px InterSemi";
-    ctx.fillText("LEVEL", right, 52);
+    ctx.fillText((args.label ?? "Level").toUpperCase(), right, 52);
     ctx.fillStyle = accent;
     ctx.font = "48px InterBold";
     ctx.fillText(String(args.level), right, 100);
     const levelWidth = Math.max(ctx.measureText(String(args.level)).width, 40);
+    ctx.font = "12px InterSemi";
+    const labelWidth = ctx.measureText((args.label ?? "Level").toUpperCase()).width;
     ctx.textAlign = "left";
 
     // Divider between the name block and the number.
-    const dividerX = right - levelWidth - 20;
+    const dividerX = right - Math.max(levelWidth, labelWidth) - 20;
     ctx.strokeStyle = STONE_DIM;
     ctx.lineWidth = 1;
     ctx.beginPath();
