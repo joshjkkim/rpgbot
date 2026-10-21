@@ -49,10 +49,14 @@ export function messagesToLevel(pace: Pace, level: number) {
 }
 
 export type Answers = {
+  /** False: the server keeps another leveling bot, so havocish's leveling is switched off. */
+  ownLeveling: boolean;
   pace: Pace;
   features: { shop: boolean; combat: boolean; duels: boolean; encounters: boolean; quests: boolean; achievements: boolean };
   levelUpChannelId: string;
   levelRoles: Array<{ level: number; roleId: string }>;
+  /** With another leveling bot: gold for each of its level roles, as role rewards. */
+  roleGold: Array<{ roleId: string; gold: number }>;
   packId: string | null;
 };
 
@@ -71,6 +75,19 @@ export function buildSetup(current: GuildConfigJson | null, a: Answers, packs: S
 
   const section = (key: string): Section => (next[key] ??= {}) as Section;
   const pace = PACES[a.pace];
+  section("xp").enabled = a.ownLeveling;
+
+  // Another bot levels the server: reward its roles instead, and leave pace and levels alone.
+  if (!a.ownLeveling) {
+    const rr = section("roleRewards");
+    const roles = { ...((rr.roles as Record<string, unknown[]>) ?? {}) };
+    for (const { roleId, gold } of a.roleGold) {
+      if (roleId && gold > 0 && !roles[roleId]) roles[roleId] = [{ type: "giveGold", amount: gold }];
+    }
+    rr.roles = roles;
+    applyFeatures(next, a);
+    return next;
+  }
 
   Object.assign(section("xp"), {
     basePerMessage: pace.basePerMessage,
@@ -93,6 +110,12 @@ export function buildSetup(current: GuildConfigJson | null, a: Answers, packs: S
   }
   levels.levelActions = actions;
 
+  applyFeatures(next, a);
+  return next;
+}
+
+function applyFeatures(next: GuildConfigJson, a: Answers) {
+  const section = (key: string): Section => (next[key] ??= {}) as Section;
   const f = a.features;
   section("shop").enabled = f.shop;
   section("quests").enabled = f.quests;
@@ -101,6 +124,4 @@ export function buildSetup(current: GuildConfigJson | null, a: Answers, packs: S
   combat.enabled = f.combat;
   combat.pvp = { ...((combat.pvp as object) ?? {}), enabled: f.combat && f.duels };
   combat.encounters = { ...((combat.encounters as object) ?? {}), enabled: f.combat && f.encounters };
-
-  return next;
 }
