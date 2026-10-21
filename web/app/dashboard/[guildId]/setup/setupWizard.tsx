@@ -11,12 +11,15 @@ import type { GuildConfigJson, StarterPack } from "@/app/lib/starterPacks";
 import { buildSetup, messagesToLevel, PACES, type Answers, type Pace } from "@/app/lib/setupWizard";
 
 /**
- * Five questions that set a server up, instead of nine settings pages. The
+ * A few questions that set a server up, instead of nine settings pages. The
  * answers map to settings in lib/setupWizard.ts; everything stays editable on
  * the normal pages afterwards, and the Overview's health check confirms it.
  */
 
-const STEPS = ["Pace", "Features", "Level-ups", "Level roles", "Starting content"] as const;
+/** With havocish leveling, every step; with another leveling bot, no pace or level-ups, and its roles get rewards. */
+const OWN_STEPS = ["Leveling", "Features", "Level-ups", "Level roles", "Starting content"] as const;
+const OTHER_BOT_STEPS = ["Leveling", "Features", "Role rewards", "Starting content"] as const;
+type Step = (typeof OWN_STEPS)[number] | (typeof OTHER_BOT_STEPS)[number];
 
 const FEATURES: Array<{ key: keyof Answers["features"]; label: string; hint: string; sprite: SpriteName; needsCombat?: boolean }> = [
   { key: "shop", label: "Shop & items", hint: "Members spend gold on gear and potions.", sprite: "coin" },
@@ -32,13 +35,17 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
   const { config, loading, saving, error, save } = useGuildConfig(guildId);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({
+    ownLeveling: true,
     pace: "standard",
     features: { shop: true, combat: true, encounters: true, duels: false, quests: true, achievements: true },
     levelUpChannelId: "",
     levelRoles: [],
+    roleGold: [],
     packId: packs[0]?.id ?? null,
   });
   const set = (patch: Partial<Answers>) => setAnswers((a) => ({ ...a, ...patch }));
+  const STEPS: readonly Step[] = answers.ownLeveling ? OWN_STEPS : OTHER_BOT_STEPS;
+  const current = STEPS[step];
 
   async function finish() {
     const next = buildSetup(config as GuildConfigJson | null, answers, packs);
@@ -52,7 +59,7 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
       <header className="border-b border-[var(--border)] pb-4">
         <h1 className="text-2xl">Set up your server</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Five quick questions. You can change any of it later; nothing you&apos;ve already made is removed.
+          {STEPS.length} quick questions. You can change any of it later; nothing you&apos;ve already made is removed.
         </p>
         <ol className="mt-4 flex flex-wrap gap-2 text-xs">
           {STEPS.map((label, i) => (
@@ -71,7 +78,32 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
       </header>
 
       <section className="frame space-y-4 p-5">
-        {step === 0 && (
+        {current === "Leveling" && (
+          <>
+            <h2 className="text-lg">Who handles leveling?</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { own: true, name: "havocish", blurb: "Members level up here by chatting, and each chat level makes them a little stronger in the RPG." },
+                { own: false, name: "I already have a leveling bot", blurb: "Keep it. havocish runs just the RPG, and you can reward the roles your bot gives at levels." },
+              ].map((o) => (
+                <button
+                  key={o.name}
+                  type="button"
+                  onClick={() => set({ ownLeveling: o.own })}
+                  aria-pressed={answers.ownLeveling === o.own}
+                  className={`rounded-sm border p-4 text-left transition-colors ${
+                    answers.ownLeveling === o.own ? "border-[var(--accent)] bg-[var(--accent)]/10" : "border-[var(--border)] hover:border-[var(--border-bright)]"
+                  }`}
+                >
+                  <p className="font-display text-base">{o.name}</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">{o.blurb}</p>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {current === "Leveling" && answers.ownLeveling && (
           <>
             <h2 className="text-lg">How fast should members level up?</h2>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -94,10 +126,10 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
           </>
         )}
 
-        {step === 1 && (
+        {current === "Features" && (
           <>
             <h2 className="text-lg">What should havocish do here?</h2>
-            <p className="text-sm text-[var(--muted)]">Levels and daily rewards are always on.</p>
+            <p className="text-sm text-[var(--muted)]">{answers.ownLeveling ? "Levels and daily rewards are always on." : "Daily rewards are always on."}</p>
             <div className="space-y-3">
               {FEATURES.filter((f) => !f.needsCombat || answers.features.combat).map((f) => (
                 <div key={f.key} className={`flex items-start gap-3 ${f.needsCombat ? "pl-8" : ""}`}>
@@ -114,7 +146,7 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
           </>
         )}
 
-        {step === 2 && (
+        {current === "Level-ups" && (
           <>
             <h2 className="text-lg">Where should level-ups be announced?</h2>
             <p className="text-sm text-[var(--muted)]">havocish posts a level-up banner there. Pick a busy channel, or skip.</p>
@@ -127,7 +159,7 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
           </>
         )}
 
-        {step === 3 && (
+        {current === "Level roles" && (
           <>
             <h2 className="text-lg">Give roles at certain levels?</h2>
             <p className="text-sm text-[var(--muted)]">
@@ -172,7 +204,53 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
           </>
         )}
 
-        {step === 4 && (
+        {current === "Role rewards" && (
+          <>
+            <h2 className="text-lg">Reward your leveling bot&apos;s roles?</h2>
+            <p className="text-sm text-[var(--muted)]">
+              When your other bot gives a role at a level, havocish can pay gold for it, once per member. Optional; items and
+              Combat XP can be added later on the Leveling page.
+            </p>
+            <div className="space-y-3">
+              {answers.roleGold.map((row, i) => (
+                <div key={i} className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <RoleField
+                      label="Role"
+                      value={row.roleId}
+                      onChange={(v) => set({ roleGold: answers.roleGold.map((r, j) => (j === i ? { ...r, roleId: v } : r)) })}
+                      emptyLabel="Pick a role"
+                    />
+                  </div>
+                  <label className="w-28 space-y-1.5 text-sm">
+                    <span className="block font-medium">Gold</span>
+                    <input
+                      type="number" min={1} value={row.gold}
+                      onChange={(e) => set({ roleGold: answers.roleGold.map((r, j) => (j === i ? { ...r, gold: Number(e.target.value) } : r)) })}
+                      className="w-full rounded-sm border px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => set({ roleGold: answers.roleGold.filter((_, j) => j !== i) })}
+                    className="pb-2 text-xs text-[var(--muted)] hover:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => set({ roleGold: [...answers.roleGold, { roleId: "", gold: 100 * (answers.roleGold.length + 1) }] })}
+                className="btn btn-stone px-3 py-1.5 text-sm"
+              >
+                + Add a role reward
+              </button>
+            </div>
+          </>
+        )}
+
+        {current === "Starting content" && (
           <>
             <h2 className="text-lg">Start with ready-made content?</h2>
             <p className="text-sm text-[var(--muted)]">A pack fills the shop, enemies and quests so there&apos;s something to do right away.</p>

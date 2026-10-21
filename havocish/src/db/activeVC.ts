@@ -47,7 +47,7 @@ export async function onLeaveVoiceChannel(voiceState: VoiceState, guildId: strin
     }
 
     // The server-wide switch was never checked, so voice XP was paid while it was off.
-    if (!config.xp.vc.enabled) return null;
+    if (!config.xp.vc.enabled || config.xp.enabled === false) return null;
     if (config.xp.vc.channelIds[session.channelId]?.enabled === false) return null;
 
     const now = new Date();

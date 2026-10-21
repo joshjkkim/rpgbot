@@ -18,7 +18,7 @@ import { upsertUser } from "../src/db/users.js";
 import { upsertGuild, setGuildConfig, mergeConfig, getGuildByDiscordId, markGuildRemoved } from "../src/db/guilds.js";
 import { addMessageXp, grantDailyXp, getUserGuildProfile, upsertUserGuildProfile } from "../src/db/userGuildProfiles.js";
 import { getOrCreateProfile, flushProfileCacheToDb, profileEvents } from "../src/cache/profileService.js";
-import { calculateTotalXpForLevel } from "../src/leveling/levels.js";
+import { calculateTotalXpForLevel, dailyTemplate } from "../src/leveling/levels.js";
 import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache } from "../src/cache/caches.js";
 import { query, closePool } from "../src/db/index.js";
 import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trade.js";
@@ -52,6 +52,8 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
+import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
+import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
@@ -395,6 +397,25 @@ async function main() {
         check("throttled call reported the entry still dirty", throttledResult, false);
         check("forced call reported it clean", forcedResult, true);
         check("forced call persisted the XP", await xpInDb(userId, guildId), "20");
+    });
+
+    await test("leveling off: no chat XP anywhere, the rest still runs", async () => {
+        const { userId, guildId, config } = await reset();
+        config.xp.enabled = false;
+
+        await addMessageXp({ userId, guildId, config });
+        const p = (await getOrCreateProfile({ userId, guildId })).profile;
+        check("a message gives no XP", p.xp, "0");
+        check("but still counts as a message", p.user_stats.messagesSent, 1);
+
+        const daily = await grantDailyXp({ userId, guildId, config });
+        check("the daily gives no XP", daily.rewardXp, 0);
+        check("but still pays gold", daily.rewardGold, config.xp.dailyGold);
+
+        const stats = calculateStats({ level: 40, user_stats: {} } as any, config, {});
+        check("no chat-level stat bonus", stats.maxHp, calculateStats({ level: 1, user_stats: {} } as any, { ...config, combat: { ...config.combat, chatBonus: {} } }, {}).maxHp);
+        check("the daily message drops its XP part",
+            dailyTemplate("You got {xp} {xpName} {xpIcon} and {gold} {goldName}!", config), "You got {gold} {goldName}!");
     });
 
     await test("daily grants xp + gold once per day", async () => {
@@ -1405,6 +1426,16 @@ async function main() {
         check("gold persisted", row.rows[0]?.gold, "40");
     });
 
+    await test("chat level adds a small bonus on top of Combat stats", async () => {
+        const cfg = DEFAULT_GUILD_CONFIG;
+        const chat1 = calculateStats({ level: 1, user_stats: {} } as any, cfg, {});
+        const chat41 = calculateStats({ level: 41, user_stats: {} } as any, cfg, {});
+        check("40 chat levels add 80 HP", chat41.maxHp - chat1.maxHp, 80);
+        check("and 20 attack", chat41.atk - chat1.atk, 20);
+        const off = { ...cfg, combat: { ...cfg.combat, chatBonus: { hp: 0, atk: 0 } } };
+        check("an owner can turn it off", calculateStats({ level: 41, user_stats: {} } as any, off, {}).maxHp, chat1.maxHp - 2);
+    });
+
     await test("combat: its own level and curve, split once from chat level", async () => {
         const cfg = DEFAULT_GUILD_CONFIG;
         const p = { xp: "999999", level: 40, user_stats: {} } as any;
@@ -1450,6 +1481,72 @@ async function main() {
         check("a deleted skill fails open", ok({ skills: { gone: 99 } }).ok, true);
         check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs chat level 9, the <@&x> role and boosting the server.");
         check("an item's old level folds in as Combat", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ combatLevel: 3, roles: ["r"] }));
+    });
+
+    await test("role rewards pay once per member per role", async () => {
+        const ids = await reset();
+        const config = ids.config;
+        config.shop = { ...config.shop, items: { badge: { id: "badge", name: "Badge", categoryId: "", price: 0 } } } as any;
+        config.roleRewards = { roles: {
+            lvl10: [{ type: "giveGold", amount: 250 }, { type: "giveItem", itemId: "badge" }],
+            lvl20: [{ type: "giveCombatXp", amount: 1885 }],
+            onlyMessage: [{ type: "sendMessage", message: "hi" }],
+        } };
+        const p = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        p.gold = "0";
+        const grant = (roleIds: string[]) => grantRoleRewards({ userId: ids.userId, guildId: ids.guildId, config, roleIds });
+
+        const first = await grant(["everyone", "lvl10", "onlyMessage"]);
+        check("only the rewarded role pays", first.map((r) => r.roleId).join(","), "lvl10");
+        check("and says what it gave", first[0]?.given.join(", "), "+250 Gold, 1× Badge");
+        check("having it still pays nothing more", (await grant(["lvl10"])).length, 0);
+        const both = await grant(["lvl10", "lvl20"]);
+        check("a new role pays just itself", both.map((r) => r.roleId).join(","), "lvl20");
+        const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("gold once", after.gold, "250");
+        check("Combat XP once", after.user_stats.combat?.xp, 1885);
+        check("chat XP untouched", after.xp, p.xp);
+        check("losing and regaining a role pays nothing", (await grant(["lvl20"])).length + (await grant(["lvl10", "lvl20"])).length, 0);
+        check("an admin reset clears just that role", await resetRoleRewards({ userId: ids.userId, guildId: ids.guildId, roleId: "lvl10" }), 1);
+        check("which then pays once more", (await grant(["lvl10", "lvl20"])).map((r) => r.roleId).join(","), "lvl10");
+        check("resetting everything clears both", await resetRoleRewards({ userId: ids.userId, guildId: ids.guildId }), 2);
+    });
+
+    await test("RPG level-up cards: Combat every level, skills at milestones, both switchable", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const user = { displayName: "Tester", displayAvatarURL: () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" } as any;
+        const card = (kind: "combat" | "skills", before: number, after: number) =>
+            rpgLevelUpCard({ config: cfg, kind, user, label: kind === "combat" ? "Combat" : "Mining", before, after }).then((c) => !!c);
+        check("Combat 4 → 5 gets a card", await card("combat", 4, 5), true);
+        check("a skill 11 → 12 does not", await card("skills", 11, 12), false);
+        check("a skill 9 → 10 does", await card("skills", 9, 10), true);
+        check("a skill reaching its cap does", await card("skills", 48, 50), true);
+        check("no level gained, no card", await card("combat", 5, 5), false);
+        cfg.style.levelUpCards = { combat: false };
+        check("an owner can turn Combat cards off", await card("combat", 4, 5), false);
+        check("which leaves skill cards on", await card("skills", 9, 10), true);
+    });
+
+    await test("level actions pay gold, items and Combat XP for every level crossed", async () => {
+        const ids = await reset();
+        const config = ids.config;
+        config.shop = { ...config.shop, items: { potion: { id: "potion", name: "Potion", emoji: "🧪", categoryId: "", price: 0 } } } as any;
+        config.levels.levelActions = {
+            5: [{ type: "giveGold", amount: 100 }, { type: "assignRole", roleId: "r" }],
+            6: [{ type: "giveItem", itemId: "potion", quantity: 2 }, { type: "giveItem", itemId: "gone" }],
+            7: [{ type: "giveCombatXp", amount: 1885 }],
+            9: [{ type: "giveGold", amount: 999 }],
+        };
+        const p = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        p.gold = "10";
+        const given = await grantLevelRewards({ userId: ids.userId, guildId: ids.guildId, config, fromLevel: 4, toLevel: 7 });
+        const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("gold from level 5, not level 9", after.gold, "110");
+        check("items from level 6; a deleted item gives nothing", after.inventory.potion?.quantity, 2);
+        check("Combat XP from level 7", after.user_stats.combat?.xp, 1885);
+        check("chat XP untouched", after.xp, p.xp);
+        check("the announcement lists it", given.join(", "), "+100 Gold, 2× 🧪 Potion, +1,885 ⚔️ Combat XP");
+        check("no reward actions, nothing given", (await grantLevelRewards({ userId: ids.userId, guildId: ids.guildId, config, fromLevel: 9, toLevel: 10 })).length, 0);
     });
 
     await test("crafting: what a member can make, and making it", async () => {

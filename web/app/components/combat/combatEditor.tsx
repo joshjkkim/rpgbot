@@ -91,6 +91,8 @@ export interface CombatConfig {
   critChancePerLevel?: number;
   critMultiplierBase?: number;
   critMultiplierPerLevel?: number;
+  /** Stats added per chat level, on top of Combat level. */
+  chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
   enemies?: Record<string, EnemyConfig>;
   pveDeathPenalty?: CombatDeathPenalty;
   pvpDeathPenalty?: CombatDeathPenalty;
@@ -126,6 +128,16 @@ const STATS: Array<{
     perLevelKey: "critMultiplierPerLevel",
     step: 0.1,
   },
+];
+
+/** Mirrors the bot's default (havocish/src/types/guild.ts). */
+const DEFAULT_CHAT_BONUS: NonNullable<CombatConfig["chatBonus"]> = { hp: 2, atk: 0.5 };
+const CHAT_BONUS: Array<{ key: keyof NonNullable<CombatConfig["chatBonus"]>; label: string; step?: number }> = [
+  { key: "hp", label: "Health", step: 1 },
+  { key: "atk", label: "Attack" },
+  { key: "def", label: "Defence" },
+  { key: "spd", label: "Speed" },
+  { key: "crit", label: "Crit chance %", step: 0.1 },
 ];
 
 export default function CombatEditor({ value, onChange, shopItems, skills }: Props) {
@@ -456,6 +468,24 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
             </Field>
           ))}
         </div>
+      </Section>
+
+      <Section
+        title="Chat level bonus"
+        description="Chatting makes members a little stronger: each chat level adds these on top of their Combat stats. Keep them well below the per-Combat-level values so fighting stays the main way up. Set them all to 0 to turn it off."
+      >
+        <FieldGrid>
+          {CHAT_BONUS.map(({ key, label, step }) => (
+            <NumberField
+              key={key}
+              label={`${label} per chat level`}
+              value={(local.chatBonus ?? DEFAULT_CHAT_BONUS)[key] ?? 0}
+              min={0}
+              step={step ?? 0.5}
+              onChange={(v) => updateRoot({ chatBonus: { ...(local.chatBonus ?? DEFAULT_CHAT_BONUS), [key]: v } })}
+            />
+          ))}
+        </FieldGrid>
       </Section>
 
       <Section advanced title="Death penalties" description="What a member loses on defeat." defaultOpen={false}>

@@ -3,7 +3,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, Message
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { calculateStats, resolveCurrentHp } from "../../player/combat.js";
+import { calculateStats, chatLevelBonus, resolveCurrentHp } from "../../player/combat.js";
 import { calculateLevelFromXp, calculateTotalXpForLevel, levelStartXp } from "../../leveling/levels.js";
 import { accentColor } from "../../ui/pager.js";
 import { SLOT_META } from "./inventory.js";
@@ -42,6 +42,15 @@ function itemBonus(config: GuildConfig, itemId: string) {
         .join(", ");
 }
 
+/** "-# 💬 From chat level 40: +80 HP, +20 ATK", or nothing when chat adds nothing. */
+function chatBonusLine(profile: DbUserGuildProfile, config: GuildConfig) {
+    const b = chatLevelBonus(profile, config);
+    const parts = (Object.keys(STAT_LABELS) as Array<keyof typeof STAT_LABELS>)
+        .filter((k) => Math.round(b[k]) > 0)
+        .map((k) => `+${Math.round(b[k])}${k === "crit" ? STAT_LABELS[k] : ` ${STAT_LABELS[k]}`}`);
+    return parts.length ? [`-# 💬 From chat level ${b.level}: ${parts.join(", ")}`] : [];
+}
+
 export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, name: string, ownerId: string, canAct: boolean) {
     const xp = Number(profile.xp ?? 0);
     const level = calculateLevelFromXp(xp, config);
@@ -53,7 +62,8 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
     const goldName = config.style.gold.name || "gold";
 
     const c = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
-    c.addTextDisplayComponents(t => t.setContent([
+    // Servers that keep another leveling bot turn havocish's off: no chat level to show.
+    c.addTextDisplayComponents(t => t.setContent(config.xp.enabled === false ? `## ${name}` : [
         `## ${name} · Level ${level}`,
         `\`${bar(into / span)}\` ${into.toLocaleString()} / ${span.toLocaleString()} ${xpName} to level ${level + 1}`,
     ].join("\n")));
@@ -66,6 +76,7 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
             `⚔️ **Combat ${cp.level}** ${cp.span ? `\`${bar(cp.into / cp.span)}\` ${cp.into.toLocaleString()} / ${cp.span.toLocaleString()} XP` : "max"}`,
             `❤️ **HP** \`${bar(hp / stats.maxHp)}\` ${hp} / ${stats.maxHp}`,
             `⚔️ **ATK** ${stats.atk}  ·  🛡️ **DEF** ${stats.def}  ·  💨 **SPD** ${stats.spd}  ·  🎯 **CRIT** ${stats.critChance.toFixed(1)}%`,
+            ...chatBonusLine(profile, config),
             hp <= 0
                 ? "-# ⚠️ 0 HP: heal with `/daily` or a potion before fighting."
                 : hp < stats.maxHp / 3 ? "-# Low on HP. Heal before a tough fight." : "-# Ready to fight.",

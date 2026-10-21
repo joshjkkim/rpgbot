@@ -1,4 +1,5 @@
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SectionBuilder, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -78,6 +79,13 @@ function renderForge(ownerId: string, run: ForgeRun, config: GuildConfig) {
             new ButtonBuilder().setCustomId(`craft:strike:${ownerId}:${run.station.id}`).setLabel(w.strike).setStyle(ButtonStyle.Danger),
         ));
     return { components: [container], flags: MessageFlags.IsComponentsV2 as const };
+}
+
+/** A skill milestone's card, posted publicly under the (private) crafting window. */
+async function skillCard(source: ButtonInteraction, result: CraftResult, station: CraftingStation, config: GuildConfig) {
+    if (!result.ok) return;
+    const card = await rpgLevelUpCard({ config, kind: "skills", user: source.user, label: station.skillName, before: result.skillBefore, after: result.skillAfter });
+    if (card) await source.followUp({ content: `<@${source.user.id}> reached **${station.skillName} ${result.skillAfter}**!`, files: [card], allowedMentions: { parse: [] } }).catch(() => null);
 }
 
 /** The result line under the recipe list. */
@@ -194,11 +202,11 @@ export async function handleCraftButton(interaction: ButtonInteraction) {
     const page = Number(b) || 0;
     if (recipe && station.style === "forge") return startForge(interaction, { userId: user.id, guildId: guild.id }, station, recipe, page, config);
 
-    const status = recipe
-        ? resultLine(await craftOnce({ userId: user.id, guildId: guild.id, config, station, recipe, facts: memberFacts(interaction.member) }), station, config)
-        : "That recipe was removed.";
+    const made = recipe ? await craftOnce({ userId: user.id, guildId: guild.id, config, station, recipe, facts: memberFacts(interaction.member) }) : null;
+    const status = made ? resultLine(made, station, config) : "That recipe was removed.";
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
     await interaction.update(render(ownerId, station, profile, config, page, status, memberFacts(interaction.member)));
+    if (made) await skillCard(interaction, made, station, config);
 }
 
 /** Swaps the recipe list for the forge bar and starts it moving. Nothing is spent until the strike. */
@@ -266,6 +274,7 @@ async function strike(source: ButtonInteraction, config: GuildConfig, timedOut: 
     const view = render(source.user.id, run.station, profile, config, run.page, resultLine(result, run.station, config, timedOut), memberFacts(source.member));
     if (timedOut) await run.interaction.editReply(view).catch(() => null);
     else await source.update(view);
+    await skillCard(timedOut ? run.interaction : source, result, run.station, config);
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction) {

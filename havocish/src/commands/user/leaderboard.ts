@@ -28,7 +28,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
 
-    const leaderboardType = interaction.options.getString("type") ?? "xp";
+    // With leveling off, chat XP stands still, so gold is the board worth showing first.
+    const leaderboardType = interaction.options.getString("type") ?? (config.xp.enabled === false ? "gold" : "xp");
 
     const prettyLabel: Record<string, string> = {
         xp: `Total ${config.style.xp.name || "XP"}`,

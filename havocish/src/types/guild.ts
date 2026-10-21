@@ -34,10 +34,13 @@ export interface RoleTempConfig {
 }
 
 export interface LevelAction {
-    type: "assignRole" | "removeRole" | "sendMessage";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveGold" | "giveItem" | "giveCombatXp";
     roleId?: string; // for assignRole/removeRole
     message?: string; // for sendMessage
     channelId?: string; // for sendMessage
+    amount?: number; // for giveGold/giveCombatXp
+    itemId?: string; // for giveItem
+    quantity?: number; // for giveItem, default 1
 }
 
 export interface StreakReward {
@@ -70,6 +73,8 @@ export interface GuildConfig {
             icon?: string;
             name?: string;
         };
+        /** Banner cards for RPG level-ups. Unset means on. */
+        levelUpCards?: { combat?: boolean; skills?: boolean };
     },
     combat: {
         enabled: boolean;
@@ -87,6 +92,12 @@ export interface GuildConfig {
         critChancePerLevel?: number;
         critMultiplierBase?: number;
         critMultiplierPerLevel?: number;
+        /**
+         * Stats added per chat level, on top of the Combat-level stats: chatting
+         * makes you a bit stronger (leveling feeds the RPG, never the reverse).
+         * Kept well below the per-Combat-level values so fighting stays the way up.
+         */
+        chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
         enemies?: Record<string, EnemyConfig>;
         pveDeathPenalty?: {
             goldPercent?: number;   // % of current gold lost (e.g. 5 = 5%). Default: 0
@@ -139,6 +150,12 @@ export interface GuildConfig {
         };
     },
     xp: {
+        /**
+         * havocish's own leveling: chat and voice XP, daily XP, level-ups and the
+         * chat-level stat bonus. Off for servers that keep another leveling bot;
+         * the RPG runs either way, gated by that bot's roles through Requirements.
+         */
+        enabled: boolean;
         basePerMessage: number;
         xpMessageCooldown: number;
         xpChannelIds: Record<string, xpChannelConfig>; // channelId -> xp multiplier
@@ -205,6 +222,16 @@ export interface GuildConfig {
     },
     gathering: GatheringConfig;
     crafting: CraftingConfig;
+    /**
+     * Rewards for getting a role, from any source: another leveling bot's level
+     * roles, a booster role, a role a mod hands out. Paid once per member per role.
+     */
+    roleRewards?: {
+        /** Where "@member got the @Role reward" is posted. Unset: rewards arrive quietly. */
+        channelId?: string | null;
+        /** Role id → rewards. Only giveGold, giveItem and giveCombatXp apply. */
+        roles: Record<string, LevelAction[]>;
+    };
 }
 
 export const DEFAULT_GUILD_CONFIG: GuildConfig = {
@@ -238,6 +265,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         critChancePerLevel: 0.5,
         critMultiplierBase: 1.5,
         critMultiplierPerLevel: 0.1,
+        chatBonus: { hp: 2, atk: 0.5 },
         enemies: {},
         pvp: {
             enabled: false,
@@ -251,6 +279,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
         },
     },
     xp: {
+        enabled: true,
         // The wizard's Standard pace (web/app/lib/setupWizard.ts): level 10 is
         // about 1,250 XP-earning messages, so levels and gear feel earned.
         basePerMessage: 5,

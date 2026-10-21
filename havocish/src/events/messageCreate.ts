@@ -1,4 +1,6 @@
 import { combatLevel } from "../player/combatLevel.js";
+import { dailyTemplate } from "../leveling/levels.js";
+import { checkRoleRewards } from "./roleRewards.js";
 import { Client, Events } from "discord.js";
 import { getActiveFight } from "../player/fight.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -41,6 +43,9 @@ export function registerMessageCreate(client: Client) {
         config,
         roleIds,
       });
+
+      // Members who had a rewarded role before its reward was set get it here.
+      await checkRoleRewards(member).catch((err) => console.error("Role rewards failed:", err));
 
       // Only messages that earned XP can draw an encounter, so the XP cooldown
       // and disabled channels keep spam from farming spawns.
@@ -119,7 +124,7 @@ export function registerMessageCreate(client: Client) {
         if (dailyChannelId) {
           const channel = await message.client.channels.fetch(dailyChannelId).catch(() => null);
           if (channel && channel.isTextBased() && channel.isSendable()) {
-            const dailyMessage = config.xp.announceDailyMessage
+            const dailyMessage = dailyTemplate(config.xp.announceDailyMessage, config)
               .replace('{user}', `<@${message.author.id}>`)
               .replace('{xp}', rewardXp?.toString() ?? '0')
               .replace(`{xpName}`, config.style.xp.name || "XP")
@@ -133,7 +138,7 @@ export function registerMessageCreate(client: Client) {
         }
 
         if (config.xp.replyToDailyInChannel) {
-          const replyMessage = config.xp.replyToDailyMessage
+          const replyMessage = dailyTemplate(config.xp.replyToDailyMessage, config)
             .replace('{xp}', rewardXp?.toString() ?? '0')
             .replace('{gold}', rewardGold?.toString() ?? '0')
             .replace(`{xpName}`, config.style.xp.name || "XP")

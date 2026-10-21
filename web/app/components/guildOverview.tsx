@@ -40,20 +40,15 @@ function describe(config: Record<string, any>): Row[] {
 
   return [
     {
-      href: "xp", title: "XP", sprite: "potion", enabled: null,
-      summary: [
-        `${xp.basePerMessage ?? 0} ${xpName} per message${xp.xpMessageCooldown ? `, at most once every ${xp.xpMessageCooldown}s` : ""}`,
-        xp.vc?.enabled ? `voice gives ${xp.vc.basePerMinute ?? 0} a minute` : "no voice XP",
-        `daily reward of ${xp.dailyXp ?? 0} ${xpName} and ${xp.dailyGold ?? 0} ${goldName}`,
-      ].join(", ") + ".",
-    },
-    {
-      href: "levels", title: "Levels", sprite: "star", enabled: null,
-      summary: [
-        `${levels.curveType ?? "linear"} curve`,
-        levels.maxLevel ? `up to level ${levels.maxLevel}` : "no level cap",
-        count(levels.levelActions) ? `rewards at ${n(count(levels.levelActions), "level")}` : "no level rewards yet",
-      ].join(", ") + ".",
+      href: "leveling", title: "Leveling", sprite: "star", enabled: xp.enabled !== false,
+      summary: xp.enabled === false
+        ? `Off: another leveling bot can handle it. Dailies pay ${xp.dailyGold ?? 0} ${goldName}.`
+        : [
+            `${xp.basePerMessage ?? 0} ${xpName} per message${xp.xpMessageCooldown ? `, at most once every ${xp.xpMessageCooldown}s` : ""}`,
+            xp.vc?.enabled ? `voice gives ${xp.vc.basePerMinute ?? 0} a minute` : "no voice XP",
+            `${levels.curveType ?? "linear"} curve${levels.maxLevel ? ` up to level ${levels.maxLevel}` : ""}`,
+            count(levels.levelActions) ? `rewards at ${n(count(levels.levelActions), "level")}` : "no level rewards yet",
+          ].join(", ") + ".",
     },
     {
       href: "shop", title: "Shop", sprite: "coin", enabled: !!shop.enabled,

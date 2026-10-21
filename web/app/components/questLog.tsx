@@ -5,6 +5,7 @@ type Toggle = { enabled?: boolean };
 
 /** The slice of guild config the quest log reads. */
 export type QuestLogConfig = {
+  xp?: Toggle;
   levels?: {
     announceLevelUpInChannelId?: string | null;
     levelActions?: Record<string, Array<{ type?: string; roleId?: string }>>;
@@ -19,24 +20,29 @@ export type QuestLogConfig = {
 const has = (record?: object) => Object.keys(record ?? {}).length > 0;
 
 function buildQuests(config: QuestLogConfig | null) {
-  const { levels = {}, shop = {}, combat = {}, quests = {}, achievements = {}, logging = {} } = config ?? {};
+  const { xp = {}, levels = {}, shop = {}, combat = {}, quests = {}, achievements = {}, logging = {} } = config ?? {};
   const givesRole = Object.values(levels.levelActions ?? {}).some(
     (actions) => Array.isArray(actions) && actions.some((a) => a?.type === "assignRole" && a.roleId)
   );
 
-  return [
+  // Servers that keep another leveling bot have no level quests to do.
+  const leveling = xp.enabled === false ? [] : [
     {
-      href: "levels",
+      href: "leveling",
       title: "Herald of Levels",
       done: !!levels.announceLevelUpInChannelId,
       todo: "Pick a channel for level-up announcements.",
     },
     {
-      href: "levels",
+      href: "leveling",
       title: "Rewards of Rank",
       done: givesRole,
       todo: "Give a role at a level, under Level actions.",
     },
+  ];
+
+  return [
+    ...leveling,
     {
       href: "shop",
       title: "Open for Business",

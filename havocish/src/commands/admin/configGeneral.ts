@@ -17,6 +17,7 @@ const TOGGLES = [
     { key: "gifting", label: "Gifting", emoji: "🎁", path: ["shop", "gifting", "enabled"] },
     { key: "quests", label: "Quests", emoji: "📜", path: ["quests", "enabled"] },
     { key: "achievements", label: "Achievements", emoji: "🏅", path: ["achievements", "enabled"] },
+    { key: "leveling", label: "Leveling", emoji: "📈", path: ["xp", "enabled"] },
     { key: "voice", label: "Voice XP", emoji: "🎙️", path: ["xp", "vc", "enabled"] },
     { key: "combat", label: "Combat", emoji: "⚔️", path: ["combat", "enabled"] },
     { key: "duels", label: "Duels", emoji: "🤺", path: ["combat", "pvp", "enabled"], needsCombat: true },

@@ -10,6 +10,7 @@ import { registerGuildDelete } from "./events/guildDelete.js";
 import { registerInteractionCreate } from "./events/interactionCreate.js";
 import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
 import { registerLevelUps } from "./events/levelUp.js";
+import { registerRoleRewards } from "./events/roleRewards.js";
 import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
 import { flushLogBuffer } from "./db/events.js";
 import { abandonFight, allActiveFights, cleanupStaleFights } from "./player/fight.js";
@@ -58,6 +59,7 @@ registerGuildDelete(client);
 registerInteractionCreate(client);
 registerVoiceStateUpdate(client);
 registerLevelUps(client);
+registerRoleRewards(client);
 const previewServer = startPreviewServer(client);
 
 const pruneTimer = setInterval(() => {

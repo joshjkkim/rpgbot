@@ -20,13 +20,16 @@ import {
   suggestedCurveParams,
   type CurveType,
 } from "@/app/lib/levelCurve";
-import { ChannelField, RoleField } from "@/app/components/ui/pickers";
+import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
 
 export interface LevelAction {
-  type: "assignRole" | "removeRole" | "sendMessage";
+  type: "assignRole" | "removeRole" | "sendMessage" | "giveGold" | "giveItem" | "giveCombatXp";
   roleId?: string;
   message?: string;
   channelId?: string;
+  amount?: number;
+  itemId?: string;
+  quantity?: number;
 }
 
 export type LevelsConfig = {
@@ -39,9 +42,15 @@ export type LevelsConfig = {
   levelActions: Record<number, LevelAction[]>;
 };
 
+/** Which sections to show; the Leveling page shows one group per tab. All when unset. */
+export type LevelsPart = "levels" | "rewards";
+
 type Props = {
+  part?: LevelsPart;
   value: LevelsConfig | null | undefined;
   onChange: (next: LevelsConfig) => void;
+  /** Shop items, for the Give item action. */
+  shopItems: Record<string, { name?: string; emoji?: string }>;
 };
 
 const CURVES = [
@@ -55,6 +64,9 @@ const ACTION_TYPES = [
   { value: "assignRole" as const, label: "Assign role" },
   { value: "removeRole" as const, label: "Remove role" },
   { value: "sendMessage" as const, label: "Send message" },
+  { value: "giveGold" as const, label: "Give gold" },
+  { value: "giveItem" as const, label: "Give item" },
+  { value: "giveCombatXp" as const, label: "Give Combat XP" },
 ];
 
 /**
@@ -82,7 +94,8 @@ function fromStored(config: LevelsConfig): LevelsConfig {
   return { ...cleaned, curveParams: normalizeCurveParams(cleaned.curveType, cleaned.curveParams) };
 }
 
-export default function LevelsEditor({ value, onChange }: Props) {
+export default function LevelsEditor({ value, onChange, shopItems, part }: Props) {
+  const show = (p: LevelsPart) => !part || part === p;
   const defaults: LevelsConfig = useMemo(
     () => ({
       maxLevel: null,
@@ -134,226 +147,276 @@ export default function LevelsEditor({ value, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <Section title="General" description="The level cap and how level-ups are announced.">
-        <FieldGrid>
-          <NumberField
-            label="Max level"
-            value={local.maxLevel ?? 0}
-            min={0}
-            onChange={(v) => updateRoot({ maxLevel: v > 0 ? v : null })}
-            hint="0 means no cap."
-          />
-          <ChannelField
-            label="Announce channel"
-            value={local.announceLevelUpInChannelId ?? ""}
-            onChange={(v) => updateRoot({ announceLevelUpInChannelId: v.trim() || null })}
-            emptyLabel="Don't announce"
-          />
-          <TextAreaField
-            label="Level-up message"
-            value={local.announceLevelUpMessage}
-            onChange={(v) => updateRoot({ announceLevelUpMessage: v })}
-            rows={2}
-            hint="{user} {level}"
-          />
-        </FieldGrid>
-      </Section>
-
-      <Section title="Progression curve" description="How much total XP each level costs.">
-        <FieldGrid>
-          <SelectField
-            label="Curve"
-            value={local.curveType}
-            onChange={(v) => commit({ ...local, curveType: v, curveParams: suggestedCurveParams(v) })}
-            options={CURVES}
-            hint={`Changing this resets the parameters. ${CURVE_HINTS[local.curveType]}`}
-          />
-        </FieldGrid>
-
-        <div className="mt-4">
+      {show("levels") && (
+        <Section title="General" description="The level cap and how level-ups are announced.">
           <FieldGrid>
-            {(CURVE_PARAMS[local.curveType] ?? []).map((spec) => (
-              <NumberField
-                key={spec.key}
-                label={spec.label}
-                value={local.curveParams?.[spec.key] ?? spec.fallback}
-                step={spec.step}
-                min={spec.min}
-                onChange={(v) =>
-                  updateRoot({ curveParams: { ...(local.curveParams ?? {}), [spec.key]: v } })
-                }
-              />
-            ))}
+            <NumberField
+              label="Max level"
+              value={local.maxLevel ?? 0}
+              min={0}
+              onChange={(v) => updateRoot({ maxLevel: v > 0 ? v : null })}
+              hint="0 means no cap."
+            />
+            <ChannelField
+              label="Announce channel"
+              value={local.announceLevelUpInChannelId ?? ""}
+              onChange={(v) => updateRoot({ announceLevelUpInChannelId: v.trim() || null })}
+              emptyLabel="Don't announce"
+            />
+            <TextAreaField
+              label="Level-up message"
+              value={local.announceLevelUpMessage}
+              onChange={(v) => updateRoot({ announceLevelUpMessage: v })}
+              rows={2}
+              hint="{user} {level}"
+            />
           </FieldGrid>
-        </div>
+        </Section>
+      )}
 
-        <div className="mt-6">
-          <LevelCurveChart levels={local} />
-        </div>
-      </Section>
+      {show("levels") && (
+        <Section title="Progression curve" description="How much total XP each level costs.">
+          <FieldGrid>
+            <SelectField
+              label="Curve"
+              value={local.curveType}
+              onChange={(v) => commit({ ...local, curveType: v, curveParams: suggestedCurveParams(v) })}
+              options={CURVES}
+              hint={`Changing this resets the parameters. ${CURVE_HINTS[local.curveType]}`}
+            />
+          </FieldGrid>
 
-      <Section advanced
-        title="XP overrides"
-        description="Pin specific levels to an exact total XP, ignoring the curve."
-        defaultOpen={false}
-      >
-        <KeyedList<number>
-          entries={overrideEntries}
-          addPlaceholder="Level number"
-          addLabel="Add override"
-          empty="No overrides. Every level follows the curve."
-          itemLabel={(level) => `Level ${level}`}
-          onAdd={(raw) => {
-            const level = Number(raw);
-            if (!Number.isFinite(level) || level <= 0) return;
-            updateRoot({ xpOverrides: { ...(local.xpOverrides ?? {}), [level]: 0 } });
-          }}
-          onRemove={(level) => {
-            const next = { ...(local.xpOverrides ?? {}) };
-            delete next[Number(level)];
-            updateRoot({ xpOverrides: next });
-          }}
-          renderItem={(level, xpRequired) => (
+          <div className="mt-4">
             <FieldGrid>
-              <NumberField
-                label="Total XP required"
-                value={xpRequired}
-                min={0}
-                onChange={(v) =>
-                  updateRoot({ xpOverrides: { ...(local.xpOverrides ?? {}), [Number(level)]: v } })
-                }
-              />
+              {(CURVE_PARAMS[local.curveType] ?? []).map((spec) => (
+                <NumberField
+                  key={spec.key}
+                  label={spec.label}
+                  value={local.curveParams?.[spec.key] ?? spec.fallback}
+                  step={spec.step}
+                  min={spec.min}
+                  onChange={(v) =>
+                    updateRoot({ curveParams: { ...(local.curveParams ?? {}), [spec.key]: v } })
+                  }
+                />
+              ))}
             </FieldGrid>
-          )}
-        />
-      </Section>
+          </div>
 
-      <Section
-        title="Level actions"
-        description="What happens when someone reaches a level."
-        defaultOpen={false}
-      >
-        <KeyedList<LevelAction[]>
-          entries={actionEntries}
-          addPlaceholder="Level number"
-          addLabel="Add level"
-          empty="No level actions configured."
-          itemLabel={(level, actions) =>
-            `Level ${level} — ${actions.length} action${actions.length === 1 ? "" : "s"}`
-          }
-          onAdd={(raw) => {
-            const level = Number(raw);
-            if (!Number.isFinite(level) || level <= 0) return;
-            if ((local.levelActions ?? {})[level]) return;
-            updateRoot({ levelActions: { ...(local.levelActions ?? {}), [level]: [] } });
-          }}
-          onRemove={(level) => {
-            const next = { ...(local.levelActions ?? {}) };
-            delete next[Number(level)];
-            updateRoot({ levelActions: next });
-          }}
-          renderItem={(level, actions) => (
-            <div className="space-y-3">
-              {actions.length === 0 && (
-                <p className="text-xs text-[var(--muted)]">Nothing happens at this level yet.</p>
-              )}
+          <div className="mt-6">
+            <LevelCurveChart levels={local} />
+          </div>
+        </Section>
+      )}
 
-              {actions.map((action, index) => (
-                <div
-                  key={index}
-                  className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs text-[var(--muted)]">Action {index + 1}</span>
-                    <button
-                      type="button"
-                      aria-label="Remove action"
-                      onClick={() => setLevelActions(level, actions.filter((_, i) => i !== index))}
-                      className="text-[var(--muted)] transition-colors hover:text-red-400"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+      {show("levels") && (
+        <Section advanced
+          title="XP overrides"
+          description="Pin specific levels to an exact total XP, ignoring the curve."
+          defaultOpen={false}
+        >
+          <KeyedList<number>
+            entries={overrideEntries}
+            addPlaceholder="Level number"
+            addLabel="Add override"
+            empty="No overrides. Every level follows the curve."
+            itemLabel={(level) => `Level ${level}`}
+            onAdd={(raw) => {
+              const level = Number(raw);
+              if (!Number.isFinite(level) || level <= 0) return;
+              updateRoot({ xpOverrides: { ...(local.xpOverrides ?? {}), [level]: 0 } });
+            }}
+            onRemove={(level) => {
+              const next = { ...(local.xpOverrides ?? {}) };
+              delete next[Number(level)];
+              updateRoot({ xpOverrides: next });
+            }}
+            renderItem={(level, xpRequired) => (
+              <FieldGrid>
+                <NumberField
+                  label="Total XP required"
+                  value={xpRequired}
+                  min={0}
+                  onChange={(v) =>
+                    updateRoot({ xpOverrides: { ...(local.xpOverrides ?? {}), [Number(level)]: v } })
+                  }
+                />
+              </FieldGrid>
+            )}
+          />
+        </Section>
+      )}
 
-                  <FieldGrid>
-                    <SelectField
-                      label="Type"
-                      value={action.type}
-                      onChange={(v) =>
-                        setLevelActions(
-                          level,
-                          actions.map((a, i) => (i === index ? { ...a, type: v } : a))
-                        )
-                      }
-                      options={ACTION_TYPES}
-                    />
+      {show("rewards") && (
+        <Section
+          title="Level actions"
+          description="What happens when someone reaches a level. Gold, items and Combat XP are how chatting pays off in the RPG; they're listed under the level-up announcement."
+          defaultOpen={false}
+        >
+          <KeyedList<LevelAction[]>
+            entries={actionEntries}
+            addPlaceholder="Level number"
+            addLabel="Add level"
+            empty="No level actions configured."
+            itemLabel={(level, actions) =>
+              `Level ${level} — ${actions.length} action${actions.length === 1 ? "" : "s"}`
+            }
+            onAdd={(raw) => {
+              const level = Number(raw);
+              if (!Number.isFinite(level) || level <= 0) return;
+              if ((local.levelActions ?? {})[level]) return;
+              updateRoot({ levelActions: { ...(local.levelActions ?? {}), [level]: [] } });
+            }}
+            onRemove={(level) => {
+              const next = { ...(local.levelActions ?? {}) };
+              delete next[Number(level)];
+              updateRoot({ levelActions: next });
+            }}
+            renderItem={(level, actions) => (
+              <div className="space-y-3">
+                {actions.length === 0 && (
+                  <p className="text-xs text-[var(--muted)]">Nothing happens at this level yet.</p>
+                )}
 
-                    {(action.type === "assignRole" || action.type === "removeRole") && (
-                      <RoleField
-                        label="Role"
-                        value={action.roleId ?? ""}
+                {actions.map((action, index) => (
+                  <div
+                    key={index}
+                    className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-xs text-[var(--muted)]">Action {index + 1}</span>
+                      <button
+                        type="button"
+                        aria-label="Remove action"
+                        onClick={() => setLevelActions(level, actions.filter((_, i) => i !== index))}
+                        className="text-[var(--muted)] transition-colors hover:text-red-400"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    <FieldGrid>
+                      <SelectField
+                        label="Type"
+                        value={action.type}
                         onChange={(v) =>
                           setLevelActions(
                             level,
-                            actions.map((a, i) => (i === index ? { ...a, roleId: v } : a))
+                            actions.map((a, i) => (i === index ? { ...a, type: v } : a))
                           )
                         }
+                        options={ACTION_TYPES}
                       />
-                    )}
 
-                    {action.type === "sendMessage" && (
-                      <>
-                        <ChannelField
-                          label="Channel"
-                          value={action.channelId ?? ""}
+                      {(action.type === "assignRole" || action.type === "removeRole") && (
+                        <RoleField
+                          label="Role"
+                          value={action.roleId ?? ""}
                           onChange={(v) =>
                             setLevelActions(
                               level,
-                              actions.map((a, i) => (i === index ? { ...a, channelId: v } : a))
+                              actions.map((a, i) => (i === index ? { ...a, roleId: v } : a))
                             )
                           }
-                          emptyLabel="Announce channel (default)"
                         />
-                        <TextField
-                          wide
-                          label="Message"
-                          value={action.message ?? ""}
+                      )}
+
+                      {(action.type === "giveGold" || action.type === "giveCombatXp") && (
+                        <NumberField
+                          label="Amount"
+                          value={action.amount ?? 0}
+                          min={0}
                           onChange={(v) =>
                             setLevelActions(
                               level,
-                              actions.map((a, i) => (i === index ? { ...a, message: v } : a))
+                              actions.map((a, i) => (i === index ? { ...a, amount: v } : a))
                             )
                           }
-                          hint="{user}"
                         />
-                      </>
-                    )}
-                  </FieldGrid>
-                </div>
-              ))}
+                      )}
 
-              <Field>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setLevelActions(level, [
-                      ...actions,
-                      {
-                        type: "sendMessage",
-                        message: "Congrats {user}!",
-                        channelId: local.announceLevelUpInChannelId ?? "",
-                      },
-                    ])
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
-                >
-                  <Plus size={14} /> Add action
-                </button>
-              </Field>
-            </div>
-          )}
-        />
-      </Section>
+                      {action.type === "giveItem" && (
+                        <>
+                          <ItemField
+                            items={shopItems}
+                            label="Item"
+                            value={action.itemId ?? ""}
+                            onChange={(v) =>
+                              setLevelActions(
+                                level,
+                                actions.map((a, i) => (i === index ? { ...a, itemId: v } : a))
+                              )
+                            }
+                            emptyLabel="Choose an item"
+                          />
+                          <NumberField
+                            label="Quantity"
+                            value={action.quantity ?? 1}
+                            min={1}
+                            onChange={(v) =>
+                              setLevelActions(
+                                level,
+                                actions.map((a, i) => (i === index ? { ...a, quantity: v } : a))
+                              )
+                            }
+                          />
+                        </>
+                      )}
+
+                      {action.type === "sendMessage" && (
+                        <>
+                          <ChannelField
+                            label="Channel"
+                            value={action.channelId ?? ""}
+                            onChange={(v) =>
+                              setLevelActions(
+                                level,
+                                actions.map((a, i) => (i === index ? { ...a, channelId: v } : a))
+                              )
+                            }
+                            emptyLabel="Announce channel (default)"
+                          />
+                          <TextField
+                            wide
+                            label="Message"
+                            value={action.message ?? ""}
+                            onChange={(v) =>
+                              setLevelActions(
+                                level,
+                                actions.map((a, i) => (i === index ? { ...a, message: v } : a))
+                              )
+                            }
+                            hint="{user}"
+                          />
+                        </>
+                      )}
+                    </FieldGrid>
+                  </div>
+                ))}
+
+                <Field>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLevelActions(level, [
+                        ...actions,
+                        {
+                          type: "sendMessage",
+                          message: "Congrats {user}!",
+                          channelId: local.announceLevelUpInChannelId ?? "",
+                        },
+                      ])
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+                  >
+                    <Plus size={14} /> Add action
+                  </button>
+                </Field>
+              </div>
+            )}
+          />
+        </Section>
+      )}
     </div>
   );
 }
