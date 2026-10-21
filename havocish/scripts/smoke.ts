@@ -18,7 +18,7 @@ import { upsertUser } from "../src/db/users.js";
 import { upsertGuild, setGuildConfig, mergeConfig, getGuildByDiscordId, markGuildRemoved } from "../src/db/guilds.js";
 import { addMessageXp, grantDailyXp, getUserGuildProfile, upsertUserGuildProfile } from "../src/db/userGuildProfiles.js";
 import { getOrCreateProfile, flushProfileCacheToDb, profileEvents } from "../src/cache/profileService.js";
-import { calculateTotalXpForLevel } from "../src/leveling/levels.js";
+import { calculateTotalXpForLevel, dailyTemplate } from "../src/leveling/levels.js";
 import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache } from "../src/cache/caches.js";
 import { query, closePool } from "../src/db/index.js";
 import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trade.js";
@@ -397,6 +397,25 @@ async function main() {
         check("throttled call reported the entry still dirty", throttledResult, false);
         check("forced call reported it clean", forcedResult, true);
         check("forced call persisted the XP", await xpInDb(userId, guildId), "20");
+    });
+
+    await test("leveling off: no chat XP anywhere, the rest still runs", async () => {
+        const { userId, guildId, config } = await reset();
+        config.xp.enabled = false;
+
+        await addMessageXp({ userId, guildId, config });
+        const p = (await getOrCreateProfile({ userId, guildId })).profile;
+        check("a message gives no XP", p.xp, "0");
+        check("but still counts as a message", p.user_stats.messagesSent, 1);
+
+        const daily = await grantDailyXp({ userId, guildId, config });
+        check("the daily gives no XP", daily.rewardXp, 0);
+        check("but still pays gold", daily.rewardGold, config.xp.dailyGold);
+
+        const stats = calculateStats({ level: 40, user_stats: {} } as any, config, {});
+        check("no chat-level stat bonus", stats.maxHp, calculateStats({ level: 1, user_stats: {} } as any, { ...config, combat: { ...config.combat, chatBonus: {} } }, {}).maxHp);
+        check("the daily message drops its XP part",
+            dailyTemplate("You got {xp} {xpName} {xpIcon} and {gold} {goldName}!", config), "You got {gold} {goldName}!");
     });
 
     await test("daily grants xp + gold once per day", async () => {

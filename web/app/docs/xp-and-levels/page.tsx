@@ -12,9 +12,17 @@ export default function XpAndLevels() {
         lead="Members earn chat XP by chatting, talking in voice and claiming dailies. Chat XP adds up to levels, and levels can hand out roles. Fights, quests and the rest of the RPG pay Combat XP instead (see Combat)."
       />
 
+      <H2>Already have a leveling bot?</H2>
+      <P>
+        Turn off <b>Use havocish for leveling</b> at the top of <Where>Leveling</Where>, or press Leveling in <C>/config</C>.
+        Members then earn no chat or voice XP from havocish, see no level-ups, and dailies pay only gold. Everything in the
+        RPG keeps working. To tie it to your other bot&apos;s levels, require the role it gives at a level on any item,
+        recipe, gathering spot, enemy or quest (see Requirements).
+      </P>
+
       <H2>Message XP</H2>
       <P>
-        Each message can earn XP, at most once per cooldown. Edit these at <Where>XP</Where>.
+        Each message can earn XP, at most once per cooldown. Edit these at <Where>Leveling</Where>.
       </P>
       <Table
         head={["Setting", "Default", "What it does"]}
@@ -31,13 +39,13 @@ export default function XpAndLevels() {
         <li>For each of the member&apos;s roles with a bonus: add its <b>extra XP</b>, then apply its <b>multiplier</b>. A role can also shorten the cooldown (the shortest one wins).</li>
       </List>
       <Note>
-        Channel and role bonuses live under Advanced settings on the XP page. Switch to <b>Advanced</b> at the top of the page to see them.
+        Channel and role bonuses live under Advanced settings on the Leveling page. Switch to <b>Advanced</b> at the top of the page to see them.
       </Note>
 
       <H2>Voice XP</H2>
       <P>
         Members in voice channels earn XP per minute, paid when they leave. It&apos;s <b>off by default</b>: turn it on at{" "}
-        <Where>XP</Where> or with <C>/config</C>.
+        <Where>Leveling</Where> or with <C>/config</C>.
       </P>
       <Table
         head={["Setting", "Default", "What it does"]}
@@ -67,7 +75,7 @@ export default function XpAndLevels() {
 
       <H2>Levels</H2>
       <P>
-        Levels come from total XP on a curve you choose at <Where>Levels</Where>. The page draws the curve as you change it.
+        Levels come from total XP on a curve you choose at <Where>Leveling</Where>. The page draws the curve as you change it.
       </P>
       <Table
         head={["Curve", "Feels like"]}
@@ -92,7 +100,7 @@ export default function XpAndLevels() {
       <P>
         <b>Level rewards</b> run when a member reaches a level: give a role, take a role, post a message, or pay into the
         RPG with <b>gold</b>, an <b>item</b> or <b>Combat XP</b>. The RPG rewards are listed under the level-up message.
-        Members who jump several levels at once get every reward they passed. Set them at <Where>Levels</Where> under Level actions.
+        Members who jump several levels at once get every reward they passed. Set them at <Where>Leveling</Where> under Level actions.
       </P>
       <Note kind="warning">
         Role rewards need the havocish role above the roles it gives. See{" "}

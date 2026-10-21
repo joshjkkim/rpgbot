@@ -70,7 +70,8 @@ export function calculateStats(
 // What chat level adds to the stats, so /me can show it on its own line.
 
 export function chatLevelBonus(profile: DbUserGuildProfile, config: GuildConfig) {
-    const per = config.combat?.chatBonus ?? DEFAULT_GUILD_CONFIG.combat.chatBonus!;
+    // Without havocish's leveling there is no chat level to reward.
+    const per = config.xp?.enabled === false ? {} : config.combat?.chatBonus ?? DEFAULT_GUILD_CONFIG.combat.chatBonus!;
     const level = profile.level ?? 1;
     return {
         level,

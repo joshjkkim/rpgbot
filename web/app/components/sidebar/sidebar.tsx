@@ -21,8 +21,7 @@ const sections: Array<{ label: string; tabs: Array<{ href: string; label: string
     {
         label: "Leveling",
         tabs: [
-            { href: "xp", label: "XP", sprite: "potion" },
-            { href: "levels", label: "Levels", sprite: "star" },
+            { href: "leveling", label: "Leveling", sprite: "star" },
         ],
     },
     {
