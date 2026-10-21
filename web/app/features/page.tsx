@@ -64,8 +64,9 @@ export default function FeaturesPage() {
           >
             <p>Members earn XP for being part of the server, and watch their character grow.</p>
             <Points items={[
-              <><b>Chat levels for talking</b> and voice, and a separate <b>Combat level</b> for fighting, so the game never competes with your leveling bot.</>,
-              <><b>Level-ups people notice:</b> a banner in your colours, and roles handed out at the levels you pick.</>,
+              <><b>Chat levels for talking</b> and voice, and a separate <b>Combat level</b> for fighting. Each chat level makes a member a little stronger in fights.</>,
+              <><b>Level-ups people notice:</b> a banner in your colours, with roles, gold, items or Combat XP at the levels you pick.</>,
+              <><b>Already have a leveling bot?</b> Keep it. Switch havocish&apos;s leveling off, reward the roles your bot gives, and lock gear and quests behind them.</>,
               <><b>Daily rewards</b> with streak bonuses, and <b>/me</b>, a character sheet with stats, gear and skills.</>,
             ]} />
           </Feature>
