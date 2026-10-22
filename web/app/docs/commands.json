@@ -423,6 +423,50 @@
               }
             ],
             "kind": "subcommand"
+          },
+          {
+            "name": "combat",
+            "description": "Set a member's Combat level",
+            "options": [
+              {
+                "name": "user",
+                "description": "The member",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "level",
+                "description": "The Combat level to set",
+                "type": "number",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
+          },
+          {
+            "name": "skill",
+            "description": "Set a member's gathering or crafting skill level",
+            "options": [
+              {
+                "name": "user",
+                "description": "The member",
+                "type": "user",
+                "required": true
+              },
+              {
+                "name": "skill",
+                "description": "Which skill",
+                "type": "text",
+                "required": true
+              },
+              {
+                "name": "level",
+                "description": "The skill level to set",
+                "type": "number",
+                "required": true
+              }
+            ],
+            "kind": "subcommand"
           }
         ],
         "kind": "group"

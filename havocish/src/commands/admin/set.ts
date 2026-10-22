@@ -7,6 +7,10 @@ import { logAndBroadcastEvent } from "../../db/events.js";
 import type { EventType } from "../../types/logging.js";
 import { query } from "../../db/index.js";
 import { profileKey, userGuildProfileCache } from "../../cache/caches.js";
+import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
+import { combatLevel, combatXpForLevel } from "../../player/combatLevel.js";
+import { skillLevel, skillXpForLevel } from "../../player/gathering.js";
+import type { UserStats } from "../../types/userprofile.js";
 
 export const data = new SlashCommandBuilder()
     .setName("set")
@@ -71,6 +75,21 @@ export const data = new SlashCommandBuilder()
                     .setDescription("The streak count to set to")
                     .setRequired(true)
             )
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("combat")
+            .setDescription("Set a member's Combat level")
+            .addUserOption(option => option.setName("user").setDescription("The member").setRequired(true))
+            .addIntegerOption(option => option.setName("level").setDescription("The Combat level to set").setRequired(true).setMinValue(1))
+    )
+
+    .addSubcommand(sub =>
+        sub.setName("skill")
+            .setDescription("Set a member's gathering or crafting skill level")
+            .addUserOption(option => option.setName("user").setDescription("The member").setRequired(true))
+            .addStringOption(option => option.setName("skill").setDescription("Which skill").setRequired(true).setAutocomplete(true))
+            .addIntegerOption(option => option.setName("level").setDescription("The skill level to set").setRequired(true).setMinValue(1))
     );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -86,10 +105,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const subcommand = interaction.options.getSubcommand();
 
+    // The member being changed, not the admin running the command.
+    const target = interaction.options.getUser("user", true);
     const { user: dbUser } = await getOrCreateDbUser({
-        discordUserId: interaction.user.id,
-        username: interaction.user.username,
-        avatarUrl: interaction.user.displayAvatarURL(),
+        discordUserId: target.id,
+        username: target.username,
+        avatarUrl: target.displayAvatarURL(),
     });
 
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId! });
@@ -193,6 +214,45 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             break;
         }
 
+        case "combat":
+        case "skill": {
+            const level = interaction.options.getInteger("level", true);
+            const skillId = subcommand === "skill" ? interaction.options.getString("skill", true) : null;
+            const activity = skillId ? config.gathering?.activities?.[skillId] : undefined;
+            const station = skillId ? config.crafting?.stations?.[skillId] : undefined;
+            if (skillId && !activity && !station) {
+                await interaction.reply({ content: `No skill \`${skillId}\` on this server.`, flags: MessageFlags.Ephemeral });
+                return;
+            }
+
+            const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+            const stats = { ...(profile.user_stats ?? {}) } as UserStats;
+            let label: string;
+            let xp: number;
+            if (!skillId) {
+                xp = combatXpForLevel(level, config);
+                stats.combat = { xp };
+                label = "Combat";
+            } else {
+                xp = skillXpForLevel(level, config);
+                if (activity) stats.gathering = { ...stats.gathering, [activity.id]: { runs: 0, ...stats.gathering?.[activity.id], xp } };
+                else stats.crafting = { ...stats.crafting, [station!.id]: { crafts: 0, ...stats.crafting?.[station!.id], xp } };
+                label = activity ? activity.skillName || activity.name : station!.skillName || station!.name;
+            }
+            profile.user_stats = stats;
+            commitProfileChanges({
+                userId: dbUser.id, guildId: dbGuild.id, profile,
+                changes: { user_stats: stats }, baseline: { xp: profile.xp, gold: profile.gold },
+            });
+
+            const reached = skillId ? skillLevel(xp, config) : combatLevel(profile, config);
+            await interaction.reply({
+                content: `✅ Set ${label} of <@${dbUser.discord_user_id}> to level **${reached}**${reached < level ? " (the most it goes)" : ""}.`,
+                flags: MessageFlags.Ephemeral,
+            });
+            break;
+        }
+
         default:
             await interaction.reply({ content: "Unknown subcommand.", flags: MessageFlags.Ephemeral });
     }
@@ -218,6 +278,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             case "streak":
                 eventType = "setstreak";
                 break;
+            default:
+                eventType = "setlevel";
         }
 
         await logAndBroadcastEvent(interaction, {

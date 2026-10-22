@@ -50,13 +50,13 @@ import { equipItemFromInventory, useItemFromInventory } from "../src/player/inve
 import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
-import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
+import { addCombatXp, combatLevel, combatXpForLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
-import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
+import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
 
@@ -1450,6 +1450,10 @@ async function main() {
         check("stats grow with Combat level", calculateStats(p, cfg, {}).atk > weak, true);
         addCombatXp(p, cfg, -999999);
         check("Combat XP never goes below 0", p.user_stats.combat.xp, 0);
+        p.user_stats.combat.xp = combatXpForLevel(37, cfg);
+        check("/admin set combat lands on the level asked for", combatLevel(p, cfg), 37);
+        check("and stops at the cap", (p.user_stats.combat.xp = combatXpForLevel(500, cfg), combatLevel(p, cfg)), 99);
+        check("/admin set skill does the same on the skill curve", skillLevel(skillXpForLevel(12, cfg), cfg), 12);
 
         // The one-time split: pre-split rows get the Combat level of their chat level; new rows start at 0.
         const { userId, guildId } = await reset();
