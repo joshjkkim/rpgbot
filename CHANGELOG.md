@@ -2,7 +2,7 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.14 · October 21, 2026
 
 ### New
 - **Rare-find announcements.** Loot, gather or craft something rare and the server hears about it: "✨ @you found 🌠 Starmetal Shard at Deep Veins!" Server owners pick the channel and how rare an item has to be (Epic and up by default) at the top of the Items page.
