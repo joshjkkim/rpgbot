@@ -22,6 +22,8 @@ export interface UserStats {
     timeSpentInVC: number; // in seconds
 
     currentHp: number;
+    /** When currentHp was set; regen counts from here (player/combat.ts). */
+    hpAt?: string;
     enemiesDefeated: number;
     fightsWon: number;
     fightsLost: number;

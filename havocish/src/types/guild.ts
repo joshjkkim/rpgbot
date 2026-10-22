@@ -100,6 +100,8 @@ export interface GuildConfig {
          */
         chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
         enemies?: Record<string, EnemyConfig>;
+        /** HP refills fully over `regenMinutes` (120); a loss leaves you at `respawnPercent` of max (25). */
+        hp?: { regenMinutes?: number; respawnPercent?: number };
         /** Fight moves, players' and enemies'. Unset means the built-in Attack / Heavy Strike / Guard. */
         moves?: Record<string, MoveConfig>;
         /** Lasting effects moves can put on: Bleeding, Poisoned... Unset means the built-in set. */

@@ -83,13 +83,42 @@ export function chatLevelBonus(profile: DbUserGuildProfile, config: GuildConfig)
     };
 }
 
-// ─── resolveCurrentHp ─────────────────────────────────────────────────────────
-// Returns current HP, defaulting to full if never set (null/undefined).
+// ─── HP over time ─────────────────────────────────────────────────────────────
+// HP refills on its own: worked out from when it was last set, like gathering
+// energy, so there are no timers. Losing a fight respawns you low instead of at
+// 0, so a loss means a break, never being stuck.
 
-export function resolveCurrentHp(profile: DbUserGuildProfile, stats: CombatStats): number {
+const HP_DEFAULTS = { regenMinutes: 120, respawnPercent: 25 };
+
+export function hpRules(config: GuildConfig) {
+    return { ...HP_DEFAULTS, ...config.combat?.hp };
+}
+
+/** HP now: what was stored, plus what's come back since. Full when never set. */
+export function resolveCurrentHp(profile: DbUserGuildProfile, stats: CombatStats, config: GuildConfig, now = Date.now()): number {
     const stored = profile.user_stats?.currentHp;
-    if (stored == null || stored > stats.maxHp) return stats.maxHp;
-    return Math.max(0, stored);
+    const at = profile.user_stats?.hpAt;
+    // Before regen, HP was stored without a time; those members start full.
+    if (stored == null || stored >= stats.maxHp || !at) return stats.maxHp;
+    const { regenMinutes } = hpRules(config);
+    const back = regenMinutes > 0 ? Math.floor(stats.maxHp * Math.max(0, now - Date.parse(at)) / (regenMinutes * 60_000)) : 0;
+    return Math.max(0, Math.min(stats.maxHp, stored + back));
+}
+
+/** Minutes until full HP, for "back to full in 40 min". 0 when full or regen is off. */
+export function minutesToFull(hp: number, stats: CombatStats, config: GuildConfig): number {
+    const { regenMinutes } = hpRules(config);
+    return regenMinutes > 0 && hp < stats.maxHp ? Math.ceil(regenMinutes * (stats.maxHp - hp) / stats.maxHp) : 0;
+}
+
+/** HP to store, with the time regen counts from. Every write of currentHp goes through this. */
+export function storeHp(hp: number, now = Date.now()): { currentHp: number; hpAt: string } {
+    return { currentHp: Math.max(0, Math.round(hp)), hpAt: new Date(now).toISOString() };
+}
+
+/** Where a loss leaves you: a share of max HP (25% by default). */
+export function respawnHp(stats: CombatStats, config: GuildConfig): number {
+    return Math.round(stats.maxHp * hpRules(config).respawnPercent / 100);
 }
 
 // ─── formatStats ──────────────────────────────────────────────────────────────

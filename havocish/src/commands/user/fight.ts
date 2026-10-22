@@ -9,7 +9,7 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
-import { calculateStats, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
+import { calculateStats, minutesToFull, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
 import {
     applyAction, applyFightRewards, busyFighting, clearActiveFight, healAmount,
     getActiveFight, getFightByMessageId, pickRandomEnemy, setActiveFight, startFight,
@@ -231,9 +231,9 @@ export async function readyToFight(user: User, discordGuildId: string): Promise<
 
     const { profile } = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
     const stats = calculateStats(profile, config, config.shop?.items ?? {});
-    const currentHp = resolveCurrentHp(profile, stats);
+    const currentHp = resolveCurrentHp(profile, stats, config);
     if (currentHp <= 0) {
-        return { ok: false, message: "❤️ You have **0 HP** — you need to heal before fighting again!" };
+        return { ok: false, message: `❤️ You have **0 HP**. Rest a while (back to full in ${minutesToFull(currentHp, stats, config)} min), or eat or drink something to heal.` };
     }
     return { ok: true, profile, config, stats, currentHp };
 }

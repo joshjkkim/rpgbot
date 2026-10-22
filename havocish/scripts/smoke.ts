@@ -51,7 +51,7 @@ import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, combatXpForLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
-import { calculateStats, type CombatStats } from "../src/player/combat.js";
+import { calculateStats, hpRules, minutesToFull, resolveCurrentHp, respawnHp, storeHp, type CombatStats } from "../src/player/combat.js";
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
@@ -1650,6 +1650,21 @@ async function main() {
         check("and says so", describeMove(cfg.combat.moves.venom!, cfg).does[0], "🐍 Venom on the target for 3 turns, stacking up to 3.");
     });
 
+    await test("HP comes back over two hours, and a loss leaves you at 25%", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const stats = { maxHp: 100, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1 };
+        const hour = 60 * 60_000;
+        const at = (hp: number, ago: number) => ({ user_stats: storeHp(hp, Date.now() - ago) }) as any;
+        check("defaults: full in 2 hours, respawn at 25%", hpRules(cfg), { regenMinutes: 120, respawnPercent: 25 });
+        check("an hour brings back half", resolveCurrentHp(at(20, hour), stats, cfg), 70);
+        check("and never past full", resolveCurrentHp(at(20, 3 * hour), stats, cfg), 100);
+        check("HP stored before regen counts as full", resolveCurrentHp({ user_stats: { currentHp: 5 } } as any, stats, cfg), 100);
+        check("the wait to full is shown in minutes", minutesToFull(70, stats, cfg), 36);
+        check("a loss respawns at 25%", respawnHp(stats, cfg), 25);
+        cfg.combat.hp = { regenMinutes: 0 };
+        check("an owner can turn regen off", resolveCurrentHp(at(20, 3 * hour), stats, cfg), 20);
+    });
+
     await test("crafting: what a member can make, and making it", async () => {
         const ids = await reset();
         const config = ids.config;
@@ -2018,9 +2033,9 @@ async function main() {
         await seed(fx.a, g, {}, 1000);
         await seed(fx.b, g, {}, 1000);
         await query(
-            `UPDATE user_guild_profiles SET user_stats = jsonb_set(COALESCE(user_stats, '{}'::jsonb), '{currentHp}', '0')
+            `UPDATE user_guild_profiles SET user_stats = COALESCE(user_stats, '{}'::jsonb) || jsonb_build_object('currentHp', 0, 'hpAt', $3::text)
              WHERE user_id = $1 AND guild_id = $2`,
-            [fx.b.userId, g],
+            [fx.b.userId, g, new Date().toISOString()],
         );
         userGuildProfileCache.delete(profileKey(g, fx.b.userId));
 
@@ -2416,7 +2431,7 @@ async function main() {
             draught: { id: "draught", name: "Healing Draught", emoji: "🧪", description: "", quantity: 2 },
             sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", description: "", quantity: 1 },
         };
-        profile.user_stats = { ...profile.user_stats, currentHp: 20 };
+        profile.user_stats = { ...profile.user_stats, ...storeHp(20) };
 
         const interaction = {
             guild: { id: TEST_DISCORD_GUILD, members: { fetch: async () => null } },

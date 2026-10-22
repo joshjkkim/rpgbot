@@ -798,7 +798,7 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
         }
 
         const combatStats = calculateStats(profile, config, config.shop?.items ?? {});
-        const currentHp   = resolveCurrentHp(profile, combatStats);
+        const currentHp   = resolveCurrentHp(profile, combatStats, config);
         const hpPct       = Math.max(0, Math.min(1, currentHp / combatStats.maxHp));
         const fightStats  = profile.user_stats ?? {};
 

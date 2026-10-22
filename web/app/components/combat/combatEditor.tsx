@@ -101,6 +101,8 @@ export interface CombatConfig {
   enemies?: Record<string, EnemyConfig>;
   moves?: Record<string, MoveConfig>;
   statuses?: Record<string, StatusConfig>;
+  /** HP refill time and where a loss leaves you (mirrored from havocish/src/player/combat.ts). */
+  hp?: { regenMinutes?: number; respawnPercent?: number };
   pveDeathPenalty?: CombatDeathPenalty;
   pvpDeathPenalty?: CombatDeathPenalty;
   pvp?: CombatPvpConfig;
@@ -491,6 +493,31 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
             </Field>
           ))}
         </div>
+      </Section>
+
+      <Section
+        title="Health"
+        description="HP carries over between fights and comes back on its own. Food and potions heal faster, so fighting makes gathering and cooking worth it."
+      >
+        <FieldGrid>
+          <NumberField
+            label="Full refill (minutes)"
+            value={local.hp?.regenMinutes ?? 120}
+            min={0}
+            step={10}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, regenMinutes: v } })}
+            hint={(local.hp?.regenMinutes ?? 120) > 0 ? "From 0 to full HP. 120 means a member who rests two hours is back to full." : "0 turns regen off: only food, potions and /daily heal."}
+          />
+          <NumberField
+            label="HP after losing (%)"
+            value={local.hp?.respawnPercent ?? 25}
+            min={0}
+            max={100}
+            step={5}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, respawnPercent: v } })}
+            hint="Where a lost fight or duel leaves you, so a loss means a break, not being stuck. World bosses leave you at 0."
+          />
+        </FieldGrid>
       </Section>
 
       <Section

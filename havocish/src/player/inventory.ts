@@ -15,7 +15,7 @@ import type { item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { runAchievementPipeline, applyAchievementSideEffects } from "./achievements.js";
 import type { EquipSlot } from "../types/economy.js";
-import { calculateStats, resolveCurrentHp } from "./combat.js";
+import { calculateStats, resolveCurrentHp, storeHp } from "./combat.js";
 import { bestEffort } from "../ui/bestEffort.js";
 
 // ─── What changed ─────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ type Snapshot = { hp: number; maxHp: number; xp: bigint; gold: bigint; level: nu
 function snapshot(profile: Parameters<typeof calculateStats>[0], config: Parameters<typeof calculateStats>[1]): Snapshot {
     const stats = calculateStats(profile, config, config.shop?.items ?? {});
     return {
-        hp: resolveCurrentHp(profile, stats), maxHp: stats.maxHp,
+        hp: resolveCurrentHp(profile, stats, config), maxHp: stats.maxHp,
         xp: BigInt(combatXp(profile)), gold: BigInt(profile.gold ?? 0), level: combatLevel(profile, config), stats,
     };
 }
@@ -481,12 +481,12 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                         const baseline = { xp: p.xp, gold: p.gold };
 
                         const playerStats = calculateStats(p, config, config.shop?.items ?? {});
-                        const currentHp = resolveCurrentHp(p, playerStats);
+                        const currentHp = resolveCurrentHp(p, playerStats, config);
                         const newHp = Math.min(playerStats.maxHp, currentHp + (action.amount ?? 0));
                         healthGained += newHp - currentHp;
 
                         const s = { ...(p.user_stats ?? {}) };
-                        s.currentHp = newHp;
+                        Object.assign(s, storeHp(newHp));
                         p.user_stats = s;
                         pending = { ...pending, user_stats: p.user_stats };
 

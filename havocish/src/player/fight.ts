@@ -8,7 +8,7 @@ import type {
     FightEndSummary,
     FightOutcome,
 } from "../types/combat.js";
-import { calculateStats, resolveCurrentHp } from "./combat.js";
+import { calculateStats, resolveCurrentHp, respawnHp, storeHp } from "./combat.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
@@ -141,7 +141,7 @@ export function startFight(opts: StartFightOptions): ActiveFight {
         opts.config,
         opts.config.shop?.items ?? {},
     );
-    const playerCurrentHp = resolveCurrentHp(opts.profile, playerStats);
+    const playerCurrentHp = resolveCurrentHp(opts.profile, playerStats, opts.config);
     const now = Date.now();
 
     const fight: ActiveFight = {
@@ -389,7 +389,8 @@ export async function applyFightRewards(
 
     // ── User stats ──
     const stats = { ...(p.user_stats ?? {}) };
-    stats.currentHp          = fight.playerCurrentHp;
+    // A loss respawns you low rather than at 0: a break, not a lockout.
+    Object.assign(stats, storeHp(summary.outcome === "loss" ? respawnHp(fight.playerStats, config) : fight.playerCurrentHp));
     stats.totalDamageDealt   = (stats.totalDamageDealt   ?? 0) + summary.totalDamageDealt;
     stats.totalDamageTaken   = (stats.totalDamageTaken   ?? 0) + summary.totalDamageTaken;
 

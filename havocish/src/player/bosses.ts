@@ -7,7 +7,7 @@ import { canPost } from "./canPost.js";
 import { commitProfileChanges, getOrCreateProfile } from "../cache/profileService.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
-import { calculateStats, resolveCurrentHp } from "./combat.js";
+import { calculateStats, resolveCurrentHp, storeHp } from "./combat.js";
 import { applyFightRewards, resolveHit } from "./fight.js";
 import { readyToFight } from "../commands/user/fight.js";
 import { query } from "../db/index.js";
@@ -264,7 +264,8 @@ export async function handleBossButton(interaction: ButtonInteraction) {
         taken = resolveHit(enemy.atk, stats.def, enemy.critChance, enemy.critMultiplier).damage;
         fighter.taken += taken;
         const hpAfter = Math.max(0, currentHp - taken);
-        const userStats = { ...(profile.user_stats ?? {}), currentHp: hpAfter };
+        // No respawn here: a boss can be hit again at once, so 0 HP waits for regen.
+        const userStats = { ...(profile.user_stats ?? {}), ...storeHp(hpAfter) };
         profile.user_stats = userStats;
         commitProfileChanges({
             userId: profile.user_id,
@@ -384,6 +385,6 @@ async function payOut(pay: Payout, fighter: Fighter, enemy: EnemyConfig, discord
         totalDamageTaken: fighter.taken,
     };
     // applyFightRewards reads only the HP, combat type and enemy off the fight.
-    await applyFightRewards(summary, { playerCurrentHp: resolveCurrentHp(profile, stats), combatType: "pve", enemy } as any, profile, config);
+    await applyFightRewards(summary, { playerCurrentHp: resolveCurrentHp(profile, stats, config), combatType: "pve", enemy } as any, profile, config);
     return summary.questsCompleted ?? [];
 }
