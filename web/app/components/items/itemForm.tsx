@@ -20,6 +20,7 @@ export const ITEM_ACTION_TYPES = [
   { value: "giveStat" as const, label: "Give stat" },
   { value: "giveItem" as const, label: "Give item" },
   { value: "learnRecipe" as const, label: "Teach a recipe" },
+  { value: "learnMove" as const, label: "Teach a fight move" },
 ];
 
 /** Crafting stations, as the "teach a recipe" action needs them. */
@@ -118,8 +119,8 @@ export default function ItemForm({
   skills: SkillOption[];
   /** Crafting stations, for the "teach a recipe" action. */
   stations: StationOptions;
-  /** Fight moves, so gear can give one. */
-  moves: Record<string, { name?: string; emoji?: string }>;
+  /** Fight moves, so gear can give one and scrolls can teach one. */
+  moves: Record<string, { name?: string; emoji?: string; players?: { learned?: boolean } }>;
 }) {
   const [tab, setTab] = useState<Tab>("basics");
   const upsertItem = onChange;
@@ -472,6 +473,19 @@ export default function ItemForm({
                           </>
                         );
                       })()}
+
+                      {action.type === "learnMove" && (
+                        <SelectField
+                          label="Move"
+                          value={action.moveId ?? ""}
+                          onChange={(v) => patch({ moveId: v })}
+                          options={[{ value: "", label: "Choose a move" }, ...Object.entries(moves).filter(([, m]) => m.players).map(([id, m]) => ({
+                            value: id,
+                            label: `${m.emoji ?? ""} ${m.name ?? id}${m.players?.learned ? "" : " (doesn't need learning)"}`.trim(),
+                          }))]}
+                          hint="Turn on “Must be learned” for the move on the Combat page, so members only get it from this."
+                        />
+                      )}
 
                       {action.type === "giveItem" && (
                         <>

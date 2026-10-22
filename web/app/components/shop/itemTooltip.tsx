@@ -38,6 +38,8 @@ function describeAction(a: shopItemAction) {
       return `Gives ${a.quantity ?? 1} × ${a.itemId || "an item"}.`;
     case "learnRecipe":
       return "Teaches a crafting recipe.";
+    case "learnMove":
+      return "Teaches a fight move.";
   }
 }
 

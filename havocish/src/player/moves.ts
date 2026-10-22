@@ -91,6 +91,24 @@ export function playerMoves(profile: DbUserGuildProfile, config: GuildConfig, fa
     return have.length > 0 ? have : [moveById(config, "attack")];
 }
 
+/**
+ * Whether a move scroll has anything to teach: "missing" when the move is gone
+ * or isn't for players, "known" when already learned or it needs no learning.
+ */
+export function moveToLearn(profile: DbUserGuildProfile, config: GuildConfig, moveId: string): { status: "missing" | "known" | "new"; move?: MoveConfig } {
+    const move = movesOf(config)[moveId];
+    if (!move?.players) return { status: "missing" };
+    const learned = profile.user_stats?.moves?.learned ?? [];
+    return { status: !move.players.learned || learned.includes(moveId) ? "known" : "new", move };
+}
+
+/** Adds a move to the learned list in place; callers commit user_stats. */
+export function learnMove(profile: DbUserGuildProfile, moveId: string): void {
+    const stats = profile.user_stats ?? ({} as NonNullable<DbUserGuildProfile["user_stats"]>);
+    const learned = [...new Set([...(stats.moves?.learned ?? []), moveId])];
+    profile.user_stats = { ...stats, moves: { ...stats.moves, learned } };
+}
+
 /** The moves taken into a fight: the picked ones still available, topped up in list order. */
 export function loadoutFor(profile: DbUserGuildProfile, config: GuildConfig, facts: MemberFacts): string[] {
     const have = playerMoves(profile, config, facts).map((m) => m.id);
@@ -106,9 +124,20 @@ export function usable(state: FighterState, move: MoveConfig): boolean {
         (move.usesPerFight == null || (state.uses[move.id] ?? 0) < move.usesPerFight);
 }
 
-/** A stat with the boosts on it. */
-function stat(base: CombatStats, state: FighterState, s: MoveStat): number {
-    const pct = state.boosts.filter((b) => b.stat === s).reduce((sum, b) => sum + b.percent, 0);
+/** Stacks of a status on a fighter (0 when it isn't on). */
+function stacksOf(state: FighterState, id: string): number {
+    return (state.statuses[id] ?? 0) > 0 ? state.stacks?.[id] ?? 1 : 0;
+}
+
+/** A status that works against whoever has it: HP loss or a lowered stat. */
+export function harmful(s: StatusConfig | undefined): boolean {
+    return !s || s.hpPercentPerTurn < 0 || Object.values(s.stats ?? {}).some((v) => (v ?? 0) < 0);
+}
+
+/** A stat with the boosts and statuses on it. */
+function stat(base: CombatStats, state: FighterState, s: MoveStat, statuses: Record<string, StatusConfig>): number {
+    const fromStatuses = Object.keys(state.statuses).reduce((sum, id) => sum + (statuses[id]?.stats?.[s] ?? 0) * stacksOf(state, id), 0);
+    const pct = fromStatuses + state.boosts.filter((b) => b.stat === s).reduce((sum, b) => sum + b.percent, 0);
     const value = s === "crit" ? base.critChance : base[s];
     return Math.max(0, value * (1 + pct / 100));
 }
@@ -174,9 +203,9 @@ function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<strin
             case "hit": {
                 for (let i = 0; i < Math.max(1, e.hits ?? 1); i++) {
                     if (t.hp <= 0) break;
-                    const def = stat(t.stats, t.st, "def") * (1 - Math.min(100, e.pierce ?? 0) / 100);
-                    const crit = Math.random() * 100 < stat(actor.stats, actor.st, "crit");
-                    let dmg = Math.max(1, stat(actor.stats, actor.st, "atk") - def * 0.6) * e.power;
+                    const def = stat(t.stats, t.st, "def", statuses) * (1 - Math.min(100, e.pierce ?? 0) / 100);
+                    const crit = Math.random() * 100 < stat(actor.stats, actor.st, "crit", statuses);
+                    let dmg = Math.max(1, stat(actor.stats, actor.st, "atk", statuses) - def * 0.6) * e.power;
                     if (crit) dmg *= actor.stats.critMultiplier;
                     if (t !== actor) dmg *= 1 - Math.min(100, t.guard) / 100;
                     const n = Math.max(0, Math.round(dmg));
@@ -208,8 +237,10 @@ function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<strin
             case "status": {
                 const s = statuses[e.statusId];
                 if (!s) break;
+                const stacks = Math.min(Math.max(1, s.maxStacks ?? 1), stacksOf(t.st, s.id) + 1);
                 t.st.statuses[s.id] = Math.max(t.st.statuses[s.id] ?? 0, e.turns);
-                parts.push(`${s.emoji} ${t.name} ${s.name}`);
+                if (stacks > 1) t.st.stacks = { ...t.st.stacks, [s.id]: stacks };
+                parts.push(`${s.emoji} ${t.name} ${s.name}${stacks > 1 ? ` ×${stacks}` : ""}`);
                 break;
             }
             case "stun":
@@ -219,7 +250,10 @@ function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<strin
                 break;
             case "cleanse":
                 for (const id of Object.keys(t.st.statuses)) {
-                    if (!e.harmfulOnly || (statuses[id]?.hpPercentPerTurn ?? -1) < 0) delete t.st.statuses[id];
+                    if (!e.harmfulOnly || harmful(statuses[id])) {
+                        delete t.st.statuses[id];
+                        delete t.st.stacks?.[id];
+                    }
                 }
                 t.st.boosts = t.st.boosts.filter((b) => b.percent > 0);
                 parts.push(`${t.name} cleansed ✨`);
@@ -261,15 +295,18 @@ function act(actor: Side, other: Side, move: MoveConfig | null, config: GuildCon
 function endOfTurn(side: Side, statuses: Record<string, StatusConfig>, log: string[]): void {
     for (const [id, turns] of Object.entries(side.st.statuses)) {
         const s = statuses[id];
-        if (s && side.hp > 0) {
-            const raw = side.maxHp * s.hpPercentPerTurn / 100;
+        if (s && s.hpPercentPerTurn && side.hp > 0) {
+            const raw = side.maxHp * s.hpPercentPerTurn * stacksOf(side.st, id) / 100;
             const amount = Math.sign(raw) * Math.max(1, Math.round(Math.abs(raw)));
             const before = side.hp;
             side.hp = Math.max(0, Math.min(side.maxHp, side.hp + amount));
             if (side.hp !== before) log.push(`${s.emoji} **${side.name}** ${s.name.toLowerCase()}: ${side.hp > before ? "+" : "−"}${Math.abs(side.hp - before)} HP`);
         }
-        if (turns <= 1) delete side.st.statuses[id];
-        else side.st.statuses[id] = turns - 1;
+        if (turns > 1) side.st.statuses[id] = turns - 1;
+        else {
+            delete side.st.statuses[id];
+            delete side.st.stacks?.[id];
+        }
     }
     side.st.boosts = side.st.boosts.map((b) => ({ ...b, turns: b.turns - 1 })).filter((b) => b.turns > 0);
     for (const [id, left] of Object.entries(side.st.cooldowns)) {
@@ -314,9 +351,9 @@ export function intentLine(fight: ActiveFight, config: GuildConfig): string {
 }
 
 /** Whether `a` acts before `b`: a first-strike move beats one without, then higher SPD; ties go to `b`. */
-function actsFirst(a: Side, aMove: MoveConfig | null, b: Side, bMove: MoveConfig | null): boolean {
+function actsFirst(a: Side, aMove: MoveConfig | null, b: Side, bMove: MoveConfig | null, statuses: Record<string, StatusConfig>): boolean {
     if (!!aMove?.firstStrike !== !!bMove?.firstStrike) return !!aMove?.firstStrike;
-    return stat(a.stats, a.st, "spd") > stat(b.stats, b.st, "spd");
+    return stat(a.stats, a.st, "spd", statuses) > stat(b.stats, b.st, "spd", statuses);
 }
 
 /** Who goes first next turn, as far as the player can know before choosing: shown under the buttons. */
@@ -325,7 +362,7 @@ export function turnOrderLine(fight: ActiveFight, config: GuildConfig): string {
     if (fight.foe.stunned) return "You act first";
     const move = moveById(config, fight.foe.charging?.moveId ?? fight.enemyIntent);
     if (move.firstStrike) return `⚡ ${fight.enemy.name} strikes first`;
-    return actsFirst(foe, move, you, null) ? `⚡ ${fight.enemy.name} is faster: it acts first` : "You act first";
+    return actsFirst(foe, move, you, null, statusesOf(config)) ? `⚡ ${fight.enemy.name} is faster: it acts first` : "You act first";
 }
 
 /** How worrying the enemy's next move is: the fight message takes its colour from this. */
@@ -397,7 +434,7 @@ export function playTurn(fight: ActiveFight, choice: PlayerChoice, config: Guild
     };
     const foeTurn = () => act(foe, you, foeMove, config, log);
 
-    const foeFirst = !fight.foe.stunned && actsFirst(foe, foeMove, you, yourFiring);
+    const foeFirst = !fight.foe.stunned && actsFirst(foe, foeMove, you, yourFiring, statuses);
     for (const turn of foeFirst ? [foeTurn, yourTurn] : [yourTurn, foeTurn]) {
         if (you.hp <= 0 || foe.hp <= 0) break;
         turn();
@@ -446,7 +483,7 @@ function isDrawback(e: MoveEffect, statuses: Record<string, StatusConfig>): bool
         case "hit": case "stun": return self;
         case "heal": return self ? e.percent < 0 : e.percent > 0;
         case "boost": return self ? e.percent < 0 : e.percent > 0;
-        case "status": return self === ((statuses[e.statusId]?.hpPercentPerTurn ?? -1) < 0);
+        case "status": return self === harmful(statuses[e.statusId]);
         default: return false;
     }
 }
@@ -470,7 +507,7 @@ function effectText(e: MoveEffect, statuses: Record<string, StatusConfig>): stri
         case "boost": text = `${self ? "Your" : "The target's"} ${STAT_LABEL[e.stat]} ${e.percent >= 0 ? "rises" : "drops"} ${Math.abs(e.percent)}% ${turnsText(e.turns)}`; break;
         case "status": {
             const s = statuses[e.statusId];
-            text = `${s ? `${s.emoji} ${s.name}` : e.statusId} on ${who} for ${e.turns} turn${e.turns === 1 ? "" : "s"}`;
+            text = `${s ? `${s.emoji} ${s.name}` : e.statusId} on ${who} for ${e.turns} turn${e.turns === 1 ? "" : "s"}${(s?.maxStacks ?? 1) > 1 ? `, stacking up to ${s!.maxStacks}` : ""}`;
             break;
         }
         case "stun": text = `Stuns ${who}: the next action is lost`; break;

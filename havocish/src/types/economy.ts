@@ -11,7 +11,7 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe" | "learnMove";
     roleId?: string;
     message?: string;
     channelId?: string;
@@ -22,6 +22,8 @@ export interface shopItemAction {
     /** learnRecipe: the station and its hidden recipe the item teaches. */
     stationId?: string;
     recipeId?: string;
+    /** learnMove: the fight move the item teaches. */
+    moveId?: string;
 }
 
 export type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";

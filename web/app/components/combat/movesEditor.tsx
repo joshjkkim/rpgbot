@@ -6,7 +6,7 @@ import { Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle 
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import {
   DEFAULT_MOVES, DEFAULT_STATUSES, EFFECT_LABELS, NEW_EFFECT, STAT_LABEL,
-  describeMove, effectTarget,
+  describeMove, describeStatus, effectTarget,
   type EffectType, type MoveCondition, type MoveConfig, type MoveEffect, type MoveStat, type StatusConfig,
 } from "./moveText";
 
@@ -276,31 +276,54 @@ export default function MovesEditor({ moves, statuses, onMoves, onStatuses, skil
 
       <Section
         title="Statuses"
-        description="Lasting effects moves can put on: each one changes HP every turn by a share of max HP. Negative hurts (Bleeding, Poisoned), positive heals (Regenerating)."
+        description="Lasting effects moves can put on. Each can change HP every turn, change stats while it's on (Weakened: ATK −20%), and stack when put on again (Venom ×3). Moves can check for them: “hits harder if the target is Bleeding”."
         defaultOpen={false}
       >
         <div className="space-y-3">
           {Object.values(allStatuses).map((s) => {
             const set = (patch: Partial<StatusConfig>) => onStatuses({ ...allStatuses, [s.id]: { ...s, ...patch } });
+            const setStat = (k: MoveStat, v: number) => {
+              const stats = { ...s.stats, [k]: v || undefined };
+              set({ stats: Object.values(stats).some(Boolean) ? stats : undefined });
+            };
             return (
-              <div key={s.id} className="flex items-end gap-3">
-                <div className="grid flex-1 gap-3 sm:grid-cols-3">
+              <div key={s.id} className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="min-w-0 text-sm">
+                    <span className="mr-1.5">{s.emoji}</span>
+                    <span className="font-medium">{s.name || s.id}</span>
+                    <span className="ml-2 text-xs text-[var(--muted)]">{describeStatus(s)}</span>
+                  </p>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${s.name}`}
+                    onClick={() => {
+                      const next = { ...allStatuses };
+                      delete next[s.id];
+                      onStatuses(next);
+                    }}
+                    className="shrink-0 text-[var(--muted)] transition-colors hover:text-red-400"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <FieldGrid>
                   <TextField label="Name" value={s.name} onChange={(v) => set({ name: v })} />
                   <TextField label="Emoji" value={s.emoji} onChange={(v) => set({ emoji: v })} />
-                  <NumberField label="HP per turn (% of max)" value={s.hpPercentPerTurn} min={-50} max={50} onChange={(v) => set({ hpPercentPerTurn: v })} />
-                </div>
-                <button
-                  type="button"
-                  aria-label={`Remove ${s.name}`}
-                  onClick={() => {
-                    const next = { ...allStatuses };
-                    delete next[s.id];
-                    onStatuses(next);
-                  }}
-                  className="mb-2 text-[var(--muted)] transition-colors hover:text-red-400"
-                >
-                  <Trash2 size={14} />
-                </button>
+                  <NumberField label="HP per turn (% of max)" value={s.hpPercentPerTurn} min={-50} max={50} onChange={(v) => set({ hpPercentPerTurn: v })} hint="Negative hurts, positive heals, 0 for none." />
+                  <NumberField label="Max stacks" value={s.maxStacks ?? 1} min={1} max={10} onChange={(v) => set({ maxStacks: v > 1 ? v : undefined })} hint="1: putting it on again just refreshes it." />
+                  {STATS.map((st) => (
+                    <NumberField
+                      key={st.value}
+                      label={`${st.label} (%)`}
+                      value={s.stats?.[st.value] ?? 0}
+                      min={-100}
+                      max={200}
+                      step={5}
+                      onChange={(v) => setStat(st.value, v)}
+                    />
+                  ))}
+                </FieldGrid>
               </div>
             );
           })}

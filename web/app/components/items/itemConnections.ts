@@ -1,4 +1,5 @@
 import type { DashboardConfig } from "@/app/lib/dashboardConfig";
+import { DEFAULT_MOVES } from "@/app/components/combat/moveText";
 
 /*
  * Where an item comes from and what it is for, worked out from the config the
@@ -14,7 +15,7 @@ type Item = {
   equipable?: boolean; equipSlot?: string; sellPrice?: number | null; tradeable?: boolean;
   tool?: { activityId: string; tier?: number };
   effects?: { stats?: Record<string, number | undefined> };
-  actions?: Record<number, { type: string; itemId?: string; quantity?: number; statId?: string; amount?: number; stationId?: string; recipeId?: string }>;
+  actions?: Record<number, { type: string; itemId?: string; quantity?: number; statId?: string; amount?: number; stationId?: string; recipeId?: string; moveId?: string }>;
 };
 type Loot = { itemId: string; chance: number };
 
@@ -90,6 +91,10 @@ export function itemConnections(config: DashboardConfig, id: string) {
       const r = st?.recipes?.[act.recipeId ?? ""];
       if (st && r) to.push({ label: `Teaches: ${name(items[r.output?.itemId ?? ""], "a recipe")}`, detail: `${st.emoji} ${st.name} recipe`, page: "crafting" });
       else warnings.push("It teaches a recipe that no longer exists.");
+    } else if (act.type === "learnMove") {
+      const m = config.combat?.moves?.[act.moveId ?? ""] ?? DEFAULT_MOVES[act.moveId ?? ""];
+      if (m) to.push({ label: `Teaches: ${m.emoji} ${m.name}`, detail: "fight move", page: "combat" });
+      else warnings.push("It teaches a move that no longer exists.");
     } else if (act.type === "giveStat") {
       to.push({ label: `Use: gives ${act.amount ?? 0} ${act.statId || "of a stat"}` });
     } else {

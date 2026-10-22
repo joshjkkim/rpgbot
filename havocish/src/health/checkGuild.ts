@@ -156,8 +156,20 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
             }
         }
         if (!Object.values(moves).some((m) => m.players)) warn("No move is marked for players, so members can only Attack.");
-        for (const it of Object.values(items)) for (const id of it.effects?.moves ?? []) {
-            if (!moves[id]) warn(`The item ${it.name} gives a move that was deleted (${id}).`, "items");
+        const reachable = new Set<string>();
+        for (const it of Object.values(items)) {
+            for (const id of it.effects?.moves ?? []) {
+                reachable.add(id);
+                if (!moves[id]) warn(`The item ${it.name} gives a move that was deleted (${id}).`, "items");
+            }
+            for (const a of Object.values(it.actions ?? {})) {
+                if (a.type !== "learnMove") continue;
+                reachable.add(a.moveId ?? "");
+                if (!moves[a.moveId ?? ""]?.players) warn(`The scroll ${it.name} teaches a move players can't have (${a.moveId || "none picked"}).`, "items");
+            }
+        }
+        for (const m of Object.values(moves)) {
+            if (m.players?.learned && !reachable.has(m.id)) warn(`The move ${m.name} must be learned, but no scroll teaches it and no gear gives it.`);
         }
     }
 

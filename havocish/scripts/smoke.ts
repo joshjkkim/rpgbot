@@ -52,7 +52,7 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, combatXpForLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats, type CombatStats } from "../src/player/combat.js";
-import { DEFAULT_MOVES, describeMove, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
+import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
@@ -1603,6 +1603,51 @@ async function main() {
         check("a scroll for a deleted recipe teaches nothing", recipeToLearn(p, cfg, "smith", "gone").status, "missing");
         learnRecipe(p, "smith", "blade");
         check("learning twice doesn't duplicate it", p.user_stats.crafting.smith.known.length, 1);
+    });
+
+    await test("move scrolls teach a must-learn move once; statuses stack and change stats", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.combat.moves = {
+            ...DEFAULT_MOVES,
+            cleave: { id: "cleave", name: "Cleave", emoji: "🪓", effects: [{ type: "hit", power: 1.5 }], players: { learned: true, requirements: { combatLevel: 50 } } },
+            weaken: { id: "weaken", name: "Weaken", emoji: "🥀", effects: [{ type: "status", statusId: "weak", turns: 3 }], players: {} },
+            venom: { id: "venom", name: "Venom", emoji: "🐍", effects: [{ type: "status", statusId: "venom", turns: 3 }], players: {} },
+        };
+        cfg.combat.statuses = {
+            weak: { id: "weak", name: "Weakened", emoji: "🥀", hpPercentPerTurn: 0, stats: { atk: -50 } },
+            venom: { id: "venom", name: "Venom", emoji: "🐍", hpPercentPerTurn: -5, maxStacks: 3 },
+        };
+        const p = { user_stats: {}, equips: {} } as any;
+        const facts = { roleIds: [], joinedAt: null, boosting: false };
+
+        check("a must-learn move isn't known yet", moveToLearn(p, cfg, "cleave").status, "new");
+        check("so it isn't in the loadout", loadoutFor(p, cfg, facts).includes("cleave"), false);
+        learnMove(p, "cleave");
+        check("a move with no learning has nothing to teach", moveToLearn(p, cfg, "attack").status, "known");
+        check("a scroll for a deleted move teaches nothing", moveToLearn(p, cfg, "gone").status, "missing");
+        check("once learned, it's known", moveToLearn(p, cfg, "cleave").status, "known");
+        check("but its requirements still apply", loadoutFor(p, cfg, facts).includes("cleave"), false);
+        addCombatXp(p, cfg, combatXpForLevel(50, cfg));
+        p.user_stats.moves.loadout = ["cleave"];
+        check("met, it's usable", loadoutFor(p, cfg, facts)[0], "cleave");
+        learnMove(p, "cleave");
+        check("learning twice doesn't duplicate it", p.user_stats.moves.learned.length, 1);
+
+        // A stat status: Weakened halves the enemy's attack while it's on.
+        const fight = {
+            userId: "u", guildId: "g", messageId: "m", channelId: "c", dbUserId: 0, dbGuildId: 0, combatType: "pve",
+            playerStats: { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5 }, playerCurrentHp: 100,
+            enemy: { id: "o", name: "Ogre", emoji: "👹", hp: 100, atk: 10, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "attack" }] },
+            enemyCurrentHp: 100, player: newFighterState(), foe: newFighterState(), loadout: ["weaken", "venom"], enemyIntent: "attack",
+            round: 0, startedAt: 0, expiresAt: 0, totalDamageDealt: 0, totalDamageTaken: 0,
+        } as ActiveFight;
+        playTurn(fight, { kind: "move", moveId: "weaken" }, cfg);
+        check("a weakened enemy hits for half", fight.playerCurrentHp, 95);
+        // Venom stacks: one stack ticks 5, two stacks tick 10.
+        playTurn(fight, { kind: "move", moveId: "venom" }, cfg);
+        playTurn(fight, { kind: "move", moveId: "venom" }, cfg);
+        check("a stacking status counts its stacks", [fight.foe.stacks?.venom, fight.enemyCurrentHp], [2, 85]);
+        check("and says so", describeMove(cfg.combat.moves.venom!, cfg).does[0], "🐍 Venom on the target for 3 turns, stacking up to 3.");
     });
 
     await test("crafting: what a member can make, and making it", async () => {

@@ -110,6 +110,10 @@ export interface StatusConfig {
     emoji: string;
     /** % of max HP each turn: negative hurts, positive heals. */
     hpPercentPerTurn: number;
+    /** Stat changes while it's on, in %, per stack: { atk: -20 } is Weakened. */
+    stats?: Partial<Record<MoveStat, number>>;
+    /** Putting it on again adds a stack, up to this many (default 1: it just refreshes). */
+    maxStacks?: number;
 }
 
 export interface EnemyMove {
@@ -121,6 +125,8 @@ export interface EnemyMove {
 /** One side's fight state beyond HP: what is on it and what it's doing. */
 export interface FighterState {
     statuses: Record<string, number>;               // status id -> turns left
+    /** Stacks of each status on, when above 1. */
+    stacks?: Record<string, number>;
     boosts: { stat: MoveStat; percent: number; turns: number }[];
     cooldowns: Record<string, number>;              // move id -> turns left
     uses: Record<string, number>;

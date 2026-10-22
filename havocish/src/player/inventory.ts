@@ -1,5 +1,6 @@
 import { query } from "../db/index.js";
 import { learnRecipe, recipeToLearn } from "./crafting.js";
+import { learnMove, moveToLearn } from "./moves.js";
 import { busyFighting } from "./fight.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -294,18 +295,22 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
     const gate = checkRequirements(itemRequirements(items[itemId]), { profile, config, facts: memberFacts(interaction.member) });
     if (!gate.ok) return { success: false, message: `${named(items[itemId], itemId)}: ${gate.message}` };
 
-    // Recipe scrolls: refuse before anything is spent when there's nothing left to learn.
-    const lessons = Object.values(items[itemId].actions).filter((a) => a?.type === "learnRecipe");
+    // Recipe and move scrolls: refuse before anything is spent when there's nothing left to learn.
+    const lessons = Object.values(items[itemId].actions).filter((a) => a?.type === "learnRecipe" || a?.type === "learnMove");
     if (lessons.length) {
-        if (quantity > 1) return { success: false, message: "Recipe scrolls are read one at a time." };
-        const states = lessons.map((a) => recipeToLearn(profile, config, a.stationId ?? "", a.recipeId ?? ""));
-        if (!states.some((s) => s.status === "new")) {
-            return { success: false, message: states.every((s) => s.status === "missing")
-                ? "The recipe this teaches no longer exists."
-                : "You already know this recipe. Keep the scroll, or trade it." };
+        if (quantity > 1) return { success: false, message: "Scrolls are read one at a time." };
+        const states = lessons.map((a) => a.type === "learnMove"
+            ? moveToLearn(profile, config, a.moveId ?? "").status
+            : recipeToLearn(profile, config, a.stationId ?? "", a.recipeId ?? "").status);
+        if (!states.includes("new")) {
+            const what = lessons.every((a) => a.type === "learnMove") ? "move" : "recipe";
+            return { success: false, message: states.every((s) => s === "missing")
+                ? `The ${what} this teaches no longer exists.`
+                : `You already know this ${what}. Keep the scroll, or trade it.` };
         }
     }
     const learned: string[] = [];
+    const learnedMoves: string[] = [];
 
     // The full member, for role actions below.
     const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
@@ -383,6 +388,25 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                     changes: pending,
                     baseline,
                 });
+            }
+
+            if (action.type === "learnMove" && action.moveId) {
+                const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+                const p = cached.profile;
+                const lesson = moveToLearn(p, config, action.moveId);
+                if (lesson.status !== "new") continue;
+                learnMove(p, action.moveId);
+                commitProfileChanges({
+                    userId: dbUser.id,
+                    guildId: dbGuild.id,
+                    profile: p,
+                    changes: { ...(cached.pendingChanges ?? {}), user_stats: p.user_stats } as PendingProfileChanges,
+                    baseline: { xp: p.xp, gold: p.gold },
+                });
+                // Learned now, usable once its requirements are met.
+                const gate = checkRequirements(lesson.move!.players?.requirements, { profile: p, config, facts: memberFacts(interaction.member) });
+                learnedMoves.push(`${lesson.move!.emoji} ${lesson.move!.name}${gate.ok ? "" : ` (${gate.message.replace(/\.$/, "")} to use it)`}`);
+                continue;
             }
 
             if (action.type === "learnRecipe" && action.stationId && action.recipeId) {
@@ -559,6 +583,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
         message: `Used ${named(items[itemId], itemId)}${quantity > 1 ? ` ×${quantity}` : ""}.`
             + `${change ? ` ${change}.` : ""}`
             + `${learned.length ? ` 📜 Learned ${learned.join(", ")}: find it in \`/craft\`.` : ""}`
+            + `${learnedMoves.length ? ` 📜 Learned the move ${learnedMoves.join(", ")}: pick it in \`/moves\`.` : ""}`
             + ` ${left ? `${left} left.` : "That was your last one."}`,
     };
 }

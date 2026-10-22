@@ -46,6 +46,10 @@ export interface StatusConfig {
   name: string;
   emoji: string;
   hpPercentPerTurn: number;
+  /** Stat changes while it's on, in %, per stack. */
+  stats?: Partial<Record<MoveStat, number>>;
+  /** Putting it on again adds a stack, up to this many (default 1). */
+  maxStacks?: number;
 }
 
 export interface EnemyMove {
@@ -117,6 +121,21 @@ export function effectTarget(e: MoveEffect): "self" | "target" {
   return e.target ?? (SELF_BY_DEFAULT.has(e.type) ? "self" : "target");
 }
 
+/** A status that works against whoever has it: HP loss or a lowered stat. */
+export function harmful(s: StatusConfig | undefined): boolean {
+  return !s || s.hpPercentPerTurn < 0 || Object.values(s.stats ?? {}).some((v) => (v ?? 0) < 0);
+}
+
+/** What a status does each turn and while it's on, for the editor. */
+export function describeStatus(s: StatusConfig): string {
+  const parts = [
+    s.hpPercentPerTurn ? `${s.hpPercentPerTurn > 0 ? "Heals" : "Loses"} ${Math.abs(s.hpPercentPerTurn)}% of max HP each turn` : "",
+    ...(Object.entries(s.stats ?? {}) as Array<[MoveStat, number]>).filter(([, v]) => v).map(([k, v]) => `${STAT_LABEL[k]} ${v > 0 ? "+" : "−"}${Math.abs(v)}%`),
+  ].filter(Boolean);
+  const stacks = (s.maxStacks ?? 1) > 1 ? ` Stacks up to ${s.maxStacks}, each stack adding the same again.` : "";
+  return `${parts.length ? parts.join(", ") : "Does nothing yet"}.${stacks}`;
+}
+
 function conditionText(c: MoveCondition, statuses: Record<string, StatusConfig>): string {
   switch (c.type) {
     case "targetHasStatus": return `if the target is ${statuses[c.statusId]?.name ?? c.statusId}`;
@@ -137,7 +156,7 @@ function isDrawback(e: MoveEffect, statuses: Record<string, StatusConfig>): bool
     case "hit": case "stun": return self;
     case "heal": return self ? e.percent < 0 : e.percent > 0;
     case "boost": return self ? e.percent < 0 : e.percent > 0;
-    case "status": return self === ((statuses[e.statusId]?.hpPercentPerTurn ?? -1) < 0);
+    case "status": return self === harmful(statuses[e.statusId]);
     default: return false;
   }
 }
@@ -161,7 +180,7 @@ function effectText(e: MoveEffect, statuses: Record<string, StatusConfig>): stri
     case "boost": text = `${self ? "Your" : "The target's"} ${STAT_LABEL[e.stat]} ${e.percent >= 0 ? "rises" : "drops"} ${Math.abs(e.percent)}% ${turnsText(e.turns)}`; break;
     case "status": {
       const s = statuses[e.statusId];
-      text = `${s ? `${s.emoji} ${s.name}` : e.statusId} on ${who} for ${e.turns} turn${e.turns === 1 ? "" : "s"}`;
+      text = `${s ? `${s.emoji} ${s.name}` : e.statusId} on ${who} for ${e.turns} turn${e.turns === 1 ? "" : "s"}${(s?.maxStacks ?? 1) > 1 ? `, stacking up to ${s!.maxStacks}` : ""}`;
       break;
     }
     case "stun": text = `Stuns ${who}: the next action is lost`; break;

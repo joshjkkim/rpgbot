@@ -51,7 +51,10 @@ const STAT_NAMES = { atk: "ATK", def: "DEF", spd: "SPD", crit: "Crit" } as const
 function effectsLine(state: FighterState, config: GuildConfig): string {
     const statuses = statusesOf(config);
     return [
-        ...Object.entries(state.statuses).map(([id, turns]) => `${statuses[id]?.emoji ?? "•"} ${statuses[id]?.name ?? id} (${turns})`),
+        ...Object.entries(state.statuses).map(([id, turns]) => {
+            const stacks = state.stacks?.[id] ?? 1;
+            return `${statuses[id]?.emoji ?? "•"} ${statuses[id]?.name ?? id}${stacks > 1 ? ` ×${stacks}` : ""} (${turns})`;
+        }),
         ...state.boosts.map((b) => `${b.percent >= 0 ? "⬆️" : "⬇️"} ${STAT_NAMES[b.stat]} ${b.percent >= 0 ? "+" : "−"}${Math.abs(b.percent)}% (${b.turns})`),
     ].join("\n");
 }
