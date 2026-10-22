@@ -14,7 +14,7 @@ type Item = {
   equipable?: boolean; equipSlot?: string; sellPrice?: number | null; tradeable?: boolean;
   tool?: { activityId: string; tier?: number };
   effects?: { stats?: Record<string, number | undefined> };
-  actions?: Record<number, { type: string; itemId?: string; quantity?: number; statId?: string; amount?: number }>;
+  actions?: Record<number, { type: string; itemId?: string; quantity?: number; statId?: string; amount?: number; stationId?: string; recipeId?: string }>;
 };
 type Loot = { itemId: string; chance: number };
 
@@ -85,6 +85,11 @@ export function itemConnections(config: DashboardConfig, id: string) {
       const other = items[act.itemId ?? ""];
       if (other) to.push({ label: `Gives ${name(other, act.itemId)}`, detail: `×${act.quantity ?? 1} when used`, itemId: act.itemId });
       else warnings.push("Using it gives an item that no longer exists.");
+    } else if (act.type === "learnRecipe") {
+      const st = (config.crafting?.stations ?? {})[act.stationId ?? ""] as Station | undefined;
+      const r = st?.recipes?.[act.recipeId ?? ""];
+      if (st && r) to.push({ label: `Teaches: ${name(items[r.output?.itemId ?? ""], "a recipe")}`, detail: `${st.emoji} ${st.name} recipe`, page: "crafting" });
+      else warnings.push("It teaches a recipe that no longer exists.");
     } else if (act.type === "giveStat") {
       to.push({ label: `Use: gives ${act.amount ?? 0} ${act.statId || "of a stat"}` });
     } else {
