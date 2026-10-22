@@ -41,6 +41,8 @@ export interface UserStats {
     combat?: { xp: number };
     /** Role ids whose role reward this member has had, so re-adding a role pays nothing. */
     roleRewards?: string[];
+    /** Fight moves: the ones learned from scrolls, and the up-to-four picked in /moves. */
+    moves?: { learned?: string[]; loadout?: string[] };
 }
 export interface item {
     id: string;

@@ -26,11 +26,11 @@ import { updateInventory, sellItemFromInventory } from "../src/player/inventory.
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
 import { startFight, applyAction, applyFightRewards, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
-import { buildActionRow } from "../src/commands/user/fight.js";
+import { buildActionRows } from "../src/commands/user/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
 import { databaseUrlProblem } from "../src/env.js";
-import type { EnemyConfig } from "../src/types/combat.js";
+import type { ActiveFight, EnemyConfig } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
@@ -51,7 +51,8 @@ import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
-import { calculateStats } from "../src/player/combat.js";
+import { calculateStats, type CombatStats } from "../src/player/combat.js";
+import { DEFAULT_MOVES, describeMove, intentLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
@@ -992,7 +993,7 @@ async function main() {
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
             messageId: "smoke-fight-1", channelId: "smoke-channel",
-            combatType: "pve", profile, enemy, config,
+            combatType: "pve", profile, enemy, config, loadout: ["attack"],
         });
 
         const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
@@ -1041,7 +1042,7 @@ async function main() {
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
             messageId: "smoke-fight-2", channelId: "smoke-channel",
-            combatType: "pve", profile, enemy, config,
+            combatType: "pve", profile, enemy, config, loadout: ["attack"],
         });
         const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
 
@@ -2143,24 +2144,24 @@ async function main() {
         // No attack, so every swing does the minimum 1 damage; too much HP to die.
         const enemy: EnemyConfig = {
             id: "brute", name: "Brute", emoji: "🪨", hp: 100000, atk: 0, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
-            minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [],
+            minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "attack" }],
         };
         const profile = await row(fx.a, g);
         profile.inventory = { draught: { id: "draught", name: "Draught", quantity: 2 } } as any;
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
-            messageId: "smoke-fight-potion", channelId: "smoke-channel", combatType: "pve", profile, enemy, config,
+            messageId: "smoke-fight-potion", channelId: "smoke-channel", combatType: "pve", profile, enemy, config, loadout: ["attack"],
         });
         fight.playerCurrentHp = 20;
 
-        const row1 = JSON.stringify(buildActionRow(profile, config).toJSON());
+        const row1 = JSON.stringify(buildActionRows(fight, profile, config).map((r) => r.toJSON()));
         check("a potion button shows with its count", row1.includes("fight:potion:draught") && row1.includes("Draught ×2"), true);
         check("gear gets no button", row1.includes("sword"), false);
 
         const drink = applyAction(fight, "potion:draught", fx.guild, profile, config);
         check("drinking heals, then the enemy still swings", fight.playerCurrentHp, 49);
         check("and it uses the turn", fight.round, 1);
-        check("the log says what it did", drink.result.log[0]!.includes("❤️ 20 → 50"), true);
+        check("the log says what it did", drink.result.log[0]!.includes("+30 HP"), true);
         check("a non-potion can't be drunk", (() => { try { applyAction(fight, "potion:sword", fx.guild, profile, config); return "drank"; } catch { return "refused"; } })(), "refused");
 
         // Other HP and gear changes wait; the reply links to the fight.
@@ -2183,6 +2184,105 @@ async function main() {
         await abandonFight(fight, client, "restart");
         await flushDirtyProfiles(true);
         check("ending it twice changes nothing", (await row(fx.a, g)).user_stats?.currentHp, 7);
+    });
+
+    await test("fight moves: telegraphs, guard and counter, cooldowns, statuses, stuns and drawbacks", async () => {
+        const fightWith = (cfg: GuildConfig, enemy: Partial<EnemyConfig>, you: Partial<CombatStats> = {}): ActiveFight => {
+            const f = {
+                userId: "u", guildId: "g", messageId: "m", channelId: "c", dbUserId: 0, dbGuildId: 0, combatType: "pve",
+                playerStats: { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5, ...you },
+                playerCurrentHp: 100,
+                enemy: { id: "ogre", name: "Ogre", emoji: "👹", hp: 100, atk: 10, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+                    minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], ...enemy },
+                enemyCurrentHp: enemy.hp ?? 100, player: newFighterState(), foe: newFighterState(),
+                loadout: ["attack", "heavy", "guard"], enemyIntent: "", round: 0, startedAt: 0, expiresAt: 0,
+                totalDamageDealt: 0, totalDamageTaken: 0,
+            } as ActiveFight;
+            f.enemyIntent = pickIntent(f, cfg);
+            return f;
+        };
+        const base = DEFAULT_GUILD_CONFIG;
+        const move = (id: string): PlayerChoice => ({ kind: "move", moveId: id });
+
+        // Plain trade: 20 dealt, 10 taken.
+        const plain = fightWith(base, { moves: [{ moveId: "attack" }] });
+        check("the enemy's next move is picked and shown", intentLine(plain, base).includes("gets ready to strike"), true);
+        playTurn(plain, move("attack"), base);
+        check("attack trades blows", [plain.enemyCurrentHp, plain.playerCurrentHp], [80, 90]);
+
+        // Guard against a heavy hit: 18 x 40% = 7 taken, half of that countered back.
+        const guarded = fightWith(base, { moves: [{ moveId: "heavy" }] });
+        const g1 = playTurn(guarded, move("guard"), base);
+        check("guard blocks most of a heavy hit", guarded.playerCurrentHp, 93);
+        check("and counters it", [guarded.enemyCurrentHp, g1.log.some((l) => l.includes("countered"))], [96, true]);
+
+        // Heavy Strike: big hit, your defense drops for the enemy's swing, then a 2-turn cooldown.
+        const heavy = fightWith(base, { moves: [{ moveId: "attack" }] }, { def: 10 });
+        playTurn(heavy, move("heavy"), base);
+        check("heavy hits 180%", heavy.enemyCurrentHp, 64);
+        check("its drawback lowers your defense for the enemy's swing", heavy.playerCurrentHp, 94);
+        const heavyMove = moveById(base, "heavy");
+        const ready: boolean[] = [usable(heavy.player, heavyMove)];
+        playTurn(heavy, move("attack"), base); ready.push(usable(heavy.player, heavyMove));
+        playTurn(heavy, move("attack"), base); ready.push(usable(heavy.player, heavyMove));
+        check("a 2-turn cooldown skips two turns", ready, [false, false, true]);
+        const waiting = fightWith(base, { moves: [{ moveId: "attack" }] });
+        waiting.player.cooldowns.heavy = 2;
+        check("a move on cooldown isn't played", applyAction(waiting, "move:heavy", {} as any, {} as any, base).result.log[0], "⌛ **Heavy Strike** isn't ready yet.");
+
+        // A status, and a move that hits harder against it.
+        const custom = {
+            ...base,
+            combat: {
+                ...base.combat,
+                moves: {
+                    ...DEFAULT_MOVES,
+                    idle: { id: "idle", name: "Idle", emoji: "💤", effects: [] },
+                    rend: { id: "rend", name: "Rend", emoji: "🩸", effects: [{ type: "hit", power: 0.5 }, { type: "status", statusId: "bleed", turns: 3 }], players: {} },
+                    execute: { id: "execute", name: "Execute", emoji: "🗡️", effects: [{ type: "hit", power: 1 }, { type: "hit", power: 1.5, when: { type: "targetHasStatus", statusId: "bleed" } }], players: {} },
+                    ritual: { id: "ritual", name: "Dark Ritual", emoji: "🌑", telegraph: "gathers shadow…", charge: 2, effects: [{ type: "hit", power: 3 }] },
+                    bash: { id: "bash", name: "Shield Bash", emoji: "🛡️", effects: [{ type: "hit", power: 0.5 }, { type: "stun" }], players: { requirements: { combatLevel: 50 } } },
+                    pact: { id: "pact", name: "Blood Pact", emoji: "🩸", effects: [{ type: "hit", power: 2 }, { type: "heal", percent: -500 }], players: {} },
+                },
+            },
+        } as GuildConfig;
+        const bleed = fightWith(custom, { moves: [{ moveId: "idle" }] });
+        playTurn(bleed, move("rend"), custom);
+        check("rend hits and the bleed ticks at the end of the turn", [bleed.enemyCurrentHp, bleed.foe.statuses.bleed], [85, 2]);
+        playTurn(bleed, move("execute"), custom);
+        check("execute hits harder while the target bleeds", bleed.enemyCurrentHp, 30);
+
+        // A wind-up: it fires on the third turn unless it's stunned first.
+        const ritual = fightWith(custom, { moves: [{ moveId: "ritual" }] });
+        playTurn(ritual, move("attack"), custom);
+        playTurn(ritual, move("attack"), custom);
+        check("the warning says it's about to go off", intentLine(ritual, custom).includes("unleashes **Dark Ritual** this turn"), true);
+        playTurn(ritual, move("attack"), custom);
+        check("an unanswered wind-up lands", ritual.playerCurrentHp, 70);
+        const stopped = fightWith(custom, { moves: [{ moveId: "ritual" }] });
+        playTurn(stopped, move("attack"), custom);
+        playTurn(stopped, move("attack"), custom);
+        const s3 = playTurn(stopped, move("bash"), custom);
+        check("a stun interrupts it", [stopped.playerCurrentHp, !!stopped.foe.charging, s3.log.some((l) => l.includes("interrupted"))], [100, false, true]);
+
+        // A drawback that costs HP never kills you.
+        const pact = fightWith(custom, { moves: [{ moveId: "idle" }] });
+        playTurn(pact, move("pact"), custom);
+        check("losing HP to your own move stops at 1", pact.playerCurrentHp, 1);
+
+        // Plain-language text, with drawbacks apart.
+        const said = describeMove(heavyMove, base);
+        check("a move describes itself", said, { does: ["Deals 180% damage.", "2-turn cooldown."], drawbacks: ["Your DEF drops 30% this turn."] });
+
+        // What a player brings: requirements, a picked loadout, gear.
+        const profile = { level: 1, xp: "0", user_stats: {}, equips: {} } as any;
+        const facts = { roleIds: [], joinedAt: null, boosting: false };
+        check("a move behind requirements isn't available", loadoutFor(profile, custom, facts).includes("bash"), false);
+        profile.user_stats = { moves: { loadout: ["pact"] } };
+        check("the picked move goes first", loadoutFor(profile, custom, facts)[0], "pact");
+        const geared = { ...custom, shop: { ...custom.shop, items: { shield: { id: "shield", name: "Shield", effects: { moves: ["bash"] } } as any } } } as GuildConfig;
+        profile.equips = { offhand: "shield" };
+        check("gear gives its move, requirements or not", loadoutFor(profile, geared, facts).includes("bash"), true);
     });
 
     await test("the health check finds setups that will fail quietly", async () => {

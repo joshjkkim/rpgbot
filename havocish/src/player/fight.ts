@@ -3,10 +3,8 @@ import type { DbGuild } from "../types/guild.js";
 import type { DbUserGuildProfile, item } from "../types/userprofile.js";
 import type {
     ActiveFight,
-    CombatAction,
     CombatActionResult,
     EnemyConfig,
-    FightContext,
     FightEndSummary,
     FightOutcome,
 } from "../types/combat.js";
@@ -20,12 +18,10 @@ import { EmbedBuilder, type Client } from "discord.js";
 import type { shopItemConfig } from "../types/economy.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { bestEffort } from "../ui/bestEffort.js";
+import { moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "./moves.js";
 
 /** A fight expires (auto-fled) if the player doesn't act within this many ms. */
 const FIGHT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-
-/** Max rounds before the fight ends in a draw (prevents infinite loops with bad stat configs). */
-const MAX_ROUNDS = 30;
 
 // ─── Active fight store ────────────────────────────────────────────────────────
 // Keyed by `${discordUserId}-${discordGuildId}`
@@ -90,33 +86,6 @@ export function resolveHit(
     return { damage, isCrit };
 }
 
-// ─── Action registry ───────────────────────────────────────────────────────────
-// Add new CombatAction objects here as the system grows.
-// The /fight button handler looks actions up by id.
-
-/**
- * The enemy's swing after the player's turn, and whether the fight goes on.
- * `playerHp` is the player's HP before the swing.
- */
-function enemyTurn(fight: ActiveFight, playerHp: number, log: string[]): { playerHpDelta: number; outcome: FightOutcome } {
-    const enemyHit = resolveHit(
-        fight.enemy.atk,
-        fight.playerStats.def,
-        fight.enemy.critChance,
-        fight.enemy.critMultiplier,
-    );
-    log.push(
-        enemyHit.isCrit
-            ? `💥 **${fight.enemy.emoji} ${fight.enemy.name} landed a critical hit!** You took **${enemyHit.damage}** damage!`
-            : `🗡️ ${fight.enemy.emoji} ${fight.enemy.name} hit you for **${enemyHit.damage}** damage.`,
-    );
-    if (playerHp - enemyHit.damage <= 0) return { playerHpDelta: -enemyHit.damage, outcome: "loss" };
-
-    const outcome: FightOutcome = fight.round + 1 >= MAX_ROUNDS ? "flee" : "continue";
-    if (outcome === "flee") log.push(`⏱️ The fight dragged on too long — you escaped exhausted.`);
-    return { playerHpDelta: -enemyHit.damage, outcome };
-}
-
 /** How much an item heals when drunk mid-fight; 0 for anything that isn't a healing consumable. */
 export function healAmount(item: shopItemConfig | undefined): number {
     if (!item || item.permanent) return 0;
@@ -127,106 +96,28 @@ export function healAmount(item: shopItemConfig | undefined): number {
     return total;
 }
 
-/** Drinking a potion takes the player's turn, so the enemy still swings. */
-function drinkAction(item: shopItemConfig): CombatAction {
-    return {
-        id: `potion:${item.id}`, label: item.name, emoji: item.emoji ?? "🧪", style: "secondary",
-        execute({ fight }): CombatActionResult {
-            const healed = Math.min(healAmount(item), fight.playerStats.maxHp - fight.playerCurrentHp);
-            const hp = fight.playerCurrentHp + healed;
-            const log = [`${item.emoji ?? "🧪"} You drank **${item.name}**. ❤️ ${fight.playerCurrentHp} → ${hp}`];
-            const turn = enemyTurn(fight, hp, log);
-            return { outcome: turn.outcome, playerHpDelta: healed + turn.playerHpDelta, enemyHpDelta: 0, log };
-        },
-    };
-}
-
-export const COMBAT_ACTIONS: Record<string, CombatAction> = {
-
-    basic_attack: {
-        id: "basic_attack",
-        label: "Attack",
-        emoji: "⚔️",
-        style: "primary",
-        execute(ctx): CombatActionResult {
-            const { fight } = ctx;
-            const log: string[] = [];
-
-            // Player hits enemy
-            const playerHit = resolveHit(
-                fight.playerStats.atk,
-                fight.enemy.def,
-                fight.playerStats.critChance,
-                fight.playerStats.critMultiplier,
-            );
-            const enemyHpDelta = -playerHit.damage;
-            log.push(
-                playerHit.isCrit
-                    ? `💥 **Critical hit!** You dealt **${playerHit.damage}** damage to ${fight.enemy.emoji} ${fight.enemy.name}!`
-                    : `⚔️ You dealt **${playerHit.damage}** damage to ${fight.enemy.emoji} ${fight.enemy.name}.`,
-            );
-
-            // Check if enemy is dead before it counter-attacks
-            const enemyHpAfter = fight.enemyCurrentHp + enemyHpDelta;
-            if (enemyHpAfter <= 0) {
-                return { outcome: "win", playerHpDelta: 0, enemyHpDelta, log };
-            }
-
-            // Enemy counter-attacks (speed already determined order at fight start;
-            // here we always let the enemy hit back in the same round)
-            const { playerHpDelta, outcome } = enemyTurn(fight, fight.playerCurrentHp, log);
-            return { outcome, playerHpDelta, enemyHpDelta, log };
-        },
-    },
-
-    flee: {
-        id: "flee",
-        label: "Flee",
-        emoji: "🏃",
-        style: "secondary",
-        execute(ctx): CombatActionResult {
-            const { fight } = ctx;
-            // Speed-based flee: player flees if their speed >= enemy speed,
-            // otherwise 50% chance. Fast enemies are harder to escape.
-            const succeeds =
-                fight.playerStats.spd >= fight.enemy.spd
-                    ? true
-                    : Math.random() < 0.5;
-
-            if (succeeds) {
-                return {
-                    outcome: "flee",
-                    playerHpDelta: 0,
-                    enemyHpDelta: 0,
-                    log: [`🏃 You successfully fled from ${fight.enemy.emoji} ${fight.enemy.name}!`],
-                };
-            }
-
-            // Failed flee — enemy gets a free hit
-            const hit = resolveHit(
-                fight.enemy.atk,
-                fight.playerStats.def,
-                fight.enemy.critChance,
-                fight.enemy.critMultiplier,
-            );
-            const playerHpAfter = fight.playerCurrentHp - hit.damage;
-            return {
-                outcome: playerHpAfter <= 0 ? "loss" : "continue",
-                playerHpDelta: -hit.damage,
-                enemyHpDelta: 0,
-                log: [
-                    `🚫 You failed to flee! ${fight.enemy.emoji} ${fight.enemy.name} hit you for **${hit.damage}** damage.`,
-                ],
-            };
-        },
-    },
-};
-
-/** Returns the action buttons available to the player right now. */
-export function getAvailableActions(ctx: FightContext): CombatAction[] {
-    return Object.values(COMBAT_ACTIONS).filter(
-        (a) => !a.available || a.available(ctx),
-    );
+/**
+ * Turns a button into what the player does. Button ids: `move:<id>`, `potion:<itemId>`,
+ * `wait` (stunned or winding up) and `flee`. Throws on anything the player can't do now.
+ */
+function choiceFor(fight: ActiveFight, actionId: string, config: GuildConfig): { choice: PlayerChoice; log: string[] } | { fled: true } | { refused: string } {
+    if (fight.player.stunned || fight.player.charging) return { choice: { kind: "pass" }, log: [] };
+    if (actionId === "flee") {
+        // Faster than the enemy always gets away; slower is a coin flip, and a miss costs the turn.
+        if (fight.playerStats.spd >= fight.enemy.spd || Math.random() < 0.5) return { fled: true };
+        return { choice: { kind: "pass" }, log: ["🚫 You failed to flee!"] };
+    }
+    if (actionId.startsWith("potion:")) {
+        const item = config.shop?.items?.[actionId.slice("potion:".length)];
+        const heal = healAmount(item);
+        if (!item || heal <= 0) throw new Error(`Not a potion: ${actionId}`);
+        return { choice: { kind: "potion", heal, name: item.name, emoji: item.emoji ?? "🧪" }, log: [] };
+    }
+    const moveId = actionId.startsWith("move:") ? actionId.slice("move:".length) : actionId === "basic_attack" ? fight.loadout[0]! : "";
+    const move = fight.loadout.includes(moveId) ? moveById(config, moveId) : null;
+    if (!move) throw new Error(`Unknown combat action: ${actionId}`);
+    if (!usable(fight.player, move)) return { refused: `⌛ **${move.name}** isn't ready yet.` };
+    return { choice: { kind: "move", moveId }, log: [] };
 }
 
 // ─── Start fight ───────────────────────────────────────────────────────────────
@@ -240,6 +131,8 @@ export interface StartFightOptions {
     profile: DbUserGuildProfile;
     enemy: EnemyConfig;
     config: GuildConfig;
+    /** From loadoutFor, which needs the member's roles. */
+    loadout: string[];
 }
 
 export function startFight(opts: StartFightOptions): ActiveFight {
@@ -263,12 +156,18 @@ export function startFight(opts: StartFightOptions): ActiveFight {
         playerCurrentHp,
         enemy: opts.enemy,
         enemyCurrentHp: opts.enemy.hp,
+        player: newFighterState(),
+        foe: newFighterState(),
+        loadout: opts.loadout,
+        enemyIntent: "",
         round: 0,
         startedAt: now,
         expiresAt: now + FIGHT_TIMEOUT_MS,
         totalDamageDealt: 0,
         totalDamageTaken: 0,
     };
+
+    fight.enemyIntent = pickIntent(fight, opts.config);
 
     setActiveFight(fight);
     return fight;
@@ -296,12 +195,6 @@ export function applyAction(
     profile: DbUserGuildProfile,
     config: GuildConfig,
 ): ApplyActionResult {
-    const potion = actionId.startsWith("potion:") ? config.shop?.items?.[actionId.slice("potion:".length)] : undefined;
-    const action = potion && healAmount(potion) > 0 ? drinkAction(potion) : COMBAT_ACTIONS[actionId];
-    if (!action) {
-        throw new Error(`Unknown combat action: ${actionId}`);
-    }
-
     // A finished fight accepts no further actions. Without this, a second
     // click resolves against an enemy already on 0 HP, reports another win and
     // pays out the rewards a second time.
@@ -315,14 +208,21 @@ export function applyAction(
         };
     }
 
-    const ctx: FightContext = { fight, profile, guild, config };
-    const result = action.execute(ctx);
+    const picked = choiceFor(fight, actionId, config);
+    // A click on a move that's still cooling down (a stale button) costs nothing.
+    if ("refused" in picked) {
+        return { fight, result: { outcome: "continue", playerHpDelta: 0, enemyHpDelta: 0, log: [picked.refused] }, ended: false, summary: null };
+    }
+    let result: CombatActionResult;
+    if ("fled" in picked) {
+        result = { outcome: "flee", playerHpDelta: 0, enemyHpDelta: 0, log: [`🏃 You successfully fled from ${fight.enemy.emoji} ${fight.enemy.name}!`] };
+    } else {
+        const turn = playTurn(fight, picked.choice, config);
+        result = { ...turn, log: [...picked.log, ...turn.log] };
+    }
 
-    // Apply deltas
-    fight.playerCurrentHp = Math.max(0, fight.playerCurrentHp + result.playerHpDelta);
-    fight.enemyCurrentHp  = Math.max(0, fight.enemyCurrentHp  + result.enemyHpDelta);
-    fight.totalDamageDealt += Math.abs(result.enemyHpDelta);
-    fight.totalDamageTaken += Math.abs(result.playerHpDelta);
+    fight.totalDamageDealt += Math.max(0, -result.enemyHpDelta);
+    fight.totalDamageTaken += Math.max(0, -result.playerHpDelta);
     fight.round += 1;
     fight.expiresAt = Date.now() + FIGHT_TIMEOUT_MS; // reset timeout on each action
 

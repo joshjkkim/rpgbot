@@ -11,13 +11,14 @@ import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileSer
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { calculateStats, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
 import {
-    COMBAT_ACTIONS, applyAction, applyFightRewards, busyFighting, healAmount,
+    applyAction, applyFightRewards, busyFighting, clearActiveFight, healAmount,
     getActiveFight, getFightByMessageId, pickRandomEnemy, setActiveFight, startFight,
 } from "../../player/fight.js";
+import { intentLine, loadoutFor, moveById, statusesOf, usable } from "../../player/moves.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import { bestEffort } from "../../ui/bestEffort.js";
-import type { ActiveFight, EnemyConfig, FightEndSummary } from "../../types/combat.js";
+import type { ActiveFight, EnemyConfig, FightEndSummary, FighterState } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import type { shopItemConfig } from "../../types/economy.js";
@@ -44,32 +45,29 @@ function buildHpBar(current: number, max: number, length = 10): string {
     return "[" + "█".repeat(filled) + "░".repeat(length - filled) + "]";
 }
 
-function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: string[]): EmbedBuilder {
-    const embed = new EmbedBuilder()
-        .setTitle(`⚔️ vs ${fight.enemy.emoji} ${fight.enemy.name}`)
-        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
-        .addFields(
-            {
-                name: "🧑 You",
-                value: [
-                    buildHpBar(fight.playerCurrentHp, fight.playerStats.maxHp),
-                    `❤️ **${fight.playerCurrentHp}** / **${fight.playerStats.maxHp}**`,
-                ].join("\n"),
-                inline: true,
-            },
-            {
-                name: `${fight.enemy.emoji} ${fight.enemy.name}`,
-                value: [
-                    buildHpBar(fight.enemyCurrentHp, fight.enemy.hp),
-                    `❤️ **${fight.enemyCurrentHp}** / **${fight.enemy.hp}**`,
-                ].join("\n"),
-                inline: true,
-            },
-        )
-        .setFooter({ text: `Round ${fight.round + 1}` });
+const STAT_NAMES = { atk: "ATK", def: "DEF", spd: "SPD", crit: "Crit" } as const;
 
-    if (log.length > 0) embed.setDescription(log.join("\n"));
-    return embed;
+/** What's on a fighter right now: statuses and boosts, with turns left. */
+function effectsLine(state: FighterState, config: GuildConfig): string {
+    const statuses = statusesOf(config);
+    return [
+        ...Object.entries(state.statuses).map(([id, turns]) => `${statuses[id]?.emoji ?? "•"} ${statuses[id]?.name ?? id} (${turns})`),
+        ...state.boosts.map((b) => `${b.percent >= 0 ? "⬆️" : "⬇️"} ${STAT_NAMES[b.stat]} ${b.percent >= 0 ? "+" : "−"}${Math.abs(b.percent)}% (${b.turns})`),
+    ].join("\n");
+}
+
+export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: string[], title?: string): EmbedBuilder {
+    const fighter = (hp: number, max: number, state: FighterState) =>
+        [buildHpBar(hp, max), `❤️ **${hp}** / **${max}**`, effectsLine(state, config)].filter(Boolean).join("\n");
+    return new EmbedBuilder()
+        .setTitle(title ?? `⚔️ vs ${fight.enemy.emoji} ${fight.enemy.name}`)
+        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
+        .setDescription([...log, ...(log.length ? [""] : []), intentLine(fight, config)].join("\n"))
+        .addFields(
+            { name: "🧑 You", value: fighter(fight.playerCurrentHp, fight.playerStats.maxHp, fight.player), inline: true },
+            { name: `${fight.enemy.emoji} ${fight.enemy.name}`, value: fighter(fight.enemyCurrentHp, fight.enemy.hp, fight.foe), inline: true },
+        )
+        .setFooter({ text: `Round ${fight.round + 1} · Your turn` });
 }
 
 function buildEndEmbed(
@@ -152,8 +150,8 @@ async function lootCards(summary: FightEndSummary, config: GuildConfig) {
     }
 }
 
-// Attack and Flee take two of the row's five buttons.
-const MAX_POTION_BUTTONS = 3;
+// Potions get their own row.
+const MAX_POTION_BUTTONS = 5;
 
 /** The healing potions in a bag, smallest first, as fight buttons. */
 function potionButtons(profile: DbUserGuildProfile | undefined, config: GuildConfig | undefined): ButtonBuilder[] {
@@ -170,20 +168,40 @@ function potionButtons(profile: DbUserGuildProfile | undefined, config: GuildCon
             .setStyle(ButtonStyle.Success));
 }
 
-/** Attack and Flee, plus a button per healing potion the fighter carries. */
-export function buildActionRow(profile?: DbUserGuildProfile, config?: GuildConfig): ActionRowBuilder<ButtonBuilder> {
-    const buttons = Object.values(COMBAT_ACTIONS).map(action => {
-        const style =
-            action.style === "primary"  ? ButtonStyle.Primary  :
-            action.style === "danger"   ? ButtonStyle.Danger   :
-                                          ButtonStyle.Secondary;
-        return new ButtonBuilder()
-            .setCustomId(`fight:${action.id}`)
-            .setLabel(action.label)
-            .setEmoji(action.emoji)
-            .setStyle(style);
+/** An owner-typed emoji Discord will take on a button, or none: one it rejects fails the whole message. */
+function buttonEmoji(emoji: string | undefined): string | undefined {
+    if (!emoji) return undefined;
+    return /^<a?:\w+:\d+>$/.test(emoji) || /^\p{Extended_Pictographic}/u.test(emoji) ? emoji : undefined;
+}
+
+/** The fighter's moves and Flee, then a row of healing potions. Stunned or winding up, one button to carry on. */
+export function buildActionRows(
+    fight: Pick<ActiveFight, "loadout" | "player">, profile: DbUserGuildProfile, config: GuildConfig,
+): ActionRowBuilder<ButtonBuilder>[] {
+    if (fight.player.stunned || fight.player.charging) {
+        const label = fight.player.stunned ? "Recover" : `Keep winding up ${moveById(config, fight.player.charging!.moveId).name}`;
+        return [new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId("fight:wait").setLabel(label.slice(0, 80)).setEmoji(fight.player.stunned ? "💫" : "⏳").setStyle(ButtonStyle.Primary),
+        )];
+    }
+    const moves = fight.loadout.map((id, i) => {
+        const move = moveById(config, id);
+        const wait = fight.player.cooldowns[move.id] ?? 0;
+        const spent = !usable(fight.player, move);
+        const button = new ButtonBuilder()
+            .setCustomId(`fight:move:${move.id}`)
+            .setLabel((wait > 0 ? `${move.name} (${wait})` : move.name).slice(0, 80))
+            .setStyle(i === 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .setDisabled(spent);
+        const emoji = buttonEmoji(move.emoji);
+        if (emoji) button.setEmoji(emoji);
+        return button;
     });
-    return new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons, ...potionButtons(profile, config));
+    const flee = new ButtonBuilder().setCustomId("fight:flee").setLabel("Flee").setEmoji("🏃").setStyle(ButtonStyle.Danger);
+    const rows = [new ActionRowBuilder<ButtonBuilder>().addComponents(...moves, flee)];
+    const potions = potionButtons(profile, config);
+    if (potions.length > 0) rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...potions));
+    return rows;
 }
 
 // ─── Shared fight start ───────────────────────────────────────────────────────
@@ -215,28 +233,6 @@ export async function readyToFight(user: User, discordGuildId: string): Promise<
     return { ok: true, profile, config, stats, currentHp };
 }
 
-export function buildStartEmbed(
-    displayName: string, enemy: EnemyConfig, currentHp: number, maxHp: number, config: GuildConfig,
-): EmbedBuilder {
-    return new EmbedBuilder()
-        .setTitle(`⚔️ ${displayName} vs ${enemy.emoji} ${enemy.name}`)
-        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
-        .setDescription("Choose your action!")
-        .addFields(
-            {
-                name: "🧑 You",
-                value: [buildHpBar(currentHp, maxHp), `❤️ **${currentHp}** / **${maxHp}**`].join("\n"),
-                inline: true,
-            },
-            {
-                name: `${enemy.emoji} ${enemy.name}`,
-                value: [buildHpBar(enemy.hp, enemy.hp), `❤️ **${enemy.hp}** / **${enemy.hp}**`].join("\n"),
-                inline: true,
-            },
-        )
-        .setFooter({ text: "Round 1 · Your turn" });
-}
-
 // ─── /fight command ───────────────────────────────────────────────────────────
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -256,7 +252,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         await interaction.reply({ content: ready.message, flags: MessageFlags.Ephemeral });
         return;
     }
-    const { profile, config, stats, currentHp } = ready;
+    const { profile, config } = ready;
 
     // Pick enemy
     const enemyIdOpt = interaction.options.getString("enemy");
@@ -306,13 +302,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     // Fights are public — not ephemeral
     await interaction.deferReply();
+    const reply = await interaction.fetchReply();
 
-    const initialEmbed = buildStartEmbed(interaction.user.displayName, enemy, currentHp, stats.maxHp, config);
-    const row = buildActionRow(profile, config);
-    const reply = await interaction.editReply({ embeds: [initialEmbed], components: [row] });
-
-    // Register the fight now that we have the real message ID
-    startFight({
+    // Registered before the buttons exist, so the first click always finds it.
+    const fight = startFight({
         discordUserId: interaction.user.id,
         discordGuildId: interaction.guildId,
         messageId: reply.id,
@@ -321,7 +314,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         profile,
         enemy,
         config,
+        loadout: loadoutFor(profile, config, memberFacts(interaction.member)),
     });
+    try {
+        await interaction.editReply({
+            embeds: [buildFightEmbed(fight, config, [], `⚔️ ${interaction.user.displayName} vs ${enemy.emoji} ${enemy.name}`)],
+            components: buildActionRows(fight, profile, config),
+        });
+    } catch (err) {
+        clearActiveFight(interaction.user.id, interaction.guildId);
+        throw err;
+    }
 }
 
 /**
@@ -340,7 +343,7 @@ async function bringBackFight(interaction: ChatInputCommandInteraction, fight: A
 
     const reply = await interaction.editReply({
         embeds: [buildFightEmbed(fight, config, ["↩️ Back to your fight."])],
-        components: [buildActionRow(profile, config)],
+        components: buildActionRows(fight, profile, config),
     });
     const old = { channelId: fight.channelId, messageId: fight.messageId };
     fight.channelId = interaction.channelId;
@@ -412,7 +415,7 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
     if (actionId.startsWith("potion:") && !fight.resolved) {
         if (!takePotion(profile, cached.pendingChanges, actionId.slice("potion:".length), config)) {
             await interaction.followUp({ content: "You don't have any of those left.", flags: MessageFlags.Ephemeral });
-            await interaction.editReply({ components: [buildActionRow(profile, config)] });
+            await interaction.editReply({ components: buildActionRows(fight, profile, config) });
             return;
         }
     }
@@ -447,5 +450,5 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
 
     // Fight continues — update embed with new HP values and last round log
     const updatedEmbed = buildFightEmbed(updatedFight, config, result.log);
-    await interaction.editReply({ embeds: [updatedEmbed], components: [buildActionRow(profile, config)] });
+    await interaction.editReply({ embeds: [updatedEmbed], components: buildActionRows(updatedFight, profile, config) });
 }

@@ -5,8 +5,9 @@ import type { GuildConfig } from "../types/guild.js";
 import { canPost } from "./canPost.js";
 import { checkRequirements, memberFacts } from "./requirements.js";
 import { combatLevel } from "./combatLevel.js";
-import { pickRandomEnemy, startFight } from "./fight.js";
-import { buildActionRow, buildStartEmbed, readyToFight } from "../commands/user/fight.js";
+import { clearActiveFight, pickRandomEnemy, startFight } from "./fight.js";
+import { loadoutFor } from "./moves.js";
+import { buildActionRows, buildFightEmbed, readyToFight } from "../commands/user/fight.js";
 
 /**
  * Random encounters: while people chat, a wild enemy sometimes turns up in the
@@ -123,11 +124,7 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
     pending.delete(interaction.message.id);
 
     // The encounter message becomes the fight, so its buttons route to /fight's handler.
-    await interaction.update({
-        embeds: [buildStartEmbed(interaction.member.displayName, enemy, ready.currentHp, ready.stats.maxHp, ready.config)],
-        components: [buildActionRow(ready.profile, ready.config)],
-    });
-    startFight({
+    const fight = startFight({
         discordUserId: interaction.user.id,
         discordGuildId: interaction.guildId,
         messageId: interaction.message.id,
@@ -136,5 +133,15 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
         profile: ready.profile,
         enemy,
         config: ready.config,
+        loadout: loadoutFor(ready.profile, ready.config, memberFacts(interaction.member)),
     });
+    try {
+        await interaction.update({
+            embeds: [buildFightEmbed(fight, ready.config, [], `⚔️ ${interaction.member.displayName} vs ${enemy.emoji} ${enemy.name}`)],
+            components: buildActionRows(fight, ready.profile, ready.config),
+        });
+    } catch (err) {
+        clearActiveFight(interaction.user.id, interaction.guildId);
+        throw err;
+    }
 }

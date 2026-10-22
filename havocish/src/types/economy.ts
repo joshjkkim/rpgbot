@@ -51,6 +51,8 @@ export type ItemEffects = {
     spd?: number;      // bonus speed
     crit?: number;     // bonus crit chance (%)
   };
+  /** Fight moves this gives while equipped (move ids). */
+  moves?: string[];
 };
 export interface shopItemConfig {
     id: string;

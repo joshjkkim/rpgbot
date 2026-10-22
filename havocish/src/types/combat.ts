@@ -39,6 +39,93 @@ export interface EnemyConfig {
     boss?: boolean;
     /** Who may fight it, beyond its level range: roles, skills, membership age... */
     requirements?: Requirements;
+    /** What it does in a fight, picked by weight each turn. Without any it uses the default moves. */
+    moves?: EnemyMove[];
+}
+
+// ─── Moves ────────────────────────────────────────────────────────────────────
+// Every fight move, a player's or an enemy's, is up to three effects built from
+// the same blocks (player/moves.ts). Owners combine them; nothing is themed.
+
+export type MoveStat = "atk" | "def" | "spd" | "crit";
+
+/** When an effect applies. "target" is the other fighter, "self" the one moving. */
+export type MoveCondition =
+    | { type: "targetHasStatus"; statusId: string }
+    | { type: "selfHpBelow"; percent: number }
+    | { type: "targetHpBelow"; percent: number }
+    | { type: "targetCharging" }
+    | { type: "targetGuarding" };
+
+export type MoveEffect = {
+    /** Who it lands on. Each block has its own default; "self" with a bad value is a drawback. */
+    target?: "self" | "target";
+    /** Percent chance it happens at all (default 100). */
+    chance?: number;
+    when?: MoveCondition;
+} & (
+    /** Damage: power x the normal hit; pierce ignores that % of defense; lifesteal heals that % of the damage. */
+    | { type: "hit"; power: number; hits?: number; pierce?: number; lifesteal?: number }
+    /** Takes that % less damage this turn. */
+    | { type: "guard"; percent: number }
+    /** When hit this turn: deals that % of the damage back, and/or stuns the attacker. */
+    | { type: "counter"; percent?: number; stun?: boolean }
+    /** Heals that % of max HP; negative loses it (never below 1 HP). */
+    | { type: "heal"; percent: number }
+    /** Changes a stat by that % for some turns, counting this one. */
+    | { type: "boost"; stat: MoveStat; percent: number; turns: number }
+    /** Puts an owner-made status on for some turns. */
+    | { type: "status"; statusId: string; turns: number }
+    /** The next action is lost; a wind-up is cancelled. */
+    | { type: "stun" }
+    | { type: "cleanse"; harmfulOnly?: boolean }
+);
+
+export interface MoveConfig {
+    id: string;
+    name: string;
+    emoji: string;
+    /** Shown before an enemy uses it, or while it winds up: "raises its club high…" */
+    telegraph?: string;
+    /** Turns it can't be used again after. */
+    cooldown?: number;
+    usesPerFight?: number;
+    /** Goes before the other side's move. */
+    firstStrike?: boolean;
+    /** Turns spent winding up before it goes off. */
+    charge?: number;
+    effects: MoveEffect[];
+    /** Set for moves players can have; without it the move is enemies-only. */
+    players?: {
+        requirements?: Requirements;
+        /** Only by learning it (a move scroll) or from gear, not by meeting the requirements. */
+        learned?: boolean;
+    };
+}
+
+/** An owner-made lasting effect: Bleeding, Poisoned, Blessed... */
+export interface StatusConfig {
+    id: string;
+    name: string;
+    emoji: string;
+    /** % of max HP each turn: negative hurts, positive heals. */
+    hpPercentPerTurn: number;
+}
+
+export interface EnemyMove {
+    moveId: string;
+    weight?: number;
+    when?: MoveCondition;
+}
+
+/** One side's fight state beyond HP: what is on it and what it's doing. */
+export interface FighterState {
+    statuses: Record<string, number>;               // status id -> turns left
+    boosts: { stat: MoveStat; percent: number; turns: number }[];
+    cooldowns: Record<string, number>;              // move id -> turns left
+    uses: Record<string, number>;
+    stunned?: boolean;
+    charging?: { moveId: string; turnsLeft: number };
 }
 
 // ─── In-memory fight state ────────────────────────────────────────────────────
@@ -61,6 +148,12 @@ export interface ActiveFight {
     playerCurrentHp: number;    // mutated each round
     enemy: EnemyConfig;
     enemyCurrentHp: number;     // mutated each round
+    player: FighterState;
+    foe: FighterState;
+    /** The moves the player brought: up to four ids. */
+    loadout: string[];
+    /** What the enemy does next turn, shown before the player picks. */
+    enemyIntent: string;
 
     // Bookkeeping
     round: number;

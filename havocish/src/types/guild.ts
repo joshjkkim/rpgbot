@@ -2,7 +2,7 @@ import type { ItemRarity, shopCategoryConfig, shopItemConfig } from "./economy.j
 import type { EventCategory } from "./logging.js";
 import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
-import type { EnemyConfig } from "./combat.js";
+import type { EnemyConfig, MoveConfig, StatusConfig } from "./combat.js";
 import type { GatheringConfig } from "./gathering.js";
 import type { CraftingConfig } from "./crafting.js";
 export interface DbGuild {
@@ -99,6 +99,10 @@ export interface GuildConfig {
          */
         chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
         enemies?: Record<string, EnemyConfig>;
+        /** Fight moves, players' and enemies'. Unset means the built-in Attack / Heavy Strike / Guard. */
+        moves?: Record<string, MoveConfig>;
+        /** Lasting effects moves can put on: Bleeding, Poisoned... Unset means the built-in set. */
+        statuses?: Record<string, StatusConfig>;
         pveDeathPenalty?: {
             goldPercent?: number;   // % of current gold lost (e.g. 5 = 5%). Default: 0
             goldFlat?: number;      // minimum flat gold lost regardless of percent. Default: 0
