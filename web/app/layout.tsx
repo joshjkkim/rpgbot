@@ -2,17 +2,20 @@ import type { Metadata } from "next";
 import { Marcellus } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
+import { SITE_URL } from "./lib/site";
 
 // The heading serif, standing in for the default WoW UI's Friz Quadrata.
 // next/font downloads it at build time and serves it from this app.
 const display = Marcellus({ weight: "400", subsets: ["latin"], variable: "--font-marcellus" });
 
 const description =
-  "havocish is a Discord RPG bot: message and voice XP, levels with role rewards, " +
-  "daily streaks, a shop with equipment and consumables, player trading, quests, " +
-  "achievements and turn-based combat -- all configurable from a web dashboard.";
+  "havocish is a Discord RPG bot you design yourself: turn-based combat and world bosses, " +
+  "gathering and crafting minigames, gear, quests and a shop, all set up from a web dashboard. " +
+  "Use its leveling, or keep the leveling bot you already have.";
 
 export const metadata: Metadata = {
+  // Makes og:url, og:image and the rest absolute, on the address that's actually served.
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "havocish — Discord RPG bot",
     template: "%s · havocish",
@@ -24,6 +27,7 @@ export const metadata: Metadata = {
     description,
     siteName: "havocish",
     type: "website",
+    url: "/",
   },
   twitter: {
     card: "summary_large_image",
