@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Field, FieldGrid, NumberField, SelectField, TextAreaField, TextField, Toggle } from "@/app/components/ui/form";
-import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { ChannelField, ItemField, MovesField, RoleField } from "@/app/components/ui/pickers";
 import RequirementsField, { type SkillOption } from "@/app/components/ui/requirementsField";
 import { RARITIES } from "@/app/components/shop/itemTooltip";
 import type { ShopConfig, shopItemAction, shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
@@ -105,6 +105,7 @@ export default function ItemForm({
   activities,
   skills,
   stations,
+  moves,
 }: {
   item: shopItemConfig;
   onChange: (next: shopItemConfig) => void;
@@ -117,6 +118,8 @@ export default function ItemForm({
   skills: SkillOption[];
   /** Crafting stations, for the "teach a recipe" action. */
   stations: StationOptions;
+  /** Fight moves, so gear can give one. */
+  moves: Record<string, { name?: string; emoji?: string }>;
 }) {
   const [tab, setTab] = useState<Tab>("basics");
   const upsertItem = onChange;
@@ -274,6 +277,16 @@ export default function ItemForm({
               ))}
             </FieldGrid>
           </Field>
+
+          {item.equipable && (
+            <MovesField
+              label="Fight moves while equipped"
+              moves={moves}
+              value={effects.moves ?? []}
+              onChange={(v) => patchEffects({ moves: v.length ? v : undefined })}
+              hint="Members wearing it get these moves in fights, whatever the move's own requirements: a greatsword that gives Cleave."
+            />
+          )}
 
           <Field label="Boosts">
             <FieldGrid>

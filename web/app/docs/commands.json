@@ -197,6 +197,12 @@
     ]
   },
   {
+    "name": "moves",
+    "description": "See your fight moves and pick the ones you take into fights",
+    "managersOnly": false,
+    "options": []
+  },
+  {
     "name": "profile",
     "description": "View your profile",
     "managersOnly": false,

@@ -8,11 +8,14 @@ import {
   FieldGrid,
   NumberField,
   Section,
+  SelectField,
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
+import { ConditionFields } from "./movesEditor";
+import { DEFAULT_ENEMY_MOVES, DEFAULT_MOVES, DEFAULT_STATUSES, type EnemyMove, type MoveConfig, type StatusConfig } from "./moveText";
 
 // ─── Types (mirrored from havocish) ─────────────────────────────────────────────
 
@@ -40,6 +43,8 @@ export interface EnemyConfig {
   /** Fought by the whole server at once; never by /fight or encounters. */
   boss?: boolean;
   requirements?: Requirements;
+  /** Picked by weight each turn; empty means the default moves. */
+  moves?: EnemyMove[];
 }
 
 export interface CombatDeathPenalty {
@@ -94,6 +99,8 @@ export interface CombatConfig {
   /** Stats added per chat level, on top of Combat level. */
   chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
   enemies?: Record<string, EnemyConfig>;
+  moves?: Record<string, MoveConfig>;
+  statuses?: Record<string, StatusConfig>;
   pveDeathPenalty?: CombatDeathPenalty;
   pvpDeathPenalty?: CombatDeathPenalty;
   pvp?: CombatPvpConfig;
@@ -108,6 +115,8 @@ type Props = {
   onChange: (next: CombatConfig) => void;
   /** Skills a requirement can name. */
   skills: SkillOption[];
+  /** Which tab of the Combat page this is. */
+  part: "enemies" | "players" | "events";
 };
 
 /** Each player stat is a base plus a per-level increment. */
@@ -140,7 +149,7 @@ const CHAT_BONUS: Array<{ key: keyof NonNullable<CombatConfig["chatBonus"]>; lab
   { key: "crit", label: "Crit chance %", step: 0.1 },
 ];
 
-export default function CombatEditor({ value, onChange, shopItems, skills }: Props) {
+export default function CombatEditor({ value, onChange, shopItems, skills, part }: Props) {
   const defaults: CombatConfig = useMemo(() => ({ enabled: false, enemies: {} }), []);
 
   const [local, setLocal] = useState<CombatConfig>(value ?? defaults);
@@ -223,6 +232,8 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
 
   return (
     <div className="space-y-4">
+      {part === "enemies" && (
+        <>
       <Section title="Enemies" description="What members can fight, and what beating them pays.">
         <ContentBrowser<EnemyConfig>
           entries={enemyEntries}
@@ -329,6 +340,13 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
                 />
               )}
 
+              <EnemyMovesField
+                value={enemy.moves}
+                onChange={(next) => upsertEnemy({ ...enemy, moves: next })}
+                moves={local.moves ?? DEFAULT_MOVES}
+                statuses={local.statuses ?? DEFAULT_STATUSES}
+              />
+
               <Field label="Drops">
                 <div className="space-y-3">
                   {(enemy.drops ?? []).length === 0 && (
@@ -410,6 +428,11 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
         />
       </Section>
 
+        </>
+      )}
+
+      {part === "players" && (
+        <>
       <Section title="General" description="Whether members can fight at all." defaultOpen={!local.enabled}>
         <Toggle
           label="Enable combat"
@@ -495,6 +518,11 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
         </div>
       </Section>
 
+        </>
+      )}
+
+      {part === "events" && (
+        <>
       <Section title="Duels" description="Auto-resolved fights between two members." defaultOpen={false}>
         <Toggle
           label="Enable duels"
@@ -654,7 +682,62 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
           </FieldGrid>
         </div>
       </Section>
-
+        </>
+      )}
     </div>
+  );
+}
+
+/** What an enemy does in a fight: moves picked by weight, some only when a condition holds. */
+function EnemyMovesField({ value, onChange, moves, statuses }: {
+  value: EnemyMove[] | undefined;
+  onChange: (next: EnemyMove[] | undefined) => void;
+  moves: Record<string, MoveConfig>;
+  statuses: Record<string, StatusConfig>;
+}) {
+  const list = value ?? [];
+  const options = Object.values(moves).map((m) => ({ value: m.id, label: `${m.emoji} ${m.name}` }));
+  const total = list.reduce((sum, m) => sum + Math.max(0, m.weight ?? 1), 0);
+  const set = (next: EnemyMove[]) => onChange(next.length ? next : undefined);
+  return (
+    <Field
+      label="Moves"
+      hint={list.length
+        ? "Each turn it picks one by weight, among those off cooldown whose condition holds, and players see it coming."
+        : `None picked, so it uses the defaults: ${DEFAULT_ENEMY_MOVES.map((m) => moves[m.moveId]?.name ?? DEFAULT_MOVES[m.moveId]?.name).join(", ")}.`}
+    >
+      <div className="space-y-3">
+        {list.map((m, i) => {
+          const patch = (p: Partial<EnemyMove>) => set(list.map((x, j) => (j === i ? { ...x, ...p } : x)));
+          const share = total > 0 ? Math.round((Math.max(0, m.weight ?? 1) / total) * 100) : 0;
+          return (
+            <div key={i} className="flex items-end gap-3 rounded-md border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="flex-1">
+                <FieldGrid>
+                  <SelectField label="Move" value={m.moveId} onChange={(v) => patch({ moveId: v })} options={options} />
+                  <NumberField label="Weight" value={m.weight ?? 1} min={0} onChange={(v) => patch({ weight: v })} hint={`About ${share}% of turns, when it can use it.`} />
+                  <ConditionFields value={m.when} onChange={(when) => patch({ when })} statuses={statuses} />
+                </FieldGrid>
+              </div>
+              <button
+                type="button"
+                aria-label="Remove move"
+                onClick={() => set(list.filter((_, j) => j !== i))}
+                className="mb-2 text-[var(--muted)] transition-colors hover:text-red-400"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => set([...(list.length ? list : DEFAULT_ENEMY_MOVES.filter((m) => moves[m.moveId])), ...(list.length ? [{ moveId: options[0]?.value ?? "attack", weight: 1 }] : [])])}
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+        >
+          <Plus size={14} /> {list.length ? "Add move" : "Customise moves"}
+        </button>
+      </div>
+    </Field>
   );
 }

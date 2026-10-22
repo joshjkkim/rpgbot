@@ -1,3 +1,4 @@
+import { movesOf, statusesOf } from "../player/moves.js";
 import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -139,6 +140,25 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
             for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat", POST_EMBED);
         }
         for (const e of enemies) for (const d of e.drops ?? []) item(d.itemId, `The enemy ${e.name}`, "combat");
+
+        // Moves: anything missing falls back to a plain attack in a fight, so these only warn.
+        const moves = movesOf(config);
+        const statuses = statusesOf(config);
+        const warn = (message: string, page: DashboardPage = "combat") => issues.push({ severity: "warning", message, page });
+        for (const e of enemies) for (const m of e.moves ?? []) {
+            if (!moves[m.moveId]) warn(`The enemy ${e.name} uses a move that was deleted (${m.moveId}); it attacks instead.`);
+        }
+        for (const m of Object.values(moves)) {
+            if (!m.effects?.length) warn(`The move ${m.name} does nothing. Give it an effect.`);
+            for (const ef of m.effects ?? []) {
+                const statusId = ef.type === "status" ? ef.statusId : ef.when?.type === "targetHasStatus" ? ef.when.statusId : null;
+                if (statusId && !statuses[statusId]) warn(`The move ${m.name} uses a status that was deleted (${statusId}).`);
+            }
+        }
+        if (!Object.values(moves).some((m) => m.players)) warn("No move is marked for players, so members can only Attack.");
+        for (const it of Object.values(items)) for (const id of it.effects?.moves ?? []) {
+            if (!moves[id]) warn(`The item ${it.name} gives a move that was deleted (${id}).`, "items");
+        }
     }
 
     // ── Quests ──

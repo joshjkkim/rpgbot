@@ -55,6 +55,7 @@ export default function ItemTooltip({ item }: { item: shopItemConfig }) {
     boostLine(boosts.xpMultiplier, "XP"),
     boostLine(boosts.goldMultiplier, "gold"),
     cosmetic.title ? `Equip: Grants the title "${cosmetic.title}".` : null,
+    item.effects?.moves?.length ? `Equip: Gives ${item.effects.moves.length === 1 ? "a fight move" : `${item.effects.moves.length} fight moves`} (see /moves).` : null,
   ].filter((l): l is string => !!l);
   const useLines = Object.values(item.actions ?? {}).map(describeAction);
   // Every equip bonus is read from equipped items, so on anything else they do nothing.

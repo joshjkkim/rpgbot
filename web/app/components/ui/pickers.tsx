@@ -149,6 +149,12 @@ export function EnemiesField({ enemies, ...props }: ChipsProps & { enemies: Reco
   return <IdChips {...props} options={options} unknownLabel="Enemy" emptyHint="any enemy counts" />;
 }
 
+/** Fight moves, from the config. */
+export function MovesField({ moves, ...props }: ChipsProps & { moves: Record<string, { name?: string; emoji?: string }> }) {
+  const options = Object.entries(moves).map(([id, m]) => ({ id, name: `${m.emoji ? m.emoji + " " : ""}${m.name || id}` }));
+  return <IdChips {...props} options={options} unknownLabel="Move" emptyHint="it gives none" />;
+}
+
 /** Several text channels at once, as toggle chips. Empty means every channel. */
 export function ChannelsField(props: ChipsProps) {
   return <IdChips {...props} options={useChannelOptions()} unknownLabel="Channel" emptyHint="every channel" />;

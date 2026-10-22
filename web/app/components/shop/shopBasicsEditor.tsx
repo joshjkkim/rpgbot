@@ -57,6 +57,8 @@ type ItemEffects = {
     spd?: number;
     crit?: number;
   };
+  /** Fight moves it gives while equipped. */
+  moves?: string[];
 };
 
 export interface shopCategoryConfig {

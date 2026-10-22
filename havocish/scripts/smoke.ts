@@ -2304,6 +2304,21 @@ async function main() {
         const geared = { ...custom, shop: { ...custom.shop, items: { shield: { id: "shield", name: "Shield", effects: { moves: ["bash"] } } as any } } } as GuildConfig;
         profile.equips = { offhand: "shield" };
         check("gear gives its move, requirements or not", loadoutFor(profile, geared, facts).includes("bash"), true);
+
+        // The health check names broken references.
+        const broken = structuredClone(custom);
+        broken.combat.enabled = true;
+        broken.combat.enemies = { ogre: { id: "ogre", name: "Ogre", emoji: "👹", hp: 10, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "gone" }] } };
+        broken.combat.statuses = {};
+        broken.shop.items = { blade: { id: "blade", name: "Blade", effects: { moves: ["vanished"] } } as any };
+        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true };
+        const health = checkGuild(broken, allOk).map((i) => i.message).join("\n");
+        check("the health check finds broken move references", [
+            health.includes("The enemy Ogre uses a move that was deleted (gone)"),
+            health.includes("The move Rend uses a status that was deleted (bleed)"),
+            health.includes("The move Idle does nothing"),
+            health.includes("The item Blade gives a move that was deleted (vanished)"),
+        ], [true, true, true, true]);
     });
 
     await test("the health check finds setups that will fail quietly", async () => {

@@ -19,6 +19,7 @@ import { handleHelpButton } from "../commands/user/help.js";
 import { handleConfigButton } from "../commands/admin/configGeneral.js";
 import { handleGatherButton } from "../commands/user/gather.js";
 import { handleCraftButton } from "../commands/user/craft.js";
+import { handleMovesSelect } from "../commands/user/moves.js";
 import { busyFighting } from "../player/fight.js";
 
 /** While fighting, you fight: /fight (which brings the fight back) and /help are all that work. */
@@ -59,6 +60,8 @@ export function registerInteractionCreate(client: Client) {
                     await handleConfigPanelSelect(interaction);
                 } else if (interaction.customId.startsWith("inventory:")) {
                     await handleInventoryButton(interaction);
+                } else if (interaction.customId.startsWith("moves:")) {
+                    await handleMovesSelect(interaction);
                 }
 
                 return;

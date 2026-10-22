@@ -19,6 +19,8 @@ const KEYED_MAPS: ReadonlyArray<readonly [string, string]> = [
     ["shop", "items"],
     ["shop", "categories"],
     ["combat", "enemies"],
+    ["combat", "moves"],
+    ["combat", "statuses"],
     ["gathering", "activities"],
     ["crafting", "stations"],
     ["roleRewards", "roles"],

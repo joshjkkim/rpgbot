@@ -61,6 +61,7 @@ export function itemEffects(item: shopItemConfig) {
             boostLine(boosts.xpMultiplier, "XP"),
             boostLine(boosts.goldMultiplier, "gold"),
             cosmetic.title ? `Equip: Grants the title "${cosmetic.title}".` : null,
+            item.effects?.moves?.length ? `Equip: Gives ${item.effects.moves.length === 1 ? "a fight move" : `${item.effects.moves.length} fight moves`} (see /moves).` : null,
         ].filter((l): l is string => !!l),
         use: Object.values(item.actions ?? {}).map((a) => `Use: ${describeAction(a)}`),
         tool: item.tool ? `Tool, tier ${item.tool.tier ?? 1}` : null,
