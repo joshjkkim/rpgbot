@@ -1,12 +1,14 @@
 import type { AttachmentBuilder, User } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
 import { renderLevelUpBanner } from "./canvas/levelUpBanner.js";
+import { bestEffort } from "./bestEffort.js";
 
 /**
  * The level-up banner for the RPG: a card for every Combat level, and for a
  * skill every 10th level and at its cap, so skills that level often don't spam.
- * Owners switch each kind off on the Style page. Null when there's nothing to
- * show, or the card failed: the reward is already given, so a card never blocks it.
+ * Owners switch each kind off on the Style page, and can have a copy posted in
+ * a channel too. Null when there's nothing to show, or the card failed: the
+ * reward is already given, so a card never blocks it.
  */
 export async function rpgLevelUpCard(opts: {
     config: GuildConfig;
@@ -33,8 +35,21 @@ export async function rpgLevelUpCard(opts: {
     });
     // A bad avatar image can leave the render pending forever; the fight result must not wait on it.
     const timeout = new Promise<null>((resolve) => setTimeout(resolve, 5000, null).unref());
-    return Promise.race([render, timeout]).catch((err) => {
+    const card = await Promise.race([render, timeout]).catch((err) => {
         console.error("Failed to render RPG level-up card:", err);
         return null;
     });
+
+    const channelId = config.style.levelUpCards?.channelId;
+    if (card && channelId) {
+        const channel = await user.client.channels.fetch(channelId).catch(() => null);
+        if (channel?.isTextBased() && channel.isSendable()) {
+            await bestEffort("level-up announcement", channel.send({
+                content: `🎉 <@${user.id}> reached **${label} ${after}**!`,
+                files: [card],
+                allowedMentions: { users: [user.id] },
+            }));
+        }
+    }
+    return card;
 }

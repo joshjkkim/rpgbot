@@ -1540,7 +1540,9 @@ async function main() {
 
     await test("RPG level-up cards: Combat every level, skills at milestones, both switchable", async () => {
         const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
-        const user = { displayName: "Tester", displayAvatarURL: () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" } as any;
+        const posted: string[] = [];
+        const channel = { isTextBased: () => true, isSendable: () => true, send: async (m: { content: string }) => { posted.push(m.content); } };
+        const user = { id: "u1", client: { channels: { fetch: async () => channel } }, displayName: "Tester", displayAvatarURL: () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" } as any;
         const card = (kind: "combat" | "skills", before: number, after: number) =>
             rpgLevelUpCard({ config: cfg, kind, user, label: kind === "combat" ? "Combat" : "Mining", before, after }).then((c) => !!c);
         check("Combat 4 → 5 gets a card", await card("combat", 4, 5), true);
@@ -1551,6 +1553,10 @@ async function main() {
         cfg.style.levelUpCards = { combat: false };
         check("an owner can turn Combat cards off", await card("combat", 4, 5), false);
         check("which leaves skill cards on", await card("skills", 9, 10), true);
+        check("no channel set, no copy posted", posted.length, 0);
+        cfg.style.levelUpCards = { channelId: "c1" };
+        await card("skills", 9, 10);
+        check("with a channel, a copy is posted there too", posted, ["🎉 <@u1> reached **Mining 10**!"]);
     });
 
     await test("level actions pay gold, items and Combat XP for every level crossed", async () => {
