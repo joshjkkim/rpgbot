@@ -133,6 +133,8 @@ export interface StartFightOptions {
     config: GuildConfig;
     /** From loadoutFor, which needs the member's roles. */
     loadout: string[];
+    origin?: { channelId: string; messageId: string };
+    placeName?: string;
 }
 
 export function startFight(opts: StartFightOptions): ActiveFight {
@@ -159,6 +161,8 @@ export function startFight(opts: StartFightOptions): ActiveFight {
         player: newFighterState(),
         foe: newFighterState(),
         loadout: opts.loadout,
+        ...(opts.origin && { origin: opts.origin }),
+        ...(opts.placeName && { placeName: opts.placeName }),
         enemyIntent: "",
         round: 0,
         startedAt: now,
@@ -493,5 +497,16 @@ export async function abandonFight(fight: ActiveFight, client: Client, why: "tim
     await bestEffort("abandoned fight message", (async () => {
         const channel = await client.channels.fetch(fight.channelId);
         if (channel?.isTextBased()) await channel.messages.edit(fight.messageId, { embeds: [embed], components: [] });
+    })());
+    await postResultLine(client, fight, `🏃 <@${fight.userId}> left the fight with the ${fight.enemy.emoji} **${fight.enemy.name}**.`);
+}
+
+/** A threaded fight's result, on the short line in chat it hangs off. */
+export async function postResultLine(client: Client, fight: ActiveFight, line: string): Promise<void> {
+    if (!fight.origin) return;
+    const { channelId, messageId } = fight.origin;
+    await bestEffort("fight result line", (async () => {
+        const channel = await client.channels.fetch(channelId);
+        if (channel?.isTextBased()) await channel.messages.edit(messageId, { content: line, embeds: [], components: [], allowedMentions: { parse: [] } });
     })());
 }

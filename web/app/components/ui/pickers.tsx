@@ -149,6 +149,15 @@ export function EnemiesField({ enemies, ...props }: ChipsProps & { enemies: Reco
   return <IdChips {...props} options={options} unknownLabel="Enemy" emptyHint="any enemy counts" />;
 }
 
+/** Text channels and whole categories, for places: a category covers every channel in it. */
+export function PlaceChannelsField(props: ChipsProps) {
+  const meta = useContext(GuildMetaContext);
+  const options = meta?.channels
+    .filter((c) => TEXT_TYPES.has(c.type) || c.type === 4)
+    .map((c) => ({ id: c.id, name: c.type === 4 ? `📁 ${c.name.toUpperCase()}` : `#${c.name}` })) ?? null;
+  return <IdChips {...props} options={options} unknownLabel="Channel" emptyHint="nobody finds it" />;
+}
+
 /** Fight moves, from the config. */
 export function MovesField({ moves, ...props }: ChipsProps & { moves: Record<string, { name?: string; emoji?: string }> }) {
   const options = Object.entries(moves).map(([id, m]) => ({ id, name: `${m.emoji ? m.emoji + " " : ""}${m.name || id}` }));

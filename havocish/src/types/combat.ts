@@ -116,6 +116,25 @@ export interface StatusConfig {
     maxStacks?: number;
 }
 
+/**
+ * A place in the server: the channels (or whole categories) it covers, the
+ * enemies met there, and how loudly fights show. The server's channel list
+ * becomes its map.
+ */
+export interface PlaceConfig {
+    id: string;
+    name: string;
+    emoji: string;
+    /** How an enemy turns up here, after its name: "prowls out of the treeline". */
+    arrival?: string;
+    /** Channel or category ids. A thread counts as the channel it's in. */
+    channelIds: string[];
+    /** Who is met here, picked by weight among those suiting the player's level. */
+    enemies: { enemyId: string; weight?: number }[];
+    /** "thread" (default): a fight opens in a thread off one short line, for chat channels. "channel": it plays out in the channel. */
+    fights?: "thread" | "channel";
+}
+
 export interface EnemyMove {
     moveId: string;
     weight?: number;
@@ -156,6 +175,10 @@ export interface ActiveFight {
     enemyCurrentHp: number;     // mutated each round
     player: FighterState;
     foe: FighterState;
+    /** In a thread: the short line in chat it hangs off, which gets the result when it ends. */
+    origin?: { channelId: string; messageId: string };
+    /** The place it's in, for that result line. */
+    placeName?: string;
     /** The moves the player brought: up to four ids. */
     loadout: string[];
     /** What the enemy does next turn, shown before the player picks. */

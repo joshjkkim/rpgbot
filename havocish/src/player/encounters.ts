@@ -1,13 +1,14 @@
 import type { ButtonInteraction, ColorResolvable, Message } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from "discord.js";
-import type { EnemyConfig } from "../types/combat.js";
+import type { EnemyConfig, PlaceConfig } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
 import { canPost } from "./canPost.js";
 import { checkRequirements, memberFacts } from "./requirements.js";
 import { combatLevel } from "./combatLevel.js";
-import { clearActiveFight, pickRandomEnemy, startFight } from "./fight.js";
+import { pickRandomEnemy, startFight } from "./fight.js";
+import { channelChain, fightsInThread, pickFromPlace, placeFor } from "./places.js";
 import { loadoutFor } from "./moves.js";
-import { buildActionRows, buildFightEmbed, readyToFight } from "../commands/user/fight.js";
+import { buildActionRows, buildFightEmbed, placeFight, readyToFight } from "../commands/user/fight.js";
 
 /**
  * Random encounters: while people chat, a wild enemy sometimes turns up in the
@@ -20,7 +21,7 @@ import { buildActionRows, buildFightEmbed, readyToFight } from "../commands/user
 
 const DEFAULTS = { chancePercent: 2, cooldownSeconds: 600, fleeSeconds: 120 };
 
-type Pending = { enemy: EnemyConfig; guildId: string; claimed: boolean; timer: NodeJS.Timeout };
+type Pending = { enemy: EnemyConfig; place: PlaceConfig | null; guildId: string; claimed: boolean; timer: NodeJS.Timeout };
 
 /** Encounter message id -> encounter. */
 const pending = new Map<string, Pending>();
@@ -38,14 +39,16 @@ export async function maybeSpawnEncounter(message: Message<true>, config: GuildC
     if (now - (lastSpawnAt.get(message.guildId) ?? 0) < cooldownMs) return;
     if (Math.random() * 100 >= (enc.chancePercent ?? DEFAULTS.chancePercent)) return;
 
-    // Matched to whoever's chatting, so the enemy suits the people likely to be around.
-    const enemy = pickRandomEnemy(config, authorLevel);
+    // Matched to whoever's chatting, so the enemy suits the people likely to be around,
+    // and drawn from the channel's place when it has one.
+    const place = placeFor(config, channelChain(message.channel as any));
+    const enemy = place ? pickFromPlace(place, config, authorLevel) : pickRandomEnemy(config, authorLevel);
     if (!enemy || !canPost(message)) return;
     lastSpawnAt.set(message.guildId, now);
 
     const fleeSeconds = enc.fleeSeconds ?? DEFAULTS.fleeSeconds;
     const sent = await message.channel.send({
-        embeds: [encounterEmbed(enemy, config, fleeSeconds)],
+        embeds: [encounterEmbed(enemy, place, config, fleeSeconds)],
         components: [fightRow()],
     });
 
@@ -61,14 +64,14 @@ export async function maybeSpawnEncounter(message: Message<true>, config: GuildC
         }).catch(() => null);
     }, fleeSeconds * 1000);
     timer.unref();
-    pending.set(sent.id, { enemy, guildId: message.guildId, claimed: false, timer });
+    pending.set(sent.id, { enemy, place, guildId: message.guildId, claimed: false, timer });
 }
 
-function encounterEmbed(enemy: EnemyConfig, config: GuildConfig, fleeSeconds: number) {
+function encounterEmbed(enemy: EnemyConfig, place: PlaceConfig | null, config: GuildConfig, fleeSeconds: number) {
     const goldIcon = config.style.gold.icon || "💰";
     const level = enemy.maxLevel !== null ? `Combat ${enemy.minLevel}–${enemy.maxLevel}` : `Combat ${enemy.minLevel}+`;
     return new EmbedBuilder()
-        .setTitle(`${enemy.emoji} A wild ${enemy.name} appears!`)
+        .setTitle(`${enemy.emoji} A wild ${enemy.name} ${place?.arrival || "appears"}!`)
         .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
         .setDescription([
             `❤️ ${enemy.hp} HP · ⚔️ ${enemy.atk} ATK · 🛡️ ${enemy.def} DEF`,
@@ -76,7 +79,7 @@ function encounterEmbed(enemy: EnemyConfig, config: GuildConfig, fleeSeconds: nu
             "",
             `First to click **Fight** takes it on. It leaves <t:${Math.floor(Date.now() / 1000) + fleeSeconds}:R>.`,
         ].join("\n"))
-        .setFooter({ text: level });
+        .setFooter({ text: place ? `${place.emoji} ${place.name} · ${level}` : level });
 }
 
 function fightRow() {
@@ -93,7 +96,7 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
         return;
     }
 
-    const { enemy } = encounter;
+    const { enemy, place } = encounter;
     const ready = await readyToFight(interaction.user, interaction.guildId);
     if (!ready.ok) {
         await interaction.reply({ content: ready.message, flags: MessageFlags.Ephemeral });
@@ -123,25 +126,30 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
     clearTimeout(encounter.timer);
     pending.delete(interaction.message.id);
 
-    // The encounter message becomes the fight, so its buttons route to /fight's handler.
-    const fight = startFight({
-        discordUserId: interaction.user.id,
-        discordGuildId: interaction.guildId,
-        messageId: interaction.message.id,
-        channelId: interaction.channelId,
-        combatType: "pve",
-        profile: ready.profile,
-        enemy,
-        config: ready.config,
-        loadout: loadoutFor(ready.profile, ready.config, memberFacts(interaction.member)),
+    // In a chat place the encounter shrinks to one line and the fight opens in a
+    // thread off it; otherwise the encounter message becomes the fight. Either
+    // way its buttons route to /fight's handler.
+    const config = ready.config;
+    const title = `⚔️ ${interaction.member.displayName} vs ${enemy.emoji} ${enemy.name}`;
+    await placeFight({
+        home: interaction.message,
+        threaded: fightsInThread(config, place),
+        line: `${enemy.emoji} <@${interaction.user.id}> takes on the **${enemy.name}**${place ? ` in ${place.emoji} ${place.name}` : ""}. The fight is in the thread.`,
+        title,
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        editHome: (content) => interaction.update(content as any),
+        start: (at) => startFight({
+            discordUserId: interaction.user.id,
+            discordGuildId: interaction.guildId,
+            combatType: "pve",
+            profile: ready.profile,
+            enemy,
+            config,
+            loadout: loadoutFor(ready.profile, config, memberFacts(interaction.member)),
+            ...at,
+            ...(place && { placeName: `${place.emoji} ${place.name}` }),
+        }),
+        show: (fight) => ({ embeds: [buildFightEmbed(fight, config, [], title)], components: buildActionRows(fight, ready.profile, config) }),
     });
-    try {
-        await interaction.update({
-            embeds: [buildFightEmbed(fight, ready.config, [], `⚔️ ${interaction.member.displayName} vs ${enemy.emoji} ${enemy.name}`)],
-            components: buildActionRows(fight, ready.profile, ready.config),
-        });
-    } catch (err) {
-        clearActiveFight(interaction.user.id, interaction.guildId);
-        throw err;
-    }
 }

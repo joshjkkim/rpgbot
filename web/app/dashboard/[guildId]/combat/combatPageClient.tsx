@@ -5,11 +5,13 @@ import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import CombatEditor from "@/app/components/combat/combatEditor";
 import MovesEditor from "@/app/components/combat/movesEditor";
+import PlacesEditor from "@/app/components/combat/placesEditor";
 import { skillOptions } from "@/app/components/ui/requirementsField";
 
 /** The page in parts, so owners open the one they came for instead of scrolling past the rest. */
 const TABS = [
   { id: "enemies", label: "Enemies", blurb: "What members fight: stats, moves, level range and drops." },
+  { id: "places", label: "Places", blurb: "Where enemies are met: channels mapped to enemy pools, and whether fights there open in threads." },
   { id: "moves", label: "Moves", blurb: "What fighters do on their turn, built from effects, and the statuses moves can put on." },
   { id: "players", label: "Players", blurb: "Combat on or off, the level curve, player stats, the chat level bonus and death penalties." },
   { id: "events", label: "Duels, encounters & bosses", blurb: "Fights between members, enemies that turn up in chat, and world bosses." },
@@ -53,7 +55,12 @@ export default function CombatPageClient({ guildId }: { guildId: string }) {
           </div>
           <p className="text-sm text-[var(--muted)]">{TABS.find((t) => t.id === tab)!.blurb}</p>
 
-          {tab === "moves" ? (
+          {tab === "places" ? (
+            <PlacesEditor
+              value={combat ?? { enabled: false }}
+              onChange={(next) => setConfig((prev) => ({ ...prev, combat: next }))}
+            />
+          ) : tab === "moves" ? (
             <MovesEditor
               moves={combat?.moves}
               statuses={combat?.statuses}

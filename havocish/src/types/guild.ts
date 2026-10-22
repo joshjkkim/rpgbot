@@ -2,7 +2,7 @@ import type { ItemRarity, shopCategoryConfig, shopItemConfig } from "./economy.j
 import type { EventCategory } from "./logging.js";
 import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
-import type { EnemyConfig, MoveConfig, StatusConfig } from "./combat.js";
+import type { EnemyConfig, MoveConfig, PlaceConfig, StatusConfig } from "./combat.js";
 import type { GatheringConfig } from "./gathering.js";
 import type { CraftingConfig } from "./crafting.js";
 export interface DbGuild {
@@ -102,6 +102,12 @@ export interface GuildConfig {
         enemies?: Record<string, EnemyConfig>;
         /** HP refills fully over `regenMinutes` (120); a loss leaves you at `respawnPercent` of max (25). */
         hp?: { regenMinutes?: number; respawnPercent?: number };
+        /** Places: channels mapped to enemy pools (types/combat.ts PlaceConfig). */
+        places?: Record<string, PlaceConfig>;
+        /** Lets anyone pick an enemy with /fight's option; managers always can. Off: /fight rolls from where you are. */
+        allowEnemyChoice?: boolean;
+        /** Fights in channels outside any place: "channel" (default) or "thread". */
+        fightsIn?: "thread" | "channel";
         /** Fight moves, players' and enemies'. Unset means the built-in Attack / Heavy Strike / Guard. */
         moves?: Record<string, MoveConfig>;
         /** Lasting effects moves can put on: Bleeding, Poisoned... Unset means the built-in set. */

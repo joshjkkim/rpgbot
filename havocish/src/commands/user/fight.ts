@@ -1,17 +1,18 @@
-import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable, User } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable, Message, User } from "discord.js";
 import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import {
     ActionRowBuilder, ButtonBuilder, ButtonStyle,
-    EmbedBuilder, MessageFlags, SlashCommandBuilder,
+    EmbedBuilder, MessageFlags, SlashCommandBuilder, ThreadAutoArchiveDuration,
 } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
-import { managerSetupRows } from "../../ui/dashboardLinks.js";
+import { canManage, managerSetupRows } from "../../ui/dashboardLinks.js";
+import { channelChain, fightsInThread, pickFromPlace, placeFor } from "../../player/places.js";
 import { calculateStats, minutesToFull, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
 import {
-    applyAction, applyFightRewards, busyFighting, clearActiveFight, healAmount,
+    applyAction, applyFightRewards, busyFighting, clearActiveFight, healAmount, postResultLine,
     getActiveFight, getFightByMessageId, pickRandomEnemy, setActiveFight, startFight,
 } from "../../player/fight.js";
 import { intentLine, intentThreat, loadoutFor, turnOrderLine, moveById, statusesOf, usable } from "../../player/moves.js";
@@ -31,12 +32,84 @@ import { questCompleteLines } from "../../player/quests.js";
 
 export const data = new SlashCommandBuilder()
     .setName("fight")
-    .setDescription("Fight an enemy for XP and gold!")
+    .setDescription("Hunt for an enemy where you are, for Combat XP and loot")
     .addStringOption(opt =>
         opt.setName("enemy")
-            .setDescription("Enemy ID to fight (leave blank for a random eligible enemy)")
+            .setDescription("A specific enemy's ID (managers, or when the server allows it)")
             .setRequired(false)
     );
+
+/**
+ * Puts a fight in a thread off `line`, the short message left in chat. Null
+ * when a thread can't be made here (no permission, already in a thread), and
+ * the caller plays the fight in `line` instead.
+ */
+async function openFightThread(line: Message, title: string, userId: string): Promise<Message | null> {
+    if (line.channel.isThread() || !("threads" in line.channel)) return null;
+    try {
+        const thread = await line.startThread({ name: title.slice(0, 100), autoArchiveDuration: ThreadAutoArchiveDuration.OneHour });
+        await thread.members.add(userId).catch(() => null);
+        return await thread.send({ content: "⚔️" });
+    } catch {
+        return null;
+    }
+}
+
+/** The one line a threaded fight leaves in chat when it ends. */
+function resultLine(fight: ActiveFight, summary: FightEndSummary, config: GuildConfig): string {
+    const who = `<@${fight.userId}>`;
+    const foe = `the ${fight.enemy.emoji} **${fight.enemy.name}**`;
+    const where = fight.placeName ? ` in ${fight.placeName}` : "";
+    if (summary.outcome === "loss") return `💀 ${who} was beaten by ${foe}${where}.`;
+    if (summary.outcome === "flee") return `🏃 ${who} got away from ${foe}${where}.`;
+    const loot = summary.itemsDropped
+        .map((d) => config.shop?.items?.[d.itemId])
+        .filter(Boolean)
+        .map((i) => `${i!.emoji ?? "🎁"} ${i!.name}`);
+    return `🏆 ${who} defeated ${foe}${where} in ${summary.rounds} round${summary.rounds === 1 ? "" : "s"}${loot.length ? ` · ${loot.join(", ")}` : ""}.`;
+}
+
+/**
+ * Opens a fight where it belongs: in a thread off a short line (chat places),
+ * or right in `home`. Shared by /fight and encounters. `line` is what chat sees
+ * while it goes on.
+ */
+export async function placeFight(opts: {
+    home: Message;
+    threaded: boolean;
+    line: string;
+    title: string;
+    start: (at: { messageId: string; channelId: string; origin?: { channelId: string; messageId: string } }) => ActiveFight;
+    show: (fight: ActiveFight) => Parameters<Message["edit"]>[0];
+    /** Edits `home` (e.g. editReply or update), since an interaction's reply is edited through it. */
+    editHome: (content: Parameters<Message["edit"]>[0]) => Promise<unknown>;
+    userId: string;
+    guildId: string;
+}): Promise<void> {
+    const { home } = opts;
+    if (opts.threaded) {
+        await opts.editHome({ content: opts.line, embeds: [], components: [], allowedMentions: { parse: [] } });
+        const inThread = await openFightThread(home, opts.title, opts.userId);
+        if (inThread) {
+            const fight = opts.start({ messageId: inThread.id, channelId: inThread.channelId, origin: { channelId: home.channelId, messageId: home.id } });
+            try {
+                await inThread.edit({ content: "", ...opts.show(fight) as object });
+            } catch (err) {
+                clearActiveFight(opts.userId, opts.guildId);
+                throw err;
+            }
+            return;
+        }
+    }
+    // Registered before the buttons exist, so the first click always finds it.
+    const fight = opts.start({ messageId: home.id, channelId: home.channelId });
+    try {
+        await opts.editHome({ content: "", ...opts.show(fight) as object });
+    } catch (err) {
+        clearActiveFight(opts.userId, opts.guildId);
+        throw err;
+    }
+}
 
 // ─── Embed / UI helpers ───────────────────────────────────────────────────────
 
@@ -263,6 +336,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const enemyIdOpt = interaction.options.getString("enemy");
     let enemy: EnemyConfig | null;
 
+    // The server's channels are its map: /fight rolls from where you are.
+    const place = placeFor(config, channelChain(interaction.channel as any));
+    if (enemyIdOpt && !config.combat.allowEnemyChoice && !canManage(interaction)) {
+        await interaction.reply({ content: "Enemies here find you: use `/fight` without picking one.", flags: MessageFlags.Ephemeral });
+        return;
+    }
+
     if (enemyIdOpt) {
         enemy = config.combat.enemies?.[enemyIdOpt] ?? null;
         if (enemy?.boss) {
@@ -294,10 +374,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         }
     } else {
         const facts = memberFacts(interaction.member);
-        enemy = pickRandomEnemy(config, combatLevel(profile, config), (e) => checkRequirements(e.requirements, { profile, config, facts }).ok);
+        const allowed = (e: EnemyConfig) => checkRequirements(e.requirements, { profile, config, facts }).ok;
+        const level = combatLevel(profile, config);
+        enemy = place ? pickFromPlace(place, config, level, allowed) : pickRandomEnemy(config, level, allowed);
         if (!enemy) {
             await interaction.reply({
-                content: "No foes roam at your level yet.",
+                content: place ? `Nothing in ${place.emoji} **${place.name}** suits Combat ${level}. Try somewhere else.` : "No foes roam at your level yet.",
                 components: managerSetupRows(interaction, "combat", "Add enemies on the dashboard"),
                 flags: MessageFlags.Ephemeral,
             });
@@ -308,28 +390,30 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Fights are public — not ephemeral
     await interaction.deferReply();
     const reply = await interaction.fetchReply();
-
-    // Registered before the buttons exist, so the first click always finds it.
-    const fight = startFight({
-        discordUserId: interaction.user.id,
-        discordGuildId: interaction.guildId,
-        messageId: reply.id,
-        channelId: interaction.channelId,
-        combatType: "pve",
-        profile,
-        enemy,
-        config,
-        loadout: loadoutFor(profile, config, memberFacts(interaction.member)),
+    const title = `⚔️ ${interaction.user.displayName} vs ${enemy.emoji} ${enemy.name}`;
+    const loadout = loadoutFor(profile, config, memberFacts(interaction.member));
+    const found = enemy;
+    await placeFight({
+        home: reply,
+        threaded: fightsInThread(config, place),
+        line: `${place?.emoji ?? "⚔️"} <@${interaction.user.id}> ${place ? `searches ${place.name}` : "goes looking for a fight"} and meets a ${found.emoji} **${found.name}**. The fight is in the thread.`,
+        title,
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        editHome: (content) => interaction.editReply(content as any),
+        start: (at) => startFight({
+            discordUserId: interaction.user.id,
+            discordGuildId: interaction.guildId!,
+            combatType: "pve",
+            profile,
+            enemy: found,
+            config,
+            loadout,
+            ...at,
+            ...(place && { placeName: `${place.emoji} ${place.name}` }),
+        }),
+        show: (fight) => ({ embeds: [buildFightEmbed(fight, config, [], title)], components: buildActionRows(fight, profile, config) }),
     });
-    try {
-        await interaction.editReply({
-            embeds: [buildFightEmbed(fight, config, [], `⚔️ ${interaction.user.displayName} vs ${enemy.emoji} ${enemy.name}`)],
-            components: buildActionRows(fight, profile, config),
-        });
-    } catch (err) {
-        clearActiveFight(interaction.user.id, interaction.guildId);
-        throw err;
-    }
 }
 
 /**
@@ -446,6 +530,7 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
             components: [],
             files: [...(levelCard ? [levelCard] : []), ...await lootCards(summary, config)],
         });
+        await postResultLine(interaction.client, updatedFight, resultLine(updatedFight, summary, config));
         await announceRareFinds({
             client: interaction.client, config, discordUserId: interaction.user.id, verb: "found",
             items: summary.itemsDropped, where: `from ${updatedFight.enemy.emoji} ${updatedFight.enemy.name}`,

@@ -21,7 +21,8 @@ export type StarterPack = {
     };
     combat: {
       enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }>;
-      /** Optional: fight moves and statuses, from Combat v2. */
+      /** Optional: places, fight moves and statuses, from Combat v2. */
+      places?: Record<string, Named>;
       moves?: Record<string, Named>;
       statuses?: Record<string, Named>;
     };
@@ -41,6 +42,7 @@ const TARGETS = [
   ["shop", "categories"],
   ["shop", "items"],
   ["combat", "enemies"],
+  ["combat", "places"],
   ["combat", "moves"],
   ["combat", "statuses"],
   ["quests", "quests"],

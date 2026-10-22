@@ -23,7 +23,7 @@ export type Issue = {
     page: DashboardPage;
 };
 
-type Perm = "view" | "send" | "embed" | "files";
+type Perm = "view" | "send" | "embed" | "files" | "threads" | "threadSend";
 
 export interface Access {
     /** The channel's name, or null when it no longer exists. */
@@ -36,7 +36,10 @@ export interface Access {
     canManageRole(id: string): boolean;
 }
 
-const PERM_NAMES: Record<Perm, string> = { view: "View Channel", send: "Send Messages", embed: "Embed Links", files: "Attach Files" };
+const PERM_NAMES: Record<Perm, string> = {
+    view: "View Channel", send: "Send Messages", embed: "Embed Links", files: "Attach Files",
+    threads: "Create Public Threads", threadSend: "Send Messages in Threads",
+};
 const POST: Perm[] = ["view", "send"];
 const POST_EMBED: Perm[] = ["view", "send", "embed"];
 
@@ -140,6 +143,20 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
             for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat", POST_EMBED);
         }
         for (const e of enemies) for (const d of e.drops ?? []) item(d.itemId, `The enemy ${e.name}`, "combat");
+
+        // Places: the server's channels as its map.
+        for (const place of Object.values(config.combat.places ?? {})) {
+            const pool = (place.enemies ?? []).filter((p) => (p.weight ?? 1) > 0);
+            if (!place.channelIds?.length) issues.push({ severity: "warning", message: `The place ${place.name} isn't tied to any channel yet, so nobody can find it. Pick its channels on the Combat page's Places tab.`, page: "combat" });
+            if (!pool.length) issues.push({ severity: "warning", message: `Nothing lives in the place ${place.name}: give it some enemies.`, page: "combat" });
+            for (const p of pool) {
+                const e = config.combat.enemies?.[p.enemyId];
+                if (!e) issues.push({ severity: "warning", message: `The place ${place.name} has an enemy that was deleted (${p.enemyId}).`, page: "combat" });
+                else if (e.boss) issues.push({ severity: "warning", message: `The place ${place.name} lists the world boss ${e.name}, which only comes as a boss.`, page: "combat" });
+            }
+            const perms: Perm[] = (place.fights ?? "thread") === "thread" ? [...POST_EMBED, "threads", "threadSend"] : POST_EMBED;
+            for (const id of place.channelIds ?? []) channel(id, `${place.name} fights`, "combat", perms);
+        }
 
         // Moves: anything missing falls back to a plain attack in a fight, so these only warn.
         const moves = movesOf(config);
@@ -303,6 +320,8 @@ export function discordAccess(guild: Guild): Access {
         send: PermissionFlagsBits.SendMessages,
         embed: PermissionFlagsBits.EmbedLinks,
         files: PermissionFlagsBits.AttachFiles,
+        threads: PermissionFlagsBits.CreatePublicThreads,
+        threadSend: PermissionFlagsBits.SendMessagesInThreads,
     } as const;
     return {
         channelName: (id) => guild.channels.cache.get(id)?.name ?? null,

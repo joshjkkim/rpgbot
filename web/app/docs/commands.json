@@ -52,12 +52,12 @@
   },
   {
     "name": "fight",
-    "description": "Fight an enemy for XP and gold!",
+    "description": "Hunt for an enemy where you are, for Combat XP and loot",
     "managersOnly": false,
     "options": [
       {
         "name": "enemy",
-        "description": "Enemy ID to fight (leave blank for a random eligible enemy)",
+        "description": "A specific enemy's ID (managers, or when the server allows it)",
         "type": "text",
         "required": false
       }

@@ -52,6 +52,7 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, combatXpForLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats, hpRules, minutesToFull, resolveCurrentHp, respawnHp, storeHp, type CombatStats } from "../src/player/combat.js";
+import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/player/places.js";
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
@@ -1648,6 +1649,38 @@ async function main() {
         playTurn(fight, { kind: "move", moveId: "venom" }, cfg);
         check("a stacking status counts its stacks", [fight.foe.stacks?.venom, fight.enemyCurrentHp], [2, 85]);
         check("and says so", describeMove(cfg.combat.moves.venom!, cfg).does[0], "🐍 Venom on the target for 3 turns, stacking up to 3.");
+    });
+
+    await test("places: channels map to enemy pools, and chat places fight in threads", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const enemy = (id: string, minLevel: number, maxLevel: number | null, boss = false) =>
+            ({ id, name: id, emoji: "👾", hp: 10, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel, maxLevel, xpReward: 0, goldReward: 0, drops: [], boss });
+        cfg.combat.enemies = { wolf: enemy("wolf", 1, 10), bear: enemy("bear", 5, null), lich: enemy("lich", 40, null), king: enemy("king", 1, null, true) };
+        cfg.combat.places = {
+            woods: { id: "woods", name: "Woods", emoji: "🌲", channelIds: ["cat-wild"], enemies: [{ enemyId: "wolf", weight: 3 }, { enemyId: "bear", weight: 1 }, { enemyId: "king" }] },
+            crypt: { id: "crypt", name: "Crypt", emoji: "🪦", channelIds: ["crypt"], enemies: [{ enemyId: "lich" }], fights: "channel" },
+        };
+        check("a channel in a place's category is in that place", placeFor(cfg, ["general", "cat-wild"])?.id, "woods");
+        check("a channel listed itself wins over its category", placeFor(cfg, ["crypt", "cat-wild"])?.id, "crypt");
+        check("a thread counts as its channel", placeFor(cfg, ["thread-1", "crypt", "cat-wild"])?.id, "crypt");
+        check("other channels are in no place", placeFor(cfg, ["tavern", "cat-town"]), null);
+        const woods = cfg.combat.places.woods!;
+        check("only enemies that suit your level, never a boss", placeEnemies(woods, cfg, 3).map((p) => p.enemy.id), ["wolf"]);
+        check("weights pick between them", [pickFromPlace(woods, cfg, 6, undefined, () => 0.7)?.id, pickFromPlace(woods, cfg, 6, undefined, () => 0.8)?.id], ["wolf", "bear"]);
+        check("nothing suitable, nothing found", pickFromPlace(cfg.combat.places.crypt!, cfg, 5), null);
+        check("places fight in threads unless set otherwise", [fightsInThread(cfg, woods), fightsInThread(cfg, cfg.combat.places.crypt!), fightsInThread(cfg, null)], [true, false, false]);
+
+        cfg.combat.enabled = true;
+        cfg.combat.places.empty = { id: "empty", name: "Empty Hall", emoji: "🏚️", channelIds: [], enemies: [{ enemyId: "ghost" }] };
+        const noThreads: Access = { channelName: (id) => id, missingIn: (_, perms) => perms.filter((p) => p === "threads"), roleName: () => "Hero", canManageRole: () => true };
+        const health = checkGuild(cfg, noThreads).map((i) => i.message).join("\n");
+        check("the health check covers places", [
+            health.includes("can't post Woods fights in #cat-wild. Give it Create Public Threads"),
+            health.includes("Crypt fights"),
+            health.includes("The place Empty Hall isn't tied to any channel yet"),
+            health.includes("The place Empty Hall has an enemy that was deleted (ghost)"),
+            health.includes("lists the world boss king"),
+        ], [true, false, true, true, true]);
     });
 
     await test("HP comes back over two hours, and a loss leaves you at 25%", async () => {

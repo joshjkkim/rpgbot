@@ -52,6 +52,16 @@ export interface StatusConfig {
   maxStacks?: number;
 }
 
+export interface PlaceConfig {
+  id: string;
+  name: string;
+  emoji: string;
+  arrival?: string;
+  channelIds: string[];
+  enemies: { enemyId: string; weight?: number }[];
+  fights?: "thread" | "channel";
+}
+
 export interface EnemyMove {
   moveId: string;
   weight?: number;

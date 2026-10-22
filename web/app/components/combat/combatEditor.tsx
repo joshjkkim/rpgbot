@@ -15,7 +15,7 @@ import {
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
 import { ConditionFields } from "./movesEditor";
-import { DEFAULT_ENEMY_MOVES, DEFAULT_MOVES, DEFAULT_STATUSES, type EnemyMove, type MoveConfig, type StatusConfig } from "./moveText";
+import { DEFAULT_ENEMY_MOVES, DEFAULT_MOVES, DEFAULT_STATUSES, type EnemyMove, type MoveConfig, type PlaceConfig, type StatusConfig } from "./moveText";
 
 // ─── Types (mirrored from havocish) ─────────────────────────────────────────────
 
@@ -101,6 +101,9 @@ export interface CombatConfig {
   enemies?: Record<string, EnemyConfig>;
   moves?: Record<string, MoveConfig>;
   statuses?: Record<string, StatusConfig>;
+  places?: Record<string, PlaceConfig>;
+  allowEnemyChoice?: boolean;
+  fightsIn?: "thread" | "channel";
   /** HP refill time and where a loss leaves you (mirrored from havocish/src/player/combat.ts). */
   hp?: { regenMinutes?: number; respawnPercent?: number };
   pveDeathPenalty?: CombatDeathPenalty;
