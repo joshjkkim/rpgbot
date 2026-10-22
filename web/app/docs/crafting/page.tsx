@@ -73,6 +73,20 @@ export default function Crafting() {
         ]}
       />
 
+      <H2>Recipe scrolls</H2>
+      <P>
+        Turn on <b>Hidden until learned</b> on a recipe and members see it in <C>/craft</C> only as <b>???</b> until they
+        learn it. To teach it, make an item at <Where>Items</Where> with the <b>Teach a recipe</b> use action, then put
+        that scroll anywhere items come from: an enemy or world boss drop, a gathering spot, a quest reward, the shop.
+        Reading it teaches the recipe for good and uses up the scroll. A member who already knows it keeps the scroll,
+        so they can trade it.
+      </P>
+      <P>
+        Each hidden recipe shows which items teach it, and the health check warns about a hidden recipe nothing
+        teaches. In Classic Fantasy, the Starforged Blade is hidden: its scroll drops from the Hollow King, and rarely
+        from liches.
+      </P>
+
       <H2>What members see</H2>
       <P>
         <C>/craft</C> shows the station&apos;s recipes, privately, with how much of each ingredient the member has. Recipes

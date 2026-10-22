@@ -90,6 +90,8 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
+    channel(config.rareFinds?.channelId, "rare-find announcements", "items", POST);
+
     // ── Role rewards ── (the page is Leveling: they sit beside level rewards)
     channel(config.roleRewards?.channelId, "role reward announcements", "leveling", POST);
     for (const [roleId, actions] of Object.entries(config.roleRewards?.roles ?? {})) {
@@ -190,6 +192,8 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     // ── Crafting ──
+    const taught = new Set(Object.values(items).flatMap((it) => Object.values(it.actions ?? {})
+        .filter((a) => a?.type === "learnRecipe").map((a) => `${a.stationId}/${a.recipeId}`)));
     if (config.crafting?.enabled) {
         const stations = Object.values(config.crafting.stations ?? {}).filter((s) => s.enabled !== false);
         if (stations.length === 0) {
@@ -206,6 +210,18 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                 if ((r.inputs ?? []).some((i) => !items[i.itemId])) {
                     issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} needs an item that no longer exists, so nobody can make it.`, page: "crafting" });
                 }
+                if (r.hidden && !taught.has(`${st.id}/${r.id}`)) {
+                    issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} is hidden, but no item teaches it. Make a recipe scroll on the Items page, or unhide it.`, page: "crafting" });
+                }
+            }
+        }
+    }
+
+    // Recipe scrolls pointing at a station or recipe that's gone teach nothing.
+    for (const it of Object.values(items)) {
+        for (const a of Object.values(it.actions ?? {})) {
+            if (a?.type === "learnRecipe" && !config.crafting?.stations?.[a.stationId ?? ""]?.recipes?.[a.recipeId ?? ""]) {
+                issues.push({ severity: "warning", message: `${it.name} teaches a recipe that no longer exists.`, page: "items" });
             }
         }
     }

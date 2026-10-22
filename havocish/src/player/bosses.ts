@@ -1,4 +1,5 @@
 import type { ButtonInteraction, Client, ColorResolvable, Message, SendableChannels } from "discord.js";
+import { announceRareFinds } from "../ui/rareFinds.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from "discord.js";
 import type { EnemyConfig, FightEndSummary } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -346,6 +347,10 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
         } catch (err) {
             console.error(`Boss reward failed for ${pay.discordUserId}:`, err);
         }
+        await announceRareFinds({
+            client: boss.message.client, config, discordUserId: pay.discordUserId, verb: "found",
+            items: pay.drops, where: `from ${enemy.emoji} ${enemy.name}`,
+        });
         const drops = pay.drops.map((d) => {
             const item = config.shop?.items?.[d.itemId];
             return item ? `${item.emoji ?? "🎁"} ${item.name}` : d.itemId;

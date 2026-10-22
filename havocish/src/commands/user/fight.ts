@@ -1,4 +1,5 @@
 import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable, User } from "discord.js";
+import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import {
     ActionRowBuilder, ButtonBuilder, ButtonStyle,
@@ -436,6 +437,10 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
             embeds: [endEmbed],
             components: [],
             files: [...(levelCard ? [levelCard] : []), ...await lootCards(summary, config)],
+        });
+        await announceRareFinds({
+            client: interaction.client, config, discordUserId: interaction.user.id, verb: "found",
+            items: summary.itemsDropped, where: `from ${updatedFight.enemy.emoji} ${updatedFight.enemy.name}`,
         });
         return;
     }

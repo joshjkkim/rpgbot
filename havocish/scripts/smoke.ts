@@ -52,9 +52,10 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
+import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
-import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
+import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
@@ -1483,6 +1484,31 @@ async function main() {
         check("an item's old level folds in as Combat", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ combatLevel: 3, roles: ["r"] }));
     });
 
+    await test("rare finds are announced at or above the chosen rarity", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.shop.items = {
+            pebble: { id: "pebble", name: "Pebble", rarity: "common", categoryId: "", price: 0 },
+            shard: { id: "shard", name: "Starmetal Shard", emoji: "🌠", rarity: "epic", categoryId: "", price: 0 },
+            crown: { id: "crown", name: "Crown", emoji: "👑", rarity: "legendary", categoryId: "", price: 0 },
+        } as any;
+        const sent: string[] = [];
+        const channel = { isTextBased: () => true, isSendable: () => true, send: async (m: { content: string }) => { sent.push(m.content); } };
+        const client = { channels: { fetch: async () => channel } } as any;
+        const find = (items: { itemId: string; quantity: number }[]) =>
+            announceRareFinds({ client, config: cfg, discordUserId: "u1", items, verb: "found", where: "at Deep Veins" });
+
+        await find([{ itemId: "shard", quantity: 1 }]);
+        check("off until a channel is set", sent.length, 0);
+        cfg.rareFinds = { channelId: "c1" };
+        await find([{ itemId: "pebble", quantity: 3 }]);
+        check("common finds stay quiet (default: epic and up)", sent.length, 0);
+        await find([{ itemId: "pebble", quantity: 3 }, { itemId: "shard", quantity: 1 }, { itemId: "crown", quantity: 2 }]);
+        check("only the rare ones, in one post", sent[0], "✨ <@u1> found 🌠 **Starmetal Shard** and 👑 **Crown** ×2 at Deep Veins!");
+        cfg.rareFinds = { channelId: "c1", minRarity: "legendary" };
+        await find([{ itemId: "shard", quantity: 1 }]);
+        check("a higher bar skips epics", sent.length, 1);
+    });
+
     await test("role rewards pay once per member per role", async () => {
         const ids = await reset();
         const config = ids.config;
@@ -1547,6 +1573,25 @@ async function main() {
         check("chat XP untouched", after.xp, p.xp);
         check("the announcement lists it", given.join(", "), "+100 Gold, 2× 🧪 Potion, +1,885 ⚔️ Combat XP");
         check("no reward actions, nothing given", (await grantLevelRewards({ userId: ids.userId, guildId: ids.guildId, config, fromLevel: 9, toLevel: 10 })).length, 0);
+    });
+
+    await test("recipe scrolls teach a hidden recipe once", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.shop.items = { ore: { id: "ore", name: "Ore", categoryId: "", price: 0 }, blade: { id: "blade", name: "Blade", categoryId: "", price: 0 } } as any;
+        const secret = { id: "blade", inputs: [{ itemId: "ore", quantity: 1 }], output: { itemId: "blade", quantity: 1 }, minSkill: 1, skillXp: 5, hidden: true };
+        cfg.crafting.stations = { smith: { id: "smith", name: "Smithing", emoji: "⚒️", skillName: "Smithing", enabled: true, style: "simple", recipes: { blade: secret } } } as any;
+        const p = { user_stats: {}, inventory: {} } as any;
+
+        check("a hidden recipe starts locked", recipeState(secret as any, p, cfg, 1, []).locked, "hidden");
+        check("so the scroll has something to teach", recipeToLearn(p, cfg, "smith", "blade").status, "new");
+        learnRecipe(p, "smith", "blade");
+        const known = p.user_stats.crafting.smith.known;
+        check("reading it records the recipe", known.join(","), "blade");
+        check("and unlocks it", recipeState(secret as any, p, cfg, 1, known).locked, null);
+        check("a second scroll has nothing left to teach", recipeToLearn(p, cfg, "smith", "blade").status, "known");
+        check("a scroll for a deleted recipe teaches nothing", recipeToLearn(p, cfg, "smith", "gone").status, "missing");
+        learnRecipe(p, "smith", "blade");
+        check("learning twice doesn't duplicate it", p.user_stats.crafting.smith.known.length, 1);
     });
 
     await test("crafting: what a member can make, and making it", async () => {

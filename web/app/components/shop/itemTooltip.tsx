@@ -36,6 +36,8 @@ function describeAction(a: shopItemAction) {
       return `Gives ${a.amount ?? 0} ${a.statId || "of a stat"}.`;
     case "giveItem":
       return `Gives ${a.quantity ?? 1} × ${a.itemId || "an item"}.`;
+    case "learnRecipe":
+      return "Teaches a crafting recipe.";
   }
 }
 

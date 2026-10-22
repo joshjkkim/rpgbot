@@ -59,7 +59,7 @@ export interface CraftingConfig {
 
 const DEFAULT_CRAFTING: CraftingConfig = { enabled: false, stations: {} };
 
-type ShopItems = Record<string, { name?: string; emoji?: string }>;
+type ShopItems = Record<string, { name?: string; emoji?: string; actions?: Record<number, { type: string; stationId?: string; recipeId?: string } | undefined> }>;
 
 const smallButton = "inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]";
 const removeButton = "text-[var(--muted)] transition-colors hover:text-red-400";
@@ -76,6 +76,9 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
   const masterwork = recipe.masterwork ?? [];
   const total = masterwork.reduce((s, m) => s + (m.chance > 0 && shopItems[m.itemId] ? m.chance : 0), 0);
   const out = shopItems[recipe.output?.itemId ?? ""];
+  // The recipe scrolls that teach this one.
+  const taughtBy = Object.values(shopItems).filter((it) => Object.values(it.actions ?? {})
+    .some((a) => a?.type === "learnRecipe" && a.stationId === station.id && a.recipeId === recipe.id));
 
   return (
     <div className="space-y-4 rounded-sm border border-[var(--border)] bg-black/20 p-3">
@@ -91,6 +94,17 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
         <NumberField label="Skill XP per craft" value={recipe.skillXp ?? 20} min={0} onChange={(v) => onChange({ ...recipe, skillXp: v })} />
         <NumberField label="Gold it also costs" value={recipe.gold ?? 0} min={0} onChange={(v) => onChange({ ...recipe, gold: v > 0 ? v : undefined })} />
       </FieldGrid>
+
+      <Toggle
+        label="Hidden until learned"
+        checked={!!recipe.hidden}
+        onChange={(v) => onChange({ ...recipe, hidden: v || undefined })}
+        hint={!recipe.hidden
+          ? "Members see it in /craft from the start."
+          : taughtBy.length
+            ? `Shown as ??? until a member reads ${taughtBy.map((it) => `${it.emoji ?? ""} ${it.name}`.trim()).join(" or ")}.`
+            : "No item teaches it yet. On the Items page, give an item the \"Teach a recipe\" use action, then drop or sell it somewhere."}
+      />
 
       <Field label="Ingredients" hint="Used up by each craft.">
         <div className="space-y-2">
