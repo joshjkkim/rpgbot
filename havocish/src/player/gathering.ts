@@ -23,6 +23,11 @@ export function skillLevel(xp: number, config: GuildConfig): number {
     return calculateLevelFromXp(xp, asLevels(config));
 }
 
+/** The skill XP a level starts at, capped at the curve's top. Crafting shares the curve. */
+export function skillXpForLevel(level: number, config: GuildConfig): number {
+    return calculateTotalXpForLevel(Math.min(Math.max(1, level), config.gathering.skill.maxLevel), asLevels(config));
+}
+
 /** Level, and XP into it out of what it takes, for progress bars. `span` is 0 at the cap. */
 export function skillProgress(xp: number, config: GuildConfig) {
     const level = skillLevel(xp, config);

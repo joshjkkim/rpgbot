@@ -81,7 +81,7 @@ export default function Dashboard() {
         head={["Command", "Use it to"]}
         rows={[
           [<C key="c">/config</C>, "Switch features on and off with one click each: the shop, gifting, quests, achievements, voice XP, combat, duels, encounters, world bosses, gathering, crafting and logging."],
-          [<C key="c">/admin set</C>, "Set a member's XP, level, gold or streak."],
+          [<C key="c">/admin set</C>, "Set a member's XP, level, gold, streak, Combat level or a skill level."],
           [<C key="c">/admin items</C>, "View, give, remove or clear a member's items."],
           [<C key="c">/boss summon</C>, "Call a world boss right now."],
         ]}

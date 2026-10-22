@@ -1,11 +1,11 @@
-import type { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
+import type { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { resetRoleRewards } from "../../player/levelRewards.js";
 import * as set from "./set.js";
 import * as adminInventory from "./adminInventory.js";
-import { autocompleteShopItems } from "../../ui/autocomplete.js";
+import { autocompleteShopItems, autocompleteSkills } from "../../ui/autocomplete.js";
 
 /**
  * One command for fixing a member by hand: `/admin set …`, `/admin items …`
@@ -57,4 +57,6 @@ async function resetRoleReward(interaction: ChatInputCommandInteraction) {
     await interaction.reply({ content, flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });
 }
 
-export const autocomplete = autocompleteShopItems;
+export async function autocomplete(interaction: AutocompleteInteraction) {
+    return interaction.options.getFocused(true).name === "skill" ? autocompleteSkills(interaction) : autocompleteShopItems(interaction);
+}

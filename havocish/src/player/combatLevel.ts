@@ -28,6 +28,12 @@ export function combatLevel(p: DbUserGuildProfile, config: GuildConfig): number 
     return calculateLevelFromXp(combatXp(p), asLevels(config));
 }
 
+/** The Combat XP a level starts at, capped at the curve's top. */
+export function combatXpForLevel(level: number, config: GuildConfig): number {
+    const max = (config.combat?.curve ?? DEFAULT_CURVE).maxLevel;
+    return calculateTotalXpForLevel(Math.min(Math.max(1, level), max), asLevels(config));
+}
+
 /** Level, and XP into it out of what it takes, for progress bars. `span` is 0 at the cap. */
 export function combatProgress(p: DbUserGuildProfile, config: GuildConfig) {
     const xp = combatXp(p);
