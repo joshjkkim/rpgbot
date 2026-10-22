@@ -52,7 +52,7 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats, type CombatStats } from "../src/player/combat.js";
-import { DEFAULT_MOVES, describeMove, intentLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
+import { DEFAULT_MOVES, describeMove, intentLine, intentThreat, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
@@ -2210,16 +2210,17 @@ async function main() {
         playTurn(plain, move("attack"), base);
         check("attack trades blows", [plain.enemyCurrentHp, plain.playerCurrentHp], [80, 90]);
 
-        // Guard against a heavy hit: 18 x 40% = 7 taken, half of that countered back.
+        // Guard against a heavy hit: 22 x 40% = 9 taken, 30% of that countered back.
         const guarded = fightWith(base, { moves: [{ moveId: "heavy" }] });
         const g1 = playTurn(guarded, move("guard"), base);
-        check("guard blocks most of a heavy hit", guarded.playerCurrentHp, 93);
-        check("and counters it", [guarded.enemyCurrentHp, g1.log.some((l) => l.includes("countered"))], [96, true]);
+        check("guard blocks most of a heavy hit", guarded.playerCurrentHp, 91);
+        check("and counters it", [guarded.enemyCurrentHp, g1.log.some((l) => l.includes("countered"))], [97, true]);
+        check("a heavy hit coming turns the message red", intentThreat(fightWith(base, { moves: [{ moveId: "heavy" }] }), base), "danger");
 
         // Heavy Strike: big hit, your defense drops for the enemy's swing, then a 2-turn cooldown.
         const heavy = fightWith(base, { moves: [{ moveId: "attack" }] }, { def: 10 });
         playTurn(heavy, move("heavy"), base);
-        check("heavy hits 180%", heavy.enemyCurrentHp, 64);
+        check("heavy hits 220%", heavy.enemyCurrentHp, 56);
         check("its drawback lowers your defense for the enemy's swing", heavy.playerCurrentHp, 94);
         const heavyMove = moveById(base, "heavy");
         const ready: boolean[] = [usable(heavy.player, heavyMove)];
@@ -2272,7 +2273,7 @@ async function main() {
 
         // Plain-language text, with drawbacks apart.
         const said = describeMove(heavyMove, base);
-        check("a move describes itself", said, { does: ["Deals 180% damage.", "2-turn cooldown."], drawbacks: ["Your DEF drops 30% this turn."] });
+        check("a move describes itself", said, { does: ["Deals 220% damage.", "2-turn cooldown."], drawbacks: ["Your DEF drops 30% this turn."] });
 
         // What a player brings: requirements, a picked loadout, gear.
         const profile = { level: 1, xp: "0", user_stats: {}, equips: {} } as any;

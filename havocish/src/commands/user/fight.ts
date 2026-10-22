@@ -14,7 +14,7 @@ import {
     applyAction, applyFightRewards, busyFighting, clearActiveFight, healAmount,
     getActiveFight, getFightByMessageId, pickRandomEnemy, setActiveFight, startFight,
 } from "../../player/fight.js";
-import { intentLine, loadoutFor, moveById, statusesOf, usable } from "../../player/moves.js";
+import { intentLine, intentThreat, loadoutFor, moveById, statusesOf, usable } from "../../player/moves.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import { bestEffort } from "../../ui/bestEffort.js";
@@ -59,10 +59,12 @@ function effectsLine(state: FighterState, config: GuildConfig): string {
 export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: string[], title?: string): EmbedBuilder {
     const fighter = (hp: number, max: number, state: FighterState) =>
         [buildHpBar(hp, max), `❤️ **${hp}** / **${max}**`, effectsLine(state, config)].filter(Boolean).join("\n");
+    // What's coming leads, as a headline: it's the one thing to read before choosing.
+    const threat = intentThreat(fight, config);
     return new EmbedBuilder()
         .setTitle(title ?? `⚔️ vs ${fight.enemy.emoji} ${fight.enemy.name}`)
-        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
-        .setDescription([...log, ...(log.length ? [""] : []), intentLine(fight, config)].join("\n"))
+        .setColor(threat === "danger" ? "#B03A2E" : threat === "defend" ? "#3A6EA5" : config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
+        .setDescription([`### ${intentLine(fight, config).replaceAll("**", "")}`, ...log].join("\n"))
         .addFields(
             { name: "🧑 You", value: fighter(fight.playerCurrentHp, fight.playerStats.maxHp, fight.player), inline: true },
             { name: `${fight.enemy.emoji} ${fight.enemy.name}`, value: fighter(fight.enemyCurrentHp, fight.enemy.hp, fight.foe), inline: true },

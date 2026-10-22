@@ -28,12 +28,13 @@ export const DEFAULT_MOVES: Record<string, MoveConfig> = {
     },
     heavy: {
         id: "heavy", name: "Heavy Strike", emoji: "🪓", telegraph: "winds up a heavy blow…", cooldown: 2,
-        effects: [{ type: "hit", power: 1.8 }, { type: "boost", stat: "def", percent: -30, turns: 1, target: "self" }],
+        effects: [{ type: "hit", power: 2.2 }, { type: "boost", stat: "def", percent: -30, turns: 1, target: "self" }],
         players: {},
     },
     guard: {
-        id: "guard", name: "Guard", emoji: "🛡️", telegraph: "raises its guard.",
-        effects: [{ type: "guard", percent: 60 }, { type: "counter", percent: 50 }], players: {},
+        // The cooldown stops guarding every turn: it's the answer to a heavy hit, not a stance.
+        id: "guard", name: "Guard", emoji: "🛡️", telegraph: "raises its guard.", cooldown: 1,
+        effects: [{ type: "guard", percent: 60 }, { type: "counter", percent: 30 }], players: {},
     },
 };
 
@@ -310,6 +311,16 @@ export function intentLine(fight: ActiveFight, config: GuildConfig): string {
             : `❗ **${name}** unleashes **${move.name}** this turn!`;
     }
     return `👁️ **${name}** ${move.telegraph ?? `prepares **${move.name}**.`}`;
+}
+
+/** How worrying the enemy's next move is: the fight message takes its colour from this. */
+export function intentThreat(fight: ActiveFight, config: GuildConfig): "danger" | "defend" | "normal" {
+    if (fight.foe.stunned) return "normal";
+    if (fight.foe.charging) return "danger";
+    const move = moveById(config, fight.enemyIntent);
+    const power = move.effects.reduce((sum, e) => sum + (e.type === "hit" && e.target !== "self" ? e.power * (e.hits ?? 1) : 0), 0);
+    if (power >= 1.5) return "danger";
+    return move.effects.some((e) => e.type === "guard" || e.type === "counter") ? "defend" : "normal";
 }
 
 function sides(fight: ActiveFight): [foe: Side, you: Side] {
