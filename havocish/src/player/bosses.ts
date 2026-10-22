@@ -385,6 +385,6 @@ async function payOut(pay: Payout, fighter: Fighter, enemy: EnemyConfig, discord
         totalDamageTaken: fighter.taken,
     };
     // applyFightRewards reads only the HP, combat type and enemy off the fight.
-    await applyFightRewards(summary, { playerCurrentHp: resolveCurrentHp(profile, stats, config), combatType: "pve", enemy } as any, profile, config);
+    await applyFightRewards(summary, { combatType: "pve", enemy }, { hp: resolveCurrentHp(profile, stats, config), stats }, profile, config);
     return summary.questsCompleted ?? [];
 }

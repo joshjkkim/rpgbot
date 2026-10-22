@@ -8,7 +8,7 @@ import { combatLevel } from "./combatLevel.js";
 import { pickRandomEnemy, startFight } from "./fight.js";
 import { channelChain, fightsInThread, pickFromPlace, placeFor } from "./places.js";
 import { loadoutFor } from "./moves.js";
-import { buildActionRows, buildFightEmbed, placeFight, readyToFight } from "../commands/user/fight.js";
+import { boardView, placeFight, readyToFight } from "../commands/user/fight.js";
 
 /**
  * Random encounters: while people chat, a wild enemy sometimes turns up in the
@@ -147,9 +147,10 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
             enemy,
             config,
             loadout: loadoutFor(ready.profile, config, memberFacts(interaction.member)),
+            name: interaction.member.displayName,
             ...at,
             ...(place && { placeName: `${place.emoji} ${place.name}` }),
         }),
-        show: (fight) => ({ embeds: [buildFightEmbed(fight, config, [], title)], components: buildActionRows(fight, ready.profile, config) }),
+        show: (fight) => boardView(fight, config, [], ready.profile),
     });
 }

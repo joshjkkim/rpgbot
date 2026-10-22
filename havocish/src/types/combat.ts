@@ -41,6 +41,8 @@ export interface EnemyConfig {
     requirements?: Requirements;
     /** What it does in a fight, picked by weight each turn. Without any it uses the default moves. */
     moves?: EnemyMove[];
+    /** false: fought alone only, no joining. */
+    party?: boolean;
 }
 
 // ─── Moves ────────────────────────────────────────────────────────────────────
@@ -157,47 +159,63 @@ export interface FighterState {
 // One of these lives in the activeFights Map for the duration of a fight.
 // Never written to the DB until the fight ends.
 
+/** One player in a fight. A solo fight has one; a party up to the server's cap. */
+export interface FightMember {
+    userId: string;             // Discord user ID
+    dbUserId: number;           // profile id, so a fight nobody finishes can still be saved
+    name: string;
+    stats: CombatStats;         // computed when they joined, does not change mid-fight
+    hp: number;
+    state: FighterState;
+    /** The moves they brought: up to four ids. */
+    loadout: string[];
+    /** This round's pick (a button's action id), until the round plays. */
+    pick?: string;
+    /** Out of the fight: knocked out (still paid, half, on a win) or fled (settled when they left). */
+    out?: "down" | "fled";
+    dealt: number;
+    taken: number;
+}
+
 export interface ActiveFight {
     // Identity
-    userId: string;          // Discord user ID
+    /** Who started it: the fight's owner for /fight and its result line. */
+    userId: string;
     guildId: string;         // Discord guild ID
     messageId: string;       // the fight embed message (for button routing)
     channelId: string;
-    /** The fighter's profile ids, so a fight nobody finishes can still be saved. */
-    dbUserId: number;
     dbGuildId: number;
     combatType: "pve" | "pvp";  // determines which death penalty block to apply
 
     // Combatants
-    playerStats: CombatStats;   // computed at fight start, does not change mid-fight
-    playerCurrentHp: number;    // mutated each round
+    members: FightMember[];
     enemy: EnemyConfig;
+    /** The enemy's HP, raised for each player who joins. */
+    enemyMaxHp: number;
     enemyCurrentHp: number;     // mutated each round
-    player: FighterState;
     foe: FighterState;
     /** In a thread: the short line in chat it hangs off, which gets the result when it ends. */
     origin?: { channelId: string; messageId: string };
     /** The place it's in, for that result line. */
     placeName?: string;
-    /** The moves the player brought: up to four ids. */
-    loadout: string[];
-    /** What the enemy does next turn, shown before the player picks. */
+    /** What the enemy does next turn, shown before the players pick. */
     enemyIntent: string;
+    /** Who that's aimed at: a member's userId. */
+    enemyTarget: string;
 
     // Bookkeeping
     round: number;
     startedAt: number;          // Date.now() — for timeout cleanup
     expiresAt: number;          // fight auto-expires if player never responds
-
-    // Accumulated totals (written to UserStats at fight end)
-    totalDamageDealt: number;
-    totalDamageTaken: number;
+    /** In a party, when this round plays whether or not everyone has picked. */
+    roundEndsAt?: number;
+    roundTimer?: NodeJS.Timeout;
 
     /**
      * Set once the fight has ended and its rewards have been handed out.
      *
      * Button handlers capture this object before awaiting, so two clicks can
-     * both reach applyAction() holding the same fight. Removing it from the
+     * both reach the fight holding the same object. Removing it from the
      * active map is not enough to stop the second one -- this flag is.
      */
     resolved?: boolean;
@@ -254,6 +272,8 @@ export interface FightEndSummary {
     totalDamageTaken: number;
     questsCompleted?: string[]; // quest names this fight finished, set in applyFightRewards
     combatLevelUp?: number;     // the new Combat level, when this fight raised it
+    /** Knocked out in a party that won: half rewards. */
+    knockedOut?: boolean;
 }
 
 // ─── Skill config (future — add to GuildConfig.combat.skills later) ───────────

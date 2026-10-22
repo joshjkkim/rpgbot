@@ -45,6 +45,8 @@ export interface EnemyConfig {
   requirements?: Requirements;
   /** Picked by weight each turn; empty means the default moves. */
   moves?: EnemyMove[];
+  /** false: fought alone only. */
+  party?: boolean;
 }
 
 export interface CombatDeathPenalty {
@@ -102,6 +104,8 @@ export interface CombatConfig {
   moves?: Record<string, MoveConfig>;
   statuses?: Record<string, StatusConfig>;
   places?: Record<string, PlaceConfig>;
+  /** Others joining a fight (mirrored from havocish/src/player/fight.ts partyRules). */
+  party?: { enabled?: boolean; maxPlayers?: number; turnSeconds?: number; hpPerExtraPlayer?: number };
   allowEnemyChoice?: boolean;
   fightsIn?: "thread" | "channel";
   /** HP refill time and where a loss leaves you (mirrored from havocish/src/player/combat.ts). */
@@ -336,6 +340,15 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
                 </FieldGrid>
               </Field>
 
+              {!enemy.boss && local.party?.enabled !== false && (
+                <Toggle
+                  label="Can be fought in a party"
+                  checked={enemy.party !== false}
+                  onChange={(v) => upsertEnemy({ ...enemy, party: v ? undefined : false })}
+                  hint={enemy.party !== false ? "Others can click Join and help." : "Solo only: nobody can join a fight with it."}
+                />
+              )}
+
               {!enemy.boss && (
                 <RequirementsField
                   value={enemy.requirements}
@@ -553,6 +566,38 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
 
       {part === "events" && (
         <>
+      <Section title="Parties" description="Others joining a fight: a Join button on every fight with room, and each player picks their move privately.">
+        <Toggle
+          label="Let others join fights"
+          checked={local.party?.enabled !== false}
+          onChange={(v) => updateRoot({ party: { ...local.party, enabled: v } })}
+          hint="The enemy aims at one player each turn and says who, so the party can guard and cover for each other."
+        />
+        <div className="mt-4">
+          <FieldGrid>
+            <NumberField label="Most players" value={local.party?.maxPlayers ?? 3} min={2} max={5} onChange={(v) => updateRoot({ party: { ...local.party, maxPlayers: v } })} />
+            <NumberField
+              label="Turn timer (seconds)"
+              value={local.party?.turnSeconds ?? 20}
+              min={10}
+              max={120}
+              step={5}
+              onChange={(v) => updateRoot({ party: { ...local.party, turnSeconds: v } })}
+              hint="The round plays then even if someone hasn't picked; they attack."
+            />
+            <NumberField
+              label="Enemy HP per extra player (%)"
+              value={local.party?.hpPerExtraPlayer ?? 100}
+              min={0}
+              max={300}
+              step={10}
+              onChange={(v) => updateRoot({ party: { ...local.party, hpPerExtraPlayer: v } })}
+              hint="100 means three players face three times the HP, so each earns about what they would alone. Everyone standing gets the full reward and their own drops; anyone knocked out gets half."
+            />
+          </FieldGrid>
+        </div>
+      </Section>
+
       <Section title="Duels" description="Auto-resolved fights between two members." defaultOpen={false}>
         <Toggle
           label="Enable duels"

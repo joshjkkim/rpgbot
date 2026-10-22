@@ -14,7 +14,7 @@ const TABS = [
   { id: "places", label: "Places", blurb: "Where enemies are met: channels mapped to enemy pools, and whether fights there open in threads." },
   { id: "moves", label: "Moves", blurb: "What fighters do on their turn, built from effects, and the statuses moves can put on." },
   { id: "players", label: "Players", blurb: "Combat on or off, the level curve, player stats, the chat level bonus and death penalties." },
-  { id: "events", label: "Duels, encounters & bosses", blurb: "Fights between members, enemies that turn up in chat, and world bosses." },
+  { id: "events", label: "Parties, duels & bosses", blurb: "Others joining fights, fights between members, enemies that turn up in chat, and world bosses." },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 

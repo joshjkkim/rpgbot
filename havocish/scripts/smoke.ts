@@ -25,12 +25,12 @@ import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trad
 import { updateInventory, sellItemFromInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
-import { startFight, applyAction, applyFightRewards, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
+import { startFight, applyAction, applyFightRewards, cantJoin, everyonePicked, joinFight, resolveRound, submitPick, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
 import { buildActionRows } from "../src/commands/user/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
 import { databaseUrlProblem } from "../src/env.js";
-import type { ActiveFight, EnemyConfig } from "../src/types/combat.js";
+import type { ActiveFight, EnemyConfig, FightMember } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
@@ -66,6 +66,19 @@ import { findRules } from "../src/ui/gathering/find.js";
 
 let passed = 0;
 let failed = 0;
+
+/** A fight built by hand for engine tests: one member "u" against `enemy`. */
+function handFight(enemy: Partial<EnemyConfig>, you: Partial<CombatStats> = {}, loadout = ["attack", "heavy", "guard"]): ActiveFight {
+    const stats = { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5, ...you };
+    const e = { id: "ogre", name: "Ogre", emoji: "👹", hp: 100, atk: 10, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+        minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], ...enemy } as EnemyConfig;
+    return {
+        userId: "u", guildId: "g", messageId: "m", channelId: "c", dbGuildId: 0, combatType: "pve",
+        members: [{ userId: "u", dbUserId: 0, name: "U", stats, hp: stats.maxHp, state: newFighterState(), loadout, dealt: 0, taken: 0 }],
+        enemy: e, enemyMaxHp: e.hp, enemyCurrentHp: e.hp, foe: newFighterState(), enemyIntent: "attack", enemyTarget: "u",
+        round: 0, startedAt: 0, expiresAt: 0,
+    };
+}
 
 function check(name: string, actual: unknown, expected: unknown) {
     const ok = String(actual) === String(expected);
@@ -994,14 +1007,14 @@ async function main() {
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
             messageId: "smoke-fight-1", channelId: "smoke-channel",
-            combatType: "pve", profile, enemy, config, loadout: ["attack"],
+            combatType: "pve", profile, enemy, config, loadout: ["attack"], name: "A",
         });
 
         const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
         check("first click ended the fight", first.ended, "true");
         check("first click produced a summary", first.summary !== null, "true");
 
-        await applyFightRewards(first.summary!, first.fight, profile, config);
+        await applyFightRewards(first.summary!, first.fight, first.fight.members[0]!, profile, config);
         await flushDirtyProfiles(true);
         const afterFirst = await goldOf(fx.a, g);
         check("rewards paid once", afterFirst, "25");
@@ -1017,7 +1030,7 @@ async function main() {
         // Mirror the handler: it pays out whenever an action reports the fight
         // ended. Without the guard this is the second payout.
         if (second.ended && second.summary) {
-            await applyFightRewards(second.summary, second.fight, profile, config);
+            await applyFightRewards(second.summary, second.fight, second.fight.members[0]!, profile, config);
         }
         await flushDirtyProfiles(true);
         check("no second payout", await goldOf(fx.a, g), afterFirst);
@@ -1043,7 +1056,7 @@ async function main() {
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
             messageId: "smoke-fight-2", channelId: "smoke-channel",
-            combatType: "pve", profile, enemy, config, loadout: ["attack"],
+            combatType: "pve", profile, enemy, config, loadout: ["attack"], name: "A",
         });
         const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
 
@@ -1056,7 +1069,7 @@ async function main() {
         // existed, so the item was never flushed.
         await Promise.all([
             updateInventory(fx.a.userId, g, inv([["potion", 1]])),
-            applyFightRewards(first.summary!, first.fight, profile, config),
+            applyFightRewards(first.summary!, first.fight, first.fight.members[0]!, profile, config),
         ]);
 
         await flushDirtyProfiles(true);
@@ -1635,20 +1648,71 @@ async function main() {
         check("learning twice doesn't duplicate it", p.user_stats.moves.learned.length, 1);
 
         // A stat status: Weakened halves the enemy's attack while it's on.
-        const fight = {
-            userId: "u", guildId: "g", messageId: "m", channelId: "c", dbUserId: 0, dbGuildId: 0, combatType: "pve",
-            playerStats: { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5 }, playerCurrentHp: 100,
-            enemy: { id: "o", name: "Ogre", emoji: "👹", hp: 100, atk: 10, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "attack" }] },
-            enemyCurrentHp: 100, player: newFighterState(), foe: newFighterState(), loadout: ["weaken", "venom"], enemyIntent: "attack",
-            round: 0, startedAt: 0, expiresAt: 0, totalDamageDealt: 0, totalDamageTaken: 0,
-        } as ActiveFight;
-        playTurn(fight, { kind: "move", moveId: "weaken" }, cfg);
-        check("a weakened enemy hits for half", fight.playerCurrentHp, 95);
+        const fight = handFight({ name: "Ogre", moves: [{ moveId: "attack" }] }, {}, ["weaken", "venom"]);
+        playTurn(fight, { u: { kind: "move", moveId: "weaken" } }, cfg);
+        check("a weakened enemy hits for half", fight.members[0]!.hp, 95);
         // Venom stacks: one stack ticks 5, two stacks tick 10.
-        playTurn(fight, { kind: "move", moveId: "venom" }, cfg);
-        playTurn(fight, { kind: "move", moveId: "venom" }, cfg);
+        playTurn(fight, { u: { kind: "move", moveId: "venom" } }, cfg);
+        playTurn(fight, { u: { kind: "move", moveId: "venom" } }, cfg);
         check("a stacking status counts its stacks", [fight.foe.stacks?.venom, fight.enemyCurrentHp], [2, 85]);
         check("and says so", describeMove(cfg.combat.moves.venom!, cfg).does[0], "🐍 Venom on the target for 3 turns, stacking up to 3.");
+    });
+
+    await test("parties: joining, picks, the turn timer's default, knockouts and shares", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const ally = (id: string, hp = 100): FightMember => ({
+            userId: id, dbUserId: 0, name: id.toUpperCase(), stats: { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5 },
+            hp, state: newFighterState(), loadout: ["attack", "heavy", "guard"], dealt: 0, taken: 0,
+        });
+        const fight = handFight({ hp: 100, atk: 10, xpReward: 100, goldReward: 40, moves: [{ moveId: "attack" }], drops: [{ itemId: "pelt", chance: 1, quantity: 1 }] });
+        check("anyone can join an open fight", cantJoin(fight, "b", cfg), null);
+        joinFight(fight, ally("b"), cfg);
+        check("each extra player adds the enemy's HP again", [fight.enemyMaxHp, fight.enemyCurrentHp], [200, 200]);
+        joinFight(fight, ally("c"), cfg);
+        check("three is the cap", cantJoin(fight, "d", cfg), "This fight is full (3 players).");
+        check("you can't join twice", cantJoin(handFight({}), "u", cfg), "You're already in this fight.");
+        check("an enemy can be solo only", cantJoin(handFight({ party: false }), "b", cfg), "This fight is solo only.");
+        cfg.combat.party = { enabled: false };
+        check("and so can the whole server", cantJoin(handFight({}), "b", cfg), "This fight is solo only.");
+        delete cfg.combat.party;
+
+        fight.enemyTarget = "b";
+        check("the warning says who it's aimed at", intentLine(fight, cfg).includes("(at B)"), true);
+        check("a pick waits for the others", [submitPick(fight, "u", "move:attack", cfg).refused, everyonePicked(fight)], [undefined, false]);
+        submitPick(fight, "b", "move:guard", cfg);
+        check("a move that isn't yours is refused", submitPick(fight, "c", "move:nope", cfg).refused, "That isn't one of your moves.");
+        // C never picks: the timer plays the round and C attacks.
+        const r1 = resolveRound(fight, cfg);
+        check("everyone's turn plays, the late one attacks: two hits and a counter", [fight.enemyCurrentHp, r1.log.filter((l) => l.startsWith("⚔️ **C** used **Attack**")).length], [259, 1]);
+        check("the enemy hit only its target, who guarded", [fight.members.map((m) => m.hp), r1.log.some((l) => l.includes("countered"))], [[100, 96, 100], true]);
+
+        // B is knocked out; the others win. B gets half and no drops.
+        fight.members[1]!.hp = 1;
+        fight.enemyTarget = "b";
+        fight.enemyIntent = "attack";
+        resolveRound(fight, cfg);
+        check("a member on 0 HP is knocked out, the fight goes on", [fight.members[1]!.out, fight.resolved ?? false], ["down", false]);
+        fight.enemyCurrentHp = 1;
+        const end = resolveRound(fight, cfg);
+        const got = Object.fromEntries(end.settled.map((r) => [r.member.userId, [r.summary.outcome, r.summary.xpGained, r.summary.goldGained, r.summary.itemsDropped.length]]));
+        check("standing members get it all, each with their own drop roll", [got.u, got.c], [["win", 100, 40, 1], ["win", 100, 40, 1]]);
+        check("a knocked-out member gets half, no drops", got.b, ["win", 50, 20, 0]);
+
+        // Fleeing in a party: you leave and are settled at once; the fight goes on.
+        const run = handFight({ hp: 100, atk: 1, spd: 0, moves: [{ moveId: "attack" }] });
+        joinFight(run, ally("b"), cfg);
+        submitPick(run, "b", "flee", cfg);
+        submitPick(run, "u", "move:attack", cfg);
+        const fled = resolveRound(run, cfg);
+        check("a member who flees leaves alone", [fled.settled.map((r) => [r.member.userId, r.summary.outcome]), run.resolved ?? false], [[["b", "flee"]], false]);
+
+        // Everyone down is a loss for all.
+        const wipe = handFight({ hp: 1000, atk: 500, moves: [{ moveId: "attack" }] });
+        joinFight(wipe, ally("b", 1), cfg);
+        wipe.members[0]!.hp = 1;
+        resolveRound(wipe, cfg);
+        const last = resolveRound(wipe, cfg);
+        check("when nobody is left standing, it's lost", [last.outcome, last.settled.map((r) => r.summary.outcome)], ["loss", ["loss", "loss"]]);
     });
 
     await test("places: channels map to enemy pools, and chat places fight in threads", async () => {
@@ -2206,7 +2270,7 @@ async function main() {
         const win = { outcome: "win", xpGained: 0, goldGained: 0, goldLost: 0, itemsDropped: [], rounds: 1, totalDamageDealt: 1, totalDamageTaken: 0 } as const;
         const beat = async (enemyId: string) => {
             const { profile } = await getOrCreateProfile({ userId: fx.a.userId, guildId: g });
-            await applyFightRewards({ ...win, itemsDropped: [] }, { playerCurrentHp: 50, combatType: "pve", enemy: { id: enemyId } } as any, profile, config);
+            await applyFightRewards({ ...win, itemsDropped: [] }, { combatType: "pve", enemy: { id: enemyId } } as any, { hp: 50, stats: { maxHp: 100 } } as any, profile, config);
         };
         await beat("slime");
         check("other enemies don't count", (await state(fx.a)).wolves.progress, 0);
@@ -2253,19 +2317,19 @@ async function main() {
         profile.inventory = { draught: { id: "draught", name: "Draught", quantity: 2 } } as any;
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
-            messageId: "smoke-fight-potion", channelId: "smoke-channel", combatType: "pve", profile, enemy, config, loadout: ["attack"],
+            messageId: "smoke-fight-potion", channelId: "smoke-channel", combatType: "pve", profile, enemy, config, loadout: ["attack"], name: "A",
         });
-        fight.playerCurrentHp = 20;
+        fight.members[0]!.hp = 20;
 
-        const row1 = JSON.stringify(buildActionRows(fight, profile, config).map((r) => r.toJSON()));
+        const row1 = JSON.stringify(buildActionRows(fight.members[0]!, profile, config).map((r) => r.toJSON()));
         check("a potion button shows with its count", row1.includes("fight:potion:draught") && row1.includes("Draught ×2"), true);
         check("gear gets no button", row1.includes("sword"), false);
 
         const drink = applyAction(fight, "potion:draught", fx.guild, profile, config);
-        check("drinking heals, then the enemy still swings", fight.playerCurrentHp, 49);
+        check("drinking heals, then the enemy still swings", fight.members[0]!.hp, 49);
         check("and it uses the turn", fight.round, 1);
         check("the log says what it did", drink.result.log[0]!.includes("+30 HP"), true);
-        check("a non-potion can't be drunk", (() => { try { applyAction(fight, "potion:sword", fx.guild, profile, config); return "drank"; } catch { return "refused"; } })(), "refused");
+        check("a non-potion can't be drunk", applyAction(fight, "potion:sword", fx.guild, profile, config).result.log[0], "That isn't one of your moves.");
 
         // Other HP and gear changes wait; the reply links to the fight.
         const busy = busyFighting(fx.a.discordId, fx.guild.discord_guild_id, "Later.");
@@ -2275,7 +2339,7 @@ async function main() {
         check("/equip waits during a fight", (await equipItemFromInventory(fake, "sword")).success, false);
 
         // Walking away: a flee that keeps the damage, with no penalty.
-        fight.playerCurrentHp = 7;
+        fight.members[0]!.hp = 7;
         const client = { channels: { fetch: async () => null } } as any;
         await abandonFight(fight, client, "timeout");
         await flushDirtyProfiles(true);
@@ -2291,16 +2355,7 @@ async function main() {
 
     await test("fight moves: telegraphs, guard and counter, cooldowns, statuses, stuns and drawbacks", async () => {
         const fightWith = (cfg: GuildConfig, enemy: Partial<EnemyConfig>, you: Partial<CombatStats> = {}): ActiveFight => {
-            const f = {
-                userId: "u", guildId: "g", messageId: "m", channelId: "c", dbUserId: 0, dbGuildId: 0, combatType: "pve",
-                playerStats: { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5, ...you },
-                playerCurrentHp: 100,
-                enemy: { id: "ogre", name: "Ogre", emoji: "👹", hp: 100, atk: 10, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
-                    minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], ...enemy },
-                enemyCurrentHp: enemy.hp ?? 100, player: newFighterState(), foe: newFighterState(),
-                loadout: ["attack", "heavy", "guard"], enemyIntent: "", round: 0, startedAt: 0, expiresAt: 0,
-                totalDamageDealt: 0, totalDamageTaken: 0,
-            } as ActiveFight;
+            const f = handFight(enemy, you);
             f.enemyIntent = pickIntent(f, cfg);
             return f;
         };
@@ -2310,28 +2365,28 @@ async function main() {
         // Plain trade: 20 dealt, 10 taken.
         const plain = fightWith(base, { moves: [{ moveId: "attack" }] });
         check("the enemy's next move is picked and shown", intentLine(plain, base).includes("gets ready to strike"), true);
-        playTurn(plain, move("attack"), base);
-        check("attack trades blows", [plain.enemyCurrentHp, plain.playerCurrentHp], [80, 90]);
+        playTurn(plain, { u: move("attack") }, base);
+        check("attack trades blows", [plain.enemyCurrentHp, plain.members[0]!.hp], [80, 90]);
 
         // Guard against a heavy hit: 22 x 40% = 9 taken, 30% of that countered back.
         const guarded = fightWith(base, { moves: [{ moveId: "heavy" }] });
-        const g1 = playTurn(guarded, move("guard"), base);
-        check("guard blocks most of a heavy hit", guarded.playerCurrentHp, 91);
+        const g1 = playTurn(guarded, { u: move("guard") }, base);
+        check("guard blocks most of a heavy hit", guarded.members[0]!.hp, 91);
         check("and counters it", [guarded.enemyCurrentHp, g1.log.some((l) => l.includes("countered"))], [97, true]);
         check("a heavy hit coming turns the message red", intentThreat(fightWith(base, { moves: [{ moveId: "heavy" }] }), base), "danger");
 
         // Heavy Strike: big hit, your defense drops for the enemy's swing, then a 2-turn cooldown.
         const heavy = fightWith(base, { moves: [{ moveId: "attack" }] }, { def: 10 });
-        playTurn(heavy, move("heavy"), base);
+        playTurn(heavy, { u: move("heavy") }, base);
         check("heavy hits 220%", heavy.enemyCurrentHp, 56);
-        check("its drawback lowers your defense for the enemy's swing", heavy.playerCurrentHp, 94);
+        check("its drawback lowers your defense for the enemy's swing", heavy.members[0]!.hp, 94);
         const heavyMove = moveById(base, "heavy");
-        const ready: boolean[] = [usable(heavy.player, heavyMove)];
-        playTurn(heavy, move("attack"), base); ready.push(usable(heavy.player, heavyMove));
-        playTurn(heavy, move("attack"), base); ready.push(usable(heavy.player, heavyMove));
+        const ready: boolean[] = [usable(heavy.members[0]!.state, heavyMove)];
+        playTurn(heavy, { u: move("attack") }, base); ready.push(usable(heavy.members[0]!.state, heavyMove));
+        playTurn(heavy, { u: move("attack") }, base); ready.push(usable(heavy.members[0]!.state, heavyMove));
         check("a 2-turn cooldown skips two turns", ready, [false, false, true]);
         const waiting = fightWith(base, { moves: [{ moveId: "attack" }] });
-        waiting.player.cooldowns.heavy = 2;
+        waiting.members[0]!.state.cooldowns.heavy = 2;
         check("a move on cooldown isn't played", applyAction(waiting, "move:heavy", {} as any, {} as any, base).result.log[0], "⌛ **Heavy Strike** isn't ready yet.");
 
         // A status, and a move that hits harder against it.
@@ -2351,38 +2406,38 @@ async function main() {
             },
         } as GuildConfig;
         const bleed = fightWith(custom, { moves: [{ moveId: "idle" }] });
-        playTurn(bleed, move("rend"), custom);
+        playTurn(bleed, { u: move("rend") }, custom);
         check("rend hits and the bleed ticks at the end of the turn", [bleed.enemyCurrentHp, bleed.foe.statuses.bleed], [85, 2]);
-        playTurn(bleed, move("execute"), custom);
+        playTurn(bleed, { u: move("execute") }, custom);
         check("execute hits harder while the target bleeds", bleed.enemyCurrentHp, 30);
 
         // A wind-up: it fires on the third turn unless it's stunned first.
         const ritual = fightWith(custom, { moves: [{ moveId: "ritual" }] });
-        playTurn(ritual, move("attack"), custom);
-        playTurn(ritual, move("attack"), custom);
+        playTurn(ritual, { u: move("attack") }, custom);
+        playTurn(ritual, { u: move("attack") }, custom);
         check("the warning says it's about to go off", intentLine(ritual, custom).includes("unleashes **Dark Ritual** this turn"), true);
-        playTurn(ritual, move("attack"), custom);
-        check("an unanswered wind-up lands", ritual.playerCurrentHp, 70);
+        playTurn(ritual, { u: move("attack") }, custom);
+        check("an unanswered wind-up lands", ritual.members[0]!.hp, 70);
         const stopped = fightWith(custom, { moves: [{ moveId: "ritual" }] });
-        playTurn(stopped, move("attack"), custom);
-        playTurn(stopped, move("attack"), custom);
-        const s3 = playTurn(stopped, move("bash"), custom);
-        check("a stun interrupts it", [stopped.playerCurrentHp, !!stopped.foe.charging, s3.log.some((l) => l.includes("interrupted"))], [100, false, true]);
+        playTurn(stopped, { u: move("attack") }, custom);
+        playTurn(stopped, { u: move("attack") }, custom);
+        const s3 = playTurn(stopped, { u: move("bash") }, custom);
+        check("a stun interrupts it", [stopped.members[0]!.hp, !!stopped.foe.charging, s3.log.some((l) => l.includes("interrupted"))], [100, false, true]);
 
         // Speed decides who goes first: a faster enemy's hit lands before your stun.
         const fast = fightWith(custom, { moves: [{ moveId: "attack" }], spd: 50 });
         check("the footer says who acts first", turnOrderLine(fast, custom), "⚡ Ogre is faster: it acts first");
-        const f1 = playTurn(fast, move("bash"), custom);
-        check("the faster side swings first", [f1.log[0]!.startsWith("⚔️ **Ogre**"), fast.playerCurrentHp], [true, 90]);
+        const f1 = playTurn(fast, { u: move("bash") }, custom);
+        check("the faster side swings first", [f1.log[0]!.startsWith("⚔️ **Ogre**"), fast.members[0]!.hp], [true, 90]);
         const slow = fightWith(custom, { moves: [{ moveId: "attack" }], spd: 1 });
         check("slower enemies wait their turn", turnOrderLine(slow, custom), "You act first");
-        playTurn(slow, move("bash"), custom);
-        check("so a stun stops their swing", slow.playerCurrentHp, 100);
+        playTurn(slow, { u: move("bash") }, custom);
+        check("so a stun stops their swing", slow.members[0]!.hp, 100);
 
         // A drawback that costs HP never kills you.
         const pact = fightWith(custom, { moves: [{ moveId: "idle" }] });
-        playTurn(pact, move("pact"), custom);
-        check("losing HP to your own move stops at 1", pact.playerCurrentHp, 1);
+        playTurn(pact, { u: move("pact") }, custom);
+        check("losing HP to your own move stops at 1", pact.members[0]!.hp, 1);
 
         // Plain-language text, with drawbacks apart.
         const said = describeMove(heavyMove, base);

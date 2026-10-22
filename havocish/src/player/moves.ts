@@ -1,5 +1,5 @@
 import type {
-    ActiveFight, EnemyConfig, EnemyMove, FightOutcome, FighterState,
+    ActiveFight, EnemyConfig, EnemyMove, FightMember, FightOutcome, FighterState,
     MoveCondition, MoveConfig, MoveEffect, MoveStat, StatusConfig,
 } from "../types/combat.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -151,6 +151,8 @@ interface Side {
     maxHp: number;
     guard: number;
     counter?: { percent: number; stun: boolean };
+    /** Damage this side dealt to others this turn. */
+    dealt?: number;
 }
 
 function holds(c: MoveCondition | undefined, self: Side, other: Side): boolean {
@@ -210,6 +212,7 @@ function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<strin
                     if (t !== actor) dmg *= 1 - Math.min(100, t.guard) / 100;
                     const n = Math.max(0, Math.round(dmg));
                     t.hp = Math.max(0, t.hp - n);
+                    if (t !== actor) actor.dealt = (actor.dealt ?? 0) + n;
                     parts.push(t.guard > 0 && t !== actor ? `**${n}** damage (blocked some)` : `**${n}** damage${crit ? " 💥 critical!" : ""}`);
                     if (e.lifesteal && t !== actor) {
                         const healed = Math.min(actor.maxHp - actor.hp, Math.round(n * e.lifesteal / 100));
@@ -217,7 +220,11 @@ function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<strin
                     }
                     if (t.counter && t !== actor && n > 0 && t.hp > 0) {
                         const back = Math.round(n * t.counter.percent / 100);
-                        if (back > 0) { actor.hp = Math.max(0, actor.hp - back); parts.push(`countered for **${back}**`); }
+                        if (back > 0) {
+                            actor.hp = Math.max(0, actor.hp - back);
+                            t.dealt = (t.dealt ?? 0) + back;
+                            parts.push(`countered for **${back}**`);
+                        }
                         if (t.counter.stun) { actor.st.stunned = true; delete actor.st.charging; parts.push(`${actor.name} stunned 💫`); }
                     }
                 }
@@ -321,12 +328,26 @@ export function enemyMoveList(enemy: EnemyConfig): EnemyMove[] {
     return enemy.moves && enemy.moves.length > 0 ? enemy.moves : DEFAULT_ENEMY_MOVES;
 }
 
-/** Picks what the enemy does next turn, by weight, among the moves it can use now. */
+/** The members still fighting. */
+export function activeMembers(fight: ActiveFight): FightMember[] {
+    return fight.members.filter((m) => !m.out);
+}
+
+/** Who the enemy goes for next: one of the members still standing, at random. */
+export function pickTarget(fight: ActiveFight): string {
+    const standing = activeMembers(fight);
+    if (standing.some((m) => m.userId === fight.enemyTarget) && fight.foe.charging) return fight.enemyTarget;
+    return standing[Math.floor(Math.random() * standing.length)]?.userId ?? fight.members[0]!.userId;
+}
+
+/** Picks what the enemy does next turn, by weight, among the moves it can use now, and at whom. */
 export function pickIntent(fight: ActiveFight, config: GuildConfig): string {
+    fight.enemyTarget = pickTarget(fight);
     if (fight.foe.charging) return fight.foe.charging.moveId;
-    const [foe, you] = sides(fight);
+    const foe = foeSide(fight);
+    const target = memberSide(fight, fight.members.find((m) => m.userId === fight.enemyTarget)!);
     const options = enemyMoveList(fight.enemy).filter((m) =>
-        usable(fight.foe, moveById(config, m.moveId)) && holds(m.when, foe, you));
+        usable(fight.foe, moveById(config, m.moveId)) && holds(m.when, foe, target));
     const total = options.reduce((sum, m) => sum + Math.max(0, m.weight ?? 1), 0);
     let roll = Math.random() * total;
     for (const m of options) {
@@ -336,18 +357,20 @@ export function pickIntent(fight: ActiveFight, config: GuildConfig): string {
     return moveById(config, "attack").id;
 }
 
-/** The line shown above the buttons: what's coming. */
+/** The line shown above the buttons: what's coming, and in a party at whom. */
 export function intentLine(fight: ActiveFight, config: GuildConfig): string {
     const name = `${fight.enemy.emoji} ${fight.enemy.name}`;
     if (fight.foe.stunned) return `💫 **${name}** is stunned and will lose its turn.`;
     const move = moveById(config, fight.enemyIntent);
+    const target = fight.members.length > 1 ? fight.members.find((m) => m.userId === fight.enemyTarget) : undefined;
+    const at = target ? ` (at ${target.name})` : "";
     if (fight.foe.charging) {
         const left = fight.foe.charging.turnsLeft - 1;
         return left > 0
-            ? `⏳ **${name}** is winding up **${move.name}** (${left} more turn${left === 1 ? "" : "s"})`
-            : `❗ **${name}** unleashes **${move.name}** this turn!`;
+            ? `⏳ **${name}** is winding up **${move.name}**${at} (${left} more turn${left === 1 ? "" : "s"})`
+            : `❗ **${name}** unleashes **${move.name}**${at} this turn!`;
     }
-    return `👁️ **${name}** ${move.telegraph ?? `prepares **${move.name}**.`}`;
+    return `👁️ **${name}** ${move.telegraph ?? `prepares **${move.name}**.`}${at}`;
 }
 
 /** Whether `a` acts before `b`: a first-strike move beats one without, then higher SPD; ties go to `b`. */
@@ -356,13 +379,17 @@ function actsFirst(a: Side, aMove: MoveConfig | null, b: Side, bMove: MoveConfig
     return stat(a.stats, a.st, "spd", statuses) > stat(b.stats, b.st, "spd", statuses);
 }
 
-/** Who goes first next turn, as far as the player can know before choosing: shown under the buttons. */
+/** Who goes first next turn, as far as the players can know before choosing: shown under the buttons. */
 export function turnOrderLine(fight: ActiveFight, config: GuildConfig): string {
-    const [foe, you] = sides(fight);
-    if (fight.foe.stunned) return "You act first";
+    const party = fight.members.length > 1;
+    if (fight.foe.stunned) return party ? "You all act first" : "You act first";
     const move = moveById(config, fight.foe.charging?.moveId ?? fight.enemyIntent);
     if (move.firstStrike) return `⚡ ${fight.enemy.name} strikes first`;
-    return actsFirst(foe, move, you, null, statusesOf(config)) ? `⚡ ${fight.enemy.name} is faster: it acts first` : "You act first";
+    const foe = foeSide(fight);
+    const faster = activeMembers(fight).filter((m) => !actsFirst(foe, move, memberSide(fight, m), null, statusesOf(config)));
+    if (!party) return faster.length ? "You act first" : `⚡ ${fight.enemy.name} is faster: it acts first`;
+    if (faster.length === activeMembers(fight).length) return "You all act first";
+    return faster.length ? `⚡ Faster than ${fight.enemy.name}: ${faster.map((m) => m.name).join(", ")}` : `⚡ ${fight.enemy.name} is faster than all of you`;
 }
 
 /** How worrying the enemy's next move is: the fight message takes its colour from this. */
@@ -375,18 +402,20 @@ export function intentThreat(fight: ActiveFight, config: GuildConfig): "danger" 
     return move.effects.some((e) => e.type === "guard" || e.type === "counter") ? "defend" : "normal";
 }
 
-function sides(fight: ActiveFight): [foe: Side, you: Side] {
+function foeSide(fight: ActiveFight): Side {
     const e = fight.enemy;
-    const foeStats: CombatStats = { maxHp: e.hp, atk: e.atk, def: e.def, spd: e.spd, critChance: e.critChance, critMultiplier: e.critMultiplier };
-    return [
-        { name: e.name, stats: foeStats, st: fight.foe, hp: fight.enemyCurrentHp, maxHp: e.hp, guard: 0 },
-        { name: "You", stats: fight.playerStats, st: fight.player, hp: fight.playerCurrentHp, maxHp: fight.playerStats.maxHp, guard: 0 },
-    ];
+    const stats: CombatStats = { maxHp: fight.enemyMaxHp, atk: e.atk, def: e.def, spd: e.spd, critChance: e.critChance, critMultiplier: e.critMultiplier };
+    return { name: e.name, stats, st: fight.foe, hp: fight.enemyCurrentHp, maxHp: fight.enemyMaxHp, guard: 0 };
+}
+
+/** A member as a side. Alone they're "You"; in a party, their name. */
+function memberSide(fight: ActiveFight, m: FightMember): Side {
+    return { name: fight.members.length > 1 ? m.name : "You", stats: m.stats, st: m.state, hp: m.hp, maxHp: m.stats.maxHp, guard: 0 };
 }
 
 // ─── One turn ─────────────────────────────────────────────────────────────────
 
-/** What the player does: a move, a drink, or nothing (stunned, winding up, a failed flee). */
+/** What a player does: a move, a drink, or nothing (stunned, winding up, a failed flee). */
 export type PlayerChoice =
     | { kind: "move"; moveId: string }
     | { kind: "potion"; heal: number; name: string; emoji: string }
@@ -394,27 +423,42 @@ export type PlayerChoice =
 
 export interface TurnResult {
     outcome: FightOutcome;
-    playerHpDelta: number;
     enemyHpDelta: number;
     log: string[];
 }
 
 /**
- * Plays one turn: guards and counters go up first, then both sides act (the
- * player first unless only the enemy's move strikes first), then statuses tick.
- * Mutates the fight's state and HP, and picks the enemy's next move.
+ * Plays one turn for every member still in: guards and counters go up first,
+ * then everyone acts in order (first strike, then speed, members winning ties),
+ * the enemy at its target, then statuses tick. A member on 0 HP is knocked
+ * out; the fight is lost when nobody is left. Mutates the fight and picks the
+ * enemy's next move.
  */
-export function playTurn(fight: ActiveFight, choice: PlayerChoice, config: GuildConfig): TurnResult {
-    const [foe, you] = sides(fight);
+export function playTurn(fight: ActiveFight, choices: Record<string, PlayerChoice>, config: GuildConfig): TurnResult {
     const statuses = statusesOf(config);
     const log: string[] = [];
-
-    const yourMove: MoveConfig | null = choice.kind === "move" ? moveById(config, choice.moveId) : null;
+    const foe = foeSide(fight);
+    const players = activeMembers(fight).map((m) => {
+        const choice = choices[m.userId] ?? { kind: "pass" as const };
+        const side = memberSide(fight, m);
+        const chosen = choice.kind === "move" ? moveById(config, choice.moveId) : null;
+        const firing = m.state.charging ? moveById(config, m.state.charging.moveId) : chosen;
+        return { m, side, choice, chosen, firing, hpBefore: m.hp };
+    });
     const foeMove = moveById(config, fight.foe.charging?.moveId ?? fight.enemyIntent);
-    const yourFiring = you.st.charging ? moveById(config, you.st.charging.moveId) : yourMove;
+    const target = () => {
+        const aimed = players.find((p) => p.m.userId === fight.enemyTarget && p.side.hp > 0);
+        if (aimed) return aimed;
+        const standing = players.filter((p) => p.side.hp > 0);
+        return standing[Math.floor(Math.random() * standing.length)];
+    };
 
     // Guard and counter cover the whole turn, so they're up before anyone swings.
-    for (const [side, other, move] of [[you, foe, yourFiring], [foe, you, foeMove]] as const) {
+    const firstTarget = target();
+    for (const [side, other, move] of [
+        ...players.map((p) => [p.side, foe, p.firing] as const),
+        ...(firstTarget ? [[foe, firstTarget.side, foeMove] as const] : []),
+    ]) {
         if (!goesOff(side, move)) continue;
         for (const e of move!.effects ?? []) {
             if ((e.type !== "guard" && e.type !== "counter") || !holds(e.when, side, other) || !rolls(e)) continue;
@@ -423,40 +467,65 @@ export function playTurn(fight: ActiveFight, choice: PlayerChoice, config: Guild
         }
     }
 
-    const yourTurn = () => {
-        if (choice.kind === "potion" && !you.st.stunned && !you.st.charging) {
-            const healed = Math.min(choice.heal, you.maxHp - you.hp);
-            you.hp += healed;
-            log.push(`${choice.emoji} **You** drank **${choice.name}**: +${healed} HP`);
-        } else {
-            act(you, foe, yourMove, config, log);
-        }
-    };
-    const foeTurn = () => act(foe, you, foeMove, config, log);
-
-    const foeFirst = !fight.foe.stunned && actsFirst(foe, foeMove, you, yourFiring, statuses);
-    for (const turn of foeFirst ? [foeTurn, yourTurn] : [yourTurn, foeTurn]) {
-        if (you.hp <= 0 || foe.hp <= 0) break;
-        turn();
+    type Actor = { side: Side; move: MoveConfig | null; foe: boolean; run: () => void };
+    const actors: Actor[] = [
+        ...players.map((p): Actor => ({
+            side: p.side, move: p.firing, foe: false,
+            run: () => {
+                if (p.choice.kind === "potion" && !p.side.st.stunned && !p.side.st.charging) {
+                    const healed = Math.min(p.choice.heal, p.side.maxHp - p.side.hp);
+                    p.side.hp += healed;
+                    log.push(`${p.choice.emoji} **${p.side.name}** drank **${p.choice.name}**: +${healed} HP`);
+                } else {
+                    act(p.side, foe, p.chosen, config, log);
+                }
+            },
+        })),
+        {
+            side: foe, move: foeMove, foe: true,
+            run: () => {
+                const t = target();
+                if (t) act(foe, t.side, foeMove, config, log);
+            },
+        },
+    ];
+    // Stable sort: members keep join order among themselves; the enemy moves ahead only when it beats them.
+    const order = [...actors].sort((a, b) => {
+        if (a.foe === b.foe) return 0;
+        const [enemy, member] = a.foe ? [a, b] : [b, a];
+        const enemyFirst = !fight.foe.stunned && actsFirst(enemy.side, enemy.move, member.side, member.move, statuses);
+        return (a.foe ? 1 : -1) * (enemyFirst ? -1 : 1);
+    });
+    for (const actor of order) {
+        if (foe.hp <= 0 || players.every((p) => p.side.hp <= 0)) break;
+        if (actor.side.hp <= 0) continue;
+        actor.run();
     }
 
-    if (you.hp > 0 && foe.hp > 0) {
-        endOfTurn(you, statuses, log);
+    if (foe.hp > 0 && players.some((p) => p.side.hp > 0)) {
+        for (const p of players) if (p.side.hp > 0) endOfTurn(p.side, statuses, log);
         endOfTurn(foe, statuses, log);
     }
 
-    const playerHpDelta = you.hp - fight.playerCurrentHp;
     const enemyHpDelta = foe.hp - fight.enemyCurrentHp;
-    fight.playerCurrentHp = you.hp;
     fight.enemyCurrentHp = foe.hp;
+    for (const p of players) {
+        p.m.hp = p.side.hp;
+        p.m.taken += Math.max(0, p.hpBefore - p.side.hp);
+        if (p.m.hp <= 0) {
+            p.m.out = "down";
+            if (fight.members.length > 1 && foe.hp > 0) log.push(`💀 **${p.m.name}** is knocked out.`);
+        }
+    }
+    for (const p of players) p.m.dealt += p.side.dealt ?? 0;
 
     const outcome: FightOutcome =
         foe.hp <= 0 ? "win" :
-        you.hp <= 0 ? "loss" :
+        activeMembers(fight).length === 0 ? "loss" :
         fight.round + 1 >= MAX_ROUNDS ? "flee" : "continue";
     if (outcome === "flee") log.push("⏱️ The fight dragged on too long — you escaped exhausted.");
     if (outcome === "continue") fight.enemyIntent = pickIntent(fight, config);
-    return { outcome, playerHpDelta, enemyHpDelta, log };
+    return { outcome, enemyHpDelta, log };
 }
 
 // ─── Plain-language descriptions ──────────────────────────────────────────────
