@@ -6,6 +6,8 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 
 ### New
 - **Rare-find announcements.** Loot, gather or craft something rare and the server hears about it: "✨ @you found 🌠 Starmetal Shard at Deep Veins!" Server owners pick the channel and how rare an item has to be (Epic and up by default) at the top of the Items page.
+- **Recipe scrolls.** Some recipes are now secrets: they show as ??? in `/craft` until you read the scroll that teaches them, which you might loot from a world boss, find while gathering or earn from a quest. In Classic Fantasy, the Starforged Blade's recipe drops from the Hollow King, and rarely from liches.
+- **For server owners: hidden recipes.** Turn on "Hidden until learned" on any recipe, then give an item the "Teach a recipe" use action and drop, sell or reward it wherever you like. The Crafting page shows which item teaches each hidden recipe, and the health check warns when nothing does.
 
 ## v0.13 · October 20, 2026
 

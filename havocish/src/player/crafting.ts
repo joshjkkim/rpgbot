@@ -33,6 +33,29 @@ export type RecipeState = {
     affordable: boolean;
 };
 
+/**
+ * Whether a member can use a recipe scroll: "missing" when the station or
+ * recipe no longer exists, "known" when there's nothing to learn (already
+ * learned, or never hidden), "new" otherwise.
+ */
+export function recipeToLearn(profile: DbUserGuildProfile, config: GuildConfig, stationId: string, recipeId: string) {
+    const station = config.crafting?.stations?.[stationId];
+    const recipe = station?.recipes?.[recipeId];
+    if (!station || !recipe) return { status: "missing" as const };
+    const known = !recipe.hidden || (stationProgress(profile, stationId).known ?? []).includes(recipeId);
+    return { status: known ? "known" as const : "new" as const, station, recipe };
+}
+
+/** Records a learned recipe on the profile (the caller commits it). */
+export function learnRecipe(profile: DbUserGuildProfile, stationId: string, recipeId: string) {
+    const mine = stationProgress(profile, stationId);
+    const known = [...new Set([...(mine.known ?? []), recipeId])];
+    profile.user_stats = {
+        ...(profile.user_stats ?? {}),
+        crafting: { ...(profile.user_stats?.crafting ?? {}), [stationId]: { ...mine, known } },
+    } as typeof profile.user_stats;
+}
+
 /** What a member sees for a recipe: whether it's locked, and what they have of each input. */
 export function recipeState(recipe: Recipe, profile: DbUserGuildProfile, config: GuildConfig, skill: number, known: string[], facts?: MemberFacts): RecipeState {
     const items = config.shop?.items ?? {};

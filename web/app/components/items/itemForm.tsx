@@ -19,7 +19,11 @@ export const ITEM_ACTION_TYPES = [
   { value: "sendMessage" as const, label: "Send message" },
   { value: "giveStat" as const, label: "Give stat" },
   { value: "giveItem" as const, label: "Give item" },
+  { value: "learnRecipe" as const, label: "Teach a recipe" },
 ];
+
+/** Crafting stations, as the "teach a recipe" action needs them. */
+export type StationOptions = Record<string, { name?: string; emoji?: string; recipes?: Record<string, { hidden?: boolean; output?: { itemId: string } }> }>;
 
 const EQUIP_SLOTS = [
   { value: "head" as const, label: "Head" },
@@ -100,6 +104,7 @@ export default function ItemForm({
   categoryOptions,
   activities,
   skills,
+  stations,
 }: {
   item: shopItemConfig;
   onChange: (next: shopItemConfig) => void;
@@ -110,6 +115,8 @@ export default function ItemForm({
   activities: Record<string, { name?: string; emoji?: string }>;
   /** Skills a requirement can name. */
   skills: SkillOption[];
+  /** Crafting stations, for the "teach a recipe" action. */
+  stations: StationOptions;
 }) {
   const [tab, setTab] = useState<Tab>("basics");
   const upsertItem = onChange;
@@ -428,6 +435,30 @@ export default function ItemForm({
                           />
                         </>
                       )}
+
+                      {action.type === "learnRecipe" && (() => {
+                        const recipes = Object.entries(stations[action.stationId ?? ""]?.recipes ?? {});
+                        return (
+                          <>
+                            <SelectField
+                              label="Station"
+                              value={action.stationId ?? ""}
+                              onChange={(v) => patch({ stationId: v, recipeId: "" })}
+                              options={[{ value: "", label: "Choose a station" }, ...Object.entries(stations).map(([id, s]) => ({ value: id, label: `${s.emoji ?? ""} ${s.name ?? id}`.trim() }))]}
+                            />
+                            <SelectField
+                              label="Recipe"
+                              value={action.recipeId ?? ""}
+                              onChange={(v) => patch({ recipeId: v })}
+                              options={[{ value: "", label: "Choose a recipe" }, ...recipes.map(([id, r]) => ({
+                                value: id,
+                                label: `${allItems[r.output?.itemId ?? ""]?.name ?? id}${r.hidden ? "" : " (not hidden)"}`,
+                              }))]}
+                              hint="Hide the recipe on the Crafting page, so members only see it once they read this."
+                            />
+                          </>
+                        );
+                      })()}
 
                       {action.type === "giveItem" && (
                         <>

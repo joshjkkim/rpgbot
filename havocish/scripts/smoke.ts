@@ -55,7 +55,7 @@ import { calculateStats } from "../src/player/combat.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
-import { craftOnce, forgeRules, judgeForge, placeForge, recipeState } from "../src/player/crafting.js";
+import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, spentEnergy } from "../src/player/gathering.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
@@ -1573,6 +1573,25 @@ async function main() {
         check("chat XP untouched", after.xp, p.xp);
         check("the announcement lists it", given.join(", "), "+100 Gold, 2× 🧪 Potion, +1,885 ⚔️ Combat XP");
         check("no reward actions, nothing given", (await grantLevelRewards({ userId: ids.userId, guildId: ids.guildId, config, fromLevel: 9, toLevel: 10 })).length, 0);
+    });
+
+    await test("recipe scrolls teach a hidden recipe once", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.shop.items = { ore: { id: "ore", name: "Ore", categoryId: "", price: 0 }, blade: { id: "blade", name: "Blade", categoryId: "", price: 0 } } as any;
+        const secret = { id: "blade", inputs: [{ itemId: "ore", quantity: 1 }], output: { itemId: "blade", quantity: 1 }, minSkill: 1, skillXp: 5, hidden: true };
+        cfg.crafting.stations = { smith: { id: "smith", name: "Smithing", emoji: "⚒️", skillName: "Smithing", enabled: true, style: "simple", recipes: { blade: secret } } } as any;
+        const p = { user_stats: {}, inventory: {} } as any;
+
+        check("a hidden recipe starts locked", recipeState(secret as any, p, cfg, 1, []).locked, "hidden");
+        check("so the scroll has something to teach", recipeToLearn(p, cfg, "smith", "blade").status, "new");
+        learnRecipe(p, "smith", "blade");
+        const known = p.user_stats.crafting.smith.known;
+        check("reading it records the recipe", known.join(","), "blade");
+        check("and unlocks it", recipeState(secret as any, p, cfg, 1, known).locked, null);
+        check("a second scroll has nothing left to teach", recipeToLearn(p, cfg, "smith", "blade").status, "known");
+        check("a scroll for a deleted recipe teaches nothing", recipeToLearn(p, cfg, "smith", "gone").status, "missing");
+        learnRecipe(p, "smith", "blade");
+        check("learning twice doesn't duplicate it", p.user_stats.crafting.smith.known.length, 1);
     });
 
     await test("crafting: what a member can make, and making it", async () => {
