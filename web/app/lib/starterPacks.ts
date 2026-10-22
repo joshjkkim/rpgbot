@@ -19,7 +19,12 @@ export type StarterPack = {
       categories: Record<string, Named>;
       items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean }>;
     };
-    combat: { enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }> };
+    combat: {
+      enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }>;
+      /** Optional: fight moves and statuses, from Combat v2. */
+      moves?: Record<string, Named>;
+      statuses?: Record<string, Named>;
+    };
     quests: { quests: Record<string, Named> };
     achievements: { achievements: Record<string, Named> };
     /** Optional: packs from before gathering existed have none. */
@@ -36,11 +41,43 @@ const TARGETS = [
   ["shop", "categories"],
   ["shop", "items"],
   ["combat", "enemies"],
+  ["combat", "moves"],
+  ["combat", "statuses"],
   ["quests", "quests"],
   ["achievements", "achievements"],
   ["gathering", "activities"],
   ["crafting", "stations"],
 ] as const;
+
+/**
+ * Fields a newer pack version added to entries a server may already have from
+ * an older one: [section, map, path in the entry]. They're filled in only
+ * where the entry has nothing there, so an owner's own choice is never touched.
+ */
+const FILLS = [
+  ["combat", "enemies", ["moves"]],
+  ["shop", "items", ["effects", "moves"]],
+] as const;
+
+type Entry = Record<string, unknown>;
+const getPath = (e: Entry, path: readonly string[]) => path.reduce<unknown>((o, k) => (o as Entry | undefined)?.[k], e);
+function setPath(e: Entry, path: readonly string[], value: unknown) {
+  const parent = path.slice(0, -1).reduce<Entry>((o, k) => ((o[k] ??= {}) as Entry), e);
+  parent[path.at(-1)!] = structuredClone(value);
+}
+
+/** Each fill the pack would make on this config: the server's entry, the path, and the pack's value. */
+function fillsFor(config: GuildConfigJson | null, pack: StarterPack) {
+  const out: Array<{ entry: Entry; path: readonly string[]; value: unknown }> = [];
+  for (const [section, map, path] of FILLS) {
+    const have = (config?.[section]?.[map] ?? {}) as Record<string, Entry>;
+    for (const [id, packEntry] of Object.entries(packMap(pack, section, map))) {
+      const value = getPath(packEntry as Entry, path);
+      if (have[id] && value !== undefined && getPath(have[id], path) === undefined) out.push({ entry: have[id], path, value });
+    }
+  }
+  return out;
+}
 
 /** Features a pack switches on, so its content works straight away. */
 export const PACK_FEATURES = ["shop", "combat", "quests", "achievements", "gathering", "crafting"] as const;
@@ -69,7 +106,7 @@ export function missingCount(config: GuildConfigJson | null, pack: StarterPack) 
     (n, [section, map]) =>
       n + Object.keys(packMap(pack, section, map)).filter((id) => !hasEntry(config, section, map, id)).length,
     0
-  );
+  ) + fillsFor(config, pack).length;
 }
 
 /**
@@ -87,6 +124,10 @@ export function applyPack(config: GuildConfigJson | null, pack: StarterPack) {
       target[id] = structuredClone(entry);
       added++;
     }
+  }
+  for (const fill of fillsFor(next, pack)) {
+    setPath(fill.entry, fill.path, fill.value);
+    added++;
   }
 
   for (const feature of packFeatures(pack)) next[feature]!.enabled = true;
