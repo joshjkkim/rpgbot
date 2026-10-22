@@ -91,6 +91,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     channel(config.rareFinds?.channelId, "rare-find announcements", "items", POST);
+    channel(config.style.levelUpCards?.channelId, "level-up card", "styles", [...POST, "files"]);
 
     // ── Role rewards ── (the page is Leveling: they sit beside level rewards)
     channel(config.roleRewards?.channelId, "role reward announcements", "leveling", POST);

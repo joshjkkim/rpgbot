@@ -2,6 +2,15 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### New
+- **For server owners: a level-up channel for the RPG.** Combat and skill level-up cards can now also be posted in a channel you pick, like #level-ups, as well as under the fight or gathering result. Set it on the Style page, under Level-up cards.
+- **For server owners: set Combat and skill levels.** `/admin set combat` and `/admin set skill` put a member at any Combat, gathering or crafting level, for fixing mistakes or moving players over.
+
+### Fixed
+- **`/admin set` changed the wrong member.** Setting someone's XP, level, gold or streak changed the admin's own instead. It now changes the member you pick.
+
 ## v0.14 · October 21, 2026
 
 ### New
