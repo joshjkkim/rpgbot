@@ -14,7 +14,7 @@ import {
     applyAction, applyFightRewards, busyFighting, clearActiveFight, healAmount,
     getActiveFight, getFightByMessageId, pickRandomEnemy, setActiveFight, startFight,
 } from "../../player/fight.js";
-import { intentLine, intentThreat, loadoutFor, moveById, statusesOf, usable } from "../../player/moves.js";
+import { intentLine, intentThreat, loadoutFor, turnOrderLine, moveById, statusesOf, usable } from "../../player/moves.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
 import { bestEffort } from "../../ui/bestEffort.js";
@@ -69,7 +69,7 @@ export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: st
             { name: "🧑 You", value: fighter(fight.playerCurrentHp, fight.playerStats.maxHp, fight.player), inline: true },
             { name: `${fight.enemy.emoji} ${fight.enemy.name}`, value: fighter(fight.enemyCurrentHp, fight.enemy.hp, fight.foe), inline: true },
         )
-        .setFooter({ text: `Round ${fight.round + 1} · Your turn` });
+        .setFooter({ text: `Round ${fight.round + 1} · ${turnOrderLine(fight, config)}` });
 }
 
 function buildEndEmbed(

@@ -52,7 +52,7 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats, type CombatStats } from "../src/player/combat.js";
-import { DEFAULT_MOVES, describeMove, intentLine, intentThreat, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
+import { DEFAULT_MOVES, describeMove, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
@@ -2265,6 +2265,16 @@ async function main() {
         playTurn(stopped, move("attack"), custom);
         const s3 = playTurn(stopped, move("bash"), custom);
         check("a stun interrupts it", [stopped.playerCurrentHp, !!stopped.foe.charging, s3.log.some((l) => l.includes("interrupted"))], [100, false, true]);
+
+        // Speed decides who goes first: a faster enemy's hit lands before your stun.
+        const fast = fightWith(custom, { moves: [{ moveId: "attack" }], spd: 50 });
+        check("the footer says who acts first", turnOrderLine(fast, custom), "⚡ Ogre is faster: it acts first");
+        const f1 = playTurn(fast, move("bash"), custom);
+        check("the faster side swings first", [f1.log[0]!.startsWith("⚔️ **Ogre**"), fast.playerCurrentHp], [true, 90]);
+        const slow = fightWith(custom, { moves: [{ moveId: "attack" }], spd: 1 });
+        check("slower enemies wait their turn", turnOrderLine(slow, custom), "You act first");
+        playTurn(slow, move("bash"), custom);
+        check("so a stun stops their swing", slow.playerCurrentHp, 100);
 
         // A drawback that costs HP never kills you.
         const pact = fightWith(custom, { moves: [{ moveId: "idle" }] });

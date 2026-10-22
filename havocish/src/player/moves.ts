@@ -313,6 +313,21 @@ export function intentLine(fight: ActiveFight, config: GuildConfig): string {
     return `👁️ **${name}** ${move.telegraph ?? `prepares **${move.name}**.`}`;
 }
 
+/** Whether `a` acts before `b`: a first-strike move beats one without, then higher SPD; ties go to `b`. */
+function actsFirst(a: Side, aMove: MoveConfig | null, b: Side, bMove: MoveConfig | null): boolean {
+    if (!!aMove?.firstStrike !== !!bMove?.firstStrike) return !!aMove?.firstStrike;
+    return stat(a.stats, a.st, "spd") > stat(b.stats, b.st, "spd");
+}
+
+/** Who goes first next turn, as far as the player can know before choosing: shown under the buttons. */
+export function turnOrderLine(fight: ActiveFight, config: GuildConfig): string {
+    const [foe, you] = sides(fight);
+    if (fight.foe.stunned) return "You act first";
+    const move = moveById(config, fight.foe.charging?.moveId ?? fight.enemyIntent);
+    if (move.firstStrike) return `⚡ ${fight.enemy.name} strikes first`;
+    return actsFirst(foe, move, you, null) ? `⚡ ${fight.enemy.name} is faster: it acts first` : "You act first";
+}
+
 /** How worrying the enemy's next move is: the fight message takes its colour from this. */
 export function intentThreat(fight: ActiveFight, config: GuildConfig): "danger" | "defend" | "normal" {
     if (fight.foe.stunned) return "normal";
@@ -382,7 +397,7 @@ export function playTurn(fight: ActiveFight, choice: PlayerChoice, config: Guild
     };
     const foeTurn = () => act(foe, you, foeMove, config, log);
 
-    const foeFirst = !!foeMove.firstStrike && !yourFiring?.firstStrike && !fight.foe.stunned;
+    const foeFirst = !fight.foe.stunned && actsFirst(foe, foeMove, you, yourFiring);
     for (const turn of foeFirst ? [foeTurn, yourTurn] : [yourTurn, foeTurn]) {
         if (you.hp <= 0 || foe.hp <= 0) break;
         turn();
