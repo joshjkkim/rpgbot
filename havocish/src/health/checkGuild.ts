@@ -90,6 +90,8 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
+    channel(config.rareFinds?.channelId, "rare-find announcements", "items", POST);
+
     // ── Role rewards ── (the page is Leveling: they sit beside level rewards)
     channel(config.roleRewards?.channelId, "role reward announcements", "leveling", POST);
     for (const [roleId, actions] of Object.entries(config.roleRewards?.roles ?? {})) {

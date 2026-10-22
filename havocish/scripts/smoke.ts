@@ -52,6 +52,7 @@ import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { calculateStats } from "../src/player/combat.js";
+import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
@@ -1481,6 +1482,31 @@ async function main() {
         check("a deleted skill fails open", ok({ skills: { gone: 99 } }).ok, true);
         check("several missing read as a list", ok({ chatLevel: 9, booster: true, roles: ["x"] }).message, "Needs chat level 9, the <@&x> role and boosting the server.");
         check("an item's old level folds in as Combat", JSON.stringify(itemRequirements({ minLevel: 3, requiresRoleIds: ["r"] } as any)), JSON.stringify({ combatLevel: 3, roles: ["r"] }));
+    });
+
+    await test("rare finds are announced at or above the chosen rarity", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.shop.items = {
+            pebble: { id: "pebble", name: "Pebble", rarity: "common", categoryId: "", price: 0 },
+            shard: { id: "shard", name: "Starmetal Shard", emoji: "🌠", rarity: "epic", categoryId: "", price: 0 },
+            crown: { id: "crown", name: "Crown", emoji: "👑", rarity: "legendary", categoryId: "", price: 0 },
+        } as any;
+        const sent: string[] = [];
+        const channel = { isTextBased: () => true, isSendable: () => true, send: async (m: { content: string }) => { sent.push(m.content); } };
+        const client = { channels: { fetch: async () => channel } } as any;
+        const find = (items: { itemId: string; quantity: number }[]) =>
+            announceRareFinds({ client, config: cfg, discordUserId: "u1", items, verb: "found", where: "at Deep Veins" });
+
+        await find([{ itemId: "shard", quantity: 1 }]);
+        check("off until a channel is set", sent.length, 0);
+        cfg.rareFinds = { channelId: "c1" };
+        await find([{ itemId: "pebble", quantity: 3 }]);
+        check("common finds stay quiet (default: epic and up)", sent.length, 0);
+        await find([{ itemId: "pebble", quantity: 3 }, { itemId: "shard", quantity: 1 }, { itemId: "crown", quantity: 2 }]);
+        check("only the rare ones, in one post", sent[0], "✨ <@u1> found 🌠 **Starmetal Shard** and 👑 **Crown** ×2 at Deep Veins!");
+        cfg.rareFinds = { channelId: "c1", minRarity: "legendary" };
+        await find([{ itemId: "shard", quantity: 1 }]);
+        check("a higher bar skips epics", sent.length, 1);
     });
 
     await test("role rewards pay once per member per role", async () => {
