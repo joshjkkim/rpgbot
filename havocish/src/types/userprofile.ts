@@ -24,6 +24,8 @@ export interface UserStats {
     currentHp: number;
     /** When currentHp was set; regen counts from here (player/combat.ts). */
     hpAt?: string;
+    /** Until when a loss leaves them Wounded (player/combat.ts woundedUntil). */
+    woundedUntil?: string;
     enemiesDefeated: number;
     fightsWon: number;
     fightsLost: number;

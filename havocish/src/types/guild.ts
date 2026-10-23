@@ -124,7 +124,7 @@ export interface GuildConfig {
         chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
         enemies?: Record<string, EnemyConfig>;
         /** HP refills fully over `regenMinutes` (120); a loss leaves you at `respawnPercent` of max (25). */
-        hp?: { regenMinutes?: number; respawnPercent?: number };
+        hp?: { regenMinutes?: number; respawnPercent?: number; woundedMinutes?: number; woundedStatusId?: string };
         /**
          * Others joining a fight: on unless false; cap, turn timer, enemy HP added per extra player (%),
          * and whether joiners must be in the enemy's Combat level range (on unless false), so nobody gets carried.

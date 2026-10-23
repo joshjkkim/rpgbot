@@ -7,7 +7,7 @@ import { canPost } from "./canPost.js";
 import { commitProfileChanges, getOrCreateProfile } from "../cache/profileService.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
-import { calculateStats, respawnHp, resolveCurrentHp, storeHp } from "./combat.js";
+import { afterLoss, calculateStats, resolveCurrentHp, storeHp, woundedUntil, woundLine } from "./combat.js";
 import { applyFightRewards, getActiveFight, resolveHit } from "./fight.js";
 import { checkCollections } from "./collections.js";
 import { readyToFight } from "../commands/user/fight.js";
@@ -168,8 +168,8 @@ async function wave(boss: LiveBoss) {
             const taken = Math.max(1, Math.round(raw * (braced ? 1 - GUARD_BLOCK : 1)));
             // Knocked out, it's the same as losing a fight: back at the respawn share.
             const down = hp - taken <= 0;
-            const after = down ? respawnHp(stats, config) : hp - taken;
-            const userStats = { ...(profile.user_stats ?? {}), ...storeHp(after) };
+            const userStats = { ...(profile.user_stats ?? {}), ...(down ? afterLoss(stats, config) : storeHp(hp - taken)) };
+            const after = userStats.currentHp;
             profile.user_stats = userStats;
             commitProfileChanges({ userId: profile.user_id, guildId: profile.guild_id, profile, changes: { user_stats: userStats }, baseline: { xp: profile.xp, gold: profile.gold } });
             const fighter = boss.fighters.get(id);
@@ -179,6 +179,10 @@ async function wave(boss: LiveBoss) {
             const told = [
                 `${move.emoji} **${move.name}** hit you for **${taken}**${braced ? ` (🛡️ guarded: ${Math.round(GUARD_BLOCK * 100)}% blocked)` : ""}.`,
                 down ? `💀 Knocked out. You're back at ❤️ ${after} / ${stats.maxHp}.` : `❤️ ${after} / ${stats.maxHp}`,
+                ...(() => {
+                    const wound = down ? woundedUntil(profile, config) : null;
+                    return wound ? [woundLine(wound.status, wound.until)] : [];
+                })(),
                 "-# Attack again to stay in; stop and the next one skips you.",
             ].join("\n");
             void boss.touch.get(id)?.followUp({ content: told, flags: MessageFlags.Ephemeral }).catch(() => null);

@@ -9,7 +9,7 @@ import type {
     FightEndSummary,
     FightOutcome,
 } from "../types/combat.js";
-import { calculateStats, resolveCurrentHp, respawnHp, storeHp, type CombatStats } from "./combat.js";
+import { afterLoss, calculateStats, resolveCurrentHp, respawnHp, storeHp, type CombatStats } from "./combat.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
@@ -399,6 +399,9 @@ function buildSummary(fight: ActiveFight, m: FightMember, outcome: FightOutcome,
  * Returns the actual gold deducted (clamped to current balance, minimum 0).
  * Never takes more gold than the player has.
  */
+/** What losing to an enemy costs by default: 5% of carried gold, at least 10. */
+export const PVE_DEATH_DEFAULTS = { goldPercent: 5, goldFlat: 10 };
+
 function calcDeathGoldLoss(
     currentGold: bigint,
     penalty: { goldPercent?: number; goldFlat?: number } | undefined,
@@ -456,9 +459,10 @@ export async function applyFightRewards(
 
     // ── Death penalty (loss only) ──
     if (summary.outcome === "loss") {
+        // Losing to an enemy costs some gold unless the owner says otherwise.
         const penaltyConfig = fight.combatType === "pvp"
             ? config.combat.pvpDeathPenalty
-            : config.combat.pveDeathPenalty;
+            : { ...PVE_DEATH_DEFAULTS, ...config.combat.pveDeathPenalty };
         const goldLost = calcDeathGoldLoss(BigInt(p.gold), penaltyConfig);
         if (goldLost > 0n) {
             p.gold = (BigInt(p.gold) - goldLost).toString();
@@ -497,8 +501,9 @@ export async function applyFightRewards(
 
     // ── User stats ──
     const stats = { ...(p.user_stats ?? {}) };
-    // A loss respawns you low rather than at 0: a break, not a lockout.
-    Object.assign(stats, storeHp(summary.outcome === "loss" || fighter.out === "down" ? respawnHp(fighter.stats, config) : fighter.hp));
+    // A loss respawns you low rather than at 0, Wounded for a while: a break, not a lockout.
+    const lost = summary.outcome === "loss" || fighter.out === "down";
+    Object.assign(stats, lost ? afterLoss(fighter.stats, config) : storeHp(fighter.hp));
     stats.totalDamageDealt   = (stats.totalDamageDealt   ?? 0) + summary.totalDamageDealt;
     stats.totalDamageTaken   = (stats.totalDamageTaken   ?? 0) + summary.totalDamageTaken;
 

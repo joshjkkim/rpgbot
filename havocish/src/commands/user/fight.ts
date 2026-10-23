@@ -10,7 +10,7 @@ import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
 import { canManage, managerSetupRows } from "../../ui/dashboardLinks.js";
 import { channelChain, fightsInThread, pickFromPlace, placeFor } from "../../player/places.js";
-import { calculateStats, minutesToFull, resolveCurrentHp, type CombatStats } from "../../player/combat.js";
+import { calculateStats, minutesToFull, resolveCurrentHp, woundedUntil, woundLine, woundRule, type CombatStats } from "../../player/combat.js";
 import {
     applyFightRewards, busyFighting, cantJoin, clearActiveFight, everyonePicked, healAmount, joinFight, newMember,
     partyRules, postResultLine, resolveRound, submitPick,
@@ -294,13 +294,16 @@ function buildEndEmbed(
     if (summary.easyShare)      rewardLines.push(`-# Too easy for you: ${Math.round(summary.easyShare * 100)}% XP. Tougher enemies pay in full.`);
     if (summary.combatLevelUp)  rewardLines.push(`**Combat ${summary.combatLevelUp}!**`);
     if (summary.goldGained > 0) rewardLines.push(`${goldIcon} **+${summary.goldGained}** gold`);
+    if (summary.goldLost > 0)   rewardLines.push(`${goldIcon} **−${summary.goldLost}** gold dropped`);
+    const wound = outcome === "loss" ? woundRule(config) : null;
+    if (wound) rewardLines.push(woundLine(wound.status, Date.now() + wound.minutes * 60_000));
     for (const drop of summary.itemsDropped) {
         const itemDef = config.shop?.items?.[drop.itemId];
         const label   = itemDef ? `${itemDef.emoji ?? "🎁"} ${itemDef.name}` : `\`${drop.itemId}\``;
         rewardLines.push(`${label} ×${drop.quantity}`);
     }
     if (rewardLines.length > 0) {
-        embed.addFields({ name: "Rewards", value: rewardLines.join("\n"), inline: true });
+        embed.addFields({ name: outcome === "loss" ? "Result" : "Rewards", value: rewardLines.join("\n"), inline: true });
     }
 
     embed.addFields({
@@ -535,7 +538,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             ...at,
             ...(place && { placeName: `${place.emoji} ${place.name}`, placeId: place.id }),
         }),
-        show: (fight) => boardView(fight, config, [], profile),
+        show: (fight) => {
+            const wound = woundedUntil(profile, config);
+            return boardView(fight, config, wound ? [woundLine(wound.status, wound.until)] : [], profile);
+        },
     });
     await tip(interaction, profile.user_id, profile.guild_id, config, "firstFight");
 }
@@ -728,6 +734,10 @@ function buildPartyEndEmbed(
                 return `${def?.emoji ?? "🎁"} ${def?.name ?? d.itemId} ×${d.quantity}`;
             }),
             summary.knockedOut ? "-# Knocked out: half rewards" : "",
+            ...(() => {
+                const wound = summary.outcome === "loss" || summary.knockedOut ? woundRule(config) : null;
+                return wound ? [woundLine(wound.status, Date.now() + wound.minutes * 60_000)] : [];
+            })(),
             summary.easyShare ? `-# Too easy: ${Math.round(summary.easyShare * 100)}% XP` : "",
             summary.questsCompleted?.length ? questCompleteLines(summary.questsCompleted) : "",
             `-# ${summary.totalDamageDealt} dealt · ${summary.totalDamageTaken} taken`,

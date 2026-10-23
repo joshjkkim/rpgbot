@@ -116,7 +116,7 @@ export interface CombatConfig {
   allowEnemyChoice?: boolean;
   fightsIn?: "thread" | "channel";
   /** HP refill time and where a loss leaves you (mirrored from havocish/src/player/combat.ts). */
-  hp?: { regenMinutes?: number; respawnPercent?: number };
+  hp?: { regenMinutes?: number; respawnPercent?: number; woundedMinutes?: number; woundedStatusId?: string };
   pveDeathPenalty?: CombatDeathPenalty;
   pvpDeathPenalty?: CombatDeathPenalty;
   pvp?: CombatPvpConfig;
@@ -216,7 +216,8 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
   );
 
   function penaltyFields(which: "pveDeathPenalty" | "pvpDeathPenalty") {
-    const penalty = local[which] ?? {};
+    // Mirrors PVE_DEATH_DEFAULTS in havocish/src/player/fight.ts: losing to an enemy costs 5%, at least 10.
+    const penalty = { ...(which === "pveDeathPenalty" && { goldPercent: 5, goldFlat: 10 }), ...local[which] };
     return (
       <FieldGrid>
         <NumberField
@@ -560,7 +561,22 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
             max={100}
             step={5}
             onChange={(v) => updateRoot({ hp: { ...local.hp, respawnPercent: v } })}
-            hint="Where a lost fight or duel leaves you, so a loss means a break, not being stuck. World bosses leave you at 0."
+            hint="Where a lost fight, duel or world boss knockout leaves you, so a loss means a break, not being stuck."
+          />
+          <NumberField
+            label="Wounded after losing (minutes)"
+            value={local.hp?.woundedMinutes ?? 10}
+            min={0}
+            step={5}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, woundedMinutes: v } })}
+            hint={(local.hp?.woundedMinutes ?? 10) > 0 ? "The status below stays on them for this long, in and out of fights: a reason to gather or craft before fighting again." : "0 turns it off."}
+          />
+          <SelectField
+            label="Wounded status"
+            value={local.hp?.woundedStatusId ?? "wounded"}
+            options={Object.values(local.statuses ?? DEFAULT_STATUSES).filter((s) => s.stats).map((s) => ({ value: s.id, label: `${s.emoji} ${s.name}` }))}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, woundedStatusId: v } })}
+            hint="Its stat changes apply while wounded. Edit it, or make your own, under Statuses."
           />
         </FieldGrid>
       </Section>

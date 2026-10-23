@@ -91,6 +91,7 @@ export const DEFAULT_STATUSES: Record<string, StatusConfig> = {
   poison: { id: "poison", name: "Poisoned", emoji: "🧪", hpPercentPerTurn: -4 },
   burn: { id: "burn", name: "Burning", emoji: "🔥", hpPercentPerTurn: -6 },
   regen: { id: "regen", name: "Regenerating", emoji: "💚", hpPercentPerTurn: 5 },
+  wounded: { id: "wounded", name: "Wounded", emoji: "🩹", hpPercentPerTurn: 0, stats: { atk: -20, def: -20 } },
 };
 
 export const DEFAULT_ENEMY_MOVES: EnemyMove[] = [

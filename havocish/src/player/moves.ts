@@ -43,6 +43,8 @@ export const DEFAULT_STATUSES: Record<string, StatusConfig> = {
     poison: { id: "poison", name: "Poisoned", emoji: "🧪", hpPercentPerTurn: -4 },
     burn: { id: "burn", name: "Burning", emoji: "🔥", hpPercentPerTurn: -6 },
     regen: { id: "regen", name: "Regenerating", emoji: "💚", hpPercentPerTurn: 5 },
+    // Left on you for a while after a loss (combat.hp.woundedMinutes); its stats apply outside fights too.
+    wounded: { id: "wounded", name: "Wounded", emoji: "🩹", hpPercentPerTurn: 0, stats: { atk: -20, def: -20 } },
 };
 
 /** Enemies with no moves of their own: mostly attacks, sometimes a telegraphed heavy hit or a guard. */

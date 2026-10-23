@@ -203,6 +203,7 @@
         "regen": {"id":"regen","name":"Regenerating","emoji":"💚","hpPercentPerTurn":5},
         "venom": {"id":"venom","name":"Venom","emoji":"🕷️","hpPercentPerTurn":-3,"maxStacks":3},
         "weakened": {"id":"weakened","name":"Weakened","emoji":"🥀","hpPercentPerTurn":0,"stats":{"atk":-25}},
+        "wounded": {"id":"wounded","name":"Wounded","emoji":"🩹","hpPercentPerTurn":0,"stats":{"atk":-20,"def":-20}},
         "chilled": {"id":"chilled","name":"Chilled","emoji":"🧊","hpPercentPerTurn":0,"stats":{"spd":-40}},
         "fortified": {"id":"fortified","name":"Fortified","emoji":"🪨","hpPercentPerTurn":0,"stats":{"def":40}},
         "enraged": {"id":"enraged","name":"Enraged","emoji":"😤","hpPercentPerTurn":0,"stats":{"atk":40,"def":-20}}

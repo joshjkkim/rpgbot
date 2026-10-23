@@ -9,7 +9,7 @@ import { commitProfileChanges, getOrCreateProfile } from "../cache/profileServic
 const TIPS = {
     firstFight: "👁️ **The headline is what the enemy does next.** Red means a big hit is coming: try 🛡️ **Guard**. A move on cooldown shows the turns left, and the footer says who acts first.",
     firstWin: "⚔️ **That paid Combat XP.** `/me` shows your character and HP, and `/moves` your moves. More unlock as your Combat level grows.",
-    firstLoss: "❤️ **You're back on 25% HP.** It refills on its own over a couple of hours; food and potions heal right away.",
+    firstLoss: "❤️ **A loss leaves you low on HP and wounded for a while.** HP refills on its own; food and potions heal right away. Gather or craft while the wound wears off.",
     firstParty: "🎯 **In a party, each of you picks with Choose my move.** The round plays once everyone has picked, or when the timer runs out.",
 } as const;
 
