@@ -172,6 +172,8 @@ export interface FightMember {
     /** For the battle scene. */
     avatarUrl?: string;
     stats: CombatStats;         // computed when they joined, does not change mid-fight
+    /** Their Combat level when they joined, for easy-enemy XP. */
+    level?: number;
     hp: number;
     state: FighterState;
     /** The moves they brought: up to four ids. */
@@ -284,6 +286,8 @@ export interface FightEndSummary {
     combatLevelUp?: number;     // the new Combat level, when this fight raised it
     /** Knocked out in a party that won: half rewards. */
     knockedOut?: boolean;
+    /** Share of XP paid because the enemy was below their level (1 = full). */
+    easyShare?: number;
 }
 
 // ─── Skill config (future — add to GuildConfig.combat.skills later) ───────────

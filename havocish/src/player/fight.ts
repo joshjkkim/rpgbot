@@ -14,7 +14,7 @@ import { getOrCreateProfile, commitProfileChanges } from "../cache/profileServic
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { runQuestPipeline } from "./quests.js";
-import { addCombatXp, combatXp } from "./combatLevel.js";
+import { addCombatXp, combatLevel, combatXp } from "./combatLevel.js";
 import { EmbedBuilder, type Client } from "discord.js";
 import type { shopItemConfig } from "../types/economy.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -142,6 +142,7 @@ export function newMember(opts: { discordUserId: string; name: string; avatarUrl
         name: opts.name,
         ...(opts.avatarUrl && { avatarUrl: opts.avatarUrl }),
         stats,
+        level: combatLevel(opts.profile, opts.config),
         hp: resolveCurrentHp(opts.profile, stats, opts.config),
         state: newFighterState(),
         loadout: opts.loadout,
@@ -352,6 +353,19 @@ function rollDrops(enemy: EnemyConfig): { itemId: string; quantity: number }[] {
     return dropped;
 }
 
+const EASY_XP_DEFAULTS = { enabled: true, perLevel: 10, floor: 25 };
+
+/**
+ * The share of XP an enemy pays a member: full within or below its level
+ * range, then a little less for each Combat level over its top, so beating
+ * things far below you stops being the best use of your time.
+ */
+export function easyXpShare(enemy: EnemyConfig, memberLevel: number | undefined, config: GuildConfig): number {
+    const rules = { ...EASY_XP_DEFAULTS, ...config.combat?.easyXp };
+    if (!rules.enabled || enemy.maxLevel == null || memberLevel == null || memberLevel <= enemy.maxLevel) return 1;
+    return Math.max(rules.floor / 100, 1 - ((memberLevel - enemy.maxLevel) * rules.perLevel) / 100);
+}
+
 /**
  * What one member earned. On a win, everyone standing gets the full reward and
  * their own drop rolls; a member knocked out gets half, and no drops.
@@ -359,9 +373,10 @@ function rollDrops(enemy: EnemyConfig): { itemId: string; quantity: number }[] {
 function buildSummary(fight: ActiveFight, m: FightMember, outcome: FightOutcome, config: GuildConfig): FightEndSummary {
     const won = outcome === "win";
     const share = won && m.out === "down" ? 0.5 : 1;
+    const easy = easyXpShare(fight.enemy, m.level, config);
     return {
         outcome: (won ? "win" : outcome === "loss" || m.out === "down" ? "loss" : "flee") as FightEndSummary["outcome"],
-        xpGained: won ? Math.floor(fight.enemy.xpReward * share)
+        xpGained: won ? Math.floor(fight.enemy.xpReward * share * easy)
             : outcome === "loss" ? Math.floor(fight.enemy.xpReward * 0.1)
             : 0,
         goldGained: won ? Math.floor(fight.enemy.goldReward * share) : 0,
@@ -371,6 +386,7 @@ function buildSummary(fight: ActiveFight, m: FightMember, outcome: FightOutcome,
         totalDamageDealt: m.dealt,
         totalDamageTaken: m.taken,
         ...(won && m.out === "down" && { knockedOut: true }),
+        ...(won && easy < 1 && { easyShare: easy }),
     };
 }
 

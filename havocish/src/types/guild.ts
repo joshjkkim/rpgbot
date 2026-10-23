@@ -110,6 +110,8 @@ export interface GuildConfig {
          * Others joining a fight: on unless false; cap, turn timer, enemy HP added per extra player (%),
          * and whether joiners must be in the enemy's Combat level range (on unless false), so nobody gets carried.
          */
+        /** Enemies below your Combat level range pay less XP: `perLevel`% less for each level over, never below `floor`%. On unless enabled is false. */
+        easyXp?: { enabled?: boolean; perLevel?: number; floor?: number };
         party?: { enabled?: boolean; maxPlayers?: number; turnSeconds?: number; hpPerExtraPlayer?: number; levelRange?: boolean };
         /** Places: channels mapped to enemy pools (types/combat.ts PlaceConfig). */
         places?: Record<string, PlaceConfig>;

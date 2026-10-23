@@ -106,6 +106,8 @@ export interface CombatConfig {
   moves?: Record<string, MoveConfig>;
   statuses?: Record<string, StatusConfig>;
   places?: Record<string, PlaceConfig>;
+  /** Enemies below your level range pay less XP (mirrored from havocish/src/player/fight.ts easyXpShare). */
+  easyXp?: { enabled?: boolean; perLevel?: number; floor?: number };
   /** Others joining a fight (mirrored from havocish/src/player/fight.ts partyRules). */
   party?: { enabled?: boolean; maxPlayers?: number; turnSeconds?: number; hpPerExtraPlayer?: number; levelRange?: boolean };
   allowEnemyChoice?: boolean;
@@ -568,6 +570,41 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
             />
           ))}
         </FieldGrid>
+      </Section>
+
+      <Section
+        title="Easy enemies"
+        description="Beating enemies far below you pays less Combat XP, so moving on to tougher places is worth it. Gold and drops stay the same."
+        defaultOpen={false}
+      >
+        <Toggle
+          label="Lower XP from enemies below your level"
+          checked={local.easyXp?.enabled !== false}
+          onChange={(v) => updateRoot({ easyXp: { ...local.easyXp, enabled: v } })}
+        />
+        {local.easyXp?.enabled !== false && (
+          <div className="mt-4">
+            <FieldGrid>
+              <NumberField
+                label="Less per level over (%)"
+                value={local.easyXp?.perLevel ?? 10}
+                min={1}
+                max={100}
+                onChange={(v) => updateRoot({ easyXp: { ...local.easyXp, perLevel: v } })}
+                hint="For each Combat level above the top of the enemy's range."
+              />
+              <NumberField
+                label="Never below (%)"
+                value={local.easyXp?.floor ?? 25}
+                min={0}
+                max={100}
+                step={5}
+                onChange={(v) => updateRoot({ easyXp: { ...local.easyXp, floor: v } })}
+                hint={`With these, an enemy 5 levels below you pays ${Math.max(local.easyXp?.floor ?? 25, 100 - 5 * (local.easyXp?.perLevel ?? 10))}% XP.`}
+              />
+            </FieldGrid>
+          </div>
+        )}
       </Section>
 
       <Section advanced title="Death penalties" description="What a member loses on defeat." defaultOpen={false}>

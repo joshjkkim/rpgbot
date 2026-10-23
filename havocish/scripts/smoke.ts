@@ -25,7 +25,7 @@ import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trad
 import { updateInventory, sellItemFromInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
-import { startFight, applyAction, applyFightRewards, cantJoin, everyonePicked, joinFight, resolveRound, submitPick, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
+import { startFight, applyAction, applyFightRewards, cantJoin, easyXpShare, everyonePicked, joinFight, resolveRound, submitPick, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
 import { buildActionRows } from "../src/commands/user/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
@@ -1805,6 +1805,17 @@ async function main() {
         const progress = collectionProgress(later, cfg);
         check("the log counts each item once, from every source", [progress.found, progress.total], [1, 3]);
         check("by source", progress.sources.map((s) => [s.id, s.found, s.itemIds.length]), [["enemy:wyrm", 1, 1], ["craft:smith", 0, 1], ["shop", 0, 1]]);
+    });
+
+    await test("enemies below your level pay less XP, gently", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const wolf = { minLevel: 5, maxLevel: 15 } as EnemyConfig;
+        check("inside its range: full", easyXpShare(wolf, 15, cfg), 1);
+        check("3 over: 70%", easyXpShare(wolf, 18, cfg), 0.7);
+        check("never below the floor", easyXpShare(wolf, 60, cfg), 0.25);
+        check("no top to its range: always full", easyXpShare({ minLevel: 1, maxLevel: null } as EnemyConfig, 99, cfg), 1);
+        cfg.combat.easyXp = { enabled: false };
+        check("owners can turn it off", easyXpShare(wolf, 60, cfg), 1);
     });
 
     await test("daily stock: a member can buy so many a day, and it restocks", async () => {

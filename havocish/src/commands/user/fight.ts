@@ -280,6 +280,7 @@ function buildEndEmbed(
     // Rewards
     const rewardLines: string[] = [];
     if (summary.xpGained > 0)   rewardLines.push(`⚔️ **+${summary.xpGained}** Combat XP`);
+    if (summary.easyShare)      rewardLines.push(`-# Too easy for you: ${Math.round(summary.easyShare * 100)}% XP. Tougher enemies pay in full.`);
     if (summary.combatLevelUp)  rewardLines.push(`**Combat ${summary.combatLevelUp}!**`);
     if (summary.goldGained > 0) rewardLines.push(`${goldIcon} **+${summary.goldGained}** gold`);
     for (const drop of summary.itemsDropped) {
@@ -685,6 +686,7 @@ function buildPartyEndEmbed(
                 return `${def?.emoji ?? "🎁"} ${def?.name ?? d.itemId} ×${d.quantity}`;
             }),
             summary.knockedOut ? "-# Knocked out: half rewards" : "",
+            summary.easyShare ? `-# Too easy: ${Math.round(summary.easyShare * 100)}% XP` : "",
             summary.questsCompleted?.length ? questCompleteLines(summary.questsCompleted) : "",
             `-# ${summary.totalDamageDealt} dealt · ${summary.totalDamageTaken} taken`,
         ].filter(Boolean);
