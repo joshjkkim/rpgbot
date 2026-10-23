@@ -57,6 +57,8 @@ import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intent
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
 import { renderBattleScene } from "../src/ui/canvas/battleScene.js";
+import { loadCachedImage } from "../src/ui/canvas/drawEmojis.js";
+import { imgCache } from "../src/cache/caches.js";
 import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
@@ -1763,6 +1765,12 @@ async function main() {
         const isPng = (b: Buffer) => b.subarray(1, 4).toString() === "PNG" && b.length > 5000;
         check("a solo scene draws", isPng(solo), true);
         check("a party scene draws, with a member down and no avatar", isPng(party), true);
+
+        // The image cache keeps the most recently used 300 and drops the oldest.
+        imgCache.clear();
+        for (let i = 0; i < 305; i++) await loadCachedImage(`${png}#${i}`);
+        check("the image cache stays at 300", imgCache.size, 300);
+        check("dropping the least recently used first", [imgCache.has(`${png}#0`), imgCache.has(`${png}#304`)], [false, true]);
     });
 
     await test("tips show once per member, and Quiet stops pings", async () => {
