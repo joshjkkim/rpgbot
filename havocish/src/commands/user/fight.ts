@@ -157,14 +157,14 @@ export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: st
         value: m.out === "fled" ? "Fled" : fighterBlock(m.hp, m.stats.maxHp, m.state, config),
         inline: true,
     }));
+    const enemy = { name: `${fight.enemy.emoji} ${fight.enemy.name}`, value: fighterBlock(fight.enemyCurrentHp, fight.enemyMaxHp, fight.foe, config) };
     return new EmbedBuilder()
         .setTitle(boardTitle(fight))
         .setColor(threat === "danger" ? "#B03A2E" : threat === "defend" ? "#3A6EA5" : config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
         .setDescription(lines.join("\n"))
-        .addFields(
-            ...members,
-            { name: `${fight.enemy.emoji} ${fight.enemy.name}`, value: fighterBlock(fight.enemyCurrentHp, fight.enemyMaxHp, fight.foe, config), inline: true },
-        )
+        // Alone: you and the enemy side by side. In a party the enemy gets its
+        // own row on top, so it doesn't read as one more member.
+        .addFields(...(party ? [{ ...enemy, inline: false }, ...members] : [...members, { ...enemy, inline: true }]))
         .setFooter({ text: `Round ${fight.round + 1} · ${turnOrderLine(fight, config)}` });
 }
 
