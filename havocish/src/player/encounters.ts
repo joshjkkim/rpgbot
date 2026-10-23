@@ -132,6 +132,8 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
     // way its buttons route to /fight's handler.
     const config = ready.config;
     const title = `⚔️ ${interaction.member.displayName} vs ${enemy.emoji} ${enemy.name}`;
+    // Answered first: drawing the fight's picture can take longer than Discord waits.
+    await interaction.deferUpdate();
     await placeFight({
         home: interaction.message,
         threaded: fightsInThread(config, place),
@@ -139,7 +141,7 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
         title,
         userId: interaction.user.id,
         guildId: interaction.guildId,
-        editHome: (content) => interaction.update(content as any),
+        editHome: (content) => interaction.editReply(content as any),
         start: (at) => startFight({
             discordUserId: interaction.user.id,
             discordGuildId: interaction.guildId,
@@ -149,8 +151,9 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
             config,
             loadout: loadoutFor(ready.profile, config, memberFacts(interaction.member)),
             name: interaction.member.displayName,
+            avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 128 }),
             ...at,
-            ...(place && { placeName: `${place.emoji} ${place.name}` }),
+            ...(place && { placeName: `${place.emoji} ${place.name}`, placeId: place.id }),
         }),
         show: (fight) => boardView(fight, config, [], ready.profile),
     });

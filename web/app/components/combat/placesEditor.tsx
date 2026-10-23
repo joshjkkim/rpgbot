@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
+import { ColorField, Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { PlaceChannelsField } from "@/app/components/ui/pickers";
 import type { CombatConfig } from "./combatEditor";
@@ -69,6 +69,22 @@ export default function PlacesEditor({ value, onChange }: {
                     onChange={(v) => upsert({ ...place, arrival: v || undefined })}
                     placeholder="prowls out of the treeline"
                     hint={`Random encounters here read “A wild Grey Wolf ${place.arrival || "appears"}!”`}
+                  />
+                </FieldGrid>
+
+                <FieldGrid>
+                  <ColorField
+                    label="Scene colour"
+                    value={place.colour ?? "#2f4a3a"}
+                    onChange={(v) => upsert({ ...place, colour: v })}
+                    hint="The sky in fights here, behind a faint pattern of the place's emoji."
+                  />
+                  <TextField
+                    label="Scene image (optional)"
+                    value={place.image ?? ""}
+                    onChange={(v) => upsert({ ...place, image: v.trim() || undefined })}
+                    placeholder="https://…/darkwood.png"
+                    hint="A picture link to use as the backdrop instead. Wide images work best."
                   />
                 </FieldGrid>
 

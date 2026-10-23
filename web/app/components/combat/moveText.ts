@@ -60,6 +60,8 @@ export interface PlaceConfig {
   channelIds: string[];
   enemies: { enemyId: string; weight?: number }[];
   fights?: "thread" | "channel";
+  colour?: string;
+  image?: string;
 }
 
 export interface EnemyMove {

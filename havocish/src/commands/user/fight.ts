@@ -2,7 +2,7 @@ import type { ButtonInteraction, ChatInputCommandInteraction, Client, ColorResol
 import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle,
+    ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle,
     EmbedBuilder, MessageFlags, SlashCommandBuilder, ThreadAutoArchiveDuration,
 } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
@@ -25,6 +25,7 @@ import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import type { shopItemConfig } from "../../types/economy.js";
 import { renderItemCard } from "../../ui/canvas/itemCard.js";
+import { renderBattleScene } from "../../ui/canvas/battleScene.js";
 import { checkRequirements, memberFacts } from "../../player/requirements.js";
 import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
@@ -83,7 +84,7 @@ export async function placeFight(opts: {
     line: string;
     title: string;
     start: (at: { messageId: string; channelId: string; origin?: { channelId: string; messageId: string } }) => ActiveFight;
-    show: (fight: ActiveFight) => Parameters<Message["edit"]>[0];
+    show: (fight: ActiveFight) => Promise<object>;
     /** Edits `home` (e.g. editReply or update), since an interaction's reply is edited through it. */
     editHome: (content: Parameters<Message["edit"]>[0]) => Promise<unknown>;
     userId: string;
@@ -96,7 +97,7 @@ export async function placeFight(opts: {
         if (inThread) {
             const fight = opts.start({ messageId: inThread.id, channelId: inThread.channelId, origin: { channelId: home.channelId, messageId: home.id } });
             try {
-                await inThread.edit({ content: "", ...opts.show(fight) as object });
+                await inThread.edit({ content: "", ...await opts.show(fight) });
             } catch (err) {
                 clearActiveFight(opts.userId, opts.guildId);
                 throw err;
@@ -107,7 +108,7 @@ export async function placeFight(opts: {
     // Registered before the buttons exist, so the first click always finds it.
     const fight = opts.start({ messageId: home.id, channelId: home.channelId });
     try {
-        await opts.editHome({ content: "", ...opts.show(fight) as object });
+        await opts.editHome({ content: "", ...await opts.show(fight) });
     } catch (err) {
         clearActiveFight(opts.userId, opts.guildId);
         throw err;
@@ -144,14 +145,23 @@ function boardTitle(fight: ActiveFight): string {
 }
 
 /**
- * The fight message. Alone: you and the enemy. In a party: everyone, with who
- * has picked, and when the round plays.
+ * The fight message. With a scene, the picture carries the fighters and HP;
+ * the text keeps the headline, the log, statuses and (in a party) who has
+ * picked. Without one, fields show everyone's HP.
  */
-export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: string[]): EmbedBuilder {
+export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: string[], scene = false): EmbedBuilder {
     // What's coming leads, as a headline: it's the one thing to read before choosing.
     const threat = intentThreat(fight, config);
     const party = fight.members.length > 1;
     const lines = [`### ${intentLine(fight, config).replaceAll("**", "")}`, ...log];
+    if (scene) {
+        const effects = [
+            ...fight.members.filter((m) => !m.out).map((m) => [party ? m.name : "You", effectsLine(m.state, config)] as const),
+            [fight.enemy.name, effectsLine(fight.foe, config)] as const,
+        ].filter(([, e]) => e).map(([who, e]) => `**${who}:** ${e.replaceAll("\n", " · ")}`);
+        if (effects.length) lines.push("", ...effects);
+        if (party) lines.push("", fight.members.map((m) => `${m.out === "down" ? "💀" : m.out === "fled" ? "🏃" : m.pick ? "✅" : "⏳"} ${m.name}`).join("  ·  "));
+    }
     if (party && fight.roundEndsAt) lines.push(`-# The round plays <t:${Math.ceil(fight.roundEndsAt / 1000)}:R>, or as soon as everyone has picked.`);
     const members = fight.members.map((m) => ({
         name: party ? `🧑 ${m.name} ${m.out === "down" ? "💀" : m.out === "fled" ? "🏃" : m.pick ? "✅" : "⏳"}` : "🧑 You",
@@ -159,14 +169,47 @@ export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: st
         inline: true,
     }));
     const enemy = { name: `${fight.enemy.emoji} ${fight.enemy.name}`, value: fighterBlock(fight.enemyCurrentHp, fight.enemyMaxHp, fight.foe, config) };
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setTitle(boardTitle(fight))
         .setColor(threat === "danger" ? "#B03A2E" : threat === "defend" ? "#3A6EA5" : config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
         .setDescription(lines.join("\n"))
         // Alone: you and the enemy side by side. In a party the enemy gets its
         // own row on top, so it doesn't read as one more member.
-        .addFields(...(party ? [{ ...enemy, inline: false }, ...members] : [...members, { ...enemy, inline: true }]))
         .setFooter({ text: `Round ${fight.round + 1} · ${turnOrderLine(fight, config)}` });
+    if (scene) return embed.setImage("attachment://scene.png");
+    return embed.addFields(...(party ? [{ ...enemy, inline: false }, ...members] : [...members, { ...enemy, inline: true }]));
+}
+
+/** A slow or failed drawing never holds up a fight: it falls back to text. */
+const SCENE_TIMEOUT_MS = 4000;
+
+/** The fight drawn as a picture, or null when the server turned scenes off or it couldn't be drawn. */
+async function sceneFile(fight: ActiveFight, config: GuildConfig): Promise<AttachmentBuilder | null> {
+    if (config.style?.battleScenes === false) return null;
+    const place = fight.placeId ? config.combat.places?.[fight.placeId] : undefined;
+    const hits = fight.lastHits;
+    const render = renderBattleScene({
+        place: place ? { emoji: place.emoji, ...(place.colour && { colour: place.colour }), ...(place.image && { image: place.image }) } : null,
+        enemy: {
+            name: fight.enemy.name, emoji: fight.enemy.emoji, ...(fight.enemy.image && { image: fight.enemy.image }),
+            hp: fight.enemyCurrentHp, maxHp: fight.enemyMaxHp, ...(hits?.enemy && { hit: hits.enemy }),
+        },
+        members: fight.members.filter((m) => m.out !== "fled").map((m) => ({
+            name: m.name, hp: m.hp, maxHp: m.stats.maxHp,
+            ...(m.avatarUrl && { avatarUrl: m.avatarUrl }),
+            ...(m.out === "down" && { down: true }),
+            ...(fight.members.length > 1 && m.userId === fight.enemyTarget && { targeted: true }),
+            ...(hits?.members[m.userId] && { hit: hits.members[m.userId] }),
+        })),
+        intent: intentLine(fight, config).replaceAll("**", ""),
+        danger: intentThreat(fight, config) === "danger",
+    });
+    const timeout = new Promise<null>((resolve) => setTimeout(resolve, SCENE_TIMEOUT_MS, null).unref());
+    const png = await Promise.race([render, timeout]).catch((err) => {
+        console.error("Failed to draw a battle scene:", err);
+        return null;
+    });
+    return png ? new AttachmentBuilder(png, { name: "scene.png" }) : null;
 }
 
 /** The Join button, while there's room and the server allows it. */
@@ -182,15 +225,17 @@ function joinRow(fight: ActiveFight, config: GuildConfig): ActionRowBuilder<Butt
  * The whole fight message. Alone, your buttons sit on it; in a party each
  * player picks privately through "Choose my move", since loadouts differ.
  */
-export function boardView(fight: ActiveFight, config: GuildConfig, log: string[], soloProfile: DbUserGuildProfile | null) {
-    const embeds = [buildFightEmbed(fight, config, log)];
+export async function boardView(fight: ActiveFight, config: GuildConfig, log: string[], soloProfile: DbUserGuildProfile | null) {
+    const scene = await sceneFile(fight, config);
+    // `attachments: []` drops last turn's picture, so edits don't pile them up.
+    const media = { embeds: [buildFightEmbed(fight, config, log, !!scene)], files: scene ? [scene] : [], attachments: [] };
     if (fight.members.length === 1 && soloProfile) {
-        return { embeds, components: [...buildActionRows(fight.members[0]!, soloProfile, config), ...joinRow(fight, config)] };
+        return { ...media, components: [...buildActionRows(fight.members[0]!, soloProfile, config), ...joinRow(fight, config)] };
     }
     const choose = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder().setCustomId("fight:choose").setLabel("Choose my move").setEmoji("🎯").setStyle(ButtonStyle.Primary),
     );
-    return { embeds, components: [choose, ...joinRow(fight, config)] };
+    return { ...media, components: [choose, ...joinRow(fight, config)] };
 }
 
 function buildEndEmbed(
@@ -457,8 +502,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             config,
             loadout,
             name,
+            avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 128 }),
             ...at,
-            ...(place && { placeName: `${place.emoji} ${place.name}` }),
+            ...(place && { placeName: `${place.emoji} ${place.name}`, placeId: place.id }),
         }),
         show: (fight) => boardView(fight, config, [], profile),
     });
@@ -479,7 +525,7 @@ async function bringBackFight(interaction: ChatInputCommandInteraction, fight: A
         return;
     }
 
-    const reply = await interaction.editReply(boardView(fight, config, ["↩️ Back to the fight."], profile));
+    const reply = await interaction.editReply(await boardView(fight, config, ["↩️ Back to the fight."], profile));
     const old = { channelId: fight.channelId, messageId: fight.messageId };
     fight.channelId = interaction.channelId;
     fight.messageId = reply.id;
@@ -537,7 +583,7 @@ function scheduleRound(fight: ActiveFight, client: Client, config: GuildConfig) 
         // as a walk-away after the usual timeout) instead of playing itself.
         if (!fight.members.some((m) => !m.out && m.pick)) {
             delete fight.roundEndsAt;
-            void editBoard(client, fight, boardView(fight, config, ["⏸️ Nobody picked a move: the fight waits for you."], null));
+            void boardView(fight, config, ["⏸️ Nobody picked a move: the fight waits for you."], null).then((view) => editBoard(client, fight, view));
             return;
         }
         void playRound(fight, client).catch((err) => console.error("Failed to play a fight round:", err));
@@ -564,7 +610,7 @@ async function playRound(fight: ActiveFight, client: Client): Promise<{ member: 
     if (!round.ended) {
         scheduleRound(fight, client, config);
         const solo = fight.members.length === 1 ? (await getOrCreateProfile({ userId: fight.members[0]!.dbUserId, guildId: fight.dbGuildId })).profile : null;
-        await editBoard(client, fight, boardView(fight, config, round.log, solo));
+        await editBoard(client, fight, await boardView(fight, config, round.log, solo));
         return results;
     }
 
@@ -579,9 +625,10 @@ async function playRound(fight: ActiveFight, client: Client): Promise<{ member: 
             embeds: [buildEndEmbed(fight, summary, config, fight.members[0]!.name, round.log)],
             components: [],
             files: [...(levelCard ? [levelCard] : []), ...await lootCards(summary, config)],
+            attachments: [],
         });
     } else {
-        await editBoard(client, fight, { embeds: [buildPartyEndEmbed(fight, results, config, round.outcome, round.log)], components: [] });
+        await editBoard(client, fight, { embeds: [buildPartyEndEmbed(fight, results, config, round.outcome, round.log)], components: [], attachments: [] });
     }
     await postResultLine(client, fight, resultLine(fight, round.outcome, results, config));
     for (const { member, summary } of results) {
@@ -695,7 +742,7 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
     }
     if (fight !== onBoard) await interaction.editReply({ content: `✅ You picked ${pickLabel(actionId, config)}. Waiting for the others…`, components: [] });
     scheduleRound(fight, interaction.client, config); // restarts the clock after a round that waited
-    await editBoard(interaction.client, fight, boardView(fight, config, [], null));
+    await editBoard(interaction.client, fight, await boardView(fight, config, [], null));
 }
 
 /** "🪓 Heavy Strike" for a pick's action id. */
@@ -733,9 +780,14 @@ async function joinButton(interaction: ButtonInteraction, fight: ActiveFight, co
     if (late) return void await interaction.reply({ content: late, flags: MessageFlags.Ephemeral });
 
     const name = interaction.member && "displayName" in interaction.member ? interaction.member.displayName : interaction.user.displayName;
-    joinFight(fight, newMember({ discordUserId: interaction.user.id, name, profile, config, loadout: loadoutFor(profile, config, facts) }), config);
+    joinFight(fight, newMember({
+        discordUserId: interaction.user.id, name, profile, config, loadout: loadoutFor(profile, config, facts),
+        avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 128 }),
+    }), config);
     scheduleRound(fight, interaction.client, config);
     if (interaction.channel?.isThread()) await interaction.channel.members.add(interaction.user.id).catch(() => null);
-    await interaction.update(boardView(fight, config, [`🙋 **${name}** joins the fight! The ${enemy.emoji} ${enemy.name} grows stronger.`], null));
+    // Answered first (the picture takes a moment), then the board redrawn.
+    await interaction.deferUpdate();
+    await interaction.editReply(await boardView(fight, config, [`🙋 **${name}** joins the fight! The ${enemy.emoji} ${enemy.name} grows stronger.`], null));
     await tip(interaction, profile.user_id, profile.guild_id, config, "firstParty");
 }

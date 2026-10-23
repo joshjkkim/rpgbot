@@ -4,7 +4,7 @@ import { imgCache } from "../../cache/caches.js";
 
 const discordEmojiRe = /<(a?):([a-zA-Z0-9_]+):(\d+)>/g;
 
-async function loadCachedImage(url: string) {
+export async function loadCachedImage(url: string) {
   const hit = imgCache.get(url);
   if (hit) return hit;
 
@@ -14,6 +14,12 @@ async function loadCachedImage(url: string) {
   const img = await loadImage(buf);
   imgCache.set(url, img);
   return img;
+}
+
+/** The image for an emoji: a server's custom emoji from Discord's CDN, or Twemoji for a standard one. */
+export function emojiImageUrl(emoji: string): string | null {
+  const custom = /^<a?:\w+:(\d+)>$/.exec(emoji.trim());
+  return custom ? `https://cdn.discordapp.com/emojis/${custom[1]}.png` : twemojiUrlFromEmoji(emoji);
 }
 
 function twemojiUrlFromEmoji(emoji: string) {

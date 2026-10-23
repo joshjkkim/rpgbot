@@ -43,6 +43,8 @@ export interface EnemyConfig {
     moves?: EnemyMove[];
     /** false: fought alone only, no joining. */
     party?: boolean;
+    /** An image URL for the battle scene, in place of its emoji. */
+    image?: string;
 }
 
 // ─── Moves ────────────────────────────────────────────────────────────────────
@@ -135,6 +137,9 @@ export interface PlaceConfig {
     enemies: { enemyId: string; weight?: number }[];
     /** "thread" (default): a fight opens in a thread off one short line, for chat channels. "channel": it plays out in the channel. */
     fights?: "thread" | "channel";
+    /** The battle scene's sky colour, or a background image (URL) for it. */
+    colour?: string;
+    image?: string;
 }
 
 export interface EnemyMove {
@@ -164,6 +169,8 @@ export interface FightMember {
     userId: string;             // Discord user ID
     dbUserId: number;           // profile id, so a fight nobody finishes can still be saved
     name: string;
+    /** For the battle scene. */
+    avatarUrl?: string;
     stats: CombatStats;         // computed when they joined, does not change mid-fight
     hp: number;
     state: FighterState;
@@ -196,12 +203,15 @@ export interface ActiveFight {
     foe: FighterState;
     /** In a thread: the short line in chat it hangs off, which gets the result when it ends. */
     origin?: { channelId: string; messageId: string };
-    /** The place it's in, for that result line. */
+    /** The place it's in, for that result line and the scene's backdrop. */
     placeName?: string;
+    placeId?: string;
     /** What the enemy does next turn, shown before the players pick. */
     enemyIntent: string;
     /** Who that's aimed at: a member's userId. */
     enemyTarget: string;
+    /** HP lost last turn, for the battle scene's damage numbers. */
+    lastHits?: { enemy: number; members: Record<string, number> };
 
     // Bookkeeping
     round: number;

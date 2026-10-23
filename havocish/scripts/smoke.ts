@@ -56,6 +56,7 @@ import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/pl
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
+import { renderBattleScene } from "../src/ui/canvas/battleScene.js";
 import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
@@ -1749,6 +1750,21 @@ async function main() {
         ], [true, false, true, true, true]);
     });
 
+    await test("battle scenes draw from images and avatars, alone or in a party", async () => {
+        // A 1x1 PNG, so nothing is fetched from the network.
+        const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        const enemy = { name: "Ogre", emoji: "", image: png, hp: 40, maxHp: 90, hit: 12 };
+        const solo = await renderBattleScene({ place: { colour: "#334455" }, enemy, members: [{ name: "Josh", avatarUrl: png, hp: 80, maxHp: 100, hit: 5 }], intent: "Ogre winds up a heavy blow…", danger: true });
+        const party = await renderBattleScene({
+            place: { image: png }, enemy,
+            members: [{ name: "Josh", avatarUrl: png, hp: 80, maxHp: 100, targeted: true }, { name: "Sam", hp: 0, maxHp: 100, down: true }, { name: "Ana", avatarUrl: png, hp: 50, maxHp: 120 }],
+            intent: "Ogre gets ready to strike. (at Josh)",
+        });
+        const isPng = (b: Buffer) => b.subarray(1, 4).toString() === "PNG" && b.length > 5000;
+        check("a solo scene draws", isPng(solo), true);
+        check("a party scene draws, with a member down and no avatar", isPng(party), true);
+    });
+
     await test("tips show once per member, and Quiet stops pings", async () => {
         const ids = await reset();
         const cfg = structuredClone(ids.config);
@@ -1966,7 +1982,9 @@ async function main() {
             guildId: TEST_DISCORD_GUILD,
             channelId: "c1",
             reply: async (p: unknown) => { replies.push(p); },
-            update: async (p: unknown) => { updates.push(p); },
+            deferUpdate: async () => {},
+            editReply: async (p: unknown) => { updates.push(p); },
+            followUp: async () => {},
         } as any);
         await Promise.all([click(), click()]);
         check("one click gets the fight", updates.length, 1);

@@ -78,6 +78,8 @@ export interface GuildConfig {
         levelUpCards?: { combat?: boolean; skills?: boolean; channelId?: string | null };
         /** One-time tips for new players (player/tips.ts); on unless false. */
         tips?: boolean;
+        /** Fights drawn as a scene image (ui/canvas/battleScene.ts); on unless false. */
+        battleScenes?: boolean;
     },
     combat: {
         enabled: boolean;

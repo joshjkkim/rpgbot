@@ -518,6 +518,10 @@ export function playTurn(fight: ActiveFight, choices: Record<string, PlayerChoic
         }
     }
     for (const p of players) p.m.dealt += p.side.dealt ?? 0;
+    fight.lastHits = {
+        enemy: Math.max(0, -enemyHpDelta),
+        members: Object.fromEntries(players.map((p) => [p.m.userId, Math.max(0, p.hpBefore - p.m.hp)])),
+    };
 
     const outcome: FightOutcome =
         foe.hp <= 0 ? "win" :

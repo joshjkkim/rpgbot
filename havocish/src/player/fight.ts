@@ -134,12 +134,13 @@ function defaultPick(m: FightMember, config: GuildConfig): string {
 // ─── Start and join ────────────────────────────────────────────────────────────
 
 /** A player as they enter a fight: their stats and HP right now, and the moves they bring. */
-export function newMember(opts: { discordUserId: string; name: string; profile: DbUserGuildProfile; config: GuildConfig; loadout: string[] }): FightMember {
+export function newMember(opts: { discordUserId: string; name: string; avatarUrl?: string; profile: DbUserGuildProfile; config: GuildConfig; loadout: string[] }): FightMember {
     const stats = calculateStats(opts.profile, opts.config, opts.config.shop?.items ?? {});
     return {
         userId: opts.discordUserId,
         dbUserId: opts.profile.user_id,
         name: opts.name,
+        ...(opts.avatarUrl && { avatarUrl: opts.avatarUrl }),
         stats,
         hp: resolveCurrentHp(opts.profile, stats, opts.config),
         state: newFighterState(),
@@ -162,8 +163,10 @@ export interface StartFightOptions {
     loadout: string[];
     /** Their display name: shown in the title and, in a party, the log. */
     name: string;
+    avatarUrl?: string;
     origin?: { channelId: string; messageId: string };
     placeName?: string;
+    placeId?: string;
 }
 
 export function startFight(opts: StartFightOptions): ActiveFight {
@@ -182,6 +185,7 @@ export function startFight(opts: StartFightOptions): ActiveFight {
         foe: newFighterState(),
         ...(opts.origin && { origin: opts.origin }),
         ...(opts.placeName && { placeName: opts.placeName }),
+        ...(opts.placeId && { placeId: opts.placeId }),
         enemyIntent: "",
         enemyTarget: opts.discordUserId,
         round: 0,
@@ -584,7 +588,7 @@ export async function abandonFight(fight: ActiveFight, client: Client, why: "tim
         .setDescription(`${reason}, so it counts as fleeing. Wounds stay: ${fight.members.map((m) => `${fight.members.length > 1 ? `${m.name} ` : ""}❤️ **${m.hp}** / **${m.stats.maxHp}**`).join(" · ")}.`);
     await bestEffort("abandoned fight message", (async () => {
         const channel = await client.channels.fetch(fight.channelId);
-        if (channel?.isTextBased()) await channel.messages.edit(fight.messageId, { embeds: [embed], components: [] });
+        if (channel?.isTextBased()) await channel.messages.edit(fight.messageId, { embeds: [embed], components: [], attachments: [] });
     })());
     await postResultLine(client, fight, `🏃 <@${fight.userId}> left the fight with the ${fight.enemy.emoji} **${fight.enemy.name}**.`);
 }

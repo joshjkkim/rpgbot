@@ -47,6 +47,8 @@ export interface EnemyConfig {
   moves?: EnemyMove[];
   /** false: fought alone only. */
   party?: boolean;
+  /** Battle scene picture in place of its emoji. */
+  image?: string;
 }
 
 export interface CombatDeathPenalty {
@@ -289,7 +291,20 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
             <div className="space-y-4">
               <FieldGrid>
                 <TextField label="Name" value={enemy.name} onChange={(v) => upsertEnemy({ ...enemy, name: v })} />
-                <TextField label="Emoji" value={enemy.emoji ?? ""} onChange={(v) => upsertEnemy({ ...enemy, emoji: v })} />
+                <TextField
+                  label="Emoji"
+                  value={enemy.emoji ?? ""}
+                  onChange={(v) => upsertEnemy({ ...enemy, emoji: v })}
+                  hint="Also its picture in battle scenes. Your server's own custom emoji work too."
+                />
+                <TextField
+                  wide
+                  label="Scene image (optional)"
+                  value={enemy.image ?? ""}
+                  onChange={(v) => upsertEnemy({ ...enemy, image: v.trim() || undefined })}
+                  placeholder="https://…/goblin-king.png"
+                  hint="A picture link to draw instead of the emoji. A transparent PNG looks best."
+                />
               </FieldGrid>
               <Toggle
                 label="World boss"

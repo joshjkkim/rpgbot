@@ -27,6 +27,7 @@ export type StyleConfig = {
   /** Banner cards for RPG level-ups. Unset means on. */
   levelUpCards?: { combat?: boolean; skills?: boolean; channelId?: string | null };
   tips?: boolean;
+  battleScenes?: boolean;
 };
 
 type Props = {
@@ -187,6 +188,10 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
           emptyLabel="Nowhere else"
           hint="Posts a copy of each card here too, like a #level-ups channel."
         />
+      </Section>
+
+      <Section title="Battle scenes" description="Fights drawn as a picture: the enemy's emoji (or image) as its sprite, each player's avatar, and the place as a backdrop. Set a place's colour or background image on the Combat page's Places tab, and an enemy's image on its page.">
+        <Toggle label="Draw fights as scenes" checked={style.battleScenes !== false} onChange={(v) => onChange({ ...style, battleScenes: v ? undefined : false })} hint="Off: fights show HP as text instead." />
       </Section>
 
       <Section title="New-player tips" description="A short private tip, once per member, the first time they fight, win, lose or join a party. Nobody else sees them.">
