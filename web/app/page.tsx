@@ -21,20 +21,26 @@ const SHOWCASE = [
     body: "Chatting, voice, fights and quests all give XP. Each level-up posts a banner, and can hand out a role.",
   },
   {
+    src: "/showcase/battle.png", w: 1280, h: 500, show: 560,
+    title: "Fights you read, not just click",
+    body: "Every enemy shows its next move before you pick yours. Guard the big hit, interrupt the wind-up, finish it with the move you unlocked. Friends can jump in and fight beside you.",
+  },
+  {
     src: "/showcase/item.png", w: 840, h: 432, show: 360,
-    title: "Gear you design",
-    body: "Stock the shop with your own weapons, armour and potions. Members buy, equip, trade and sell them.",
+    title: "Gear you design, find and craft",
+    body: "Stock the shop with your own weapons, armour and potions, and keep the best for crafting and rare drops. Members buy, craft, equip, trade and sell them.",
   },
 ];
 
 const ALSO: Array<[SpriteName, string]> = [
   ["pickaxe", "Gathering skills you invent, each played as a minigame"],
-  ["skull", "Turn-based fights against enemies you write"],
-  ["swords", "Duels between members, with gold on the line"],
+  ["hourglass", "Places with their own character, and weather that changes daily"],
+  ["anvil", "Crafting, with recipes you unlock by finding rare materials"],
+  ["map", "Your channels become places, each with its own enemies"],
+  ["book", "A collection log of everything you've ever found"],
+  ["swords", "Parties, world bosses, and duels with gold on the line"],
   ["scroll", "Quests and achievements with custom rewards"],
-  ["coin", "Daily rewards with streak bonuses"],
-  ["chest", "Trading and gifting between players"],
-  ["potion", "Per-channel and per-role XP rates"],
+  ["chest", "Trading, gifting, and daily rewards with streaks"],
 ];
 
 // The campfire scene's size and where its fire sits, matching public/campfire.png.
@@ -84,8 +90,8 @@ export default function Home() {
               Turn your Discord server into an RPG
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-[var(--foreground)]/80 [text-shadow:0_1px_2px_#000]">
-              Your members level up by chatting, earn gold, fight enemies and collect gear.
-              You set it all up from a dashboard.
+              Your members level up by chatting, fight enemies that fight back, gather, craft and
+              collect gear. You design it all from a dashboard.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
