@@ -1,4 +1,5 @@
 import { checkCollections } from "../../player/collections.js";
+import { nextCraftLine } from "../../player/nextSteps.js";
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
 import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
@@ -104,7 +105,11 @@ function resultLine(result: CraftResult, station: CraftingStation, config: Guild
         return `${hesitated ? `${w.hesitated} ` : ""}${w.ruined} ${lost ? `Lost ${lost}.` : "Nothing was lost."}`;
     }
     let line = `${result.masterwork ? `${w.masterwork} ` : ""}${w.made} ${itemLabel(config, result.gave.itemId, result.gave.quantity)} · +${result.xp} ${station.skillName} XP`;
-    if (result.skillAfter > result.skillBefore) line += ` · **${station.skillName} ${result.skillAfter}!**`;
+    if (result.skillAfter > result.skillBefore) {
+        line += ` · **${station.skillName} ${result.skillAfter}!**`;
+        const next = nextCraftLine(station, result.skillAfter, config);
+        if (next) line += `\n${next}`;
+    }
     return line;
 }
 

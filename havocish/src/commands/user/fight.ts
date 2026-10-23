@@ -31,6 +31,7 @@ import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
 import { tipOnce, type Tip } from "../../player/tips.js";
 import { checkCollections } from "../../player/collections.js";
+import { newMoveLines, nextFightLine } from "../../player/nextSteps.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
 
@@ -633,10 +634,15 @@ async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ membe
     if (round.alreadyResolved) return [];
 
     const results: { member: FightMember; summary: FightEndSummary }[] = [];
+    // "What's next" for each member: moves a level-up just opened, then what to aim for.
+    const next = new Map<string, string[]>();
     for (const { member, summary } of round.settled) {
         const { profile } = await getOrCreateProfile({ userId: member.dbUserId, guildId: fight.dbGuildId });
-        await applyFightRewards(summary, fight, member, profile, config);
+        const after = await applyFightRewards(summary, fight, member, profile, config);
         results.push({ member, summary });
+        const level = combatLevel(after, config);
+        const goal = summary.outcome === "flee" ? null : nextFightLine(config, level, !!summary.easyShare);
+        next.set(member.userId, [...newMoveLines(config, member.level ?? level, level), ...(goal ? [goal] : [])]);
     }
 
     if (!round.ended) {
@@ -654,13 +660,13 @@ async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ membe
             ? await rpgLevelUpCard({ config, kind: "combat", user, label: "Combat", before: summary.combatLevelUp - 1, after: summary.combatLevelUp })
             : null;
         await editBoard(client, fight, {
-            embeds: [buildEndEmbed(fight, summary, config, fight.members[0]!.name, round.log)],
+            embeds: [buildEndEmbed(fight, summary, config, fight.members[0]!.name, [...round.log, ...(next.get(fight.members[0]!.userId)?.length ? ["", ...next.get(fight.members[0]!.userId)!] : [])])],
             components: [],
             files: [...(levelCard ? [levelCard] : []), ...await lootCards(summary, config)],
             attachments: [],
         });
     } else {
-        await editBoard(client, fight, { embeds: [buildPartyEndEmbed(fight, results, config, round.outcome, round.log)], components: [], attachments: [] });
+        await editBoard(client, fight, { embeds: [buildPartyEndEmbed(fight, results, config, round.outcome, round.log, next)], components: [], attachments: [] });
     }
     await postResultLine(client, fight, resultLine(fight, round.outcome, results, config));
     for (const { member } of results) {
@@ -685,6 +691,7 @@ async function tip(interaction: ButtonInteraction | ChatInputCommandInteraction,
 /** The end of a party fight: what each member got. */
 function buildPartyEndEmbed(
     fight: ActiveFight, results: { member: FightMember; summary: FightEndSummary }[], config: GuildConfig, outcome: string, log: string[],
+    next: Map<string, string[]> = new Map(),
 ): EmbedBuilder {
     const goldIcon = config.style.gold.icon || "💰";
     const title =
@@ -709,6 +716,8 @@ function buildPartyEndEmbed(
             summary.easyShare ? `-# Too easy: ${Math.round(summary.easyShare * 100)}% XP` : "",
             summary.questsCompleted?.length ? questCompleteLines(summary.questsCompleted) : "",
             `-# ${summary.totalDamageDealt} dealt · ${summary.totalDamageTaken} taken`,
+            // New moves only: in a party, each member's own goal line would crowd the board.
+            ...(next.get(member.userId) ?? []).filter((l) => l.startsWith("🆕")),
         ].filter(Boolean);
         embed.addFields({ name: `🧑 ${member.name}`, value: lines.join("\n").slice(0, 1024), inline: true });
     }

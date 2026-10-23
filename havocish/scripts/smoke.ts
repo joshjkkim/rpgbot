@@ -56,6 +56,7 @@ import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/pl
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
+import { newMoveLines, nextFightLine, nextGatherLine } from "../src/player/nextSteps.js";
 import { leftToday } from "../src/db/shop.js";
 import { payCollectionMilestones, setProgress } from "../src/player/collections.js";
 import { pruneOldEvents } from "../src/db/events.js";
@@ -1872,6 +1873,24 @@ async function main() {
             check(`clustered grid ${n} keeps its counts`, [finds.length, cells.filter((c) => c === "hazard").length], [5, 2]);
         }
         check("clustered finds touch each other", touching >= 35, true);
+    });
+
+    await test("what's next: the move to unlock, a fairer place, the next location", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.combat.moves = {
+            ...DEFAULT_MOVES,
+            rend: { id: "rend", name: "Rend", emoji: "🩸", effects: [], players: { requirements: { combatLevel: 5 } } },
+            exec: { id: "exec", name: "Execute", emoji: "🗡️", effects: [], players: { requirements: { combatLevel: 10 } } },
+            scroll: { id: "scroll", name: "Starfall", emoji: "🌠", effects: [], players: { learned: true, requirements: { combatLevel: 3 } } },
+        };
+        check("the next move by level", nextFightLine(cfg, 6, false), "-# Next: 🗡️ **Execute** unlocks at Combat 10 (4 levels to go).");
+        check("a level-up names the moves it opened, not scroll-only ones", newMoveLines(cfg, 2, 6), ["🆕 **New move: 🩸 Rend.** Pick it in `/moves`."]);
+        cfg.combat.enemies = { wolf: { id: "wolf", name: "Wolf", minLevel: 8, maxLevel: 20 } as EnemyConfig };
+        cfg.combat.places = { woods: { id: "woods", name: "Darkwood", emoji: "🌲", channelIds: ["c"], enemies: [{ enemyId: "wolf" }] } };
+        check("too easy: where the fair fights are", nextFightLine(cfg, 12, true), "-# Next: 🌲 **Darkwood** has enemies more your level.");
+        const act = { skillName: "Mining", locations: { a: { name: "Shallows", emoji: "⛏️", minSkill: 1 }, b: { name: "Deep Vein", emoji: "🌑", minSkill: 30 } } } as any;
+        check("the next location", nextGatherLine(act, 27), "-# Next: 🌑 **Deep Vein** opens at Mining 30 (3 levels to go).");
+        check("nothing left: nothing said", nextGatherLine(act, 40), null);
     });
 
     await test("enemies below your level pay less XP, gently", async () => {
