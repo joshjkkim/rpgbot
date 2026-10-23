@@ -188,6 +188,8 @@ export interface GuildConfig {
             durationSeconds?: number;
             /** How often one member can attack. */
             attackCooldownSeconds?: number;
+            /** Seconds between the boss's own moves, each announced in advance (default 25). */
+            strikeSeconds?: number;
             /** Channels random bosses may appear in. Empty means any channel that gives XP. */
             channelIds?: string[];
         };

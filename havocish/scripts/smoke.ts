@@ -35,7 +35,7 @@ import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
-import { handleBossButton, liveBoss, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
+import { handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
@@ -2169,6 +2169,14 @@ async function main() {
         check("the other is turned away", replies.length, 1);
         await click();
         check("a late click finds it gone", replies.length, 2);
+    });
+
+    await test("world bosses pick their next move, healing only when hurt", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.combat.moves = { ...DEFAULT_MOVES, feast: { id: "feast", name: "Feast", emoji: "🍷", effects: [{ type: "heal", percent: 10 }] } };
+        const enemy = { id: "king", hp: 1000, moves: [{ moveId: "feast", weight: 1000 }, { moveId: "attack", weight: 1 }] } as EnemyConfig;
+        check("at full HP it never heals", Array.from({ length: 20 }, () => nextIntent({ enemy, hp: 1000 }, cfg)).includes("feast"), false);
+        check("hurt, it does", nextIntent({ enemy, hp: 300 }, cfg), "feast");
     });
 
     await test("world bosses split rewards by damage and fall exactly once", async () => {

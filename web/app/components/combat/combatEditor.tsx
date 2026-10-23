@@ -83,6 +83,7 @@ export interface CombatBossConfig {
   cooldownSeconds?: number;
   durationSeconds?: number;
   attackCooldownSeconds?: number;
+  strikeSeconds?: number;
   channelIds?: string[];
 }
 
@@ -817,6 +818,13 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
               min={0}
               onChange={(v) => updateBosses({ attackCooldownSeconds: v })}
               hint="How often one member can hit it, so the whole server has to pitch in."
+            />
+            <NumberField
+              label="Its moves come every (seconds)"
+              value={local.bosses?.strikeSeconds ?? 25}
+              min={10}
+              onChange={(v) => updateBosses({ strikeSeconds: v })}
+              hint="The boss shows its next move, then it lands on everyone fighting. Guarding takes far less. Its moves are set on its enemy page, like any enemy's."
             />
             <ChannelsField
               wide
