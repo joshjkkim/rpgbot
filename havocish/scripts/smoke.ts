@@ -55,6 +55,8 @@ import { calculateStats, hpRules, minutesToFull, resolveCurrentHp, respawnHp, st
 import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/player/places.js";
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
+import { mentionsFor } from "../src/ui/mentions.js";
+import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
@@ -1745,6 +1747,21 @@ async function main() {
             health.includes("The place Empty Hall has an enemy that was deleted (ghost)"),
             health.includes("lists the world boss king"),
         ], [true, false, true, true, true]);
+    });
+
+    await test("tips show once per member, and Quiet stops pings", async () => {
+        const ids = await reset();
+        const cfg = structuredClone(ids.config);
+        const first = await tipOnce(ids.userId, ids.guildId, cfg, "firstFight");
+        check("a member's first fight gets the tip", first?.includes("The headline is what the enemy does next"), true);
+        check("only once", await tipOnce(ids.userId, ids.guildId, cfg, "firstFight"), null);
+        cfg.style.tips = false;
+        check("owners can turn tips off", await tipOnce(ids.userId, ids.guildId, cfg, "firstWin"), null);
+
+        check("members are pinged by default", await mentionsFor(TEST_DISCORD_GUILD, TEST_DISCORD_USER, { users: [TEST_DISCORD_USER] }), { users: [TEST_DISCORD_USER] });
+        const { profile } = await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+        profile.settings = { ...profile.settings, quiet: true };
+        check("Quiet names them without a ping, keeping role pings", await mentionsFor(TEST_DISCORD_GUILD, TEST_DISCORD_USER), { parse: ["roles", "everyone"] });
     });
 
     await test("HP comes back over two hours, and a loss leaves you at 25%", async () => {

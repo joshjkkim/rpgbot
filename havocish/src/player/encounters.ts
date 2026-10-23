@@ -8,6 +8,7 @@ import { combatLevel } from "./combatLevel.js";
 import { pickRandomEnemy, startFight } from "./fight.js";
 import { channelChain, fightsInThread, pickFromPlace, placeFor } from "./places.js";
 import { loadoutFor } from "./moves.js";
+import { tipOnce } from "./tips.js";
 import { boardView, placeFight, readyToFight } from "../commands/user/fight.js";
 
 /**
@@ -153,4 +154,7 @@ export async function handleEncounterButton(interaction: ButtonInteraction) {
         }),
         show: (fight) => boardView(fight, config, [], ready.profile),
     });
+    const tip = await tipOnce(ready.profile.user_id, ready.profile.guild_id, config, "firstFight");
+    // A tip is extra: it never gets in the way of the fight.
+    if (tip) try { await interaction.followUp({ content: tip, flags: MessageFlags.Ephemeral }); } catch { /* not needed */ }
 }

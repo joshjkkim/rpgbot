@@ -2,6 +2,7 @@ import type { Client } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { ItemRarity } from "../types/economy.js";
 import { bestEffort } from "./bestEffort.js";
+import { mentionsFor } from "./mentions.js";
 
 const ORDER: ItemRarity[] = ["poor", "common", "uncommon", "rare", "epic", "legendary"];
 
@@ -37,6 +38,6 @@ export async function announceRareFinds(opts: {
     if (!channel?.isTextBased() || !channel.isSendable()) return;
     await bestEffort("rare find announcement", channel.send({
         content: `✨ <@${discordUserId}> ${verb} ${list} ${where}!`,
-        allowedMentions: { users: [discordUserId] },
+        allowedMentions: await mentionsFor("guildId" in channel ? channel.guildId : "", discordUserId, { users: [discordUserId] }),
     }));
 }

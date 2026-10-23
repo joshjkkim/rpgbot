@@ -26,6 +26,7 @@ export type StyleConfig = {
   };
   /** Banner cards for RPG level-ups. Unset means on. */
   levelUpCards?: { combat?: boolean; skills?: boolean; channelId?: string | null };
+  tips?: boolean;
 };
 
 type Props = {
@@ -186,6 +187,10 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
           emptyLabel="Nowhere else"
           hint="Posts a copy of each card here too, like a #level-ups channel."
         />
+      </Section>
+
+      <Section title="New-player tips" description="A short private tip, once per member, the first time they fight, win, lose or join a party. Nobody else sees them.">
+        <Toggle label="Show tips to new players" checked={style.tips !== false} onChange={(v) => onChange({ ...style, tips: v ? undefined : false })} />
       </Section>
     </div>
   );

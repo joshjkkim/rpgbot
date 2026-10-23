@@ -28,6 +28,7 @@ import { renderItemCard } from "../../ui/canvas/itemCard.js";
 import { checkRequirements, memberFacts } from "../../player/requirements.js";
 import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
+import { tipOnce, type Tip } from "../../player/tips.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
 
@@ -461,6 +462,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         }),
         show: (fight) => boardView(fight, config, [], profile),
     });
+    await tip(interaction, profile.user_id, profile.guild_id, config, "firstFight");
 }
 
 /**
@@ -547,10 +549,10 @@ function scheduleRound(fight: ActiveFight, client: Client, config: GuildConfig) 
  * Plays the round and shows it: the board for the next one, or the end with
  * everyone's rewards. Members who fled this round are paid off on the spot.
  */
-async function playRound(fight: ActiveFight, client: Client): Promise<void> {
+async function playRound(fight: ActiveFight, client: Client): Promise<{ member: FightMember; summary: FightEndSummary }[]> {
     const { config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
     const round = resolveRound(fight, config);
-    if (round.alreadyResolved) return;
+    if (round.alreadyResolved) return [];
 
     const results: { member: FightMember; summary: FightEndSummary }[] = [];
     for (const { member, summary } of round.settled) {
@@ -563,7 +565,7 @@ async function playRound(fight: ActiveFight, client: Client): Promise<void> {
         scheduleRound(fight, client, config);
         const solo = fight.members.length === 1 ? (await getOrCreateProfile({ userId: fight.members[0]!.dbUserId, guildId: fight.dbGuildId })).profile : null;
         await editBoard(client, fight, boardView(fight, config, round.log, solo));
-        return;
+        return results;
     }
 
     const party = fight.members.length > 1;
@@ -588,6 +590,14 @@ async function playRound(fight: ActiveFight, client: Client): Promise<void> {
             items: summary.itemsDropped, where: `from ${fight.enemy.emoji} ${fight.enemy.name}`,
         });
     }
+    return results;
+}
+
+/** A one-time tip, privately, to whoever clicked. */
+async function tip(interaction: ButtonInteraction | ChatInputCommandInteraction, userId: number, guildId: number, config: GuildConfig, which: Tip) {
+    const text = await tipOnce(userId, guildId, config, which);
+    // A tip is extra: it never gets in the way of the fight.
+    if (text) try { await interaction.followUp({ content: text, flags: MessageFlags.Ephemeral }); } catch { /* not needed */ }
 }
 
 /** The end of a party fight: what each member got. */
@@ -677,7 +687,10 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
     // without awaiting in between, so two last picks can't both play it.
     if (fight.members.length === 1 || everyonePicked(fight)) {
         if (fight !== onBoard) await interaction.editReply({ content: `✅ ${pickLabel(actionId, config)}: the round is playing.`, components: [] });
-        await playRound(fight, interaction.client);
+        const settled = await playRound(fight, interaction.client);
+        const mine = settled.find((r) => r.member.userId === member.userId)?.summary;
+        if (mine?.outcome === "win") await tip(interaction, member.dbUserId, fight.dbGuildId, config, "firstWin");
+        if (mine?.outcome === "loss" || mine?.knockedOut) await tip(interaction, member.dbUserId, fight.dbGuildId, config, "firstLoss");
         return;
     }
     if (fight !== onBoard) await interaction.editReply({ content: `✅ You picked ${pickLabel(actionId, config)}. Waiting for the others…`, components: [] });
@@ -724,4 +737,5 @@ async function joinButton(interaction: ButtonInteraction, fight: ActiveFight, co
     scheduleRound(fight, interaction.client, config);
     if (interaction.channel?.isThread()) await interaction.channel.members.add(interaction.user.id).catch(() => null);
     await interaction.update(boardView(fight, config, [`🙋 **${name}** joins the fight! The ${enemy.emoji} ${enemy.name} grows stronger.`], null));
+    await tip(interaction, profile.user_id, profile.guild_id, config, "firstParty");
 }

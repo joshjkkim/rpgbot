@@ -2,8 +2,9 @@ import type { QuestEvent, QuestConfig, UserQuestState, QuestRewardEffects, Quest
 import type { DbUserGuildProfile, item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import type { GuildConfig } from "../types/guild.js";
-import type { TextBasedChannel, Client, TextChannel, GuildMember } from "discord.js";
+import type { TextBasedChannel, Client, TextChannel, GuildMember, MessageMentionOptions } from "discord.js";
 import { bestEffort } from "../ui/bestEffort.js";
+import { mentionsFor } from "../ui/mentions.js";
 import { combatXp } from "./combatLevel.js";
 
 function questTarget(cond: any): number {
@@ -212,10 +213,10 @@ export function questCompleteLines(names: string[]): string {
   return names.map((n) => `📜 Quest complete: **${n}**. Claim it in \`/quests\`.`).join("\n");
 }
 
-async function safeSend(channel: TextBasedChannel | null, content: string) {
+async function safeSend(channel: TextBasedChannel | null, content: string, allowedMentions: MessageMentionOptions) {
   if (!channel) return;
   if (!content?.trim()) return;
-  await bestEffort("quest announcement", (channel as TextChannel).send({ content }));
+  await bestEffort("quest announcement", (channel as TextChannel).send({ content, allowedMentions }));
 }
 
 function formatTemplate(template: string, args: { userMention: string; quest?: QuestConfig }) {
@@ -252,6 +253,7 @@ export async function announceQuestCompletions(args: {
   if (!guild) return;
 
   const userMention = `<@${discordUserId}>`;
+  const pings = await mentionsFor(discordGuildId, discordUserId);
   const globalChannelId = config.quests?.announceAllId ?? null;
   const globalTemplate = config.quests?.announceMessage ?? null;
 
@@ -266,7 +268,7 @@ export async function announceQuestCompletions(args: {
     const ch = await guild.channels.fetch(channelId).catch(() => null);
     const textCh = ch && ch.isTextBased() ? ch : null;
 
-    await safeSend(textCh, formatTemplate(globalTemplate, { userMention, quest: n.quest }));
+    await safeSend(textCh, formatTemplate(globalTemplate, { userMention, quest: n.quest }), pings);
   }
 }
 
@@ -286,12 +288,13 @@ export async function applyQuestSideEffects(args: {
   if (!guild) return;
 
   const userMention = `<@${discordUserId}>`;
+  const pings = await mentionsFor(discordGuildId, discordUserId);
 
   if (rewards.messages?.length) {
     for (const m of rewards.messages) {
       const ch = await guild.channels.fetch(m.channelId).catch(() => null);
       const textCh = ch && ch.isTextBased() ? ch : null;
-      await safeSend(textCh, formatTemplate(m.message, { userMention }));
+      await safeSend(textCh, formatTemplate(m.message, { userMention }), pings);
     }
   }
 

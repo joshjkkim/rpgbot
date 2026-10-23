@@ -25,6 +25,7 @@ const DEFAULTS: Required<UserSettings> = {
     xpPrivate: false,
     profilePrivate: false,
     dmOnTradeInbound: true,
+    quiet: false,
 };
 
 function getSettings(profile: DbUserGuildProfile): Required<UserSettings> {
@@ -55,6 +56,11 @@ export const data = new SlashCommandBuilder()
     .addSubcommand(sub =>
         sub.setName("update")
             .setDescription("Update your user settings")
+    )
+    .addSubcommand(sub =>
+        sub.setName("quiet")
+            .setDescription("Never get pinged by level-ups, rare finds and other announcements about you")
+            .addBooleanOption(o => o.setName("on").setDescription("On: you're named without a ping").setRequired(true))
     );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -70,6 +76,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
 
     const s = getSettings(profile);
+
+    if (sub === "quiet") {
+        const on = interaction.options.getBoolean("on", true);
+        const cached = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
+        const settings = { ...(cached.profile.settings ?? {}), quiet: on };
+        cached.profile.settings = settings;
+        commitProfileChanges({
+            userId: user.id, guildId: guild.id, profile: cached.profile,
+            changes: { ...(cached.pendingChanges ?? {}), settings } as PendingProfileChanges,
+            baseline: { xp: cached.profile.xp, gold: cached.profile.gold },
+        });
+        await interaction.reply({
+            content: on ? "🔕 Quiet is on: announcements about you still post, but won't ping you." : "🔔 Quiet is off: you'll be pinged by announcements about you again.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
 
     if (sub === "view") {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -93,10 +116,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     name: "🔔 Notifications",
                     value: [
                         `**DM on inbound trade offer:** ${notifDisplay(s.dmOnTradeInbound)}`,
+                        `**Quiet (no pings from announcements):** ${s.quiet ? "🔕 On" : "🔔 Off"}`,
                     ].join("\n"),
                 },
             )
-            .setFooter({ text: "Use /settings update to change these" });
+            .setFooter({ text: "Use /settings update to change these, and /settings quiet for pings" });
 
         await interaction.editReply({ embeds: [embed] });
         return;
@@ -164,6 +188,8 @@ export async function handleSettingsModal(interaction: ModalSubmitInteraction) {
         xpPrivate:        parseBool(interaction.fields.getTextInputValue("xpPrivate")),
         profilePrivate:   parseBool(interaction.fields.getTextInputValue("profilePrivate")),
         dmOnTradeInbound: parseBool(interaction.fields.getTextInputValue("dmOnTradeInbound")),
+        // Not on the form (Discord allows five fields); kept as it was.
+        quiet: !!profile.settings?.quiet,
     };
 
     const updatedProfile: DbUserGuildProfile = { ...profile, settings: newSettings };

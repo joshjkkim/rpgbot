@@ -235,6 +235,19 @@
         "name": "update",
         "description": "Update your user settings",
         "kind": "subcommand"
+      },
+      {
+        "name": "quiet",
+        "description": "Never get pinged by level-ups, rare finds and other announcements about you",
+        "options": [
+          {
+            "name": "on",
+            "description": "On: you're named without a ping",
+            "type": "true/false",
+            "required": true
+          }
+        ],
+        "kind": "subcommand"
       }
     ]
   },

@@ -76,6 +76,8 @@ export interface GuildConfig {
         /** Banner cards for RPG level-ups. Unset means on. */
         /** On unless false; `channelId` also posts a copy there. */
         levelUpCards?: { combat?: boolean; skills?: boolean; channelId?: string | null };
+        /** One-time tips for new players (player/tips.ts); on unless false. */
+        tips?: boolean;
     },
     combat: {
         enabled: boolean;
