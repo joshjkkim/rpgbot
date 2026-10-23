@@ -53,3 +53,14 @@ export async function autocompleteShopItems(interaction: AutocompleteInteraction
 
     await respondFiltered(interaction, choices);
 }
+
+/** Every gathering and crafting skill, for /admin set skill. */
+export async function autocompleteSkills(interaction: AutocompleteInteraction) {
+    if (!interaction.guildId) return interaction.respond([]);
+    const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+    const choices = [
+        ...Object.values(config.gathering?.activities ?? {}).map((a) => ({ name: a.skillName || a.name, value: a.id })),
+        ...Object.values(config.crafting?.stations ?? {}).map((s) => ({ name: s.skillName || s.name, value: s.id })),
+    ];
+    await respondFiltered(interaction, choices);
+}

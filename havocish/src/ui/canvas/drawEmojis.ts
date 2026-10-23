@@ -4,16 +4,39 @@ import { imgCache } from "../../cache/caches.js";
 
 const discordEmojiRe = /<(a?):([a-zA-Z0-9_]+):(\d+)>/g;
 
-async function loadCachedImage(url: string) {
+/** Images are kept an hour, so a changed avatar shows up soon. */
+const IMAGE_TTL_MS = 60 * 60 * 1000;
+/** And at most this many, least recently used dropped first, so memory stays bounded. */
+const MAX_IMAGES = 300;
+const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+const MAX_IMAGE_PIXELS = 16_000_000;
+
+export async function loadCachedImage(url: string) {
   const hit = imgCache.get(url);
-  if (hit) return hit;
+  if (hit && Date.now() - hit.at < IMAGE_TTL_MS) {
+    // Re-inserted, so the Map's order is least recently used first.
+    imgCache.delete(url);
+    imgCache.set(url, hit);
+    return hit.img;
+  }
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch image: ${url}`);
   const buf = Buffer.from(await res.arrayBuffer());
+  // An owner can link any picture; a huge one would take far more memory decoded.
+  if (buf.length > MAX_IMAGE_BYTES) throw new Error(`Image too large (${buf.length} bytes): ${url}`);
   const img = await loadImage(buf);
-  imgCache.set(url, img);
+  if (img.width * img.height > MAX_IMAGE_PIXELS) throw new Error(`Image too large (${img.width}x${img.height}): ${url}`);
+  imgCache.delete(url);
+  imgCache.set(url, { img, at: Date.now() });
+  while (imgCache.size > MAX_IMAGES) imgCache.delete(imgCache.keys().next().value!);
   return img;
+}
+
+/** The image for an emoji: a server's custom emoji from Discord's CDN, or Twemoji for a standard one. */
+export function emojiImageUrl(emoji: string): string | null {
+  const custom = /^<a?:\w+:(\d+)>$/.exec(emoji.trim());
+  return custom ? `https://cdn.discordapp.com/emojis/${custom[1]}.png` : twemojiUrlFromEmoji(emoji);
 }
 
 function twemojiUrlFromEmoji(emoji: string) {

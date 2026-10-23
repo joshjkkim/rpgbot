@@ -12,7 +12,7 @@ import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
 import { registerLevelUps } from "./events/levelUp.js";
 import { registerRoleRewards } from "./events/roleRewards.js";
 import { flushDirtyProfiles, pruneCaches } from "./cache/caches.js";
-import { flushLogBuffer } from "./db/events.js";
+import { flushLogBuffer, pruneOldEvents } from "./db/events.js";
 import { abandonFight, allActiveFights, cleanupStaleFights } from "./player/fight.js";
 import { cleanupExpiredDuels } from "./commands/user/duel.js";
 import { closePool } from "./db/index.js";
@@ -62,9 +62,15 @@ registerLevelUps(client);
 registerRoleRewards(client);
 const previewServer = startPreviewServer(client);
 
+let eventsPrunedAt = 0;
 const pruneTimer = setInterval(() => {
     void pruneCaches();
     cleanupExpiredDuels();
+    // Once a day: the activity log keeps 90 days.
+    if (Date.now() - eventsPrunedAt > 24 * 60 * 60 * 1000) {
+        eventsPrunedAt = Date.now();
+        void pruneOldEvents().catch((err) => console.error("Failed to prune old events:", err));
+    }
 }, 5 * 60 * 1000);
 
 const flushTimer = setInterval(() => {

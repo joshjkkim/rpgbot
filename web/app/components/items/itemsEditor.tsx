@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Section } from "@/app/components/ui/form";
+import { DEFAULT_MOVES } from "@/app/components/combat/moveText";
 import { ContentBrowser, idFromName } from "@/app/components/ui/slots";
 import ItemTooltip, { RARITIES } from "@/app/components/shop/itemTooltip";
 import type { ShopConfig, shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
@@ -149,7 +150,7 @@ export default function ItemsEditor({
                   {warnings.map((w) => <li key={w}>{w}</li>)}
                 </ul>
               )}
-              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} skills={skillOptions(config)} stations={(config.crafting?.stations ?? {}) as StationOptions} />
+              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} skills={skillOptions(config)} stations={(config.crafting?.stations ?? {}) as StationOptions} moves={config.combat?.moves ?? DEFAULT_MOVES} />
             </div>
           );
         }}

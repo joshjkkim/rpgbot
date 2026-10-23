@@ -2,7 +2,7 @@ import type { ItemRarity, shopCategoryConfig, shopItemConfig } from "./economy.j
 import type { EventCategory } from "./logging.js";
 import type { AchievementConfig } from "./achievement.js";
 import type { QuestConfig } from "./quest.js";
-import type { EnemyConfig } from "./combat.js";
+import type { EnemyConfig, MoveConfig, PlaceConfig, StatusConfig } from "./combat.js";
 import type { GatheringConfig } from "./gathering.js";
 import type { CraftingConfig } from "./crafting.js";
 export interface DbGuild {
@@ -43,6 +43,25 @@ export interface LevelAction {
     quantity?: number; // for giveItem, default 1
 }
 
+/** One thing a collection counts: an item found, or an enemy defeated. */
+export interface CollectionEntry {
+    kind: "item" | "enemy";
+    id: string;
+}
+
+export interface CollectionConfig {
+    id: string;
+    name: string;
+    emoji: string;
+    description?: string;
+    entries: CollectionEntry[];
+    /**
+     * Rewards at a number of entries done, each paid once. Gold, items and
+     * Combat XP, plus roles to give; one at the full count is for completing it.
+     */
+    milestones?: { at: number; actions: LevelAction[] }[];
+}
+
 export interface StreakReward {
     streakCount: number;
     xpBonus: number;
@@ -74,7 +93,12 @@ export interface GuildConfig {
             name?: string;
         };
         /** Banner cards for RPG level-ups. Unset means on. */
-        levelUpCards?: { combat?: boolean; skills?: boolean };
+        /** On unless false; `channelId` also posts a copy there. */
+        levelUpCards?: { combat?: boolean; skills?: boolean; channelId?: string | null };
+        /** One-time tips for new players (player/tips.ts); on unless false. */
+        tips?: boolean;
+        /** Fights drawn as a scene image (ui/canvas/battleScene.ts); on unless false. */
+        battleScenes?: boolean;
     },
     combat: {
         enabled: boolean;
@@ -99,6 +123,25 @@ export interface GuildConfig {
          */
         chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
         enemies?: Record<string, EnemyConfig>;
+        /** HP refills fully over `regenMinutes` (120); a loss leaves you at `respawnPercent` of max (25). */
+        hp?: { regenMinutes?: number; respawnPercent?: number; woundedMinutes?: number; woundedStatusId?: string };
+        /**
+         * Others joining a fight: on unless false; cap, turn timer, enemy HP added per extra player (%),
+         * and whether joiners must be in the enemy's Combat level range (on unless false), so nobody gets carried.
+         */
+        /** Enemies below your Combat level range pay less XP: `perLevel`% less for each level over, never below `floor`%. On unless enabled is false. */
+        easyXp?: { enabled?: boolean; perLevel?: number; floor?: number };
+        party?: { enabled?: boolean; maxPlayers?: number; turnSeconds?: number; hpPerExtraPlayer?: number; levelRange?: boolean };
+        /** Places: channels mapped to enemy pools (types/combat.ts PlaceConfig). */
+        places?: Record<string, PlaceConfig>;
+        /** Lets anyone pick an enemy with /fight's option; managers always can. Off: /fight rolls from where you are. */
+        allowEnemyChoice?: boolean;
+        /** Fights in channels outside any place: "channel" (default) or "thread". */
+        fightsIn?: "thread" | "channel";
+        /** Fight moves, players' and enemies'. Unset means the built-in Attack / Heavy Strike / Guard. */
+        moves?: Record<string, MoveConfig>;
+        /** Lasting effects moves can put on: Bleeding, Poisoned... Unset means the built-in set. */
+        statuses?: Record<string, StatusConfig>;
         pveDeathPenalty?: {
             goldPercent?: number;   // % of current gold lost (e.g. 5 = 5%). Default: 0
             goldFlat?: number;      // minimum flat gold lost regardless of percent. Default: 0
@@ -145,6 +188,8 @@ export interface GuildConfig {
             durationSeconds?: number;
             /** How often one member can attack. */
             attackCooldownSeconds?: number;
+            /** Seconds between the boss's own moves, each announced in advance (default 25). */
+            strikeSeconds?: number;
             /** Channels random bosses may appear in. Empty means any channel that gives XP. */
             channelIds?: string[];
         };
@@ -228,6 +273,16 @@ export interface GuildConfig {
      * Rewards for getting a role, from any source: another leveling bot's level
      * roles, a booster role, a role a mod hands out. Paid once per member per role.
      */
+    /**
+     * Owner-made collections: groups of items to find and enemies to defeat,
+     * with rewards at milestones along the way (player/collections.ts). Unset or
+     * empty: /collection says there are none yet.
+     */
+    collections?: {
+        /** Where "@member completed …" is posted. Unset: where it happened. */
+        channelId?: string | null;
+        sets: Record<string, CollectionConfig>;
+    };
     roleRewards?: {
         /** Where "@member got the @Role reward" is posted. Unset: rewards arrive quietly. */
         channelId?: string | null;

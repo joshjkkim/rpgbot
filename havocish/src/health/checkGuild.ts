@@ -1,3 +1,5 @@
+import { movesOf, statusesOf } from "../player/moves.js";
+import { RULES } from "../player/twists.js";
 import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -22,7 +24,7 @@ export type Issue = {
     page: DashboardPage;
 };
 
-type Perm = "view" | "send" | "embed" | "files";
+type Perm = "view" | "send" | "embed" | "files" | "threads" | "threadSend";
 
 export interface Access {
     /** The channel's name, or null when it no longer exists. */
@@ -35,7 +37,10 @@ export interface Access {
     canManageRole(id: string): boolean;
 }
 
-const PERM_NAMES: Record<Perm, string> = { view: "View Channel", send: "Send Messages", embed: "Embed Links", files: "Attach Files" };
+const PERM_NAMES: Record<Perm, string> = {
+    view: "View Channel", send: "Send Messages", embed: "Embed Links", files: "Attach Files",
+    threads: "Create Public Threads", threadSend: "Send Messages in Threads",
+};
 const POST: Perm[] = ["view", "send"];
 const POST_EMBED: Perm[] = ["view", "send", "embed"];
 
@@ -91,6 +96,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     channel(config.rareFinds?.channelId, "rare-find announcements", "items", POST);
+    channel(config.style.levelUpCards?.channelId, "level-up card", "styles", [...POST, "files"]);
 
     // ── Role rewards ── (the page is Leveling: they sit beside level rewards)
     channel(config.roleRewards?.channelId, "role reward announcements", "leveling", POST);
@@ -138,6 +144,51 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
             for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat", POST_EMBED);
         }
         for (const e of enemies) for (const d of e.drops ?? []) item(d.itemId, `The enemy ${e.name}`, "combat");
+
+        // Places: the server's channels as its map.
+        for (const place of Object.values(config.combat.places ?? {})) {
+            const pool = (place.enemies ?? []).filter((p) => (p.weight ?? 1) > 0);
+            if (!place.channelIds?.length) issues.push({ severity: "warning", message: `The place ${place.name} isn't tied to any channel yet, so nobody can find it. Pick its channels on the Combat page's Places tab.`, page: "combat" });
+            if (!pool.length) issues.push({ severity: "warning", message: `Nothing lives in the place ${place.name}: give it some enemies.`, page: "combat" });
+            for (const p of pool) {
+                const e = config.combat.enemies?.[p.enemyId];
+                if (!e) issues.push({ severity: "warning", message: `The place ${place.name} has an enemy that was deleted (${p.enemyId}).`, page: "combat" });
+                else if (e.boss) issues.push({ severity: "warning", message: `The place ${place.name} lists the world boss ${e.name}, which only comes as a boss.`, page: "combat" });
+            }
+            const perms: Perm[] = (place.fights ?? "thread") === "thread" ? [...POST_EMBED, "threads", "threadSend"] : POST_EMBED;
+            for (const id of place.channelIds ?? []) channel(id, `${place.name} fights`, "combat", perms);
+        }
+
+        // Moves: anything missing falls back to a plain attack in a fight, so these only warn.
+        const moves = movesOf(config);
+        const statuses = statusesOf(config);
+        const warn = (message: string, page: DashboardPage = "combat") => issues.push({ severity: "warning", message, page });
+        for (const e of enemies) for (const m of e.moves ?? []) {
+            if (!moves[m.moveId]) warn(`The enemy ${e.name} uses a move that was deleted (${m.moveId}); it attacks instead.`);
+        }
+        for (const m of Object.values(moves)) {
+            if (!m.effects?.length) warn(`The move ${m.name} does nothing. Give it an effect.`);
+            for (const ef of m.effects ?? []) {
+                const statusId = ef.type === "status" ? ef.statusId : ef.when?.type === "targetHasStatus" ? ef.when.statusId : null;
+                if (statusId && !statuses[statusId]) warn(`The move ${m.name} uses a status that was deleted (${statusId}).`);
+            }
+        }
+        if (!Object.values(moves).some((m) => m.players)) warn("No move is marked for players, so members can only Attack.");
+        const reachable = new Set<string>();
+        for (const it of Object.values(items)) {
+            for (const id of it.effects?.moves ?? []) {
+                reachable.add(id);
+                if (!moves[id]) warn(`The item ${it.name} gives a move that was deleted (${id}).`, "items");
+            }
+            for (const a of Object.values(it.actions ?? {})) {
+                if (a.type !== "learnMove") continue;
+                reachable.add(a.moveId ?? "");
+                if (!moves[a.moveId ?? ""]?.players) warn(`The scroll ${it.name} teaches a move players can't have (${a.moveId || "none picked"}).`, "items");
+            }
+        }
+        for (const m of Object.values(moves)) {
+            if (m.players?.learned && !reachable.has(m.id)) warn(`The move ${m.name} must be learned, but no scroll teaches it and no gear gives it.`);
+        }
     }
 
     // ── Quests ──
@@ -187,7 +238,26 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                     issues.push({ severity: "warning", message: `${a.name} at ${l.name} has nothing to find.`, page: "gathering" });
                 }
                 for (const x of l.loot ?? []) item(x.itemId, `${a.name} at ${l.name}`, "gathering");
+                for (const c of l.conditions ?? []) {
+                    if (!config.gathering.conditions?.[c.conditionId]) issues.push({ severity: "warning", message: `${a.name} at ${l.name} can get a condition that was deleted (${c.conditionId}).`, page: "gathering" });
+                }
+                for (const t of l.traits ?? []) {
+                    const elsewhere = (t.effects?.rules ?? []).filter((r) => RULES[r] && RULES[r].game !== a.game);
+                    if (elsewhere.length) issues.push({ severity: "warning", message: `${a.name} at ${l.name}: the trait ${t.name} has rules for another game (${elsewhere.map((r) => RULES[r].name).join(", ")}), which do nothing here.`, page: "gathering" });
+                }
             }
+        }
+    }
+
+    // ── Collections ──
+    channel(config.collections?.channelId, "collection announcements", "collections", POST);
+    for (const set of Object.values(config.collections?.sets ?? {})) {
+        const gone = (set.entries ?? []).filter((e) => !(e.kind === "item" ? items[e.id] : config.combat?.enemies?.[e.id]));
+        if (gone.length) issues.push({ severity: "warning", message: `The collection ${set.name} lists ${gone.length} thing${gone.length === 1 ? "" : "s"} that were deleted; they don't count.`, page: "collections" });
+        if (!(set.entries ?? []).length) issues.push({ severity: "warning", message: `The collection ${set.name} is empty.`, page: "collections" });
+        for (const m of set.milestones ?? []) for (const a of m.actions ?? []) {
+            if (a.type === "giveItem") item(a.itemId, `The collection ${set.name}`, "collections");
+            if (a.type === "assignRole") role(a.roleId, `the collection ${set.name}`, "collections");
         }
     }
 
@@ -270,6 +340,8 @@ export function discordAccess(guild: Guild): Access {
         send: PermissionFlagsBits.SendMessages,
         embed: PermissionFlagsBits.EmbedLinks,
         files: PermissionFlagsBits.AttachFiles,
+        threads: PermissionFlagsBits.CreatePublicThreads,
+        threadSend: PermissionFlagsBits.SendMessagesInThreads,
     } as const;
     return {
         channelName: (id) => guild.channels.cache.get(id)?.name ?? null,

@@ -11,7 +11,11 @@ export type QuestCondition =
   | { type: "dailyClaim"; target: number }
   /** Fights won. Limited to `enemyIds` when set; world bosses count. */
   | { type: "defeatEnemies"; target: number; enemyIds?: string[] }
-  | { type: "winDuels"; target: number };
+  | { type: "winDuels"; target: number }
+  /** Items brought back from /gather. Limited to `itemIds` when set. */
+  | { type: "gatherItems"; target: number; itemIds?: string[] }
+  /** Items made with /craft. Limited to `itemIds` when set. */
+  | { type: "craftItems"; target: number; itemIds?: string[] };
 
 export type QuestEvent =
   | { type: "message"; guildId: string; userId: string; channelId: string }
@@ -20,7 +24,9 @@ export type QuestEvent =
   | { type: "earnXp"; guildId: string; userId: string; amount: number }
   | { type: "dailyClaim"; guildId: string; userId: string }
   | { type: "defeatEnemy"; guildId: string; userId: string; enemyId: string }
-  | { type: "winDuel"; guildId: string; userId: string };
+  | { type: "winDuel"; guildId: string; userId: string }
+  | { type: "gather"; guildId: string; userId: string; itemId: string; quantity: number }
+  | { type: "craft"; guildId: string; userId: string; itemId: string; quantity: number };
 
 export type QuestNotify = {
   quest: QuestConfig;

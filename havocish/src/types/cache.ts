@@ -42,6 +42,8 @@ export interface PendingProfileChanges {
         goldPrivate?: boolean;
         xpPrivate?: boolean;
         dmOnTradeInbound?: boolean;
+        /** Quiet: announcements about them still post, but never ping them. */
+        quiet?: boolean;
         profilePrivate?: boolean;
     }
 }

@@ -16,4 +16,8 @@ export interface Requirements {
     memberDays?: number;
     /** Must be boosting the server. */
     booster?: boolean;
+    /** Must have found (ever owned) each of these items: their collection. */
+    found?: string[];
+    /** Must have completed each of these collections. */
+    collections?: string[];
 }

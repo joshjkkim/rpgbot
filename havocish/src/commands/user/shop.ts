@@ -1,10 +1,12 @@
+import { checkCollections } from "../../player/collections.js";
 import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, GuildMember, ContainerBuilder, SectionBuilder, TextDisplayBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile, commitProfileChanges } from "../../cache/profileService.js";
+import type { UserStats } from "../../types/userprofile.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
-import { purchaseItem } from "../../db/shop.js";
+import { leftToday, purchaseItem } from "../../db/shop.js";
 import { managerSetupRows } from "../../ui/dashboardLinks.js";
 import { accentColor, pageOf, pagerButtons } from "../../ui/pager.js";
 import { itemEffects } from "../../ui/canvas/itemCard.js";
@@ -72,7 +74,7 @@ async function renderShop(interaction: ChatInputCommandInteraction | ButtonInter
     const category = list.find(([id]) => id === categoryId)?.[1];
 
     if (view === "category" && category && config.shop?.enabled) {
-        return renderCategory(container, config, categoryId, page, balance);
+        return renderCategory(container, config, categoryId, page, balance, profile.user_stats);
     }
 
     container.addTextDisplayComponents(t => t.setContent(`## 🛒 ${interaction.guild?.name ?? "Server"} Shop\n${balance}`));
@@ -108,7 +110,7 @@ async function renderShop(interaction: ChatInputCommandInteraction | ButtonInter
     return pager.length ? [container, new ActionRowBuilder<ButtonBuilder>().addComponents(...pager)] : [container];
 }
 
-function renderCategory(container: ContainerBuilder, config: GuildConfig, categoryId: string, page: number, balance: string) {
+function renderCategory(container: ContainerBuilder, config: GuildConfig, categoryId: string, page: number, balance: string, stats?: UserStats | null) {
     const goldIcon = config.style.gold.icon || "💰";
     const category = config.shop!.categories![categoryId]!;
     const items = Object.values(config.shop!.items ?? {}).filter(i => i.categoryId === categoryId && !i.hidden);
@@ -127,9 +129,11 @@ function renderCategory(container: ContainerBuilder, config: GuildConfig, catego
     }
 
     for (const item of shelf.items) {
-        const soldOut = item.stock === 0;
+        const left = leftToday(item, stats);
+        const soldOut = item.stock === 0 || left === 0;
         const details = [
             item.stock != null ? `Stock: ${item.stock}` : "",
+            item.dailyLimit ? (left === 0 ? "None left today: restocks at midnight UTC" : `${left} of ${item.dailyLimit} left today`) : "",
             ...describeRequirements(itemRequirements(item), config).map((r) => `Needs ${r}`),
         ].filter(Boolean).join(" · ");
         // Equip bonuses only apply to gear, so they are left off anything that can't be worn.
@@ -145,7 +149,7 @@ function renderCategory(container: ContainerBuilder, config: GuildConfig, catego
             ))
             .setButtonAccessory(b => b
                 .setCustomId(`shop:buy:${categoryId}:${shelf.page}:${item.id}`)
-                .setLabel(soldOut ? "Sold out" : `Buy · ${item.price} ${goldIcon}`)
+                .setLabel(soldOut ? (left === 0 ? "Back tomorrow" : "Sold out") : `Buy · ${item.price} ${goldIcon}`)
                 .setStyle(ButtonStyle.Success)
                 .setDisabled(soldOut)));
     }
@@ -233,6 +237,7 @@ async function buyItem(interaction: ButtonInteraction, itemId: string, quantity:
     if (!purchase.success) {
         return `❌ ${purchase.message}`;
     }
+    await checkCollections({ client: interaction.client, config, discordUserId: interaction.user.id, discordGuildId: dbGuild.discord_guild_id, fallbackChannelId: interaction.channelId });
 
     const item = purchase.item;
     const price = Number(purchase.price);

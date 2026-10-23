@@ -3,8 +3,9 @@ import { combatXp } from "./combatLevel.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
 import type { AchievementConfig, AchievementCondition, AchievementCheckArgs, AchievementCheckResult, AchievementRewardEffects } from "../types/achievement.js";
-import type { Client, GuildMember, TextChannel, TextBasedChannel } from "discord.js";
+import type { Client, GuildMember, MessageMentionOptions, TextChannel, TextBasedChannel } from "discord.js";
 import { bestEffort } from "../ui/bestEffort.js";
+import { mentionsFor } from "../ui/mentions.js";
 
 function getConditionCurrentValue(condition: AchievementCondition, profile: DbUserGuildProfile): number {
     switch (condition.type) {
@@ -185,10 +186,10 @@ function formatTemplate(template: string, args: { userMention: string; achieveme
     return out;
 }
 
-async function safeSend(channel: TextBasedChannel | null, content: string) {
+async function safeSend(channel: TextBasedChannel | null, content: string, allowedMentions: MessageMentionOptions) {
     if (!channel) return;
     if (!content?.trim()) return;
-    await bestEffort("achievement announcement", (channel as TextChannel).send({ content }));
+    await bestEffort("achievement announcement", (channel as TextChannel).send({ content, allowedMentions }));
 }
 
 export async function applyAchievementSideEffects(args: { client: Client; discordGuildId: string; discordUserId: string; member?: GuildMember | null; channelIdHint?: string | null; config: GuildConfig; unlocked: AchievementConfig[]; rewards: RewardEffectsLike | null;}) {
@@ -198,6 +199,7 @@ export async function applyAchievementSideEffects(args: { client: Client; discor
     if (!guild) return;
 
     const userMention = `<@${discordUserId}>`;
+    const pings = await mentionsFor(discordGuildId, discordUserId);
 
     const globalChannelId = config.achievements?.announceAllId ?? null;
     const globalTemplate = config.achievements?.announceMessage ?? null;
@@ -210,7 +212,7 @@ export async function applyAchievementSideEffects(args: { client: Client; discor
         const ch = await guild.channels.fetch(channelId).catch(() => null);
         const textCh = ch && ch.isTextBased() ? ch : null;
 
-        await safeSend(textCh, formatTemplate(template, { userMention, achievement: ach }));
+        await safeSend(textCh, formatTemplate(template, { userMention, achievement: ach }), pings);
     }
 
     if (rewards?.messages?.length) {
@@ -218,7 +220,7 @@ export async function applyAchievementSideEffects(args: { client: Client; discor
         const ch = await guild.channels.fetch(m.channelId).catch(() => null);
         const textCh = ch && ch.isTextBased() ? ch : null;
 
-        await safeSend(textCh, formatTemplate(m.message, { userMention }));
+        await safeSend(textCh, formatTemplate(m.message, { userMention }), pings);
         }
     }
 

@@ -4,7 +4,7 @@ import { calculateLevelFromXp } from "../leveling/levels.js";
 import { runQuestPipeline } from "../player/quests.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { profileKey, userGuildProfileCache } from "../cache/caches.js";
-import { calculateStats, resolveCurrentHp } from "../player/combat.js";
+import { calculateStats, resolveCurrentHp, respawnHp, storeHp } from "../player/combat.js";
 import { simulateDuel, splitPot } from "../player/duel.js";
 import type { DuelResult, DuelSide } from "../types/combat.js";
 import type { DbUserGuildProfile } from "../types/userprofile.js";
@@ -65,7 +65,8 @@ function toSide(
 
     const startingHp = resolveCurrentHp(
         { user_stats: profile.user_stats ?? {} } as DbUserGuildProfile,
-        stats
+        stats,
+        config,
     );
 
     return {
@@ -254,7 +255,9 @@ export async function resolveDuel(opts: {
 
             for (const row of [challengerRow, opponentRow]) {
                 const stats = { ...(row.user_stats ?? {}) } as Record<string, unknown>;
-                stats.currentHp = hpByUser.get(row.user_id) ?? 0;
+                // The loser respawns low, like losing any fight.
+                const hp = hpByUser.get(row.user_id) ?? 0;
+                Object.assign(stats, storeHp(hp > 0 ? hp : respawnHp(calculateStats({ level: row.level, equips: row.equips ?? {}, user_stats: row.user_stats ?? {} } as DbUserGuildProfile, config, config.shop?.items ?? {}), config)));
                 stats.lastDuelAt = finishedAt;
 
                 if (winnerUserId !== null) {

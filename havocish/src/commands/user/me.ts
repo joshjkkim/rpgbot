@@ -3,7 +3,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, Message
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { calculateStats, chatLevelBonus, resolveCurrentHp } from "../../player/combat.js";
+import { calculateStats, chatLevelBonus, minutesToFull, resolveCurrentHp } from "../../player/combat.js";
 import { calculateLevelFromXp, calculateTotalXpForLevel, levelStartXp } from "../../leveling/levels.js";
 import { accentColor } from "../../ui/pager.js";
 import { SLOT_META } from "./inventory.js";
@@ -70,7 +70,9 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
 
     if (config.combat?.enabled) {
         const stats = calculateStats(profile, config, config.shop?.items ?? {});
-        const hp = resolveCurrentHp(profile, stats);
+        const hp = resolveCurrentHp(profile, stats, config);
+        const toFull = minutesToFull(hp, stats, config);
+        const rest = toFull ? ` Back to full in ${toFull >= 60 ? `${Math.floor(toFull / 60)}h ${toFull % 60}m` : `${toFull} min`}.` : "";
         const cp = combatProgress(profile, config);
         c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent([
             `⚔️ **Combat ${cp.level}** ${cp.span ? `\`${bar(cp.into / cp.span)}\` ${cp.into.toLocaleString()} / ${cp.span.toLocaleString()} XP` : "max"}`,
@@ -78,8 +80,8 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
             `⚔️ **ATK** ${stats.atk}  ·  🛡️ **DEF** ${stats.def}  ·  💨 **SPD** ${stats.spd}  ·  🎯 **CRIT** ${stats.critChance.toFixed(1)}%`,
             ...chatBonusLine(profile, config),
             hp <= 0
-                ? "-# ⚠️ 0 HP: heal with `/daily` or a potion before fighting."
-                : hp < stats.maxHp / 3 ? "-# Low on HP. Heal before a tough fight." : "-# Ready to fight.",
+                ? `-# ⚠️ 0 HP: rest, or heal with food, a potion or \`/daily\`.${rest}`
+                : hp < stats.maxHp / 3 ? `-# Low on HP. Heal before a tough fight.${rest}` : hp < stats.maxHp ? `-# Ready to fight.${rest}` : "-# Ready to fight.",
         ].join("\n")));
     }
 

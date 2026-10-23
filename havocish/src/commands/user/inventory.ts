@@ -194,7 +194,7 @@ function renderGear({ ownerId, ownerName, canAct, profile, config, page, status 
     if (config.combat?.enabled) {
         const stats = calculateStats(profile, config, shopItems);
         container.addSeparatorComponents(s => s)
-            .addTextDisplayComponents(t => t.setContent(`**Combat Stats**\n${formatStats(stats, resolveCurrentHp(profile, stats))}`));
+            .addTextDisplayComponents(t => t.setContent(`**Combat Stats**\n${formatStats(stats, resolveCurrentHp(profile, stats, config))}`));
     }
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

@@ -11,7 +11,7 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe" | "learnMove";
     roleId?: string;
     message?: string;
     channelId?: string;
@@ -22,6 +22,8 @@ export interface shopItemAction {
     /** learnRecipe: the station and its hidden recipe the item teaches. */
     stationId?: string;
     recipeId?: string;
+    /** learnMove: the fight move the item teaches. */
+    moveId?: string;
 }
 
 export type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";
@@ -51,6 +53,8 @@ export type ItemEffects = {
     spd?: number;      // bonus speed
     crit?: number;     // bonus crit chance (%)
   };
+  /** Fight moves this gives while equipped (move ids). */
+  moves?: string[];
 };
 export interface shopItemConfig {
     id: string;
@@ -83,6 +87,9 @@ export interface shopItemConfig {
      * no equipping. `bonus` is per game: Grid +1 try, Timing +0.3 s, Find it +1 s a point.
      */
     tool?: { activityId: string; tier: number; bonus: number };
+
+    /** How many one member can buy per day (UTC); restocks at midnight. Unset: no limit. */
+    dailyLimit?: number;
 
     /** Who can buy, use or equip it. `minLevel` and `requiresRoleIds` are read into this too. */
     requirements?: Requirements;

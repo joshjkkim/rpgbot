@@ -19,6 +19,7 @@ export default function GatheringPageClient({ guildId }: { guildId: string }) {
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
+      collections={config?.collections?.sets}
       rawSection={gathering}
     >
       {config && (

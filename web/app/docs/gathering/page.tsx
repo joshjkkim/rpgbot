@@ -90,6 +90,19 @@ export default function Gathering() {
         table. A good pattern: early locations find often but cheaply, late ones find rarely but pay well.
       </P>
 
+      <H2>Traits and conditions</H2>
+      <P>
+        What makes a location play differently, not just harder. A <b>trait</b> is part of the place for good (only next
+        to opened tiles, false alarms). A <b>condition</b> is rolled for each location every 6 hours and is the same for
+        everyone: a storm one stretch, calm the next. Calm has a weight of its own, so some stretches have none. Make
+        both at <Where>Gathering</Where>; they share one set of effects:
+      </P>
+      <List>
+        <li>Any game: harder or easier, more rare loot, extra items per find, more skill XP, extra energy.</li>
+        <li>One game&apos;s rules: Grid&apos;s <i>only next to opened</i>, <i>clustered finds</i> and <i>unstable</i>; Timing&apos;s <i>false alarms</i>, <i>twice</i> and <i>fragile</i>; Find it&apos;s <i>glimpse</i>, <i>reshuffle</i> and <i>twin</i>.</li>
+      </List>
+      <P>Runs show the location&apos;s traits and its condition, with when the condition ends. Nothing is named for you: a condition is whatever you call it.</P>
+
       <H2>Skills</H2>
       <List>
         <li>Each activity has its own skill, from 1 to 50. Every run gives the location&apos;s skill XP.</li>

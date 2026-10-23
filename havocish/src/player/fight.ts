@@ -3,29 +3,26 @@ import type { DbGuild } from "../types/guild.js";
 import type { DbUserGuildProfile, item } from "../types/userprofile.js";
 import type {
     ActiveFight,
-    CombatAction,
+    FightMember,
     CombatActionResult,
     EnemyConfig,
-    FightContext,
     FightEndSummary,
     FightOutcome,
 } from "../types/combat.js";
-import { calculateStats, resolveCurrentHp } from "./combat.js";
+import { afterLoss, calculateStats, resolveCurrentHp, respawnHp, storeHp, type CombatStats } from "./combat.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp } from "../leveling/levels.js";
 import { runQuestPipeline } from "./quests.js";
-import { addCombatXp, combatXp } from "./combatLevel.js";
+import { addCombatXp, combatLevel, combatXp } from "./combatLevel.js";
 import { EmbedBuilder, type Client } from "discord.js";
 import type { shopItemConfig } from "../types/economy.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { bestEffort } from "../ui/bestEffort.js";
+import { moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "./moves.js";
 
 /** A fight expires (auto-fled) if the player doesn't act within this many ms. */
 const FIGHT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-
-/** Max rounds before the fight ends in a draw (prevents infinite loops with bad stat configs). */
-const MAX_ROUNDS = 30;
 
 // ─── Active fight store ────────────────────────────────────────────────────────
 // Keyed by `${discordUserId}-${discordGuildId}`
@@ -63,8 +60,9 @@ export function getFightByMessageId(messageId: string): ActiveFight | null {
     return null;
 }
 
+/** Registers the fight for every member still in it. */
 export function setActiveFight(fight: ActiveFight) {
-    activeFights.set(fightKey(fight.userId, fight.guildId), fight);
+    for (const m of fight.members) if (!m.out || m.out === "down") activeFights.set(fightKey(m.userId, fight.guildId), fight);
 }
 
 export function clearActiveFight(discordUserId: string, discordGuildId: string) {
@@ -90,33 +88,6 @@ export function resolveHit(
     return { damage, isCrit };
 }
 
-// ─── Action registry ───────────────────────────────────────────────────────────
-// Add new CombatAction objects here as the system grows.
-// The /fight button handler looks actions up by id.
-
-/**
- * The enemy's swing after the player's turn, and whether the fight goes on.
- * `playerHp` is the player's HP before the swing.
- */
-function enemyTurn(fight: ActiveFight, playerHp: number, log: string[]): { playerHpDelta: number; outcome: FightOutcome } {
-    const enemyHit = resolveHit(
-        fight.enemy.atk,
-        fight.playerStats.def,
-        fight.enemy.critChance,
-        fight.enemy.critMultiplier,
-    );
-    log.push(
-        enemyHit.isCrit
-            ? `💥 **${fight.enemy.emoji} ${fight.enemy.name} landed a critical hit!** You took **${enemyHit.damage}** damage!`
-            : `🗡️ ${fight.enemy.emoji} ${fight.enemy.name} hit you for **${enemyHit.damage}** damage.`,
-    );
-    if (playerHp - enemyHit.damage <= 0) return { playerHpDelta: -enemyHit.damage, outcome: "loss" };
-
-    const outcome: FightOutcome = fight.round + 1 >= MAX_ROUNDS ? "flee" : "continue";
-    if (outcome === "flee") log.push(`⏱️ The fight dragged on too long — you escaped exhausted.`);
-    return { playerHpDelta: -enemyHit.damage, outcome };
-}
-
 /** How much an item heals when drunk mid-fight; 0 for anything that isn't a healing consumable. */
 export function healAmount(item: shopItemConfig | undefined): number {
     if (!item || item.permanent) return 0;
@@ -127,109 +98,58 @@ export function healAmount(item: shopItemConfig | undefined): number {
     return total;
 }
 
-/** Drinking a potion takes the player's turn, so the enemy still swings. */
-function drinkAction(item: shopItemConfig): CombatAction {
+/**
+ * Turns a member's button into what they do. Button ids: `move:<id>`,
+ * `potion:<itemId>`, `wait` (stunned or winding up) and `flee`. Throws on
+ * anything the member can't do now.
+ */
+function choiceFor(fight: ActiveFight, m: FightMember, actionId: string, config: GuildConfig): { choice: PlayerChoice; log: string[] } | { fled: true } | { refused: string } {
+    if (m.state.stunned || m.state.charging) return { choice: { kind: "pass" }, log: [] };
+    const name = fight.members.length > 1 ? `**${m.name}**` : "You";
+    if (actionId === "flee") {
+        // Faster than the enemy always gets away; slower is a coin flip, and a miss costs the turn.
+        if (m.stats.spd >= fight.enemy.spd || Math.random() < 0.5) return { fled: true };
+        return { choice: { kind: "pass" }, log: [`🚫 ${name} failed to flee!`] };
+    }
+    if (actionId.startsWith("potion:")) {
+        const item = config.shop?.items?.[actionId.slice("potion:".length)];
+        const heal = healAmount(item);
+        if (!item || heal <= 0) throw new Error(`Not a potion: ${actionId}`);
+        return { choice: { kind: "potion", heal, name: item.name, emoji: item.emoji ?? "🧪" }, log: [] };
+    }
+    const moveId = actionId.startsWith("move:") ? actionId.slice("move:".length) : actionId === "basic_attack" ? m.loadout[0]! : "";
+    const move = m.loadout.includes(moveId) ? moveById(config, moveId) : null;
+    if (!move) throw new Error(`Unknown combat action: ${actionId}`);
+    if (!usable(m.state, move)) return { refused: `⌛ **${move.name}** isn't ready yet.` };
+    return { choice: { kind: "move", moveId }, log: [] };
+}
+
+/** What a member who didn't pick in time does: Attack, or their first move that's ready. */
+function defaultPick(m: FightMember, config: GuildConfig): string {
+    if (m.state.stunned || m.state.charging) return "wait";
+    const ready = m.loadout.filter((id) => usable(m.state, moveById(config, id)));
+    return `move:${ready.includes("attack") ? "attack" : ready[0] ?? m.loadout[0]}`;
+}
+
+// ─── Start and join ────────────────────────────────────────────────────────────
+
+/** A player as they enter a fight: their stats and HP right now, and the moves they bring. */
+export function newMember(opts: { discordUserId: string; name: string; avatarUrl?: string; profile: DbUserGuildProfile; config: GuildConfig; loadout: string[] }): FightMember {
+    const stats = calculateStats(opts.profile, opts.config, opts.config.shop?.items ?? {});
     return {
-        id: `potion:${item.id}`, label: item.name, emoji: item.emoji ?? "🧪", style: "secondary",
-        execute({ fight }): CombatActionResult {
-            const healed = Math.min(healAmount(item), fight.playerStats.maxHp - fight.playerCurrentHp);
-            const hp = fight.playerCurrentHp + healed;
-            const log = [`${item.emoji ?? "🧪"} You drank **${item.name}**. ❤️ ${fight.playerCurrentHp} → ${hp}`];
-            const turn = enemyTurn(fight, hp, log);
-            return { outcome: turn.outcome, playerHpDelta: healed + turn.playerHpDelta, enemyHpDelta: 0, log };
-        },
+        userId: opts.discordUserId,
+        dbUserId: opts.profile.user_id,
+        name: opts.name,
+        ...(opts.avatarUrl && { avatarUrl: opts.avatarUrl }),
+        stats,
+        level: combatLevel(opts.profile, opts.config),
+        hp: resolveCurrentHp(opts.profile, stats, opts.config),
+        state: newFighterState(),
+        loadout: opts.loadout,
+        dealt: 0,
+        taken: 0,
     };
 }
-
-export const COMBAT_ACTIONS: Record<string, CombatAction> = {
-
-    basic_attack: {
-        id: "basic_attack",
-        label: "Attack",
-        emoji: "⚔️",
-        style: "primary",
-        execute(ctx): CombatActionResult {
-            const { fight } = ctx;
-            const log: string[] = [];
-
-            // Player hits enemy
-            const playerHit = resolveHit(
-                fight.playerStats.atk,
-                fight.enemy.def,
-                fight.playerStats.critChance,
-                fight.playerStats.critMultiplier,
-            );
-            const enemyHpDelta = -playerHit.damage;
-            log.push(
-                playerHit.isCrit
-                    ? `💥 **Critical hit!** You dealt **${playerHit.damage}** damage to ${fight.enemy.emoji} ${fight.enemy.name}!`
-                    : `⚔️ You dealt **${playerHit.damage}** damage to ${fight.enemy.emoji} ${fight.enemy.name}.`,
-            );
-
-            // Check if enemy is dead before it counter-attacks
-            const enemyHpAfter = fight.enemyCurrentHp + enemyHpDelta;
-            if (enemyHpAfter <= 0) {
-                return { outcome: "win", playerHpDelta: 0, enemyHpDelta, log };
-            }
-
-            // Enemy counter-attacks (speed already determined order at fight start;
-            // here we always let the enemy hit back in the same round)
-            const { playerHpDelta, outcome } = enemyTurn(fight, fight.playerCurrentHp, log);
-            return { outcome, playerHpDelta, enemyHpDelta, log };
-        },
-    },
-
-    flee: {
-        id: "flee",
-        label: "Flee",
-        emoji: "🏃",
-        style: "secondary",
-        execute(ctx): CombatActionResult {
-            const { fight } = ctx;
-            // Speed-based flee: player flees if their speed >= enemy speed,
-            // otherwise 50% chance. Fast enemies are harder to escape.
-            const succeeds =
-                fight.playerStats.spd >= fight.enemy.spd
-                    ? true
-                    : Math.random() < 0.5;
-
-            if (succeeds) {
-                return {
-                    outcome: "flee",
-                    playerHpDelta: 0,
-                    enemyHpDelta: 0,
-                    log: [`🏃 You successfully fled from ${fight.enemy.emoji} ${fight.enemy.name}!`],
-                };
-            }
-
-            // Failed flee — enemy gets a free hit
-            const hit = resolveHit(
-                fight.enemy.atk,
-                fight.playerStats.def,
-                fight.enemy.critChance,
-                fight.enemy.critMultiplier,
-            );
-            const playerHpAfter = fight.playerCurrentHp - hit.damage;
-            return {
-                outcome: playerHpAfter <= 0 ? "loss" : "continue",
-                playerHpDelta: -hit.damage,
-                enemyHpDelta: 0,
-                log: [
-                    `🚫 You failed to flee! ${fight.enemy.emoji} ${fight.enemy.name} hit you for **${hit.damage}** damage.`,
-                ],
-            };
-        },
-    },
-};
-
-/** Returns the action buttons available to the player right now. */
-export function getAvailableActions(ctx: FightContext): CombatAction[] {
-    return Object.values(COMBAT_ACTIONS).filter(
-        (a) => !a.available || a.available(ctx),
-    );
-}
-
-// ─── Start fight ───────────────────────────────────────────────────────────────
 
 export interface StartFightOptions {
     discordUserId: string;
@@ -240,105 +160,185 @@ export interface StartFightOptions {
     profile: DbUserGuildProfile;
     enemy: EnemyConfig;
     config: GuildConfig;
+    /** From loadoutFor, which needs the member's roles. */
+    loadout: string[];
+    /** Their display name: shown in the title and, in a party, the log. */
+    name: string;
+    avatarUrl?: string;
+    origin?: { channelId: string; messageId: string };
+    placeName?: string;
+    placeId?: string;
 }
 
 export function startFight(opts: StartFightOptions): ActiveFight {
-    const playerStats = calculateStats(
-        opts.profile,
-        opts.config,
-        opts.config.shop?.items ?? {},
-    );
-    const playerCurrentHp = resolveCurrentHp(opts.profile, playerStats);
     const now = Date.now();
-
     const fight: ActiveFight = {
         userId: opts.discordUserId,
         guildId: opts.discordGuildId,
         messageId: opts.messageId,
         channelId: opts.channelId,
-        dbUserId: opts.profile.user_id,
         dbGuildId: opts.profile.guild_id,
         combatType: opts.combatType,
-        playerStats,
-        playerCurrentHp,
+        members: [newMember(opts)],
         enemy: opts.enemy,
+        enemyMaxHp: opts.enemy.hp,
         enemyCurrentHp: opts.enemy.hp,
+        foe: newFighterState(),
+        ...(opts.origin && { origin: opts.origin }),
+        ...(opts.placeName && { placeName: opts.placeName }),
+        ...(opts.placeId && { placeId: opts.placeId }),
+        enemyIntent: "",
+        enemyTarget: opts.discordUserId,
         round: 0,
         startedAt: now,
         expiresAt: now + FIGHT_TIMEOUT_MS,
-        totalDamageDealt: 0,
-        totalDamageTaken: 0,
     };
+
+    fight.enemyIntent = pickIntent(fight, opts.config);
 
     setActiveFight(fight);
     return fight;
 }
 
-// ─── Apply action ──────────────────────────────────────────────────────────────
+const PARTY_DEFAULTS = { enabled: true, maxPlayers: 3, turnSeconds: 30, hpPerExtraPlayer: 100, levelRange: true };
 
-export interface ApplyActionResult {
-    fight: ActiveFight;
-    result: CombatActionResult;
+export function partyRules(config: GuildConfig) {
+    return { ...PARTY_DEFAULTS, ...config.combat?.party };
+}
+
+/** Why someone can't join this fight right now, or null when they can. */
+export function cantJoin(fight: ActiveFight, discordUserId: string, config: GuildConfig): string | null {
+    const rules = partyRules(config);
+    if (fight.resolved) return "That fight just ended.";
+    if (!rules.enabled || fight.enemy.party === false || fight.combatType !== "pve") return "This fight is solo only.";
+    if (fight.members.some((m) => m.userId === discordUserId)) return "You're already in this fight.";
+    if (fight.members.length >= rules.maxPlayers) return `This fight is full (${rules.maxPlayers} players).`;
+    return null;
+}
+
+/** Adds a player to a fight. The enemy gets tougher for each one, so a party earns about what a solo player does. */
+export function joinFight(fight: ActiveFight, member: FightMember, config: GuildConfig): void {
+    const extra = Math.round(fight.enemy.hp * partyRules(config).hpPerExtraPlayer / 100);
+    fight.members.push(member);
+    fight.enemyMaxHp += extra;
+    fight.enemyCurrentHp += extra;
+    setActiveFight(fight);
+}
+
+// ─── Rounds ────────────────────────────────────────────────────────────────────
+
+/** Whether every member still in has picked, so the round can play. */
+export function everyonePicked(fight: ActiveFight): boolean {
+    return fight.members.every((m) => m.out || m.pick);
+}
+
+/**
+ * Records a member's pick for this round. Refuses a move that isn't ready
+ * (a stale button), which costs nothing.
+ */
+export function submitPick(fight: ActiveFight, discordUserId: string, actionId: string, config: GuildConfig): { refused?: string } {
+    const m = fight.members.find((x) => x.userId === discordUserId && !x.out);
+    if (!m) return { refused: "You're not in this fight." };
+    let picked: ReturnType<typeof choiceFor>;
+    try {
+        picked = choiceFor(fight, m, actionId, config);
+    } catch {
+        return { refused: "That isn't one of your moves." };
+    }
+    if ("refused" in picked) return { refused: picked.refused };
+    m.pick = actionId;
+    return {};
+}
+
+export interface MemberResult { member: FightMember; summary: FightEndSummary }
+
+export interface RoundResult {
+    outcome: FightOutcome;
+    log: string[];
+    /** Members whose part ended this round (fled, or everyone when the fight ended), with what they earned. */
+    settled: MemberResult[];
     ended: boolean;
-    summary: FightEndSummary | null;
-    /**
-     * True when the fight was already over before this action. The caller must
-     * hand out no rewards and render nothing -- the action that actually ended
-     * the fight has already done both.
-     */
+    /** The fight was already over: the caller must pay and render nothing. */
     alreadyResolved?: boolean;
 }
 
+/** Plays the round with everyone's picks; anyone who didn't pick attacks. */
+export function resolveRound(fight: ActiveFight, config: GuildConfig): RoundResult {
+    if (fight.resolved) return { outcome: "continue", log: [], settled: [], ended: false, alreadyResolved: true };
+    if (fight.roundTimer) clearTimeout(fight.roundTimer);
+    delete fight.roundTimer;
+    delete fight.roundEndsAt;
+
+    const log: string[] = [];
+    const settled: MemberResult[] = [];
+    const choices: Record<string, PlayerChoice> = {};
+    for (const m of fight.members.filter((x) => !x.out)) {
+        const picked = choiceFor(fight, m, m.pick ?? defaultPick(m, config), config);
+        delete m.pick;
+        if ("fled" in picked) {
+            m.out = "fled";
+            clearActiveFight(m.userId, fight.guildId);
+            log.push(`🏃 ${fight.members.length > 1 ? `**${m.name}**` : "You"} fled from the ${fight.enemy.emoji} ${fight.enemy.name}!`);
+            settled.push({ member: m, summary: buildSummary(fight, m, "flee", config) });
+        } else if ("refused" in picked) {
+            choices[m.userId] = { kind: "pass" };
+        } else {
+            choices[m.userId] = picked.choice;
+            log.push(...picked.log);
+        }
+    }
+
+    let outcome: FightOutcome = "flee";
+    if (fight.members.some((m) => !m.out)) {
+        const turn = playTurn(fight, choices, config);
+        log.push(...turn.log);
+        outcome = turn.outcome;
+    }
+    fight.round += 1;
+    fight.expiresAt = Date.now() + FIGHT_TIMEOUT_MS;
+
+    if (outcome === "continue") {
+        setActiveFight(fight);
+        return { outcome, log, settled, ended: false };
+    }
+    // Set before anything awaits, so a concurrent click sees it.
+    fight.resolved = true;
+    for (const m of fight.members) {
+        clearActiveFight(m.userId, fight.guildId);
+        if (m.out === "fled") continue; // settled when they left
+        settled.push({ member: m, summary: buildSummary(fight, m, outcome, config) });
+    }
+    return { outcome, log, settled, ended: true };
+}
+
+// ─── Solo shortcut ─────────────────────────────────────────────────────────────
+
+export interface ApplyActionResult {
+    fight: ActiveFight;
+    result: { outcome: FightOutcome; log: string[] };
+    ended: boolean;
+    summary: FightEndSummary | null;
+    /** Every member's result when it ended (one, alone). */
+    settled: MemberResult[];
+    alreadyResolved?: boolean;
+}
+
+/** One click in a solo fight: the pick and the round together. */
 export function applyAction(
     fight: ActiveFight,
     actionId: string,
-    guild: DbGuild,
-    profile: DbUserGuildProfile,
+    _guild: DbGuild,
+    _profile: DbUserGuildProfile,
     config: GuildConfig,
 ): ApplyActionResult {
-    const potion = actionId.startsWith("potion:") ? config.shop?.items?.[actionId.slice("potion:".length)] : undefined;
-    const action = potion && healAmount(potion) > 0 ? drinkAction(potion) : COMBAT_ACTIONS[actionId];
-    if (!action) {
-        throw new Error(`Unknown combat action: ${actionId}`);
-    }
-
-    // A finished fight accepts no further actions. Without this, a second
-    // click resolves against an enemy already on 0 HP, reports another win and
-    // pays out the rewards a second time.
     if (fight.resolved) {
-        return {
-            fight,
-            result: { outcome: "continue", playerHpDelta: 0, enemyHpDelta: 0, log: [] },
-            ended: false,
-            summary: null,
-            alreadyResolved: true,
-        };
+        return { fight, result: { outcome: "continue", log: [] }, ended: false, summary: null, settled: [], alreadyResolved: true };
     }
-
-    const ctx: FightContext = { fight, profile, guild, config };
-    const result = action.execute(ctx);
-
-    // Apply deltas
-    fight.playerCurrentHp = Math.max(0, fight.playerCurrentHp + result.playerHpDelta);
-    fight.enemyCurrentHp  = Math.max(0, fight.enemyCurrentHp  + result.enemyHpDelta);
-    fight.totalDamageDealt += Math.abs(result.enemyHpDelta);
-    fight.totalDamageTaken += Math.abs(result.playerHpDelta);
-    fight.round += 1;
-    fight.expiresAt = Date.now() + FIGHT_TIMEOUT_MS; // reset timeout on each action
-
-    const ended = result.outcome !== "continue";
-
-    if (ended) {
-        // Set before anything awaits, so a concurrent click sees it.
-        fight.resolved = true;
-        const summary = buildSummary(fight, result.outcome, config);
-        clearActiveFight(fight.userId, fight.guildId);
-        return { fight, result, ended: true, summary };
-    }
-
-    // Update stored fight state
-    setActiveFight(fight);
-    return { fight, result, ended: false, summary: null };
+    const pick = submitPick(fight, fight.members.find((m) => !m.out)?.userId ?? fight.userId, actionId, config);
+    if (pick.refused) return { fight, result: { outcome: "continue", log: [pick.refused] }, ended: false, summary: null, settled: [] };
+    const round = resolveRound(fight, config);
+    const mine = round.settled.find((r) => r.member.userId === fight.userId)?.summary ?? null;
+    return { fight, result: { outcome: round.outcome, log: round.log }, ended: round.ended, summary: round.ended ? mine : null, settled: round.settled };
 }
 
 // ─── Build summary ─────────────────────────────────────────────────────────────
@@ -353,34 +353,40 @@ function rollDrops(enemy: EnemyConfig): { itemId: string; quantity: number }[] {
     return dropped;
 }
 
-function buildSummary(
-    fight: ActiveFight,
-    outcome: FightOutcome,
-    config: GuildConfig,
-): FightEndSummary {
-    const isWin = outcome === "win";
+const EASY_XP_DEFAULTS = { enabled: true, perLevel: 10, floor: 25 };
 
-    // Apply XP/gold multipliers from boosts (equipped items)
-    let xpMultiplier = 1;
-    let goldMultiplier = 1;
-    const items = config.shop?.items ?? {};
-    for (const itemId of Object.values(fight.playerStats as any)) {
-        // pull boost multipliers from equipped item effects
-    }
-    // Simpler: iterate equips via profile — but profile isn't on ActiveFight.
-    // Multipliers are applied in applyFightRewards where we have the profile.
+/**
+ * The share of XP an enemy pays a member: full within or below its level
+ * range, then a little less for each Combat level over its top, so beating
+ * things far below you stops being the best use of your time.
+ */
+export function easyXpShare(enemy: EnemyConfig, memberLevel: number | undefined, config: GuildConfig): number {
+    const rules = { ...EASY_XP_DEFAULTS, ...config.combat?.easyXp };
+    if (!rules.enabled || enemy.maxLevel == null || memberLevel == null || memberLevel <= enemy.maxLevel) return 1;
+    return Math.max(rules.floor / 100, 1 - ((memberLevel - enemy.maxLevel) * rules.perLevel) / 100);
+}
 
+/**
+ * What one member earned. On a win, everyone standing gets the full reward and
+ * their own drop rolls; a member knocked out gets half, and no drops.
+ */
+function buildSummary(fight: ActiveFight, m: FightMember, outcome: FightOutcome, config: GuildConfig): FightEndSummary {
+    const won = outcome === "win";
+    const share = won && m.out === "down" ? 0.5 : 1;
+    const easy = easyXpShare(fight.enemy, m.level, config);
     return {
-        outcome: outcome as Exclude<FightOutcome, "continue">,
-        xpGained: outcome === "win" ? fight.enemy.xpReward
-         : outcome === "loss" ? Math.floor(fight.enemy.xpReward * 0.1)
-         : 0,
-        goldGained: isWin ? fight.enemy.goldReward : 0,
+        outcome: (won ? "win" : outcome === "loss" || m.out === "down" ? "loss" : "flee") as FightEndSummary["outcome"],
+        xpGained: won ? Math.floor(fight.enemy.xpReward * share * easy)
+            : outcome === "loss" ? Math.floor(fight.enemy.xpReward * 0.1)
+            : 0,
+        goldGained: won ? Math.floor(fight.enemy.goldReward * share) : 0,
         goldLost: 0,  // calculated in applyFightRewards once we have the profile
-        itemsDropped: isWin ? rollDrops(fight.enemy) : [],
+        itemsDropped: won && m.out !== "down" ? rollDrops(fight.enemy) : [],
         rounds: fight.round,
-        totalDamageDealt: fight.totalDamageDealt,
-        totalDamageTaken: fight.totalDamageTaken,
+        totalDamageDealt: m.dealt,
+        totalDamageTaken: m.taken,
+        ...(won && m.out === "down" && { knockedOut: true }),
+        ...(won && easy < 1 && { easyShare: easy }),
     };
 }
 
@@ -393,6 +399,9 @@ function buildSummary(
  * Returns the actual gold deducted (clamped to current balance, minimum 0).
  * Never takes more gold than the player has.
  */
+/** What losing to an enemy costs by default: 5% of carried gold, at least 10. */
+export const PVE_DEATH_DEFAULTS = { goldPercent: 5, goldFlat: 10 };
+
 function calcDeathGoldLoss(
     currentGold: bigint,
     penalty: { goldPercent?: number; goldFlat?: number } | undefined,
@@ -407,7 +416,9 @@ function calcDeathGoldLoss(
 
 export async function applyFightRewards(
     summary: FightEndSummary,
-    fight: ActiveFight,
+    fight: Pick<ActiveFight, "combatType" | "enemy"> & { members?: unknown[] },
+    /** Their HP when it ended; knocked out, or on a loss, they respawn low instead. */
+    fighter: { hp: number; stats: CombatStats; out?: FightMember["out"] },
     profile: DbUserGuildProfile,
     config: GuildConfig,
 ): Promise<DbUserGuildProfile> {
@@ -448,9 +459,10 @@ export async function applyFightRewards(
 
     // ── Death penalty (loss only) ──
     if (summary.outcome === "loss") {
+        // Losing to an enemy costs some gold unless the owner says otherwise.
         const penaltyConfig = fight.combatType === "pvp"
             ? config.combat.pvpDeathPenalty
-            : config.combat.pveDeathPenalty;
+            : { ...PVE_DEATH_DEFAULTS, ...config.combat.pveDeathPenalty };
         const goldLost = calcDeathGoldLoss(BigInt(p.gold), penaltyConfig);
         if (goldLost > 0n) {
             p.gold = (BigInt(p.gold) - goldLost).toString();
@@ -489,13 +501,17 @@ export async function applyFightRewards(
 
     // ── User stats ──
     const stats = { ...(p.user_stats ?? {}) };
-    stats.currentHp          = fight.playerCurrentHp;
+    // A loss respawns you low rather than at 0, Wounded for a while: a break, not a lockout.
+    const lost = summary.outcome === "loss" || fighter.out === "down";
+    Object.assign(stats, lost ? afterLoss(fighter.stats, config) : storeHp(fighter.hp));
     stats.totalDamageDealt   = (stats.totalDamageDealt   ?? 0) + summary.totalDamageDealt;
     stats.totalDamageTaken   = (stats.totalDamageTaken   ?? 0) + summary.totalDamageTaken;
 
     if (summary.outcome === "win") {
         stats.fightsWon        = (stats.fightsWon        ?? 0) + 1;
+        if ((fight.members?.length ?? 1) > 1) stats.partyWins = (stats.partyWins ?? 0) + 1;
         stats.enemiesDefeated  = (stats.enemiesDefeated  ?? 0) + 1;
+        if (fight.enemy?.id && !stats.defeated?.includes(fight.enemy.id)) stats.defeated = [...(stats.defeated ?? []), fight.enemy.id];
     } else if (summary.outcome === "loss") {
         stats.fightsLost       = (stats.fightsLost       ?? 0) + 1;
     }
@@ -544,10 +560,16 @@ export function getEligibleEnemies(config: GuildConfig, playerLevel: number): En
 /**
  * Picks a random eligible enemy. Returns null if none are configured/eligible.
  */
-export function pickRandomEnemy(config: GuildConfig, playerLevel: number, allowed: (e: EnemyConfig) => boolean = () => true): EnemyConfig | null {
-    const eligible = getEligibleEnemies(config, playerLevel).filter(allowed);
-    if (eligible.length === 0) return null;
-    return eligible[Math.floor(Math.random() * eligible.length)] ?? null;
+export function pickRandomEnemy(config: GuildConfig, playerLevel: number, allowed: (e: EnemyConfig) => boolean = () => true, roll = Math.random): EnemyConfig | null {
+    // Weighted, so a rare elite turns up rarely here too.
+    const eligible = getEligibleEnemies(config, playerLevel).filter((e) => allowed(e) && (e.spawnWeight ?? 1) > 0);
+    const total = eligible.reduce((sum, e) => sum + (e.spawnWeight ?? 1), 0);
+    let r = roll() * total;
+    for (const e of eligible) {
+        r -= e.spawnWeight ?? 1;
+        if (r < 0) return e;
+    }
+    return eligible.at(-1) ?? null;
 }
 
 // ─── Stale fight cleanup ───────────────────────────────────────────────────────
@@ -556,7 +578,7 @@ export function pickRandomEnemy(config: GuildConfig, playerLevel: number, allowe
 export function cleanupStaleFights(client: Client): number {
     const now = Date.now();
     let cleaned = 0;
-    for (const fight of [...activeFights.values()]) {
+    for (const fight of allActiveFights()) {
         if (now > fight.expiresAt) {
             void abandonFight(fight, client, "timeout").catch((err) => console.error("Failed to end an abandoned fight:", err));
             cleaned++;
@@ -567,7 +589,7 @@ export function cleanupStaleFights(client: Client): number {
 
 /** Every fight still going, for the shutdown handler. */
 export function allActiveFights(): ActiveFight[] {
-    return [...activeFights.values()];
+    return [...new Set(activeFights.values())];
 }
 
 /**
@@ -578,19 +600,34 @@ export function allActiveFights(): ActiveFight[] {
 export async function abandonFight(fight: ActiveFight, client: Client, why: "timeout" | "restart"): Promise<void> {
     if (fight.resolved) return;
     fight.resolved = true;
-    clearActiveFight(fight.userId, fight.guildId);
+    if (fight.roundTimer) clearTimeout(fight.roundTimer);
 
     const { config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
-    const ids = { user_id: fight.dbUserId, guild_id: fight.dbGuildId } as DbUserGuildProfile;
-    await applyFightRewards(buildSummary(fight, "flee", config), fight, ids, config);
+    for (const m of fight.members) {
+        clearActiveFight(m.userId, fight.guildId);
+        if (m.out === "fled") continue; // settled when they left
+        const ids = { user_id: m.dbUserId, guild_id: fight.dbGuildId } as DbUserGuildProfile;
+        await applyFightRewards(buildSummary(fight, m, "flee", config), fight, m, ids, config);
+    }
 
-    const reason = why === "timeout" ? "You walked away" : "havocish restarted";
+    const reason = why === "timeout" ? "Everyone walked away" : "havocish restarted";
     const embed = new EmbedBuilder()
         .setTitle(`🏃 Left the fight with ${fight.enemy.emoji} ${fight.enemy.name}`)
         .setColor("#FFA500")
-        .setDescription(`${reason}, so it counts as fleeing. You kept your wounds: ❤️ **${fight.playerCurrentHp}** / **${fight.playerStats.maxHp}**.`);
+        .setDescription(`${reason}, so it counts as fleeing. Wounds stay: ${fight.members.map((m) => `${fight.members.length > 1 ? `${m.name} ` : ""}❤️ **${m.hp}** / **${m.stats.maxHp}**`).join(" · ")}.`);
     await bestEffort("abandoned fight message", (async () => {
         const channel = await client.channels.fetch(fight.channelId);
-        if (channel?.isTextBased()) await channel.messages.edit(fight.messageId, { embeds: [embed], components: [] });
+        if (channel?.isTextBased()) await channel.messages.edit(fight.messageId, { embeds: [embed], components: [], attachments: [] });
+    })());
+    await postResultLine(client, fight, `🏃 <@${fight.userId}> left the fight with the ${fight.enemy.emoji} **${fight.enemy.name}**.`);
+}
+
+/** A threaded fight's result, on the short line in chat it hangs off. */
+export async function postResultLine(client: Client, fight: ActiveFight, line: string): Promise<void> {
+    if (!fight.origin) return;
+    const { channelId, messageId } = fight.origin;
+    await bestEffort("fight result line", (async () => {
+        const channel = await client.channels.fetch(channelId);
+        if (channel?.isTextBased()) await channel.messages.edit(messageId, { content: line, embeds: [], components: [], allowedMentions: { parse: [] } });
     })());
 }

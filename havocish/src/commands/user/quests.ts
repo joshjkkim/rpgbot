@@ -65,6 +65,13 @@ export function objective(cond: QuestCondition, config: GuildConfig): string {
             return `Defeat ${names.join(" or ")}${cond.target === 1 ? "" : ` ×${n}`}`;
         }
         case "winDuels": return `Win ${n} duel${cond.target === 1 ? "" : "s"}`;
+        case "gatherItems":
+        case "craftItems": {
+            const verb = cond.type === "gatherItems" ? "Gather" : "Craft";
+            const names = (cond.itemIds ?? []).map((id) => { const it = config.shop?.items?.[id]; return it ? `${it.emoji ? `${it.emoji} ` : ""}${it.name}` : id; });
+            if (!names.length) return `${verb} ${n} item${cond.target === 1 ? "" : "s"}`;
+            return `${verb} ${names.join(" or ")}${cond.target === 1 ? "" : ` ×${n}`}`;
+        }
     }
 }
 

@@ -225,7 +225,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    if (resolveCurrentHp(profile, calculateStats(profile, config, config.shop?.items ?? {})) <= 0) {
+    if (resolveCurrentHp(profile, calculateStats(profile, config, config.shop?.items ?? {}), config) <= 0) {
         await interaction.editReply({ content: "You have 0 HP. Heal first with `/daily` or a potion." });
         return;
     }

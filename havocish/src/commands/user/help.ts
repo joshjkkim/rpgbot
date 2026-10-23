@@ -3,6 +3,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlag
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import type { GuildConfig } from "../../types/guild.js";
 import { dashboardButton } from "../../ui/dashboardLinks.js";
+import { partyRules } from "../../player/fight.js";
 
 /**
  * A short guide to the bot, one page per topic, flipped with buttons. Pages
@@ -53,8 +54,12 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                 title: "⚔️ Combat",
                 lines: combatOn
                     ? [
-                        "`/fight` battle an enemy for XP, gold and loot. Pick your moves turn by turn. Lost the fight in the chat? `/fight` again brings it back",
+                        "`/fight` battle an enemy for XP, gold and loot. Lost the fight in the chat? `/fight` again brings it back",
+                        "👁️ **Read the enemy:** it shows its next move before you pick yours. Guard a heavy blow, strike while it winds up",
+                        "`/moves` choose the 4 moves you take into fights. New ones come with Combat level, gear and move scrolls",
                         "🧪 **Potions** you carry show up as buttons in the fight. Drinking one uses your turn",
+                        ...(partyRules(config).enabled ? [`🤝 **Parties:** press **Join** on someone's fight to help, up to ${partyRules(config).maxPlayers} of you`] : []),
+                        ...(Object.keys(config.combat.places ?? {}).length ? ["🗺️ **Places:** some channels have their own enemies. Fight there to meet them"] : []),
                         "`/duel @someone` challenge another member, with gold on the line if you like",
                         "`/equip` and `/unequip` put on gear. Better gear means more HP, attack and defence",
                         "",
@@ -63,7 +68,7 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                             : "",
                         bossLine(config),
                         "",
-                        "Lost a fight? Your HP stays low until you heal: `/daily` restores it to full, or drink a potion with `/use`.",
+                        "Lost a fight? You drop some gold, come back on low HP and are wounded for a while. HP refills on its own; potions and food heal right away.",
                     ].filter((l, i, all) => l !== "" || all[i - 1] !== "")
                     : [off("Combat")],
             };
@@ -78,6 +83,8 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                         "",
                         "📈 **Skills** go up every run. Higher skill opens better locations and makes the game easier.",
                         "🧰 **Tools** from the shop make it easier still, and some locations need one. The best tool in your bag counts.",
+                        "🌦️ **Conditions** change every few hours and make a location play differently.",
+                        ...(config.crafting?.enabled ? ["`/craft` turn what you find into gear, food and potions. Crafted gear beats bought"] : []),
                         "`/me` shows your skills and tools.",
                     ]
                     : [off("Gathering")],
@@ -107,7 +114,8 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                     "",
                     "`/trade offer` swap items and gold with someone, safely",
                     "`/gift @someone` give an item away",
-                    "`/settings` your own preferences, like keeping your profile private",
+                    ...(Object.keys(config.collections?.sets ?? {}).length ? ["`/collection` everything there is to find and beat, with rewards along the way"] : []),
+                    "`/settings` your own preferences, like Quiet (no pings) or keeping your profile private",
                 ],
             };
         case "owner":
@@ -119,7 +127,7 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                     "",
                     "`/boss summon` call a world boss for the whole server to fight",
                     "`/config` turn features like the shop, quests and duels on or off",
-                    "`/admin set` change a member's XP, level, gold or streak",
+                    "`/admin set` change a member's XP, levels, gold or streak",
                     "`/admin items` view, give or take a member's items",
                 ],
             };

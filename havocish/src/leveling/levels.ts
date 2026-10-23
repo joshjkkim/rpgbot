@@ -2,6 +2,7 @@ import type { GuildConfig } from "../types/guild.js";
 import { Client, GuildMember } from "discord.js";
 import { renderLevelUpBanner } from "../ui/canvas/levelUpBanner.js";
 import { bestEffort } from "../ui/bestEffort.js";
+import { mentionsFor } from "../ui/mentions.js";
 
 interface HandleLevelUpArgs {
   client: Client;
@@ -121,7 +122,7 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
         return null;
       });
 
-      await bestEffort("level-up announcement", channel.send({ content: announceMessage, files: banner ? [banner] : [] }));
+      await bestEffort("level-up announcement", channel.send({ content: announceMessage, files: banner ? [banner] : [], allowedMentions: await mentionsFor(guildId, userId) }));
     }
   }
 
@@ -144,7 +145,7 @@ export async function handleLevelUp(args: HandleLevelUpArgs) {
 
         const channel = await client.channels.fetch(targetChannelId).catch(() => null);
         if (channel && channel.isTextBased() && channel.isSendable()) {
-          await bestEffort("level-up announcement", channel.send(action.message.replace("{user}", `<@${userId}>`)));
+          await bestEffort("level-up announcement", channel.send({ content: action.message.replace("{user}", `<@${userId}>`), allowedMentions: await mentionsFor(guildId, userId) }));
         }
       }
     }

@@ -276,6 +276,20 @@ export function commitProfileChanges(opts: {
         merged.user_stats = { ...buffered.user_stats, ...changes.user_stats };
     }
 
+    // The collection: whatever lands in the bag or gets equipped is found, for
+    // good. Done here because every path that gives an item commits through here.
+    if (changes.inventory || changes.equips) {
+        // The newest stats there are: this writer's, else what's cached now, else
+        // the writer's copy. Writing an older copy here would undo someone else's change.
+        const stats = merged.user_stats ?? current?.profile.user_stats ?? profile.user_stats ?? ({} as NonNullable<DbUserGuildProfile["user_stats"]>);
+        const found = new Set(stats.found ?? []);
+        const held = [
+            ...Object.keys(merged.inventory ?? profile.inventory ?? {}),
+            ...Object.values(merged.equips ?? profile.equips ?? {}).map((e: any) => (typeof e === "string" ? e : e?.id)),
+        ].filter((id): id is string => !!id && !found.has(id));
+        if (held.length) merged.user_stats = { ...stats, found: [...found, ...new Set(held)] };
+    }
+
     // Level follows from xp, so recompute it whenever the merge moved xp.
     if (recomputeLevel && merged.xp !== undefined && merged.xp !== changes.xp) {
         merged.level = recomputeLevel(merged.xp);

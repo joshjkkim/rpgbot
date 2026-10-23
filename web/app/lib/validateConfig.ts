@@ -11,7 +11,7 @@
 /** Sections the bot reads as plain objects. Any of them may be absent. */
 const OBJECT_SECTIONS = [
     "xp", "levels", "shop", "quests", "combat",
-    "achievements", "logging", "style", "trading", "gathering", "crafting", "roleRewards", "rareFinds",
+    "achievements", "logging", "style", "trading", "gathering", "crafting", "roleRewards", "rareFinds", "collections",
 ] as const;
 
 /** Maps keyed by id, which break loudly if they arrive as arrays. */
@@ -19,9 +19,13 @@ const KEYED_MAPS: ReadonlyArray<readonly [string, string]> = [
     ["shop", "items"],
     ["shop", "categories"],
     ["combat", "enemies"],
+    ["combat", "moves"],
+    ["combat", "statuses"],
     ["gathering", "activities"],
+    ["gathering", "conditions"],
     ["crafting", "stations"],
     ["roleRewards", "roles"],
+    ["collections", "sets"],
     ["xp", "xpChannelIds"],
 ];
 

@@ -21,7 +21,7 @@ type EquipSlot =
   | "weapon" | "shield" | "accessory" | "aura";
 
 export interface shopItemAction {
-  type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe";
+  type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe" | "learnMove";
   roleId?: string;
   message?: string;
   channelId?: string;
@@ -32,6 +32,8 @@ export interface shopItemAction {
   /** learnRecipe: the station and its hidden recipe the item teaches. */
   stationId?: string;
   recipeId?: string;
+  /** learnMove: the fight move the item teaches. */
+  moveId?: string;
 }
 
 
@@ -57,6 +59,8 @@ type ItemEffects = {
     spd?: number;
     crit?: number;
   };
+  /** Fight moves it gives while equipped. */
+  moves?: string[];
 };
 
 export interface shopCategoryConfig {
@@ -89,6 +93,8 @@ export interface shopItemConfig {
   tradeable?: boolean;
   actions?: Record<number, shopItemAction>;
   effects?: ItemEffects;
+  /** Most one member can buy per day (UTC). */
+  dailyLimit?: number;
   /** A gathering tool (mirrored from havocish/src/types/economy.ts). */
   tool?: { activityId: string; tier: number; bonus: number };
   requirements?: Requirements;

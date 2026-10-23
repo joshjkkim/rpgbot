@@ -8,7 +8,8 @@ const PROFILE_CONFIG_TTL_MS = 30 * 1000;
 export const userIdCache = new Map<string, CachedUserId>();
 export const guildConfigCache = new Map<string, CachedGuildConfig>();
 export const userGuildProfileCache = new Map<string, CachedUserGuildProfile>();
-export const imgCache = new Map<string, any>();
+/** Decoded images by URL, with when they were fetched; bounded and expiring (ui/canvas/drawEmojis.ts). */
+export const imgCache = new Map<string, { img: any; at: number }>();
 
 export function profileKey(guildId: number, userId: number) {
     return `${guildId}:${userId}`;
