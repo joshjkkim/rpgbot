@@ -16,7 +16,7 @@ import { addCombatXp } from "./combatLevel.js";
 const REWARD_TYPES = new Set<LevelAction["type"]>(["giveGold", "giveItem", "giveCombatXp"]);
 
 /** Applies the reward actions to a profile in place. Returns the changed columns and the wording. */
-function applyRewards(p: DbUserGuildProfile, config: GuildConfig, actions: LevelAction[]) {
+export function applyRewards(p: DbUserGuildProfile, config: GuildConfig, actions: LevelAction[]) {
     const inv = { ...(p.inventory ?? {}) };
     let gold = 0n;
     let combatXp = 0;

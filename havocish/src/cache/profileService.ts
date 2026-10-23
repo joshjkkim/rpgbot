@@ -279,7 +279,9 @@ export function commitProfileChanges(opts: {
     // The collection: whatever lands in the bag or gets equipped is found, for
     // good. Done here because every path that gives an item commits through here.
     if (changes.inventory || changes.equips) {
-        const stats = merged.user_stats ?? profile.user_stats ?? ({} as NonNullable<DbUserGuildProfile["user_stats"]>);
+        // The newest stats there are: this writer's, else what's cached now, else
+        // the writer's copy. Writing an older copy here would undo someone else's change.
+        const stats = merged.user_stats ?? current?.profile.user_stats ?? profile.user_stats ?? ({} as NonNullable<DbUserGuildProfile["user_stats"]>);
         const found = new Set(stats.found ?? []);
         const held = [
             ...Object.keys(merged.inventory ?? profile.inventory ?? {}),

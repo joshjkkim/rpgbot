@@ -9,6 +9,7 @@ import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { calculateStats, resolveCurrentHp, storeHp } from "./combat.js";
 import { applyFightRewards, resolveHit } from "./fight.js";
+import { checkCollections } from "./collections.js";
 import { readyToFight } from "../commands/user/fight.js";
 import { query } from "../db/index.js";
 
@@ -352,6 +353,7 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
             client: boss.message.client, config, discordUserId: pay.discordUserId, verb: "found",
             items: pay.drops, where: `from ${enemy.emoji} ${enemy.name}`,
         });
+        await checkCollections({ client: boss.message.client, config, discordUserId: pay.discordUserId, discordGuildId: boss.discordGuildId, fallbackChannelId: boss.message.channelId });
         const drops = pay.drops.map((d) => {
             const item = config.shop?.items?.[d.itemId];
             return item ? `${item.emoji ?? "🎁"} ${item.name}` : d.itemId;

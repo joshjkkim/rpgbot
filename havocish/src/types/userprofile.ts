@@ -45,6 +45,10 @@ export interface UserStats {
     roleRewards?: string[];
     /** What they bought today, for items with a daily limit (db/shop.ts). */
     boughtToday?: { day: string; items: Record<string, number> };
+    /** Every enemy this member has beaten at least once (player/fight.ts), for collections. */
+    defeated?: string[];
+    /** Collection milestones already paid, as "setId:at". */
+    collectionMilestones?: string[];
     /** Every item this member has ever had: their collection (see cache/profileService.ts). */
     found?: string[];
     /** One-time tips this member has had (player/tips.ts). */

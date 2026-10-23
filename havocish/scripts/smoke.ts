@@ -57,7 +57,7 @@ import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intent
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
 import { leftToday } from "../src/db/shop.js";
-import { collectionProgress } from "../src/player/collection.js";
+import { payCollectionMilestones, setProgress } from "../src/player/collections.js";
 import { pruneOldEvents } from "../src/db/events.js";
 import { renderBattleScene } from "../src/ui/canvas/battleScene.js";
 import { loadCachedImage } from "../src/ui/canvas/drawEmojis.js";
@@ -1788,24 +1788,47 @@ async function main() {
         cfg.crafting.stations = { smith: { id: "smith", name: "Smithing", emoji: "⚒️", recipes: { blade: { id: "blade", output: { itemId: "blade", quantity: 1 } } } } as any };
 
         const { profile } = await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
-        const give = (inventory: Record<string, unknown>) => {
-            profile.inventory = inventory as any;
-            commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile, changes: { inventory: profile.inventory }, baseline: { xp: profile.xp, gold: profile.gold } });
+        // Each write starts from the cached profile, the way the bot's writers do.
+        const give = async (inventory: Record<string, unknown>) => {
+            const { profile: now } = await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+            now.inventory = inventory as any;
+            commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile: now, changes: { inventory: now.inventory }, baseline: { xp: now.xp, gold: now.gold } });
         };
         const facts = { roleIds: [], joinedAt: null, boosting: false };
         const needsShard = { found: ["shard"] };
         check("a recipe can need a found item", checkRequirements(needsShard, { profile, config: cfg, facts }).message, "Needs to have found 🌠 Starmetal Shard.");
 
-        give({ shard: { id: "shard", name: "Starmetal Shard", quantity: 1 } });
+        await give({ shard: { id: "shard", name: "Starmetal Shard", quantity: 1 } });
         const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
         check("getting it marks it found", after.user_stats?.found, ["shard"]);
-        give({});
+        await give({});
         const later = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
         check("selling it later keeps it found", [later.user_stats?.found, checkRequirements(needsShard, { profile: later, config: cfg, facts }).ok], [["shard"], true]);
 
-        const progress = collectionProgress(later, cfg);
-        check("the log counts each item once, from every source", [progress.found, progress.total], [1, 3]);
-        check("by source", progress.sources.map((s) => [s.id, s.found, s.itemIds.length]), [["enemy:wyrm", 1, 1], ["craft:smith", 0, 1], ["shop", 0, 1]]);
+
+        // Owner-made collections: items found and enemies beaten, with milestones.
+        cfg.collections = { sets: { star: {
+            id: "star", name: "Star Hunt", emoji: "🌠",
+            entries: [{ kind: "item", id: "shard" }, { kind: "item", id: "blade" }, { kind: "enemy", id: "wyrm" }, { kind: "item", id: "gone" }],
+            milestones: [{ at: 1, actions: [{ type: "giveGold", amount: 10 }] }, { at: 99, actions: [{ type: "giveGold", amount: 500 }] }],
+        } } };
+        const set = cfg.collections.sets.star!;
+        check("a deleted entry doesn't count against you", setProgress(set, later, cfg), { done: 1, total: 3, complete: false });
+        const first = await payCollectionMilestones(ids.userId, ids.guildId, cfg);
+        check("the first milestone pays, without the whole set", first.map((m) => [m.at, m.complete, m.given]), [[1, false, ["+10 Gold"]]]);
+        check("and only once", (await payCollectionMilestones(ids.userId, ids.guildId, cfg)).length, 0);
+        check("an unfinished set doesn't unlock things", checkRequirements({ collections: ["star"] }, { profile: later, config: cfg, facts }).message, "Needs to complete 🌠 Star Hunt.");
+
+        const p = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        p.user_stats = { ...p.user_stats, defeated: ["wyrm"] } as any;
+        commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile: p, changes: { user_stats: p.user_stats }, baseline: { xp: p.xp, gold: p.gold } });
+        // A writer holding an older copy (no "wyrm") gives an item: the defeat must survive.
+        profile.inventory = { blade: { id: "blade", name: "Star Blade", quantity: 1 } } as any;
+        commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile, changes: { inventory: profile.inventory }, baseline: { xp: profile.xp, gold: profile.gold } });
+        const done = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        const last = await payCollectionMilestones(ids.userId, ids.guildId, cfg);
+        check("finishing pays the completion reward (a milestone past the size means completing it)", last.map((m) => [m.at, m.complete, m.given]), [[3, true, ["+500 Gold"]]]);
+        check("a completed set unlocks things", checkRequirements({ collections: ["star"] }, { profile: done, config: cfg, facts }).ok, true);
     });
 
     await test("gathering twists: traits, a daily condition, and rules that change the game", async () => {

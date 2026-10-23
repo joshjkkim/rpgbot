@@ -19,6 +19,7 @@ export default function QuestsPageClient({ guildId }: { guildId: string }) {
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
+      collections={config?.collections?.sets}
       rawSection={quests}
     >
       {config && (

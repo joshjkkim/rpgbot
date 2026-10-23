@@ -32,6 +32,8 @@ export type StarterPack = {
     gathering?: { activities: Record<string, Named & { emoji?: string; skillName?: string; locations?: Record<string, unknown> }>; conditions?: Record<string, Named> };
     /** Optional, like gathering. */
     crafting?: { stations: Record<string, Named & { emoji?: string; recipes?: Record<string, unknown> }> };
+    /** Optional: owner-made collections. */
+    collections?: { sets: Record<string, Named> };
   };
 };
 
@@ -50,6 +52,7 @@ const TARGETS = [
   ["gathering", "activities"],
   ["gathering", "conditions"],
   ["crafting", "stations"],
+  ["collections", "sets"],
 ] as const;
 
 /**

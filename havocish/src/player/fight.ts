@@ -505,6 +505,7 @@ export async function applyFightRewards(
     if (summary.outcome === "win") {
         stats.fightsWon        = (stats.fightsWon        ?? 0) + 1;
         stats.enemiesDefeated  = (stats.enemiesDefeated  ?? 0) + 1;
+        if (fight.enemy?.id && !stats.defeated?.includes(fight.enemy.id)) stats.defeated = [...(stats.defeated ?? []), fight.enemy.id];
     } else if (summary.outcome === "loss") {
         stats.fightsLost       = (stats.fightsLost       ?? 0) + 1;
     }

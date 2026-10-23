@@ -43,6 +43,25 @@ export interface LevelAction {
     quantity?: number; // for giveItem, default 1
 }
 
+/** One thing a collection counts: an item found, or an enemy defeated. */
+export interface CollectionEntry {
+    kind: "item" | "enemy";
+    id: string;
+}
+
+export interface CollectionConfig {
+    id: string;
+    name: string;
+    emoji: string;
+    description?: string;
+    entries: CollectionEntry[];
+    /**
+     * Rewards at a number of entries done, each paid once. Gold, items and
+     * Combat XP, plus roles to give; one at the full count is for completing it.
+     */
+    milestones?: { at: number; actions: LevelAction[] }[];
+}
+
 export interface StreakReward {
     streakCount: number;
     xpBonus: number;
@@ -252,6 +271,16 @@ export interface GuildConfig {
      * Rewards for getting a role, from any source: another leveling bot's level
      * roles, a booster role, a role a mod hands out. Paid once per member per role.
      */
+    /**
+     * Owner-made collections: groups of items to find and enemies to defeat,
+     * with rewards at milestones along the way (player/collections.ts). Unset or
+     * empty: /collection says there are none yet.
+     */
+    collections?: {
+        /** Where "@member completed …" is posted. Unset: where it happened. */
+        channelId?: string | null;
+        sets: Record<string, CollectionConfig>;
+    };
     roleRewards?: {
         /** Where "@member got the @Role reward" is posted. Unset: rewards arrive quietly. */
         channelId?: string | null;

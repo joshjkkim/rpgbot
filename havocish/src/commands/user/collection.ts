@@ -3,59 +3,84 @@ import { ActionRowBuilder, EmbedBuilder, MessageFlags, SlashCommandBuilder, Stri
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { collectionProgress, type CollectionSource } from "../../player/collection.js";
-import type { GuildConfig } from "../../types/guild.js";
+import { managerSetupRows } from "../../ui/dashboardLinks.js";
+import { collectionSets, entryDone, setProgress } from "../../player/collections.js";
+import type { CollectionConfig, GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
 
 export const data = new SlashCommandBuilder()
     .setName("collection")
-    .setDescription("Every item you've found, and what's still out there");
+    .setDescription("This server's collections: what you've found and beaten, and what's left");
 
-const KINDS: { kind: CollectionSource["kind"]; title: string }[] = [
-    { kind: "enemy", title: "⚔️ Enemies" },
-    { kind: "gathering", title: "🧭 Gathering" },
-    { kind: "crafting", title: "🔨 Crafting" },
-    { kind: "shop", title: "🛒 Shop" },
-];
-
-function bar(found: number, total: number, width = 12): string {
-    const filled = total ? Math.round((found / total) * width) : 0;
+function bar(done: number, total: number, width = 12): string {
+    const filled = total ? Math.round((done / total) * width) : 0;
     return "▰".repeat(filled) + "▱".repeat(width - filled);
 }
 
-/** The overview: a count for every source, grouped, and a picker to open one. */
-function overview(profile: DbUserGuildProfile, config: GuildConfig, ownerId: string, name: string) {
-    const p = collectionProgress(profile, config);
-    const embed = new EmbedBuilder()
-        .setTitle(`📖 ${name}'s collection`)
-        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
-        .setDescription(`\`${bar(p.found, p.total)}\` **${p.found} / ${p.total}** found`);
-    for (const { kind, title } of KINDS) {
-        const lines = p.sources.filter((s) => s.kind === kind).map((s) => `${s.found === s.itemIds.length ? "✅" : s.emoji} ${s.name} · ${s.found}/${s.itemIds.length}`);
-        if (lines.length) embed.addFields({ name: title, value: lines.join("\n").slice(0, 1024), inline: true });
-    }
-    if (p.total === 0) embed.setDescription("This server has no items to collect yet.");
-    const options = p.sources.slice(0, 25).map((s) => ({
-        label: s.name.slice(0, 100), value: s.id, description: `${s.found}/${s.itemIds.length} found`,
-        ...(/^\p{Extended_Pictographic}/u.test(s.emoji) && { emoji: s.emoji }),
-    }));
-    const components = options.length ? [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-        new StringSelectMenuBuilder().setCustomId(`collection:open:${ownerId}`).setPlaceholder("Look at a source…").addOptions(options),
-    )] : [];
-    return { embeds: [embed], components };
+/** The next milestone not yet reached, worded: "next reward at 6". */
+function nextMilestone(set: CollectionConfig, done: number, total: number): string {
+    const next = (set.milestones ?? []).map((m) => Math.min(Math.max(1, m.at), total)).filter((at) => at > done).sort((a, b) => a - b)[0];
+    return next ? ` · next reward at ${next}` : "";
 }
 
-/** One source: what's found, by name, and ??? for the rest. */
-function sourceView(profile: DbUserGuildProfile, config: GuildConfig, sourceId: string) {
-    const p = collectionProgress(profile, config);
-    const s = p.sources.find((x) => x.id === sourceId);
-    if (!s) return null;
+/** Every collection with its progress, and a picker to open one. */
+function overview(profile: DbUserGuildProfile, config: GuildConfig, name: string) {
+    const sets = collectionSets(config);
+    const embed = new EmbedBuilder()
+        .setTitle(`📖 ${name}'s collections`)
+        .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86");
+    const lines = sets.map((s) => {
+        const p = setProgress(s, profile, config);
+        return `${p.complete ? "✅" : s.emoji} **${s.name}**\n\`${bar(p.done, p.total)}\` ${p.done} / ${p.total}${p.complete ? " · complete" : nextMilestone(s, p.done, p.total)}`;
+    });
+    embed.setDescription(lines.join("\n\n").slice(0, 4000));
+    const options = sets.slice(0, 25).map((s) => {
+        const p = setProgress(s, profile, config);
+        return {
+            label: s.name.slice(0, 100), value: s.id, description: `${p.done}/${p.total}`,
+            ...(/^\p{Extended_Pictographic}/u.test(s.emoji) && { emoji: s.emoji }),
+        };
+    });
+    return {
+        embeds: [embed],
+        components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+            new StringSelectMenuBuilder().setCustomId("collection:open").setPlaceholder("Open a collection…").addOptions(options),
+        )],
+    };
+}
+
+/** One collection: each entry, done or ???, and its milestones. */
+function detail(set: CollectionConfig, profile: DbUserGuildProfile, config: GuildConfig) {
     const items = config.shop?.items ?? {};
-    const lines = s.itemIds.map((id) => p.has(id) ? `✅ ${items[id]?.emoji ?? "•"} ${items[id]?.name ?? id}` : "❔ ???");
+    const enemies = config.combat?.enemies ?? {};
+    const p = setProgress(set, profile, config);
+    const entries = (set.entries ?? []).flatMap((e) => {
+        const def = e.kind === "item" ? items[e.id] : enemies[e.id];
+        if (!def) return [];
+        return [entryDone(e, profile, config)
+            ? `✅ ${def.emoji ?? "•"} ${def.name}${e.kind === "enemy" ? " *(beaten)*" : ""}`
+            : `❔ ???${e.kind === "enemy" ? " *(an enemy)*" : ""}`];
+    });
+    const goldName = config.style.gold.name || "gold";
+    const milestones = (set.milestones ?? []).slice().sort((a, b) => a.at - b.at).map((m) => {
+        const at = Math.min(Math.max(1, m.at), p.total);
+        const rewards = m.actions.map((a) =>
+            a.type === "giveGold" ? `${a.amount ?? 0} ${goldName}`
+            : a.type === "giveCombatXp" ? `${a.amount ?? 0} Combat XP`
+            : a.type === "giveItem" ? `${items[a.itemId ?? ""]?.emoji ?? ""} ${items[a.itemId ?? ""]?.name ?? "an item"}`.trim()
+            : a.type === "assignRole" ? `<@&${a.roleId}>` : "").filter(Boolean);
+        return `${p.done >= at ? "✅" : "▫️"} **${at === p.total ? "Complete" : at}:** ${rewards.join(", ") || "—"}`;
+    });
     return new EmbedBuilder()
-        .setTitle(`${s.emoji} ${s.name}`)
+        .setTitle(`${set.emoji} ${set.name}`)
         .setColor(config.style.mainThemeColor as ColorResolvable ?? "#00AE86")
-        .setDescription([`\`${bar(s.found, s.itemIds.length)}\` **${s.found} / ${s.itemIds.length}**`, "", ...lines].join("\n").slice(0, 4000));
+        .setDescription([
+            ...(set.description ? [`*${set.description}*`, ""] : []),
+            `\`${bar(p.done, p.total)}\` **${p.done} / ${p.total}**`,
+            "",
+            ...entries,
+            ...(milestones.length ? ["", "**Rewards**", ...milestones] : []),
+        ].join("\n").slice(0, 4000));
 }
 
 async function load(discordUserId: string, discordGuildId: string) {
@@ -71,16 +96,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
     const { profile, config } = await load(interaction.user.id, interaction.guildId);
+    if (!collectionSets(config).length) {
+        await interaction.reply({
+            content: "This server has no collections yet.",
+            components: managerSetupRows(interaction, "collections", "Make collections on the dashboard"),
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
     // Public, so a near-complete collection can be shown off.
-    await interaction.reply(overview(profile, config, interaction.user.id, interaction.user.displayName));
+    await interaction.reply(overview(profile, config, interaction.user.displayName));
 }
 
-/** The source picker: opens one source privately, for whoever picked. */
+/** The picker: opens a collection privately, with the progress of whoever picked. */
 export async function handleCollectionSelect(interaction: StringSelectMenuInteraction): Promise<void> {
     if (!interaction.guildId) return;
     const { profile, config } = await load(interaction.user.id, interaction.guildId);
-    const view = sourceView(profile, config, interaction.values[0] ?? "");
-    await interaction.reply(view
-        ? { embeds: [view], flags: MessageFlags.Ephemeral }
-        : { content: "That's not here any more.", flags: MessageFlags.Ephemeral });
+    const set = config.collections?.sets?.[interaction.values[0] ?? ""];
+    await interaction.reply(set
+        ? { embeds: [detail(set, profile, config)], flags: MessageFlags.Ephemeral }
+        : { content: "That collection isn't here any more.", flags: MessageFlags.Ephemeral });
 }

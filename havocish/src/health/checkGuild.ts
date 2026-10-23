@@ -249,6 +249,18 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
+    // ── Collections ──
+    channel(config.collections?.channelId, "collection announcements", "collections", POST);
+    for (const set of Object.values(config.collections?.sets ?? {})) {
+        const gone = (set.entries ?? []).filter((e) => !(e.kind === "item" ? items[e.id] : config.combat?.enemies?.[e.id]));
+        if (gone.length) issues.push({ severity: "warning", message: `The collection ${set.name} lists ${gone.length} thing${gone.length === 1 ? "" : "s"} that were deleted; they don't count.`, page: "collections" });
+        if (!(set.entries ?? []).length) issues.push({ severity: "warning", message: `The collection ${set.name} is empty.`, page: "collections" });
+        for (const m of set.milestones ?? []) for (const a of m.actions ?? []) {
+            if (a.type === "giveItem") item(a.itemId, `The collection ${set.name}`, "collections");
+            if (a.type === "assignRole") role(a.roleId, `the collection ${set.name}`, "collections");
+        }
+    }
+
     // ── Crafting ──
     const taught = new Set(Object.values(items).flatMap((it) => Object.values(it.actions ?? {})
         .filter((a) => a?.type === "learnRecipe").map((a) => `${a.stationId}/${a.recipeId}`)));

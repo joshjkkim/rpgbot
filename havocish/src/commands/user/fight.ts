@@ -30,6 +30,7 @@ import { checkRequirements, memberFacts } from "../../player/requirements.js";
 import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
 import { tipOnce, type Tip } from "../../player/tips.js";
+import { checkCollections } from "../../player/collections.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
 
@@ -646,6 +647,9 @@ async function playRound(fight: ActiveFight, client: Client): Promise<{ member: 
         await editBoard(client, fight, { embeds: [buildPartyEndEmbed(fight, results, config, round.outcome, round.log)], components: [], attachments: [] });
     }
     await postResultLine(client, fight, resultLine(fight, round.outcome, results, config));
+    for (const { member } of results) {
+        await checkCollections({ client, config, discordUserId: member.userId, discordGuildId: fight.guildId, fallbackChannelId: fight.origin?.channelId ?? fight.channelId });
+    }
     for (const { member, summary } of results) {
         await announceRareFinds({
             client, config, discordUserId: member.userId, verb: "found",

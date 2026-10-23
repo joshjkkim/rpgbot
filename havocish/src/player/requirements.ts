@@ -1,3 +1,4 @@
+import { isComplete } from "./collections.js";
 import { GuildMember } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { Requirements } from "../types/requirements.js";
@@ -85,6 +86,10 @@ export function checkRequirements(
         const item = config.shop?.items?.[id];
         if (item && !found.has(id)) missing.push(`to have found ${item.emoji ? `${item.emoji} ` : ""}${item.name}`);
     }
+    for (const id of req.collections ?? []) {
+        const set = config.collections?.sets?.[id];
+        if (set && !isComplete(id, profile, config)) missing.push(`to complete ${set.emoji} ${set.name}`);
+    }
 
     return { ok: missing.length === 0, missing, message: missing.length ? `Needs ${joinAnd(missing)}.` : "" };
 }
@@ -105,6 +110,10 @@ export function describeRequirements(req: Requirements | undefined, config: Guil
     for (const id of req.found ?? []) {
         const item = config.shop?.items?.[id];
         if (item) out.push(`Found ${item.emoji ? `${item.emoji} ` : ""}${item.name}`);
+    }
+    for (const id of req.collections ?? []) {
+        const set = config.collections?.sets?.[id];
+        if (set) out.push(`Completed ${set.emoji} ${set.name}`);
     }
     return out;
 }
