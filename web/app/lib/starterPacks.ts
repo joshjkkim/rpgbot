@@ -29,7 +29,7 @@ export type StarterPack = {
     quests: { quests: Record<string, Named> };
     achievements: { achievements: Record<string, Named> };
     /** Optional: packs from before gathering existed have none. */
-    gathering?: { activities: Record<string, Named & { emoji?: string; skillName?: string; locations?: Record<string, unknown> }> };
+    gathering?: { activities: Record<string, Named & { emoji?: string; skillName?: string; locations?: Record<string, unknown> }>; conditions?: Record<string, Named> };
     /** Optional, like gathering. */
     crafting?: { stations: Record<string, Named & { emoji?: string; recipes?: Record<string, unknown> }> };
   };
@@ -48,6 +48,7 @@ const TARGETS = [
   ["quests", "quests"],
   ["achievements", "achievements"],
   ["gathering", "activities"],
+  ["gathering", "conditions"],
   ["crafting", "stations"],
 ] as const;
 
@@ -56,12 +57,55 @@ const TARGETS = [
  * an older one: [section, map, path in the entry]. They're filled in only
  * where the entry has nothing there, so an owner's own choice is never touched.
  */
-const FILLS = [
-  ["combat", "enemies", ["moves"]],
-  ["shop", "items", ["effects", "moves"]],
-] as const;
-
 type Entry = Record<string, unknown>;
+
+/**
+ * Fields a newer pack version added to entries a server may already have from
+ * an older one: per [section, map], the paths inside each entry to fill. They're
+ * filled only where the server's entry has nothing there, so an owner's own
+ * choice is never touched. New recipes and locations inside existing stations
+ * and activities come in the same way.
+ */
+const FILLS: Array<{ section: string; map: string; paths: (entry: Entry) => string[][] }> = [
+  { section: "combat", map: "enemies", paths: () => [["moves"]] },
+  { section: "shop", map: "items", paths: () => [["effects", "moves"], ["dailyLimit"]] },
+  {
+    section: "gathering", map: "activities",
+    paths: (a) => Object.keys((a.locations ?? {}) as Entry).flatMap((lid) => [["locations", lid], ["locations", lid, "traits"], ["locations", lid, "conditions"]]),
+  },
+  { section: "crafting", map: "stations", paths: (st) => Object.keys((st.recipes ?? {}) as Entry).map((rid) => ["recipes", rid]) },
+];
+
+/**
+ * Lists a newer pack added to: [section, map, list, key, and where the key
+ * points]. An entry is added only when what it points at is new to the server,
+ * so a place gets a brand-new enemy but never one the owner took out.
+ */
+const LIST_ADDS: Array<[string, string, string, string, [string, string]]> = [
+  ["combat", "places", "enemies", "enemyId", ["combat", "enemies"]],
+];
+
+/**
+ * Each list entry the pack would add. `before` is the config as it was, which
+ * decides what's new; the lists changed are `target`'s.
+ */
+function listAddsFor(before: GuildConfigJson | null, pack: StarterPack, target: GuildConfigJson | null = before) {
+  const out: Array<{ list: unknown[]; value: unknown }> = [];
+  for (const [section, map, field, key, [refSection, refMap]] of LIST_ADDS) {
+    const have = (target?.[section]?.[map] ?? {}) as Record<string, Entry>;
+    const known = (before?.[refSection]?.[refMap] ?? {}) as Record<string, unknown>;
+    for (const [id, packEntry] of Object.entries(packMap(pack, section, map))) {
+      const mine = have[id]?.[field];
+      if (!Array.isArray(mine) || !(before?.[section]?.[map] as Record<string, unknown> | undefined)?.[id]) continue;
+      for (const value of ((packEntry as Entry)[field] ?? []) as Entry[]) {
+        const ref = value[key] as string;
+        if (!known[ref] && !mine.some((x) => (x as Entry)?.[key] === ref)) out.push({ list: mine, value });
+      }
+    }
+  }
+  return out;
+}
+
 const getPath = (e: Entry, path: readonly string[]) => path.reduce<unknown>((o, k) => (o as Entry | undefined)?.[k], e);
 function setPath(e: Entry, path: readonly string[], value: unknown) {
   const parent = path.slice(0, -1).reduce<Entry>((o, k) => ((o[k] ??= {}) as Entry), e);
@@ -71,11 +115,16 @@ function setPath(e: Entry, path: readonly string[], value: unknown) {
 /** Each fill the pack would make on this config: the server's entry, the path, and the pack's value. */
 function fillsFor(config: GuildConfigJson | null, pack: StarterPack) {
   const out: Array<{ entry: Entry; path: readonly string[]; value: unknown }> = [];
-  for (const [section, map, path] of FILLS) {
+  for (const { section, map, paths } of FILLS) {
     const have = (config?.[section]?.[map] ?? {}) as Record<string, Entry>;
     for (const [id, packEntry] of Object.entries(packMap(pack, section, map))) {
-      const value = getPath(packEntry as Entry, path);
-      if (have[id] && value !== undefined && getPath(have[id], path) === undefined) out.push({ entry: have[id], path, value });
+      if (!have[id]) continue;
+      for (const path of paths(packEntry as Entry)) {
+        const value = getPath(packEntry as Entry, path);
+        // A whole new location or recipe already carries its own traits, so those aren't counted twice.
+        const parentMissing = path.length > 2 && getPath(have[id], path.slice(0, 2)) === undefined;
+        if (value !== undefined && !parentMissing && getPath(have[id], path) === undefined) out.push({ entry: have[id], path, value });
+      }
     }
   }
   return out;
@@ -108,7 +157,7 @@ export function missingCount(config: GuildConfigJson | null, pack: StarterPack) 
     (n, [section, map]) =>
       n + Object.keys(packMap(pack, section, map)).filter((id) => !hasEntry(config, section, map, id)).length,
     0
-  ) + fillsFor(config, pack).length;
+  ) + fillsFor(config, pack).length + listAddsFor(config, pack).length;
 }
 
 /**
@@ -129,6 +178,10 @@ export function applyPack(config: GuildConfigJson | null, pack: StarterPack) {
   }
   for (const fill of fillsFor(next, pack)) {
     setPath(fill.entry, fill.path, fill.value);
+    added++;
+  }
+  for (const add of listAddsFor(config, pack, next)) {
+    add.list.push(structuredClone(add.value));
     added++;
   }
 
