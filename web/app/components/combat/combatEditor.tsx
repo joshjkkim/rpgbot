@@ -49,6 +49,8 @@ export interface EnemyConfig {
   party?: boolean;
   /** Battle scene picture in place of its emoji. */
   image?: string;
+  /** How often it turns up outside places (default 1). */
+  spawnWeight?: number;
 }
 
 export interface CombatDeathPenalty {
@@ -354,6 +356,14 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
                   />
                   <NumberField label="Combat XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
                   <NumberField label="Gold reward" value={enemy.goldReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, goldReward: v })} />
+                  <NumberField
+                    label="How often it turns up"
+                    value={enemy.spawnWeight ?? 1}
+                    min={0}
+                    step={0.1}
+                    onChange={(v) => upsertEnemy({ ...enemy, spawnWeight: v === 1 ? undefined : v })}
+                    hint="Against the others' 1, where no place decides: 0.2 makes a rare elite. Places use their own weights."
+                  />
                 </FieldGrid>
               </Field>
 

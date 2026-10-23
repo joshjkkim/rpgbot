@@ -612,7 +612,23 @@ function scheduleRound(fight: ActiveFight, client: Client, config: GuildConfig) 
  * everyone's rewards. Members who fled this round are paid off on the spot.
  */
 async function playRound(fight: ActiveFight, client: Client): Promise<{ member: FightMember; summary: FightEndSummary }[]> {
+    if (fight.playing) return [];
+    fight.playing = true;
+    try {
+        return await playRoundNow(fight, client);
+    } finally {
+        fight.playing = false;
+    }
+}
+
+async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ member: FightMember; summary: FightEndSummary }[]> {
     const { config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
+    // Potions are used up now, as the round plays. One that's gone since it was picked becomes an attack.
+    for (const m of fight.members) {
+        if (m.out || !m.pick?.startsWith("potion:")) continue;
+        const cached = await getOrCreateProfile({ userId: m.dbUserId, guildId: fight.dbGuildId });
+        if (!takePotion(cached.profile, cached.pendingChanges, m.pick.slice("potion:".length), config)) delete m.pick;
+    }
     const round = resolveRound(fight, config);
     if (round.alreadyResolved) return [];
 
@@ -738,11 +754,10 @@ export async function handleFightButton(interaction: ButtonInteraction): Promise
     }
 
     await interaction.deferUpdate();
-    if (actionId.startsWith("potion:")) {
-        if (!takePotion(profile, cached.pendingChanges, actionId.slice("potion:".length), config)) {
-            await interaction.followUp({ content: "You don't have any of those left.", flags: MessageFlags.Ephemeral });
-            return;
-        }
+    // Only checked here: the potion is used up when the round plays, so changing your pick doesn't waste one.
+    if (actionId.startsWith("potion:") && (profile.inventory?.[actionId.slice("potion:".length)]?.quantity ?? 0) < 1) {
+        await interaction.followUp({ content: "You don't have any of those left.", flags: MessageFlags.Ephemeral });
+        return;
     }
     const pick = submitPick(fight, member.userId, actionId, config);
     if (pick.refused) {

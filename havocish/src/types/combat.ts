@@ -43,6 +43,8 @@ export interface EnemyConfig {
     moves?: EnemyMove[];
     /** false: fought alone only, no joining. */
     party?: boolean;
+    /** How often it turns up outside places, against others' 1 (default 1): 0.2 for a rare elite. Places use their own weights. */
+    spawnWeight?: number;
     /** An image URL for the battle scene, in place of its emoji. */
     image?: string;
 }
@@ -222,6 +224,8 @@ export interface ActiveFight {
     /** In a party, when this round plays whether or not everyone has picked. */
     roundEndsAt?: number;
     roundTimer?: NodeJS.Timeout;
+    /** Set while a round is being played, so the timer and a last pick can't both play it. */
+    playing?: boolean;
 
     /**
      * Set once the fight has ended and its rewards have been handed out.

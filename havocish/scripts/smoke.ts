@@ -25,7 +25,7 @@ import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trad
 import { updateInventory, sellItemFromInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
-import { startFight, applyAction, applyFightRewards, cantJoin, easyXpShare, everyonePicked, joinFight, resolveRound, submitPick, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
+import { startFight, applyAction, applyFightRewards, cantJoin, easyXpShare, pickRandomEnemy, everyonePicked, joinFight, resolveRound, submitPick, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
 import { buildActionRows } from "../src/commands/user/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
@@ -1881,6 +1881,9 @@ async function main() {
         check("3 over: 70%", easyXpShare(wolf, 18, cfg), 0.7);
         check("never below the floor", easyXpShare(wolf, 60, cfg), 0.25);
         check("no top to its range: always full", easyXpShare({ minLevel: 1, maxLevel: null } as EnemyConfig, 99, cfg), 1);
+        // Outside places, a rare elite turns up rarely: weight 0.2 against 1.
+        cfg.combat.enemies = { rat: { id: "rat", minLevel: 1, maxLevel: null } as EnemyConfig, elite: { id: "elite", minLevel: 1, maxLevel: null, spawnWeight: 0.2 } as EnemyConfig };
+        check("weights decide who turns up", [pickRandomEnemy(cfg, 5, undefined, () => 0.8)?.id, pickRandomEnemy(cfg, 5, undefined, () => 0.9)?.id], ["rat", "elite"]);
         cfg.combat.easyXp = { enabled: false };
         check("owners can turn it off", easyXpShare(wolf, 60, cfg), 1);
     });

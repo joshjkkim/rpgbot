@@ -554,10 +554,16 @@ export function getEligibleEnemies(config: GuildConfig, playerLevel: number): En
 /**
  * Picks a random eligible enemy. Returns null if none are configured/eligible.
  */
-export function pickRandomEnemy(config: GuildConfig, playerLevel: number, allowed: (e: EnemyConfig) => boolean = () => true): EnemyConfig | null {
-    const eligible = getEligibleEnemies(config, playerLevel).filter(allowed);
-    if (eligible.length === 0) return null;
-    return eligible[Math.floor(Math.random() * eligible.length)] ?? null;
+export function pickRandomEnemy(config: GuildConfig, playerLevel: number, allowed: (e: EnemyConfig) => boolean = () => true, roll = Math.random): EnemyConfig | null {
+    // Weighted, so a rare elite turns up rarely here too.
+    const eligible = getEligibleEnemies(config, playerLevel).filter((e) => allowed(e) && (e.spawnWeight ?? 1) > 0);
+    const total = eligible.reduce((sum, e) => sum + (e.spawnWeight ?? 1), 0);
+    let r = roll() * total;
+    for (const e of eligible) {
+        r -= e.spawnWeight ?? 1;
+        if (r < 0) return e;
+    }
+    return eligible.at(-1) ?? null;
 }
 
 // ─── Stale fight cleanup ───────────────────────────────────────────────────────
