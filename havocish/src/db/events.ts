@@ -233,3 +233,27 @@ export async function flushLogBuffer(): Promise<void> {
         isFlushing = false;
     }
 }
+/** How long the activity log keeps rows. The dashboard shows the latest 50, so this is generous. */
+export const EVENT_RETENTION_DAYS = 90;
+const PRUNE_BATCH = 5000;
+
+/**
+ * Deletes log rows older than the retention window, in batches so no single
+ * statement holds the table long. With logging on, every XP message adds a
+ * row, so without this the table only ever grows. Returns how many went.
+ * ponytail: filters on "timestamp" without its own index, so each batch scans;
+ * add an index on events("timestamp") if the table gets into the millions.
+ */
+export async function pruneOldEvents(days = EVENT_RETENTION_DAYS): Promise<number> {
+    let total = 0;
+    for (;;) {
+        const res = await query(
+            `DELETE FROM events WHERE id IN (
+                SELECT id FROM events WHERE "timestamp" < NOW() - make_interval(days => $1) LIMIT $2
+            )`,
+            [days, PRUNE_BATCH],
+        );
+        total += res.rowCount ?? 0;
+        if ((res.rowCount ?? 0) < PRUNE_BATCH) return total;
+    }
+}

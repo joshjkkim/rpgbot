@@ -56,6 +56,7 @@ import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/pl
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
+import { pruneOldEvents } from "../src/db/events.js";
 import { renderBattleScene } from "../src/ui/canvas/battleScene.js";
 import { loadCachedImage } from "../src/ui/canvas/drawEmojis.js";
 import { imgCache } from "../src/cache/caches.js";
@@ -1770,6 +1771,21 @@ async function main() {
         for (let i = 0; i < 305; i++) await loadCachedImage(`${png}#${i}`);
         check("the image cache stays at 300", imgCache.size, 300);
         check("dropping the least recently used first", [imgCache.has(`${png}#0`), imgCache.has(`${png}#304`)], [false, true]);
+    });
+
+    await test("the activity log keeps 90 days", async () => {
+        const ids = await reset();
+        const add = (daysAgo: number) => query(
+            `INSERT INTO events (guild_id, discord_guild_id, user_id, category, event_type, "timestamp")
+             VALUES ($1, $2, $3, 'xp', 'smoke-prune', NOW() - make_interval(days => $4))`,
+            [ids.guildId, TEST_DISCORD_GUILD, ids.userId, daysAgo],
+        );
+        await add(120);
+        await add(91);
+        await add(10);
+        await pruneOldEvents();
+        const left = await query(`SELECT count(*)::int AS n FROM events WHERE event_type = 'smoke-prune'`);
+        check("older rows go, recent ones stay", left.rows[0]?.n, 1);
     });
 
     await test("tips show once per member, and Quiet stops pings", async () => {
