@@ -588,7 +588,7 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
             <NumberField label="Most players" value={local.party?.maxPlayers ?? 3} min={2} max={5} onChange={(v) => updateRoot({ party: { ...local.party, maxPlayers: v } })} />
             <NumberField
               label="Turn timer (seconds)"
-              value={local.party?.turnSeconds ?? 20}
+              value={local.party?.turnSeconds ?? 30}
               min={10}
               max={120}
               step={5}
