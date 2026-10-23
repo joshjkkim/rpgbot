@@ -43,6 +43,8 @@ export interface UserStats {
     combat?: { xp: number };
     /** Role ids whose role reward this member has had, so re-adding a role pays nothing. */
     roleRewards?: string[];
+    /** What they bought today, for items with a daily limit (db/shop.ts). */
+    boughtToday?: { day: string; items: Record<string, number> };
     /** Every item this member has ever had: their collection (see cache/profileService.ts). */
     found?: string[];
     /** One-time tips this member has had (player/tips.ts). */

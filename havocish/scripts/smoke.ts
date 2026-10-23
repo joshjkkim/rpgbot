@@ -56,6 +56,7 @@ import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/pl
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
+import { leftToday } from "../src/db/shop.js";
 import { collectionProgress } from "../src/player/collection.js";
 import { pruneOldEvents } from "../src/db/events.js";
 import { renderBattleScene } from "../src/ui/canvas/battleScene.js";
@@ -1804,6 +1805,26 @@ async function main() {
         const progress = collectionProgress(later, cfg);
         check("the log counts each item once, from every source", [progress.found, progress.total], [1, 3]);
         check("by source", progress.sources.map((s) => [s.id, s.found, s.itemIds.length]), [["enemy:wyrm", 1, 1], ["craft:smith", 0, 1], ["shop", 0, 1]]);
+    });
+
+    await test("daily stock: a member can buy so many a day, and it restocks", async () => {
+        const ids = await reset();
+        const cfg = structuredClone(ids.config);
+        cfg.shop.items = { draught: { id: "draught", name: "Draught", categoryId: "", price: 5, dailyLimit: 2 } } as any;
+        await setGuildConfig(TEST_DISCORD_GUILD, cfg);
+        guildConfigCache.clear();
+        await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+        await flushDirtyProfiles(true);
+        await seed({ discordId: TEST_DISCORD_USER, userId: ids.userId } as any, ids.guildId, {}, 100);
+        const buy = (quantity: number) => purchaseItem({ userId: ids.userId, guildId: ids.guildId, discordGuildId: TEST_DISCORD_GUILD, itemId: "draught", quantity });
+        check("buying under the limit works", (await buy(2)).success, true);
+        const third = await buy(1);
+        check("past it is refused", [third.success, !third.success && third.message.startsWith("You've bought today's 2 Draught")], [false, true]);
+        const row = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("bought items count as found", row.user_stats?.found?.includes("draught"), true);
+        const yesterday = { boughtToday: { day: "2000-01-01", items: { draught: 2 } } } as any;
+        check("a new day restocks", leftToday({ id: "draught", dailyLimit: 2 }, yesterday), 2);
+        check("no limit, no cap", leftToday({ id: "x" }, row.user_stats), Infinity);
     });
 
     await test("the activity log keeps 90 days", async () => {

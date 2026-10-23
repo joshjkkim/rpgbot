@@ -93,6 +93,8 @@ export interface shopItemConfig {
   tradeable?: boolean;
   actions?: Record<number, shopItemAction>;
   effects?: ItemEffects;
+  /** Most one member can buy per day (UTC). */
+  dailyLimit?: number;
   /** A gathering tool (mirrored from havocish/src/types/economy.ts). */
   tool?: { activityId: string; tier: number; bonus: number };
   requirements?: Requirements;

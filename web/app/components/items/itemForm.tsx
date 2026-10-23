@@ -213,6 +213,13 @@ export default function ItemForm({
                 onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
                 hint="0 means no cap."
               />
+              <NumberField
+                label="Per member per day"
+                value={item.dailyLimit ?? 0}
+                min={0}
+                onChange={(v) => upsertItem({ ...item, dailyLimit: v > 0 ? v : undefined })}
+                hint="How many one member can buy a day; restocks at midnight UTC. 0 means no limit. Keeps the shop a backup, so crafting stays worth it."
+              />
             </FieldGrid>
           </Field>
 

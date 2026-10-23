@@ -88,6 +88,9 @@ export interface shopItemConfig {
      */
     tool?: { activityId: string; tier: number; bonus: number };
 
+    /** How many one member can buy per day (UTC); restocks at midnight. Unset: no limit. */
+    dailyLimit?: number;
+
     /** Who can buy, use or equip it. `minLevel` and `requiresRoleIds` are read into this too. */
     requirements?: Requirements;
 }
