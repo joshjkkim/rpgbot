@@ -2,7 +2,7 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.15 · October 22, 2026
 
 Combat v2: fights you read and answer, party play, places, collections and losses that sting. Fights are now a read of what's coming, not a click on Attack: enemies show their next move, you pick from moves you've earned, and friends can jump in. Around it, the rest of the game got reasons to play: places with their own enemies, gathering that changes with the weather, collections to complete, crafted gear that beats bought, and losses that sting.
 
