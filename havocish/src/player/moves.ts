@@ -489,13 +489,11 @@ export function playTurn(fight: ActiveFight, choices: Record<string, PlayerChoic
             },
         },
     ];
-    // Stable sort: members keep join order among themselves; the enemy moves ahead only when it beats them.
-    const order = [...actors].sort((a, b) => {
-        if (a.foe === b.foe) return 0;
-        const [enemy, member] = a.foe ? [a, b] : [b, a];
-        const enemyFirst = !fight.foe.stunned && actsFirst(enemy.side, enemy.move, member.side, member.move, statuses);
-        return (a.foe ? 1 : -1) * (enemyFirst ? -1 : 1);
-    });
+    // Members the enemy doesn't beat go first in join order, then the enemy, then the rest.
+    // (A sort comparator can't do this: with mixed speeds it isn't a consistent order.)
+    const [enemyActor, ...memberActors] = [actors[actors.length - 1]!, ...actors.slice(0, -1)];
+    const beaten = (m: Actor) => !fight.foe.stunned && actsFirst(enemyActor.side, enemyActor.move, m.side, m.move, statuses);
+    const order = [...memberActors.filter((m) => !beaten(m)), enemyActor, ...memberActors.filter(beaten)];
     for (const actor of order) {
         if (foe.hp <= 0 || players.every((p) => p.side.hp <= 0)) break;
         if (actor.side.hp <= 0) continue;

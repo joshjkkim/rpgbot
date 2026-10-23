@@ -120,7 +120,7 @@ export async function placeFight(opts: {
 // ─── Embed / UI helpers ───────────────────────────────────────────────────────
 
 function buildHpBar(current: number, max: number, length = 10): string {
-    const filled = Math.max(0, Math.round((current / max) * length));
+    const filled = Math.max(0, Math.min(length, Math.round((current / Math.max(1, max)) * length)));
     return "[" + "█".repeat(filled) + "░".repeat(length - filled) + "]";
 }
 
@@ -379,7 +379,10 @@ export function buildActionRows(
             new ButtonBuilder().setCustomId("fight:wait").setLabel(label.slice(0, 80)).setEmoji(st.stunned ? "💫" : "⏳").setStyle(ButtonStyle.Primary),
         )];
     }
-    const moves = member.loadout.map((id, i) => {
+    // One button per move: a move deleted mid-fight falls back to Attack, and two
+    // buttons with one id would make Discord refuse the whole message.
+    const ids = [...new Set(member.loadout.map((id) => moveById(config, id).id))];
+    const moves = ids.map((id, i) => {
         const move = moveById(config, id);
         const wait = st.cooldowns[move.id] ?? 0;
         const spent = !usable(st, move);
@@ -609,7 +612,9 @@ function scheduleRound(fight: ActiveFight, client: Client, config: GuildConfig) 
         // as a walk-away after the usual timeout) instead of playing itself.
         if (!fight.members.some((m) => !m.out && m.pick)) {
             delete fight.roundEndsAt;
-            void boardView(fight, config, ["⏸️ Nobody picked a move: the fight waits for you."], null).then((view) => editBoard(client, fight, view));
+            void boardView(fight, config, ["⏸️ Nobody picked a move: the fight waits for you."], null)
+                .then((view) => editBoard(client, fight, view))
+                .catch((err) => console.error("Failed to show a waiting fight:", err));
             return;
         }
         void playRound(fight, client).catch((err) => console.error("Failed to play a fight round:", err));
@@ -635,7 +640,8 @@ async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ membe
     const { config } = await getOrCreateGuildConfig({ discordGuildId: fight.guildId });
     // Potions are used up now, as the round plays. One that's gone since it was picked becomes an attack.
     for (const m of fight.members) {
-        if (m.out || !m.pick?.startsWith("potion:")) continue;
+        // Stunned or winding up, they won't drink it this round.
+        if (m.out || !m.pick?.startsWith("potion:") || m.state.stunned || m.state.charging) continue;
         const cached = await getOrCreateProfile({ userId: m.dbUserId, guildId: fight.dbGuildId });
         if (!takePotion(cached.profile, cached.pendingChanges, m.pick.slice("potion:".length), config)) delete m.pick;
     }

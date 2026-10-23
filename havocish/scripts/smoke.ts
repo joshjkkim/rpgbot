@@ -1709,6 +1709,15 @@ async function main() {
         check("standing members get it all, each with their own drop roll", [got.u, got.c], [["win", 100, 40, 1], ["win", 100, 40, 1]]);
         check("a knocked-out member gets half, no drops", got.b, ["win", 50, 20, 0]);
 
+        // Mixed speeds: the faster member, then the enemy, then the slower one.
+        const mixed = handFight({ hp: 1000, atk: 10, spd: 5, moves: [{ moveId: "attack" }] });
+        mixed.members[0]!.stats.spd = 1;
+        joinFight(mixed, { ...ally("b"), stats: { ...ally("b").stats, spd: 9 } }, cfg);
+        mixed.enemyIntent = "attack";
+        const who = playTurn(mixed, { u: { kind: "move", moveId: "attack" }, b: { kind: "move", moveId: "attack" } }, cfg).log
+            .map((l) => (l.includes("**B**") ? "b" : l.includes("**U**") ? "u" : "foe"));
+        check("the enemy acts between a faster and a slower member", who, ["b", "foe", "u"]);
+
         // Fleeing in a party: you leave and are settled at once; the fight goes on.
         const run = handFight({ hp: 100, atk: 1, spd: 0, moves: [{ moveId: "attack" }] });
         joinFight(run, ally("b"), cfg);

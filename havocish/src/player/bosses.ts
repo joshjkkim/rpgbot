@@ -8,7 +8,7 @@ import { commitProfileChanges, getOrCreateProfile } from "../cache/profileServic
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { calculateStats, resolveCurrentHp, storeHp } from "./combat.js";
-import { applyFightRewards, resolveHit } from "./fight.js";
+import { applyFightRewards, getActiveFight, resolveHit } from "./fight.js";
 import { checkCollections } from "./collections.js";
 import { readyToFight } from "../commands/user/fight.js";
 import { enemyMoveList, moveById } from "./moves.js";
@@ -152,6 +152,8 @@ async function wave(boss: LiveBoss) {
     let guarded = 0;
     if (power > 0) {
         for (const id of targets) {
+            // Someone in a /fight has their HP held by it, which would overwrite this.
+            if (getActiveFight(id, boss.discordGuildId)) continue;
             const { user } = await getOrCreateDbUser({ discordUserId: id });
             const { guild } = await getOrCreateGuildConfig({ discordGuildId: boss.discordGuildId });
             const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
@@ -180,6 +182,8 @@ async function wave(boss: LiveBoss) {
         heal > 0 ? "it healed" : "",
     ].filter(Boolean).join(" · ");
 
+    // It may have fallen while this wave was landing: its victory message stays.
+    if (boss.ended) return;
     boss.guards.clear();
     boss.intent = nextIntent(boss, config);
     scheduleWave(boss, config);
