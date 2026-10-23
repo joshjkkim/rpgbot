@@ -15,10 +15,11 @@ import {
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
+import { ConditionsEditor, LocationConditionsField, TraitsField, type GameType, type GatheringCondition, type LocationTrait } from "./twistsEditor";
 
 // ─── Types (mirrored from havocish/src/types/gathering.ts) ──────────────────────
 
-export type GameType = "grid" | "timing" | "find";
+export type { GameType } from "./twistsEditor";
 
 export interface GatheringLoot {
   itemId: string;
@@ -38,6 +39,9 @@ export interface GatheringLocation {
   skillXp: number;
   loot: GatheringLoot[];
   difficulty?: Record<string, number>;
+  traits?: LocationTrait[];
+  conditions?: { conditionId: string; weight?: number }[];
+  calmWeight?: number;
 }
 
 export interface GatheringActivity {
@@ -59,6 +63,7 @@ export interface GatheringConfig {
   channelIds?: string[];
   skill: { maxLevel: number; curveType: string; curveParams: Record<string, number> };
   activities: Record<string, GatheringActivity>;
+  conditions?: Record<string, GatheringCondition>;
 }
 
 export const DEFAULT_GATHERING: GatheringConfig = {
@@ -173,12 +178,15 @@ function LocationEditor({
   game,
   shopItems,
   skills,
+  conditions,
   onChange,
 }: {
   location: GatheringLocation;
   game: GameType;
   shopItems: ShopItems;
   skills: SkillOption[];
+  /** The server's daily conditions, for picking which this location can get. */
+  conditions: Record<string, GatheringCondition>;
   onChange: (next: GatheringLocation) => void;
 }) {
   const loot = location.loot ?? [];
@@ -215,8 +223,16 @@ function LocationEditor({
         />
       </FieldGrid>
 
+      <TraitsField value={location.traits} onChange={(traits) => onChange({ ...location, traits })} game={game} />
+      <LocationConditionsField
+        value={location.conditions}
+        calmWeight={location.calmWeight}
+        conditions={conditions}
+        onChange={(next) => onChange({ ...location, conditions: next.conditions, calmWeight: next.calmWeight })}
+      />
+
       <RequirementsField
-                  items={shopItems}
+        items={shopItems}
         value={location.requirements}
         onChange={(next) => onChange({ ...location, requirements: next })}
         skills={skills}
@@ -375,6 +391,7 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
                 game={game}
                 shopItems={shopItems}
                 skills={skills}
+                conditions={local.conditions ?? {}}
                 onChange={(next) => upsertActivity({ ...a, locations: { ...(a.locations ?? {}), [lid]: next } })}
               />
             )}
@@ -425,6 +442,14 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
           }}
           renderItem={renderActivity}
         />
+      </Section>
+
+      <Section
+        title="Daily conditions"
+        description="Weather for your locations, or whatever fits your theme: each day a location can roll one of these, changing how it plays and what it pays. Make them here, then pick which each location can get."
+        defaultOpen={false}
+      >
+        <ConditionsEditor value={local.conditions} onChange={(conditions) => commit({ ...local, conditions })} />
       </Section>
 
       <Section title="General" description="Whether members can gather at all." defaultOpen={!local.enabled}>

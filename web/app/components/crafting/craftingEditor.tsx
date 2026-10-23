@@ -124,7 +124,7 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
       </Field>
 
       <RequirementsField
-                  items={shopItems}
+        items={shopItems}
         value={recipe.requirements}
         onChange={(next) => onChange({ ...recipe, requirements: next })}
         skills={skills}
