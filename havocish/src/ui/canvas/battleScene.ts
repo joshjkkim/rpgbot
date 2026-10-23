@@ -18,11 +18,14 @@ const H = 250;
 const SCALE = 2;
 const FLOOR = 186;
 
-export type SceneMember = { name: string; avatarUrl?: string; hp: number; maxHp: number; down?: boolean; targeted?: boolean; hit?: number };
+/** Something on a fighter: a status's emoji and turns left, or 💫 / ⏳ with no count. */
+export type SceneEffect = { emoji: string; turns?: number };
+
+export type SceneMember = { name: string; avatarUrl?: string; hp: number; maxHp: number; down?: boolean; targeted?: boolean; hit?: number; effects?: SceneEffect[] };
 
 export type SceneArgs = {
     place?: { emoji?: string; colour?: string; image?: string } | null;
-    enemy: { name: string; emoji: string; image?: string; hp: number; maxHp: number; hit?: number };
+    enemy: { name: string; emoji: string; image?: string; hp: number; maxHp: number; hit?: number; effects?: SceneEffect[] };
     members: SceneMember[];
 };
 
@@ -91,6 +94,29 @@ async function portrait(ctx: any, url: string | undefined, cx: number, cy: numbe
     ctx.stroke();
 }
 
+/** A row of effect icons from (x, y), each with its turns left; `align` right draws leftward from x. */
+async function effectIcons(ctx: any, effects: SceneEffect[] | undefined, x: number, y: number, size: number, align: "left" | "right" | "center" = "left") {
+    const list = (effects ?? []).slice(0, 5);
+    if (!list.length) return;
+    const step = size + 12;
+    const width = list.length * step - 4;
+    let cx = align === "left" ? x : align === "right" ? x - width : x - width / 2;
+    for (const e of list) {
+        const img = await image(emojiImageUrl(e.emoji));
+        ctx.fillStyle = "rgba(10,8,6,0.75)";
+        roundRectPath(ctx, cx - 2, y - 2, step - 2, size + 4, 3);
+        ctx.fill();
+        if (img) ctx.drawImage(img, cx, y, size, size);
+        if (e.turns) {
+            ctx.font = `${Math.max(9, Math.round(size * 0.6))}px InterBold`;
+            ctx.textAlign = "left";
+            ctx.fillStyle = PARCHMENT;
+            ctx.fillText(String(e.turns), cx + size + 1, y + size - 1);
+        }
+        cx += step;
+    }
+}
+
 function damage(ctx: any, n: number | undefined, x: number, y: number) {
     if (!n || n <= 0) return;
     ctx.font = "26px InterBold";
@@ -151,6 +177,7 @@ export async function renderBattleScene(args: SceneArgs): Promise<Buffer> {
         ctx.imageSmoothingEnabled = true;
     }
     plate(ctx, 30, 26, 220, args.enemy);
+    await effectIcons(ctx, args.enemy.effects, 32, 80, 16);
     damage(ctx, args.enemy.hit, 556, 76);
 
     // The players. Alone: a big portrait and a plate, bottom right. In a party: a row
@@ -162,6 +189,7 @@ export async function renderBattleScene(args: SceneArgs): Promise<Buffer> {
         ctx.beginPath(); ctx.ellipse(150, 226, 50, 10, 0, 0, Math.PI * 2); ctx.fill();
         await portrait(ctx, m.avatarUrl, 150, 180, 40, !!m.down);
         plate(ctx, 410, 186, 200, m);
+        await effectIcons(ctx, m.effects, 400, 200, 16, "right");
         damage(ctx, m.hit, 205, 140);
     } else {
         const gap = Math.min(110, 360 / members.length);
@@ -177,6 +205,7 @@ export async function renderBattleScene(args: SceneArgs): Promise<Buffer> {
             ctx.fillStyle = m.down ? PARCHMENT_DIM : PARCHMENT;
             ctx.fillText(fit(ctx, m.name, gap - 10), cx, 212);
             hpBar(ctx, cx - 34, 218, 68, m.hp, m.maxHp);
+            await effectIcons(ctx, m.effects, cx, 112, 12, "center");
             damage(ctx, m.hit, cx + 44, 162);
         }
     }

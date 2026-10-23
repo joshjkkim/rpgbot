@@ -206,11 +206,19 @@ async function sceneFile(fight: ActiveFight, config: GuildConfig): Promise<Attac
 async function drawScene(fight: ActiveFight, config: GuildConfig): Promise<AttachmentBuilder | null> {
     const place = fight.placeId ? config.combat.places?.[fight.placeId] : undefined;
     const hits = fight.lastHits;
+    const statuses = statusesOf(config);
+    // What's on a fighter, as icons: statuses with turns left, then a stun or a wind-up.
+    const effects = (st: FighterState) => [
+        ...Object.entries(st.statuses).map(([id, turns]) => ({ emoji: statuses[id]?.emoji ?? "✨", turns })),
+        ...(st.stunned ? [{ emoji: "💫" }] : []),
+        ...(st.charging ? [{ emoji: "⏳" }] : []),
+    ];
     const render = renderBattleScene({
         place: place ? { emoji: place.emoji, ...(place.colour && { colour: place.colour }), ...(place.image && { image: place.image }) } : null,
         enemy: {
             name: fight.enemy.name, emoji: fight.enemy.emoji, ...(fight.enemy.image && { image: fight.enemy.image }),
             hp: fight.enemyCurrentHp, maxHp: fight.enemyMaxHp, ...(hits?.enemy && { hit: hits.enemy }),
+            effects: effects(fight.foe),
         },
         members: fight.members.filter((m) => m.out !== "fled").map((m) => ({
             name: m.name, hp: m.hp, maxHp: m.stats.maxHp,
@@ -218,6 +226,7 @@ async function drawScene(fight: ActiveFight, config: GuildConfig): Promise<Attac
             ...(m.out === "down" && { down: true }),
             ...(fight.members.length > 1 && m.userId === fight.enemyTarget && { targeted: true }),
             ...(hits?.members[m.userId] && { hit: hits.members[m.userId] }),
+            effects: effects(m.state),
         })),
     });
     const timeout = new Promise<null>((resolve) => setTimeout(resolve, SCENE_TIMEOUT_MS, null).unref());
