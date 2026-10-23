@@ -7,7 +7,7 @@ import { canPost } from "./canPost.js";
 import { commitProfileChanges, getOrCreateProfile } from "../cache/profileService.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
-import { calculateStats, resolveCurrentHp, storeHp } from "./combat.js";
+import { calculateStats, respawnHp, resolveCurrentHp, storeHp } from "./combat.js";
 import { applyFightRewards, getActiveFight, resolveHit } from "./fight.js";
 import { checkCollections } from "./collections.js";
 import { readyToFight } from "../commands/user/fight.js";
@@ -60,6 +60,8 @@ type LiveBoss = {
     guarding: number;
     /** What the last wave did, for the message. */
     lastWave: string | null;
+    /** Each fighter's latest button press, to tell them privately what a wave did to them. */
+    touch: Map<string, ButtonInteraction>;
 };
 
 /** Discord guild id -> its live boss. */
@@ -145,7 +147,8 @@ async function wave(boss: LiveBoss) {
     const power = move.effects.reduce((sum, e) => sum + (e.type === "hit" && e.target !== "self" ? e.power * (e.hits ?? 1) : 0), 0);
     const guard = move.effects.reduce((sum, e) => sum + (e.type === "guard" ? e.percent : 0), 0);
     const heal = move.effects.reduce((sum, e) => sum + (e.type === "heal" && (e.target ?? "self") === "self" ? e.percent : 0), 0);
-    const recent = Date.now() - 2 * (config.combat.bosses?.strikeSeconds ?? DEFAULTS.strikeSeconds) * 1000;
+    // Only those who attacked since the last wave (or braced for this one) are in its path.
+    const recent = boss.strikeAt - (config.combat.bosses?.strikeSeconds ?? DEFAULTS.strikeSeconds) * 1000;
     const targets = [...boss.fighters.keys()].filter((id) => (boss.lastAttackAt.get(id) ?? 0) >= recent || boss.guards.has(id));
 
     let hitCount = 0;
@@ -163,14 +166,22 @@ async function wave(boss: LiveBoss) {
             const braced = boss.guards.has(id);
             const raw = resolveHit(boss.enemy.atk * power, stats.def, boss.enemy.critChance, boss.enemy.critMultiplier).damage;
             const taken = Math.max(1, Math.round(raw * (braced ? 1 - GUARD_BLOCK : 1)));
-            // No respawn: a boss can be hit again at once, so 0 HP waits for regen.
-            const userStats = { ...(profile.user_stats ?? {}), ...storeHp(Math.max(0, hp - taken)) };
+            // Knocked out, it's the same as losing a fight: back at the respawn share.
+            const down = hp - taken <= 0;
+            const after = down ? respawnHp(stats, config) : hp - taken;
+            const userStats = { ...(profile.user_stats ?? {}), ...storeHp(after) };
             profile.user_stats = userStats;
             commitProfileChanges({ userId: profile.user_id, guildId: profile.guild_id, profile, changes: { user_stats: userStats }, baseline: { xp: profile.xp, gold: profile.gold } });
             const fighter = boss.fighters.get(id);
             if (fighter) fighter.taken += taken;
             hitCount++;
             if (braced) guarded++;
+            const told = [
+                `${move.emoji} **${move.name}** hit you for **${taken}**${braced ? ` (🛡️ guarded: ${Math.round(GUARD_BLOCK * 100)}% blocked)` : ""}.`,
+                down ? `💀 Knocked out. You're back at ❤️ ${after} / ${stats.maxHp}.` : `❤️ ${after} / ${stats.maxHp}`,
+                "-# Attack again to stay in; stop and the next one skips you.",
+            ].join("\n");
+            void boss.touch.get(id)?.followUp({ content: told, flags: MessageFlags.Ephemeral }).catch(() => null);
         }
     }
     boss.guarding = Math.min(90, guard) / 100;
@@ -224,7 +235,7 @@ export async function restoreBosses(client: Client): Promise<number> {
             ended: false,
             escapeTimer: undefined as unknown as NodeJS.Timeout,
             redrawTimer: null,
-            intent: "", strikeAt: 0, waveTimer: null, guards: new Set(), guarding: 0, lastWave: null,
+            intent: "", strikeAt: 0, waveTimer: null, guards: new Set(), guarding: 0, lastWave: null, touch: new Map(),
         }, (await getOrCreateGuildConfig({ discordGuildId: row.guild_id })).config);
         restored++;
     }
@@ -267,6 +278,7 @@ export async function spawnBoss(channel: SendableChannels, discordGuildId: strin
         redrawTimer: null,
         waveTimer: null,
         guards: new Set(),
+        touch: new Map(),
     };
     arm(boss, config);
     await saveBoss(boss);
@@ -337,8 +349,9 @@ export async function handleBossButton(interaction: ButtonInteraction) {
     // Bracing for the coming wave; it uses no attack.
     if (interaction.customId === "boss:guard") {
         boss.guards.add(interaction.user.id);
+        boss.touch.set(interaction.user.id, interaction);
         if (!boss.fighters.has(interaction.user.id)) boss.fighters.set(interaction.user.id, { username: interaction.user.username, damage: 0, taken: 0, hits: 0 });
-        await interaction.reply({ content: `🛡️ You brace for **${moveById((await getOrCreateGuildConfig({ discordGuildId: interaction.guildId })).config, boss.intent).name}**. It lands <t:${Math.ceil(boss.strikeAt / 1000)}:R>.`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `🛡️ You brace for **${moveById((await getOrCreateGuildConfig({ discordGuildId: interaction.guildId })).config, boss.intent).name}**. It lands <t:${Math.ceil(boss.strikeAt / 1000)}:R> and you'll take ${Math.round(GUARD_BLOCK * 100)}% less.`, flags: MessageFlags.Ephemeral });
         return;
     }
 
@@ -367,6 +380,7 @@ export async function handleBossButton(interaction: ButtonInteraction) {
         return;
     }
     boss.lastAttackAt.set(interaction.user.id, Date.now());
+    boss.touch.set(interaction.user.id, interaction);
 
     const { profile, config, stats, currentHp } = ready;
     const { enemy } = boss;
@@ -388,7 +402,7 @@ export async function handleBossButton(interaction: ButtonInteraction) {
             `⚔️ You hit **${enemy.name}** for **${dealt}**${hit.isCrit ? " (critical!)" : ""}${boss.guarding ? " (it's guarding)" : ""}.`,
             killed
                 ? "💥 **That was the killing blow!**"
-                : `-# Its next move, ${moveById(config, boss.intent).name}, lands <t:${Math.ceil(boss.strikeAt / 1000)}:R>. You're at ❤️ ${currentHp} / ${stats.maxHp}.`,
+                : `-# You're at ❤️ ${currentHp} / ${stats.maxHp}. Its ${moveById(config, boss.intent).name} hits you <t:${Math.ceil(boss.strikeAt / 1000)}:R> (🛡️ Guard takes ${Math.round(GUARD_BLOCK * 100)}% off).`,
         ].join("\n"),
         flags: MessageFlags.Ephemeral,
     });
