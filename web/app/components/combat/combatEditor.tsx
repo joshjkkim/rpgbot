@@ -366,6 +366,7 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
 
               {!enemy.boss && (
                 <RequirementsField
+                  items={shopItems}
                   value={enemy.requirements}
                   onChange={(next) => upsertEnemy({ ...enemy, requirements: next })}
                   skills={skills}

@@ -79,6 +79,12 @@ export function checkRequirements(
         missing.push(`${req.memberDays} day${req.memberDays === 1 ? "" : "s"} in the server`);
     }
     if (req.booster && !facts.boosting) missing.push("boosting the server");
+    const found = new Set(profile.user_stats?.found ?? []);
+    for (const id of req.found ?? []) {
+        // A deleted item can't be found any more; like other dangling references it fails open.
+        const item = config.shop?.items?.[id];
+        if (item && !found.has(id)) missing.push(`to have found ${item.emoji ? `${item.emoji} ` : ""}${item.name}`);
+    }
 
     return { ok: missing.length === 0, missing, message: missing.length ? `Needs ${joinAnd(missing)}.` : "" };
 }
@@ -96,5 +102,9 @@ export function describeRequirements(req: Requirements | undefined, config: Guil
     if (req.roles?.length) out.push(req.roles.length === 1 ? `<@&${req.roles[0]}>` : `one of ${req.roles.map((r) => `<@&${r}>`).join(", ")}`);
     if (req.memberDays) out.push(`${req.memberDays} days in the server`);
     if (req.booster) out.push("Server booster");
+    for (const id of req.found ?? []) {
+        const item = config.shop?.items?.[id];
+        if (item) out.push(`Found ${item.emoji ? `${item.emoji} ` : ""}${item.name}`);
+    }
     return out;
 }

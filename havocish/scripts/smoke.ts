@@ -17,7 +17,7 @@ import "./loadTestEnv.js";
 import { upsertUser } from "../src/db/users.js";
 import { upsertGuild, setGuildConfig, mergeConfig, getGuildByDiscordId, markGuildRemoved } from "../src/db/guilds.js";
 import { addMessageXp, grantDailyXp, getUserGuildProfile, upsertUserGuildProfile } from "../src/db/userGuildProfiles.js";
-import { getOrCreateProfile, flushProfileCacheToDb, profileEvents } from "../src/cache/profileService.js";
+import { commitProfileChanges, getOrCreateProfile, flushProfileCacheToDb, profileEvents } from "../src/cache/profileService.js";
 import { calculateTotalXpForLevel, dailyTemplate } from "../src/leveling/levels.js";
 import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache } from "../src/cache/caches.js";
 import { query, closePool } from "../src/db/index.js";
@@ -56,6 +56,7 @@ import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/pl
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
+import { collectionProgress } from "../src/player/collection.js";
 import { pruneOldEvents } from "../src/db/events.js";
 import { renderBattleScene } from "../src/ui/canvas/battleScene.js";
 import { loadCachedImage } from "../src/ui/canvas/drawEmojis.js";
@@ -1773,8 +1774,41 @@ async function main() {
         check("dropping the least recently used first", [imgCache.has(`${png}#0`), imgCache.has(`${png}#304`)], [false, true]);
     });
 
+    await test("the collection: anything you get is found for good, and can unlock things", async () => {
+        const ids = await reset();
+        const cfg = structuredClone(ids.config);
+        cfg.shop.items = {
+            ore: { id: "ore", name: "Ore", emoji: "🪨", categoryId: "", price: 5 },
+            shard: { id: "shard", name: "Starmetal Shard", emoji: "🌠", categoryId: "", price: 0, hidden: true },
+            blade: { id: "blade", name: "Star Blade", categoryId: "", price: 0, hidden: true },
+        } as any;
+        cfg.combat.enemies = { wyrm: { id: "wyrm", name: "Wyrm", emoji: "🐉", drops: [{ itemId: "shard", chance: 0.1, quantity: 1 }] } as any };
+        cfg.crafting.stations = { smith: { id: "smith", name: "Smithing", emoji: "⚒️", recipes: { blade: { id: "blade", output: { itemId: "blade", quantity: 1 } } } } as any };
+
+        const { profile } = await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+        const give = (inventory: Record<string, unknown>) => {
+            profile.inventory = inventory as any;
+            commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile, changes: { inventory: profile.inventory }, baseline: { xp: profile.xp, gold: profile.gold } });
+        };
+        const facts = { roleIds: [], joinedAt: null, boosting: false };
+        const needsShard = { found: ["shard"] };
+        check("a recipe can need a found item", checkRequirements(needsShard, { profile, config: cfg, facts }).message, "Needs to have found 🌠 Starmetal Shard.");
+
+        give({ shard: { id: "shard", name: "Starmetal Shard", quantity: 1 } });
+        const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("getting it marks it found", after.user_stats?.found, ["shard"]);
+        give({});
+        const later = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("selling it later keeps it found", [later.user_stats?.found, checkRequirements(needsShard, { profile: later, config: cfg, facts }).ok], [["shard"], true]);
+
+        const progress = collectionProgress(later, cfg);
+        check("the log counts each item once, from every source", [progress.found, progress.total], [1, 3]);
+        check("by source", progress.sources.map((s) => [s.id, s.found, s.itemIds.length]), [["enemy:wyrm", 1, 1], ["craft:smith", 0, 1], ["shop", 0, 1]]);
+    });
+
     await test("the activity log keeps 90 days", async () => {
         const ids = await reset();
+        await query(`DELETE FROM events WHERE event_type = 'smoke-prune'`);
         const add = (daysAgo: number) => query(
             `INSERT INTO events (guild_id, discord_guild_id, user_id, category, event_type, "timestamp")
              VALUES ($1, $2, $3, 'xp', 'smoke-prune', NOW() - make_interval(days => $4))`,

@@ -1,5 +1,11 @@
 [
   {
+    "name": "collection",
+    "description": "Every item you've found, and what's still out there",
+    "managersOnly": false,
+    "options": []
+  },
+  {
     "name": "craft",
     "description": "Craft at one of this server's stations",
     "managersOnly": false,

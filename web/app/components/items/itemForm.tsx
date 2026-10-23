@@ -218,6 +218,7 @@ export default function ItemForm({
 
           {/* The item's old level and role fields are shown here and moved into requirements on the first edit. */}
           <RequirementsField
+            items={allItems}
             value={{
               ...item.requirements,
               ...(item.minLevel ? { combatLevel: Math.max(item.minLevel, item.requirements?.combatLevel ?? 0) } : {}),

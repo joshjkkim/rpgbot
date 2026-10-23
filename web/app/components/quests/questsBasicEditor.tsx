@@ -289,6 +289,7 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies,
                 </FieldGrid>
 
                 <RequirementsField
+                  items={shopItems}
                   value={quest.requirements}
                   onChange={(next) => upsertQuest({ ...quest, requirements: next })}
                   skills={skills}

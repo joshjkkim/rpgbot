@@ -216,6 +216,7 @@ function LocationEditor({
       </FieldGrid>
 
       <RequirementsField
+                  items={shopItems}
         value={location.requirements}
         onChange={(next) => onChange({ ...location, requirements: next })}
         skills={skills}
