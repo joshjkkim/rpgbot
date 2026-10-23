@@ -22,6 +22,10 @@ export interface UserStats {
     timeSpentInVC: number; // in seconds
 
     currentHp: number;
+    /** When currentHp was set; regen counts from here (player/combat.ts). */
+    hpAt?: string;
+    /** Until when a loss leaves them Wounded (player/combat.ts woundedUntil). */
+    woundedUntil?: string;
     enemiesDefeated: number;
     fightsWon: number;
     fightsLost: number;
@@ -41,6 +45,23 @@ export interface UserStats {
     combat?: { xp: number };
     /** Role ids whose role reward this member has had, so re-adding a role pays nothing. */
     roleRewards?: string[];
+    /** What they bought today, for items with a daily limit (db/shop.ts). */
+    boughtToday?: { day: string; items: Record<string, number> };
+    /** Counters for achievements: party fights won, gathering runs, crafts, collections finished. */
+    partyWins?: number;
+    gatherRuns?: number;
+    craftsMade?: number;
+    collectionsCompleted?: number;
+    /** Every enemy this member has beaten at least once (player/fight.ts), for collections. */
+    defeated?: string[];
+    /** Collection milestones already paid, as "setId:at". */
+    collectionMilestones?: string[];
+    /** Every item this member has ever had: their collection (see cache/profileService.ts). */
+    found?: string[];
+    /** One-time tips this member has had (player/tips.ts). */
+    tips?: string[];
+    /** Fight moves: the ones learned from scrolls, and the up-to-four picked in /moves. */
+    moves?: { learned?: string[]; loadout?: string[] };
 }
 export interface item {
     id: string;
@@ -86,6 +107,8 @@ export interface DbUserGuildProfile extends QueryResultRow {
         goldPrivate?: boolean;
         xpPrivate?: boolean;
         dmOnTradeInbound?: boolean;
+        /** Quiet: announcements about them still post, but never ping them. */
+        quiet?: boolean;
         profilePrivate?: boolean;
     }
 }

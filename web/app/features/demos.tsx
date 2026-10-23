@@ -14,22 +14,29 @@ type Item = { name: string; emoji?: string; rarity?: string };
 const ITEMS = pack.content.shop.items as Record<string, Item>;
 
 
-/** A fight in progress, as /fight shows it. */
+/**
+ * A fight in progress, as /fight shows it: the enemy's next move as the
+ * headline, the scene the bot draws (a real render), and the player's moves.
+ */
 export function FightMock() {
-  const enemy = (pack.content.combat.enemies as Record<string, { name: string; emoji: string; hp: number }>)["grey-wolf"]!;
-  const bar = (n: number) => "▰".repeat(n) + "▱".repeat(10 - n);
+  const wolf = (pack.content.combat.enemies as Record<string, { name: string; emoji: string }>)["dire-wolf"]!;
   return (
     <DiscordMessage>
-      <p className="font-semibold text-white">⚔️ {enemy.emoji} {enemy.name} · Round 3</p>
-      <p className="mt-1">Your <b>Iron Sword</b> hits for <b>14</b>. The {enemy.name} bites back for <b>6</b>.</p>
-      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-        <div><p className="text-white">You</p><p className="font-mono">{bar(7)}</p><Sub>❤️ 84 / 120</Sub></div>
-        <div><p className="text-white">{enemy.name}</p><p className="font-mono">{bar(3)}</p><Sub>❤️ 19 / {enemy.hp}</Sub></div>
-      </div>
+      <p className="font-semibold text-white">⚔️ Wren vs {wolf.emoji} {wolf.name}</p>
+      <p className="mt-1 font-semibold" style={{ color: "#f0c0b0" }}>❗ {wolf.name} bares its fangs and lunges…</p>
+      <p className="mt-1 text-sm">🩸 <b>Wren</b> used <b>Rend</b>: <b>24</b> damage · 🩸 {wolf.name} Bleeding</p>
+      {/* eslint-disable-next-line @next/next/no-img-element -- the bot's real render */}
+      <img src="/showcase/battle.png" width={1280} height={500} alt={`A battle scene against the ${wolf.name}`} className="mt-2 h-auto w-full rounded-[3px]" />
+      <Sub>Round 3 · ⚡ {wolf.name} is faster: it acts first</Sub>
       <div className="mt-3 flex flex-wrap gap-2">
-        <DButton colour="red">⚔️ Attack</DButton>
-        <DButton>🧪 Minor Healing Draught ×2</DButton>
-        <DButton>🏃 Flee</DButton>
+        <DButton colour="blurple">⚔️ Attack</DButton>
+        <DButton disabled>🩸 Rend (2)</DButton>
+        <DButton>🗡️ Execute</DButton>
+        <DButton>🛡️ Guard</DButton>
+        <DButton colour="red">🏃 Flee</DButton>
+      </div>
+      <div className="mt-2 flex gap-2">
+        <DButton colour="green">🙋 Join (1/3)</DButton>
       </div>
     </DiscordMessage>
   );

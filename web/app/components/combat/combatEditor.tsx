@@ -8,11 +8,14 @@ import {
   FieldGrid,
   NumberField,
   Section,
+  SelectField,
   TextField,
   Toggle,
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
+import { ConditionFields } from "./movesEditor";
+import { DEFAULT_ENEMY_MOVES, DEFAULT_MOVES, DEFAULT_STATUSES, type EnemyMove, type MoveConfig, type PlaceConfig, type StatusConfig } from "./moveText";
 
 // ─── Types (mirrored from havocish) ─────────────────────────────────────────────
 
@@ -40,6 +43,14 @@ export interface EnemyConfig {
   /** Fought by the whole server at once; never by /fight or encounters. */
   boss?: boolean;
   requirements?: Requirements;
+  /** Picked by weight each turn; empty means the default moves. */
+  moves?: EnemyMove[];
+  /** false: fought alone only. */
+  party?: boolean;
+  /** Battle scene picture in place of its emoji. */
+  image?: string;
+  /** How often it turns up outside places (default 1). */
+  spawnWeight?: number;
 }
 
 export interface CombatDeathPenalty {
@@ -72,6 +83,7 @@ export interface CombatBossConfig {
   cooldownSeconds?: number;
   durationSeconds?: number;
   attackCooldownSeconds?: number;
+  strikeSeconds?: number;
   channelIds?: string[];
 }
 
@@ -94,6 +106,17 @@ export interface CombatConfig {
   /** Stats added per chat level, on top of Combat level. */
   chatBonus?: { hp?: number; atk?: number; def?: number; spd?: number; crit?: number };
   enemies?: Record<string, EnemyConfig>;
+  moves?: Record<string, MoveConfig>;
+  statuses?: Record<string, StatusConfig>;
+  places?: Record<string, PlaceConfig>;
+  /** Enemies below your level range pay less XP (mirrored from havocish/src/player/fight.ts easyXpShare). */
+  easyXp?: { enabled?: boolean; perLevel?: number; floor?: number };
+  /** Others joining a fight (mirrored from havocish/src/player/fight.ts partyRules). */
+  party?: { enabled?: boolean; maxPlayers?: number; turnSeconds?: number; hpPerExtraPlayer?: number; levelRange?: boolean };
+  allowEnemyChoice?: boolean;
+  fightsIn?: "thread" | "channel";
+  /** HP refill time and where a loss leaves you (mirrored from havocish/src/player/combat.ts). */
+  hp?: { regenMinutes?: number; respawnPercent?: number; woundedMinutes?: number; woundedStatusId?: string };
   pveDeathPenalty?: CombatDeathPenalty;
   pvpDeathPenalty?: CombatDeathPenalty;
   pvp?: CombatPvpConfig;
@@ -108,6 +131,8 @@ type Props = {
   onChange: (next: CombatConfig) => void;
   /** Skills a requirement can name. */
   skills: SkillOption[];
+  /** Which tab of the Combat page this is. */
+  part: "enemies" | "players" | "events";
 };
 
 /** Each player stat is a base plus a per-level increment. */
@@ -140,7 +165,7 @@ const CHAT_BONUS: Array<{ key: keyof NonNullable<CombatConfig["chatBonus"]>; lab
   { key: "crit", label: "Crit chance %", step: 0.1 },
 ];
 
-export default function CombatEditor({ value, onChange, shopItems, skills }: Props) {
+export default function CombatEditor({ value, onChange, shopItems, skills, part }: Props) {
   const defaults: CombatConfig = useMemo(() => ({ enabled: false, enemies: {} }), []);
 
   const [local, setLocal] = useState<CombatConfig>(value ?? defaults);
@@ -191,7 +216,8 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
   );
 
   function penaltyFields(which: "pveDeathPenalty" | "pvpDeathPenalty") {
-    const penalty = local[which] ?? {};
+    // Mirrors PVE_DEATH_DEFAULTS in havocish/src/player/fight.ts: losing to an enemy costs 5%, at least 10.
+    const penalty = { ...(which === "pveDeathPenalty" && { goldPercent: 5, goldFlat: 10 }), ...local[which] };
     return (
       <FieldGrid>
         <NumberField
@@ -223,6 +249,8 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
 
   return (
     <div className="space-y-4">
+      {part === "enemies" && (
+        <>
       <Section title="Enemies" description="What members can fight, and what beating them pays.">
         <ContentBrowser<EnemyConfig>
           entries={enemyEntries}
@@ -269,7 +297,20 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
             <div className="space-y-4">
               <FieldGrid>
                 <TextField label="Name" value={enemy.name} onChange={(v) => upsertEnemy({ ...enemy, name: v })} />
-                <TextField label="Emoji" value={enemy.emoji ?? ""} onChange={(v) => upsertEnemy({ ...enemy, emoji: v })} />
+                <TextField
+                  label="Emoji"
+                  value={enemy.emoji ?? ""}
+                  onChange={(v) => upsertEnemy({ ...enemy, emoji: v })}
+                  hint="Also its picture in battle scenes. Your server's own custom emoji work too."
+                />
+                <TextField
+                  wide
+                  label="Scene image (optional)"
+                  value={enemy.image ?? ""}
+                  onChange={(v) => upsertEnemy({ ...enemy, image: v.trim() || undefined })}
+                  placeholder="https://…/goblin-king.png"
+                  hint="A picture link to draw instead of the emoji. A transparent PNG looks best."
+                />
               </FieldGrid>
               <Toggle
                 label="World boss"
@@ -317,17 +358,42 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
                   />
                   <NumberField label="Combat XP reward" value={enemy.xpReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, xpReward: v })} />
                   <NumberField label="Gold reward" value={enemy.goldReward} min={0} onChange={(v) => upsertEnemy({ ...enemy, goldReward: v })} />
+                  <NumberField
+                    label="How often it turns up"
+                    value={enemy.spawnWeight ?? 1}
+                    min={0}
+                    step={0.1}
+                    onChange={(v) => upsertEnemy({ ...enemy, spawnWeight: v === 1 ? undefined : v })}
+                    hint="Against the others' 1, where no place decides: 0.2 makes a rare elite. Places use their own weights."
+                  />
                 </FieldGrid>
               </Field>
 
+              {!enemy.boss && local.party?.enabled !== false && (
+                <Toggle
+                  label="Can be fought in a party"
+                  checked={enemy.party !== false}
+                  onChange={(v) => upsertEnemy({ ...enemy, party: v ? undefined : false })}
+                  hint={enemy.party !== false ? "Others can click Join and help." : "Solo only: nobody can join a fight with it."}
+                />
+              )}
+
               {!enemy.boss && (
                 <RequirementsField
+                  items={shopItems}
                   value={enemy.requirements}
                   onChange={(next) => upsertEnemy({ ...enemy, requirements: next })}
                   skills={skills}
                   hint="Who can fight it, on top of its level range. Members who don't qualify never meet it in /fight or encounters."
                 />
               )}
+
+              <EnemyMovesField
+                value={enemy.moves}
+                onChange={(next) => upsertEnemy({ ...enemy, moves: next })}
+                moves={local.moves ?? DEFAULT_MOVES}
+                statuses={local.statuses ?? DEFAULT_STATUSES}
+              />
 
               <Field label="Drops">
                 <div className="space-y-3">
@@ -410,6 +476,11 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
         />
       </Section>
 
+        </>
+      )}
+
+      {part === "players" && (
+        <>
       <Section title="General" description="Whether members can fight at all." defaultOpen={!local.enabled}>
         <Toggle
           label="Enable combat"
@@ -471,6 +542,46 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
       </Section>
 
       <Section
+        title="Health"
+        description="HP carries over between fights and comes back on its own. Food and potions heal faster, so fighting makes gathering and cooking worth it."
+      >
+        <FieldGrid>
+          <NumberField
+            label="Full refill (minutes)"
+            value={local.hp?.regenMinutes ?? 120}
+            min={0}
+            step={10}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, regenMinutes: v } })}
+            hint={(local.hp?.regenMinutes ?? 120) > 0 ? "From 0 to full HP. 120 means a member who rests two hours is back to full." : "0 turns regen off: only food, potions and /daily heal."}
+          />
+          <NumberField
+            label="HP after losing (%)"
+            value={local.hp?.respawnPercent ?? 25}
+            min={0}
+            max={100}
+            step={5}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, respawnPercent: v } })}
+            hint="Where a lost fight, duel or world boss knockout leaves you, so a loss means a break, not being stuck."
+          />
+          <NumberField
+            label="Wounded after losing (minutes)"
+            value={local.hp?.woundedMinutes ?? 10}
+            min={0}
+            step={5}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, woundedMinutes: v } })}
+            hint={(local.hp?.woundedMinutes ?? 10) > 0 ? "The status below stays on them for this long, in and out of fights: a reason to gather or craft before fighting again." : "0 turns it off."}
+          />
+          <SelectField
+            label="Wounded status"
+            value={local.hp?.woundedStatusId ?? "wounded"}
+            options={Object.values(local.statuses ?? DEFAULT_STATUSES).filter((s) => s.stats).map((s) => ({ value: s.id, label: `${s.emoji} ${s.name}` }))}
+            onChange={(v) => updateRoot({ hp: { ...local.hp, woundedStatusId: v } })}
+            hint="Its stat changes apply while wounded. Edit it, or make your own, under Statuses."
+          />
+        </FieldGrid>
+      </Section>
+
+      <Section
         title="Chat level bonus"
         description="Chatting makes members a little stronger: each chat level adds these on top of their Combat stats. Keep them well below the per-Combat-level values so fighting stays the main way up. Set them all to 0 to turn it off."
       >
@@ -488,10 +599,92 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
         </FieldGrid>
       </Section>
 
+      <Section
+        title="Easy enemies"
+        description="Beating enemies far below you pays less Combat XP, so moving on to tougher places is worth it. Gold and drops stay the same."
+        defaultOpen={false}
+      >
+        <Toggle
+          label="Lower XP from enemies below your level"
+          checked={local.easyXp?.enabled !== false}
+          onChange={(v) => updateRoot({ easyXp: { ...local.easyXp, enabled: v } })}
+        />
+        {local.easyXp?.enabled !== false && (
+          <div className="mt-4">
+            <FieldGrid>
+              <NumberField
+                label="Less per level over (%)"
+                value={local.easyXp?.perLevel ?? 10}
+                min={1}
+                max={100}
+                onChange={(v) => updateRoot({ easyXp: { ...local.easyXp, perLevel: v } })}
+                hint="For each Combat level above the top of the enemy's range."
+              />
+              <NumberField
+                label="Never below (%)"
+                value={local.easyXp?.floor ?? 25}
+                min={0}
+                max={100}
+                step={5}
+                onChange={(v) => updateRoot({ easyXp: { ...local.easyXp, floor: v } })}
+                hint={`With these, an enemy 5 levels below you pays ${Math.max(local.easyXp?.floor ?? 25, 100 - 5 * (local.easyXp?.perLevel ?? 10))}% XP.`}
+              />
+            </FieldGrid>
+          </div>
+        )}
+      </Section>
+
       <Section advanced title="Death penalties" description="What a member loses on defeat." defaultOpen={false}>
         <Field label="Against enemies (PvE)">{penaltyFields("pveDeathPenalty")}</Field>
         <div className="mt-5">
           <Field label="Against other members (PvP)">{penaltyFields("pvpDeathPenalty")}</Field>
+        </div>
+      </Section>
+
+        </>
+      )}
+
+      {part === "events" && (
+        <>
+      <Section title="Parties" description="Others joining a fight: a Join button on every fight with room, and each player picks their move privately.">
+        <Toggle
+          label="Let others join fights"
+          checked={local.party?.enabled !== false}
+          onChange={(v) => updateRoot({ party: { ...local.party, enabled: v } })}
+          hint="The enemy aims at one player each turn and says who, so the party can guard and cover for each other."
+        />
+        <div className="mt-3">
+          <Toggle
+            label="Joiners must be in the enemy's level range"
+            checked={local.party?.levelRange !== false}
+            onChange={(v) => updateRoot({ party: { ...local.party, levelRange: v } })}
+            hint={local.party?.levelRange !== false
+              ? "A Combat 40 can't carry a Combat 5 through its fights. The enemy's requirements always apply."
+              : "Off: anyone can join any fight, whatever their level. Handy for testing, or for servers that like carrying friends."}
+          />
+        </div>
+        <div className="mt-4">
+          <FieldGrid>
+            <NumberField label="Most players" value={local.party?.maxPlayers ?? 3} min={2} max={5} onChange={(v) => updateRoot({ party: { ...local.party, maxPlayers: v } })} />
+            <NumberField
+              label="Turn timer (seconds)"
+              value={local.party?.turnSeconds ?? 30}
+              min={10}
+              max={120}
+              step={5}
+              onChange={(v) => updateRoot({ party: { ...local.party, turnSeconds: v } })}
+              hint="The round plays then even if someone hasn't picked; they attack."
+            />
+            <NumberField
+              label="Enemy HP per extra player (%)"
+              value={local.party?.hpPerExtraPlayer ?? 100}
+              min={0}
+              max={300}
+              step={10}
+              onChange={(v) => updateRoot({ party: { ...local.party, hpPerExtraPlayer: v } })}
+              hint="100 means three players face three times the HP, so each earns about what they would alone. Everyone standing gets the full reward and their own drops; anyone knocked out gets half."
+            />
+          </FieldGrid>
         </div>
       </Section>
 
@@ -642,6 +835,13 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
               onChange={(v) => updateBosses({ attackCooldownSeconds: v })}
               hint="How often one member can hit it, so the whole server has to pitch in."
             />
+            <NumberField
+              label="Its moves come every (seconds)"
+              value={local.bosses?.strikeSeconds ?? 25}
+              min={10}
+              onChange={(v) => updateBosses({ strikeSeconds: v })}
+              hint="The boss shows its next move, then it lands on everyone fighting. Guarding takes far less. Its moves are set on its enemy page, like any enemy's."
+            />
             <ChannelsField
               wide
               label="Channels"
@@ -654,7 +854,62 @@ export default function CombatEditor({ value, onChange, shopItems, skills }: Pro
           </FieldGrid>
         </div>
       </Section>
-
+        </>
+      )}
     </div>
+  );
+}
+
+/** What an enemy does in a fight: moves picked by weight, some only when a condition holds. */
+function EnemyMovesField({ value, onChange, moves, statuses }: {
+  value: EnemyMove[] | undefined;
+  onChange: (next: EnemyMove[] | undefined) => void;
+  moves: Record<string, MoveConfig>;
+  statuses: Record<string, StatusConfig>;
+}) {
+  const list = value ?? [];
+  const options = Object.values(moves).map((m) => ({ value: m.id, label: `${m.emoji} ${m.name}` }));
+  const total = list.reduce((sum, m) => sum + Math.max(0, m.weight ?? 1), 0);
+  const set = (next: EnemyMove[]) => onChange(next.length ? next : undefined);
+  return (
+    <Field
+      label="Moves"
+      hint={list.length
+        ? "Each turn it picks one by weight, among those off cooldown whose condition holds, and players see it coming."
+        : `None picked, so it uses the defaults: ${DEFAULT_ENEMY_MOVES.map((m) => moves[m.moveId]?.name ?? DEFAULT_MOVES[m.moveId]?.name).join(", ")}.`}
+    >
+      <div className="space-y-3">
+        {list.map((m, i) => {
+          const patch = (p: Partial<EnemyMove>) => set(list.map((x, j) => (j === i ? { ...x, ...p } : x)));
+          const share = total > 0 ? Math.round((Math.max(0, m.weight ?? 1) / total) * 100) : 0;
+          return (
+            <div key={i} className="flex items-end gap-3 rounded-md border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="flex-1">
+                <FieldGrid>
+                  <SelectField label="Move" value={m.moveId} onChange={(v) => patch({ moveId: v })} options={options} />
+                  <NumberField label="Weight" value={m.weight ?? 1} min={0} onChange={(v) => patch({ weight: v })} hint={`About ${share}% of turns, when it can use it.`} />
+                  <ConditionFields value={m.when} onChange={(when) => patch({ when })} statuses={statuses} />
+                </FieldGrid>
+              </div>
+              <button
+                type="button"
+                aria-label="Remove move"
+                onClick={() => set(list.filter((_, j) => j !== i))}
+                className="mb-2 text-[var(--muted)] transition-colors hover:text-red-400"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => set([...(list.length ? list : DEFAULT_ENEMY_MOVES.filter((m) => moves[m.moveId])), ...(list.length ? [{ moveId: options[0]?.value ?? "attack", weight: 1 }] : [])])}
+          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+        >
+          <Plus size={14} /> {list.length ? "Add move" : "Customise moves"}
+        </button>
+      </div>
+    </Field>
   );
 }

@@ -5,6 +5,7 @@ import type { PendingProfileChanges } from "../types/cache.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import { addToBag, rollLoot, skillLevel } from "./gathering.js";
 import { checkRequirements, type MemberFacts } from "./requirements.js";
+import { runQuestPipeline } from "./quests.js";
 
 /**
  * Crafting's rules: which recipes a member can see and make, and making one.
@@ -76,7 +77,7 @@ export function recipeState(recipe: Recipe, profile: DbUserGuildProfile, config:
 
 export type CraftResult =
     | { ok: false; message: string }
-    | { ok: true; ruined: false; gave: { itemId: string; quantity: number }; masterwork: boolean; xp: number; skillBefore: number; skillAfter: number }
+    | { ok: true; ruined: false; gave: { itemId: string; quantity: number }; masterwork: boolean; xp: number; skillBefore: number; skillAfter: number; questsCompleted: string[] }
     | { ok: true; ruined: true; lost: { itemId: string; quantity: number }[]; xp: 0; skillBefore: number; skillAfter: number };
 
 /** The forge bar's length, in cells. */
@@ -172,16 +173,20 @@ export async function craftOnce(opts: {
     const xp = Math.max(0, recipe.skillXp ?? 0);
     const stats = { ...(p.user_stats ?? {}) } as NonNullable<typeof p.user_stats>;
     stats.crafting = { ...(stats.crafting ?? {}), [station.id]: { ...mine, xp: mine.xp + xp, crafts: mine.crafts + 1 } };
+    // Every craft counts, for achievements.
+    stats.craftsMade = (stats.craftsMade ?? 0) + 1;
 
     const baseline = { xp: p.xp, gold: p.gold };
     if (state.gold.need > 0) p.gold = (BigInt(p.gold) - BigInt(state.gold.need)).toString();
     p.inventory = inv;
     p.user_stats = stats;
-    commitProfileChanges({
-        userId, guildId, profile: p,
-        changes: { ...(cached.pendingChanges ?? {}), inventory: inv, user_stats: stats, ...(state.gold.need > 0 && { gold: p.gold }) } as PendingProfileChanges,
-        baseline,
+    const q = await runQuestPipeline({
+        profile: p,
+        pending: { ...(cached.pendingChanges ?? {}), inventory: inv, user_stats: stats, ...(state.gold.need > 0 && { gold: p.gold }) } as PendingProfileChanges,
+        config,
+        event: { type: "craft", guildId: String(p.guild_id), userId: String(p.user_id), itemId: gave.itemId, quantity: gave.quantity },
     });
+    commitProfileChanges({ userId, guildId, profile: q.profile, changes: q.pending, baseline });
 
-    return { ok: true, ruined: false, gave, masterwork, xp, skillBefore, skillAfter: skillLevel(mine.xp + xp, config) };
+    return { ok: true, ruined: false, gave, masterwork, xp, skillBefore, skillAfter: skillLevel(mine.xp + xp, config), questsCompleted: q.completed.map((c) => c.name) };
 }

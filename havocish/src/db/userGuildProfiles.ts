@@ -9,7 +9,7 @@ import { applyAchievementSideEffects, runAchievementPipeline } from "../player/a
 import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
 import { runQuestPipeline, announceQuestCompletions } from "../player/quests.js";
-import { calculateStats, resolveCurrentHp } from "../player/combat.js";
+import { calculateStats, resolveCurrentHp, storeHp } from "../player/combat.js";
 import { bestEffort } from "../ui/bestEffort.js";
 
 type XpArgs = {
@@ -401,10 +401,10 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
     let hpRestored = 0;
     if (config.combat?.enabled) {
         const combatStats = calculateStats(profile, config, config.shop?.items ?? {});
-        const currentHp = resolveCurrentHp(profile, combatStats);
+        const currentHp = resolveCurrentHp(profile, combatStats, config);
         hpRestored = combatStats.maxHp - currentHp;
         if (hpRestored > 0) {
-            profile.user_stats.currentHp = combatStats.maxHp;
+            Object.assign(profile.user_stats, storeHp(combatStats.maxHp));
         }
     }
 

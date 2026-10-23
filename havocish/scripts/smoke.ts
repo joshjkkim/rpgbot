@@ -17,7 +17,7 @@ import "./loadTestEnv.js";
 import { upsertUser } from "../src/db/users.js";
 import { upsertGuild, setGuildConfig, mergeConfig, getGuildByDiscordId, markGuildRemoved } from "../src/db/guilds.js";
 import { addMessageXp, grantDailyXp, getUserGuildProfile, upsertUserGuildProfile } from "../src/db/userGuildProfiles.js";
-import { getOrCreateProfile, flushProfileCacheToDb, profileEvents } from "../src/cache/profileService.js";
+import { commitProfileChanges, getOrCreateProfile, flushProfileCacheToDb, profileEvents } from "../src/cache/profileService.js";
 import { calculateTotalXpForLevel, dailyTemplate } from "../src/leveling/levels.js";
 import { flushDirtyProfiles, userGuildProfileCache, profileKey, guildConfigCache } from "../src/cache/caches.js";
 import { query, closePool } from "../src/db/index.js";
@@ -25,25 +25,26 @@ import { createTrade, acceptTrade, denyTrade, cancelTrade } from "../src/db/trad
 import { updateInventory, sellItemFromInventory } from "../src/player/inventory.js";
 import { transferItem } from "../src/player/trading.js";
 import { purchaseItem } from "../src/db/shop.js";
-import { startFight, applyAction, applyFightRewards, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
-import { buildActionRow } from "../src/commands/user/fight.js";
+import { startFight, applyAction, applyFightRewards, cantJoin, easyXpShare, pickRandomEnemy, everyonePicked, joinFight, resolveRound, submitPick, clearActiveFight, abandonFight, busyFighting, getActiveFight } from "../src/player/fight.js";
+import { buildActionRows } from "../src/commands/user/fight.js";
 import { resolveDuel } from "../src/db/duel.js";
 import { simulateDuel, splitPot } from "../src/player/duel.js";
 import { databaseUrlProblem } from "../src/env.js";
-import type { EnemyConfig } from "../src/types/combat.js";
+import type { ActiveFight, EnemyConfig, FightMember } from "../src/types/combat.js";
 import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
-import { handleBossButton, liveBoss, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
+import { handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
-import { newestEntry } from "./changelog-post.js";
+import { newestEntry, shortEntry } from "./changelog-post.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
+import { applyQuestEvent } from "../src/player/quests.js";
 import { checkGuild, type Access } from "../src/health/checkGuild.js";
 import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
@@ -51,12 +52,24 @@ import { itemCardLines } from "../src/ui/canvas/itemCard.js";
 import { visibleCategories } from "../src/commands/user/shop.js";
 import { checkRequirements, itemRequirements } from "../src/player/requirements.js";
 import { addCombatXp, combatLevel, combatXpForLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
-import { calculateStats } from "../src/player/combat.js";
+import { afterLoss, calculateStats, hpRules, minutesToFull, resolveCurrentHp, respawnHp, storeHp, woundedUntil, type CombatStats } from "../src/player/combat.js";
+import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/player/places.js";
+import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
+import { mentionsFor } from "../src/ui/mentions.js";
+import { newMoveLines, nextFightLine, nextGatherLine } from "../src/player/nextSteps.js";
+import { leftToday } from "../src/db/shop.js";
+import { payCollectionMilestones, setProgress } from "../src/player/collections.js";
+import { pruneOldEvents } from "../src/db/events.js";
+import { renderBattleScene } from "../src/ui/canvas/battleScene.js";
+import { loadCachedImage } from "../src/ui/canvas/drawEmojis.js";
+import { imgCache } from "../src/cache/caches.js";
+import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
-import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
+import { energyNow, gridRules, makeClusteredGrid, makeGrid, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
+import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
 
@@ -64,6 +77,19 @@ import { findRules } from "../src/ui/gathering/find.js";
 
 let passed = 0;
 let failed = 0;
+
+/** A fight built by hand for engine tests: one member "u" against `enemy`. */
+function handFight(enemy: Partial<EnemyConfig>, you: Partial<CombatStats> = {}, loadout = ["attack", "heavy", "guard"]): ActiveFight {
+    const stats = { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5, ...you };
+    const e = { id: "ogre", name: "Ogre", emoji: "👹", hp: 100, atk: 10, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+        minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], ...enemy } as EnemyConfig;
+    return {
+        userId: "u", guildId: "g", messageId: "m", channelId: "c", dbGuildId: 0, combatType: "pve",
+        members: [{ userId: "u", dbUserId: 0, name: "U", stats, hp: stats.maxHp, state: newFighterState(), loadout, dealt: 0, taken: 0 }],
+        enemy: e, enemyMaxHp: e.hp, enemyCurrentHp: e.hp, foe: newFighterState(), enemyIntent: "attack", enemyTarget: "u",
+        round: 0, startedAt: 0, expiresAt: 0,
+    };
+}
 
 function check(name: string, actual: unknown, expected: unknown) {
     const ok = String(actual) === String(expected);
@@ -992,14 +1018,14 @@ async function main() {
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
             messageId: "smoke-fight-1", channelId: "smoke-channel",
-            combatType: "pve", profile, enemy, config,
+            combatType: "pve", profile, enemy, config, loadout: ["attack"], name: "A",
         });
 
         const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
         check("first click ended the fight", first.ended, "true");
         check("first click produced a summary", first.summary !== null, "true");
 
-        await applyFightRewards(first.summary!, first.fight, profile, config);
+        await applyFightRewards(first.summary!, first.fight, first.fight.members[0]!, profile, config);
         await flushDirtyProfiles(true);
         const afterFirst = await goldOf(fx.a, g);
         check("rewards paid once", afterFirst, "25");
@@ -1015,7 +1041,7 @@ async function main() {
         // Mirror the handler: it pays out whenever an action reports the fight
         // ended. Without the guard this is the second payout.
         if (second.ended && second.summary) {
-            await applyFightRewards(second.summary, second.fight, profile, config);
+            await applyFightRewards(second.summary, second.fight, second.fight.members[0]!, profile, config);
         }
         await flushDirtyProfiles(true);
         check("no second payout", await goldOf(fx.a, g), afterFirst);
@@ -1041,7 +1067,7 @@ async function main() {
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
             messageId: "smoke-fight-2", channelId: "smoke-channel",
-            combatType: "pve", profile, enemy, config,
+            combatType: "pve", profile, enemy, config, loadout: ["attack"], name: "A",
         });
         const first = applyAction(fight, "basic_attack", fx.guild, profile, config);
 
@@ -1054,7 +1080,7 @@ async function main() {
         // existed, so the item was never flushed.
         await Promise.all([
             updateInventory(fx.a.userId, g, inv([["potion", 1]])),
-            applyFightRewards(first.summary!, first.fight, profile, config),
+            applyFightRewards(first.summary!, first.fight, first.fight.members[0]!, profile, config),
         ]);
 
         await flushDirtyProfiles(true);
@@ -1604,6 +1630,385 @@ async function main() {
         check("learning twice doesn't duplicate it", p.user_stats.crafting.smith.known.length, 1);
     });
 
+    await test("move scrolls teach a must-learn move once; statuses stack and change stats", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.combat.moves = {
+            ...DEFAULT_MOVES,
+            cleave: { id: "cleave", name: "Cleave", emoji: "🪓", effects: [{ type: "hit", power: 1.5 }], players: { learned: true, requirements: { combatLevel: 50 } } },
+            weaken: { id: "weaken", name: "Weaken", emoji: "🥀", effects: [{ type: "status", statusId: "weak", turns: 3 }], players: {} },
+            venom: { id: "venom", name: "Venom", emoji: "🐍", effects: [{ type: "status", statusId: "venom", turns: 3 }], players: {} },
+        };
+        cfg.combat.statuses = {
+            weak: { id: "weak", name: "Weakened", emoji: "🥀", hpPercentPerTurn: 0, stats: { atk: -50 } },
+            venom: { id: "venom", name: "Venom", emoji: "🐍", hpPercentPerTurn: -5, maxStacks: 3 },
+        };
+        const p = { user_stats: {}, equips: {} } as any;
+        const facts = { roleIds: [], joinedAt: null, boosting: false };
+
+        check("a must-learn move isn't known yet", moveToLearn(p, cfg, "cleave").status, "new");
+        check("so it isn't in the loadout", loadoutFor(p, cfg, facts).includes("cleave"), false);
+        learnMove(p, "cleave");
+        check("a move with no learning has nothing to teach", moveToLearn(p, cfg, "attack").status, "known");
+        check("a scroll for a deleted move teaches nothing", moveToLearn(p, cfg, "gone").status, "missing");
+        check("once learned, it's known", moveToLearn(p, cfg, "cleave").status, "known");
+        check("but its requirements still apply", loadoutFor(p, cfg, facts).includes("cleave"), false);
+        addCombatXp(p, cfg, combatXpForLevel(50, cfg));
+        p.user_stats.moves.loadout = ["cleave"];
+        check("met, it's usable", loadoutFor(p, cfg, facts)[0], "cleave");
+        learnMove(p, "cleave");
+        check("learning twice doesn't duplicate it", p.user_stats.moves.learned.length, 1);
+
+        // A stat status: Weakened halves the enemy's attack while it's on.
+        const fight = handFight({ name: "Ogre", moves: [{ moveId: "attack" }] }, {}, ["weaken", "venom"]);
+        playTurn(fight, { u: { kind: "move", moveId: "weaken" } }, cfg);
+        check("a weakened enemy hits for half", fight.members[0]!.hp, 95);
+        // Venom stacks: one stack ticks 5, two stacks tick 10.
+        playTurn(fight, { u: { kind: "move", moveId: "venom" } }, cfg);
+        playTurn(fight, { u: { kind: "move", moveId: "venom" } }, cfg);
+        check("a stacking status counts its stacks", [fight.foe.stacks?.venom, fight.enemyCurrentHp], [2, 85]);
+        check("and says so", describeMove(cfg.combat.moves.venom!, cfg).does[0], "🐍 Venom on the target for 3 turns, stacking up to 3.");
+    });
+
+    await test("parties: joining, picks, the turn timer's default, knockouts and shares", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const ally = (id: string, hp = 100): FightMember => ({
+            userId: id, dbUserId: 0, name: id.toUpperCase(), stats: { maxHp: 100, atk: 20, def: 0, spd: 5, critChance: 0, critMultiplier: 1.5 },
+            hp, state: newFighterState(), loadout: ["attack", "heavy", "guard"], dealt: 0, taken: 0,
+        });
+        const fight = handFight({ hp: 100, atk: 10, xpReward: 100, goldReward: 40, moves: [{ moveId: "attack" }], drops: [{ itemId: "pelt", chance: 1, quantity: 1 }] });
+        check("anyone can join an open fight", cantJoin(fight, "b", cfg), null);
+        joinFight(fight, ally("b"), cfg);
+        check("each extra player adds the enemy's HP again", [fight.enemyMaxHp, fight.enemyCurrentHp], [200, 200]);
+        joinFight(fight, ally("c"), cfg);
+        check("three is the cap", cantJoin(fight, "d", cfg), "This fight is full (3 players).");
+        check("you can't join twice", cantJoin(handFight({}), "u", cfg), "You're already in this fight.");
+        check("an enemy can be solo only", cantJoin(handFight({ party: false }), "b", cfg), "This fight is solo only.");
+        cfg.combat.party = { enabled: false };
+        check("and so can the whole server", cantJoin(handFight({}), "b", cfg), "This fight is solo only.");
+        delete cfg.combat.party;
+
+        fight.enemyTarget = "b";
+        check("the warning says who it's aimed at", intentLine(fight, cfg).includes("(at B)"), true);
+        check("a pick waits for the others", [submitPick(fight, "u", "move:attack", cfg).refused, everyonePicked(fight)], [undefined, false]);
+        submitPick(fight, "b", "move:guard", cfg);
+        check("a move that isn't yours is refused", submitPick(fight, "c", "move:nope", cfg).refused, "That isn't one of your moves.");
+        // C never picks: the timer plays the round and C attacks.
+        const r1 = resolveRound(fight, cfg);
+        check("everyone's turn plays, the late one attacks: two hits and a counter", [fight.enemyCurrentHp, r1.log.filter((l) => l.startsWith("⚔️ **C** used **Attack**")).length], [259, 1]);
+        check("the enemy hit only its target, who guarded", [fight.members.map((m) => m.hp), r1.log.some((l) => l.includes("countered"))], [[100, 96, 100], true]);
+
+        // B is knocked out; the others win. B gets half and no drops.
+        fight.members[1]!.hp = 1;
+        fight.enemyTarget = "b";
+        fight.enemyIntent = "attack";
+        resolveRound(fight, cfg);
+        check("a member on 0 HP is knocked out, the fight goes on", [fight.members[1]!.out, fight.resolved ?? false], ["down", false]);
+        fight.enemyCurrentHp = 1;
+        const end = resolveRound(fight, cfg);
+        const got = Object.fromEntries(end.settled.map((r) => [r.member.userId, [r.summary.outcome, r.summary.xpGained, r.summary.goldGained, r.summary.itemsDropped.length]]));
+        check("standing members get it all, each with their own drop roll", [got.u, got.c], [["win", 100, 40, 1], ["win", 100, 40, 1]]);
+        check("a knocked-out member gets half, no drops", got.b, ["win", 50, 20, 0]);
+
+        // Mixed speeds: the faster member, then the enemy, then the slower one.
+        const mixed = handFight({ hp: 1000, atk: 10, spd: 5, moves: [{ moveId: "attack" }] });
+        mixed.members[0]!.stats.spd = 1;
+        joinFight(mixed, { ...ally("b"), stats: { ...ally("b").stats, spd: 9 } }, cfg);
+        mixed.enemyIntent = "attack";
+        const who = playTurn(mixed, { u: { kind: "move", moveId: "attack" }, b: { kind: "move", moveId: "attack" } }, cfg).log
+            .map((l) => (l.includes("**B**") ? "b" : l.includes("**U**") ? "u" : "foe"));
+        check("the enemy acts between a faster and a slower member", who, ["b", "foe", "u"]);
+
+        // Fleeing in a party: you leave and are settled at once; the fight goes on.
+        const run = handFight({ hp: 100, atk: 1, spd: 0, moves: [{ moveId: "attack" }] });
+        joinFight(run, ally("b"), cfg);
+        submitPick(run, "b", "flee", cfg);
+        submitPick(run, "u", "move:attack", cfg);
+        const fled = resolveRound(run, cfg);
+        check("a member who flees leaves alone", [fled.settled.map((r) => [r.member.userId, r.summary.outcome]), run.resolved ?? false], [[["b", "flee"]], false]);
+
+        // Everyone down is a loss for all.
+        const wipe = handFight({ hp: 1000, atk: 500, moves: [{ moveId: "attack" }] });
+        joinFight(wipe, ally("b", 1), cfg);
+        wipe.members[0]!.hp = 1;
+        resolveRound(wipe, cfg);
+        const last = resolveRound(wipe, cfg);
+        check("when nobody is left standing, it's lost", [last.outcome, last.settled.map((r) => r.summary.outcome)], ["loss", ["loss", "loss"]]);
+    });
+
+    await test("places: channels map to enemy pools, and chat places fight in threads", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const enemy = (id: string, minLevel: number, maxLevel: number | null, boss = false) =>
+            ({ id, name: id, emoji: "👾", hp: 10, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel, maxLevel, xpReward: 0, goldReward: 0, drops: [], boss });
+        cfg.combat.enemies = { wolf: enemy("wolf", 1, 10), bear: enemy("bear", 5, null), lich: enemy("lich", 40, null), king: enemy("king", 1, null, true) };
+        cfg.combat.places = {
+            woods: { id: "woods", name: "Woods", emoji: "🌲", channelIds: ["cat-wild"], enemies: [{ enemyId: "wolf", weight: 3 }, { enemyId: "bear", weight: 1 }, { enemyId: "king" }] },
+            crypt: { id: "crypt", name: "Crypt", emoji: "🪦", channelIds: ["crypt"], enemies: [{ enemyId: "lich" }], fights: "channel" },
+        };
+        check("a channel in a place's category is in that place", placeFor(cfg, ["general", "cat-wild"])?.id, "woods");
+        check("a channel listed itself wins over its category", placeFor(cfg, ["crypt", "cat-wild"])?.id, "crypt");
+        check("a thread counts as its channel", placeFor(cfg, ["thread-1", "crypt", "cat-wild"])?.id, "crypt");
+        check("other channels are in no place", placeFor(cfg, ["tavern", "cat-town"]), null);
+        const woods = cfg.combat.places.woods!;
+        check("only enemies that suit your level, never a boss", placeEnemies(woods, cfg, 3).map((p) => p.enemy.id), ["wolf"]);
+        check("weights pick between them", [pickFromPlace(woods, cfg, 6, undefined, () => 0.7)?.id, pickFromPlace(woods, cfg, 6, undefined, () => 0.8)?.id], ["wolf", "bear"]);
+        check("nothing suitable, nothing found", pickFromPlace(cfg.combat.places.crypt!, cfg, 5), null);
+        check("places fight in threads unless set otherwise", [fightsInThread(cfg, woods), fightsInThread(cfg, cfg.combat.places.crypt!), fightsInThread(cfg, null)], [true, false, false]);
+
+        cfg.combat.enabled = true;
+        cfg.combat.places.empty = { id: "empty", name: "Empty Hall", emoji: "🏚️", channelIds: [], enemies: [{ enemyId: "ghost" }] };
+        const noThreads: Access = { channelName: (id) => id, missingIn: (_, perms) => perms.filter((p) => p === "threads"), roleName: () => "Hero", canManageRole: () => true };
+        const health = checkGuild(cfg, noThreads).map((i) => i.message).join("\n");
+        check("the health check covers places", [
+            health.includes("can't post Woods fights in #cat-wild. Give it Create Public Threads"),
+            health.includes("Crypt fights"),
+            health.includes("The place Empty Hall isn't tied to any channel yet"),
+            health.includes("The place Empty Hall has an enemy that was deleted (ghost)"),
+            health.includes("lists the world boss king"),
+        ], [true, false, true, true, true]);
+    });
+
+    await test("battle scenes draw from images and avatars, alone or in a party", async () => {
+        // A 1x1 PNG, so nothing is fetched from the network.
+        const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        const enemy = { name: "Ogre", emoji: "", image: png, hp: 40, maxHp: 90, hit: 12 };
+        const solo = await renderBattleScene({ place: { colour: "#334455" }, enemy, members: [{ name: "Josh", avatarUrl: png, hp: 80, maxHp: 100, hit: 5 }] });
+        const party = await renderBattleScene({
+            place: { image: png }, enemy,
+            members: [{ name: "Josh", avatarUrl: png, hp: 80, maxHp: 100, targeted: true }, { name: "Sam", hp: 0, maxHp: 100, down: true }, { name: "Ana", avatarUrl: png, hp: 50, maxHp: 120 }],
+        });
+        const isPng = (b: Buffer) => b.subarray(1, 4).toString() === "PNG" && b.length > 5000;
+        check("a solo scene draws", isPng(solo), true);
+        check("a party scene draws, with a member down and no avatar", isPng(party), true);
+
+        // The image cache keeps the most recently used 300 and drops the oldest.
+        imgCache.clear();
+        for (let i = 0; i < 305; i++) await loadCachedImage(`${png}#${i}`);
+        check("the image cache stays at 300", imgCache.size, 300);
+        check("dropping the least recently used first", [imgCache.has(`${png}#0`), imgCache.has(`${png}#304`)], [false, true]);
+    });
+
+    await test("the collection: anything you get is found for good, and can unlock things", async () => {
+        const ids = await reset();
+        const cfg = structuredClone(ids.config);
+        cfg.shop.items = {
+            ore: { id: "ore", name: "Ore", emoji: "🪨", categoryId: "", price: 5 },
+            shard: { id: "shard", name: "Starmetal Shard", emoji: "🌠", categoryId: "", price: 0, hidden: true },
+            blade: { id: "blade", name: "Star Blade", categoryId: "", price: 0, hidden: true },
+        } as any;
+        cfg.combat.enemies = { wyrm: { id: "wyrm", name: "Wyrm", emoji: "🐉", drops: [{ itemId: "shard", chance: 0.1, quantity: 1 }] } as any };
+        cfg.crafting.stations = { smith: { id: "smith", name: "Smithing", emoji: "⚒️", recipes: { blade: { id: "blade", output: { itemId: "blade", quantity: 1 } } } } as any };
+
+        const { profile } = await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+        // Each write starts from the cached profile, the way the bot's writers do.
+        const give = async (inventory: Record<string, unknown>) => {
+            const { profile: now } = await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+            now.inventory = inventory as any;
+            commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile: now, changes: { inventory: now.inventory }, baseline: { xp: now.xp, gold: now.gold } });
+        };
+        const facts = { roleIds: [], joinedAt: null, boosting: false };
+        const needsShard = { found: ["shard"] };
+        check("a recipe can need a found item", checkRequirements(needsShard, { profile, config: cfg, facts }).message, "Needs to have found 🌠 Starmetal Shard.");
+
+        await give({ shard: { id: "shard", name: "Starmetal Shard", quantity: 1 } });
+        const after = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("getting it marks it found", after.user_stats?.found, ["shard"]);
+        await give({});
+        const later = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("selling it later keeps it found", [later.user_stats?.found, checkRequirements(needsShard, { profile: later, config: cfg, facts }).ok], [["shard"], true]);
+
+
+        // Owner-made collections: items found and enemies beaten, with milestones.
+        cfg.collections = { sets: { star: {
+            id: "star", name: "Star Hunt", emoji: "🌠",
+            entries: [{ kind: "item", id: "shard" }, { kind: "item", id: "blade" }, { kind: "enemy", id: "wyrm" }, { kind: "item", id: "gone" }],
+            milestones: [{ at: 1, actions: [{ type: "giveGold", amount: 10 }] }, { at: 99, actions: [{ type: "giveGold", amount: 500 }] }],
+        } } };
+        const set = cfg.collections.sets.star!;
+        check("a deleted entry doesn't count against you", setProgress(set, later, cfg), { done: 1, total: 3, complete: false });
+        const first = await payCollectionMilestones(ids.userId, ids.guildId, cfg);
+        check("the first milestone pays, without the whole set", first.map((m) => [m.at, m.complete, m.given]), [[1, false, ["+10 Gold"]]]);
+        check("and only once", (await payCollectionMilestones(ids.userId, ids.guildId, cfg)).length, 0);
+        check("an unfinished set doesn't unlock things", checkRequirements({ collections: ["star"] }, { profile: later, config: cfg, facts }).message, "Needs to complete 🌠 Star Hunt.");
+
+        const p = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        p.user_stats = { ...p.user_stats, defeated: ["wyrm"] } as any;
+        commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile: p, changes: { user_stats: p.user_stats }, baseline: { xp: p.xp, gold: p.gold } });
+        // A writer holding an older copy (no "wyrm") gives an item: the defeat must survive.
+        profile.inventory = { blade: { id: "blade", name: "Star Blade", quantity: 1 } } as any;
+        commitProfileChanges({ userId: ids.userId, guildId: ids.guildId, profile, changes: { inventory: profile.inventory }, baseline: { xp: profile.xp, gold: profile.gold } });
+        const done = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        const last = await payCollectionMilestones(ids.userId, ids.guildId, cfg);
+        check("finishing pays the completion reward (a milestone past the size means completing it)", last.map((m) => [m.at, m.complete, m.given]), [[3, true, ["+500 Gold"]]]);
+        check("a completed set unlocks things", checkRequirements({ collections: ["star"] }, { profile: done, config: cfg, facts }).ok, true);
+    });
+
+    await test("gathering twists: traits, a daily condition, and rules that change the game", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.gathering.conditions = {
+            storm: { id: "storm", name: "Storm", emoji: "⛈️", line: "Rain lashes down.", effects: { difficulty: 1, rareLoot: 200, rules: ["timing.falseAlarm"] } },
+        };
+        const activity = { id: "dig", name: "Digging", game: "grid", locations: {} } as any;
+        const location = {
+            id: "deep", name: "Deep Veins", emoji: "⛏️", minSkill: 1, skillXp: 10, loot: [],
+            traits: [{ name: "Pitch dark", emoji: "🌑", effects: { rules: ["grid.adjacent"], xp: 150 } }],
+            conditions: [{ conditionId: "storm", weight: 1 }], calmWeight: 0,
+        } as any;
+        const day = Date.parse("2026-10-23T12:00:00Z");
+        const mods = runMods(cfg, activity, location, day);
+        check("the trait and today's condition both apply", [mods.difficulty, mods.rareLoot, mods.xp], [1, 2, 1.5]);
+        check("a rule for another game is ignored", [...mods.rules], ["grid.adjacent"]);
+        check("both show when a run starts, with when the condition ends", mods.lines, [
+            "🌑 **Pitch dark:** You can only open tiles next to ones you've uncovered.",
+            `⛈️ **Storm** (ends <t:${Date.parse("2026-10-23T18:00:00Z") / 1000}:R>): Rain lashes down.`,
+        ]);
+        check("conditions last 6 hours by default, from midnight UTC", conditionSlot(cfg, day).endsAt, Date.parse("2026-10-23T18:00:00Z"));
+        cfg.gathering.conditionHours = 24;
+        check("or what the owner picks", conditionSlot(cfg, day).endsAt, Date.parse("2026-10-24T00:00:00Z"));
+        check("everyone gets the same weather in a stretch", conditionNow(cfg, activity, location, day)?.id === conditionNow(cfg, activity, location, day + 3600_000)?.id, true);
+        location.calmWeight = 1_000_000;
+        check("a calm stretch has no condition", conditionNow(cfg, activity, location, day), null);
+
+        // Difficulty is read by each game its own way.
+        check("grid: a hazard more, a try fewer", [gridRules(location, 1, 0, 1).hazards, gridRules(location, 1, 0, 1).tries], [3, 4]);
+        check("timing: a shorter window", timingWindowMs(location, 1, 0, 1), 2600);
+        check("find: less time, more look-alikes", [findRules(location, 1, 0, 1).seconds, findRules(location, 1, 0, 1).decoyKinds], [6.5, 4]);
+
+        // Clustered: every find but the first sits next to another, almost always.
+        let touching = 0;
+        for (let n = 0; n < 50; n++) {
+            const cells = makeClusteredGrid({ size: 16, finds: 5, hazards: 2 });
+            const finds = cells.map((c, i) => (c === "find" ? i : -1)).filter((i) => i >= 0);
+            const near = (a: number, b: number) => Math.abs(a - b) === 4 || (Math.abs(a - b) === 1 && Math.floor(a / 4) === Math.floor(b / 4));
+            if (finds.every((a) => finds.some((b) => a !== b && near(a, b)))) touching++;
+            check(`clustered grid ${n} keeps its counts`, [finds.length, cells.filter((c) => c === "hazard").length], [5, 2]);
+        }
+        check("clustered finds touch each other", touching >= 35, true);
+    });
+
+    await test("quests can ask for gathering and crafting", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.quests = { enabled: true, quests: {
+            ore: { id: "ore", name: "Ore Run", description: "", conditions: { type: "gatherItems", target: 5, itemIds: ["iron"] }, cooldownSeconds: 0 } as any,
+            forge: { id: "forge", name: "Forge Work", description: "", conditions: { type: "craftItems", target: 1 }, cooldownSeconds: 0 } as any,
+        } } as any;
+        // Quests only move once accepted.
+        let profile = { user_stats: {}, quests: { ore: { acceptedAt: "2026-01-01" }, forge: { acceptedAt: "2026-01-01" } } } as any;
+        const pending = {} as any;
+        const ev = (e: any) => applyQuestEvent({ profile, pending, config: cfg, event: { guildId: "g", userId: "u", ...e } });
+        let r = ev({ type: "gather", itemId: "copper", quantity: 9 });
+        check("other items don't count", r.completedQuestIds, []);
+        r = ev({ type: "gather", itemId: "iron", quantity: 5 });
+        check("five iron finishes the ore run", r.completedQuestIds, ["ore"]);
+        profile = r.profile;
+        check("any craft counts when no items are named", ev({ type: "craft", itemId: "sword", quantity: 1 }).completedQuestIds, ["forge"]);
+    });
+
+    await test("what's next: the move to unlock, a fairer place, the next location", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.combat.moves = {
+            ...DEFAULT_MOVES,
+            rend: { id: "rend", name: "Rend", emoji: "🩸", effects: [], players: { requirements: { combatLevel: 5 } } },
+            exec: { id: "exec", name: "Execute", emoji: "🗡️", effects: [], players: { requirements: { combatLevel: 10 } } },
+            scroll: { id: "scroll", name: "Starfall", emoji: "🌠", effects: [], players: { learned: true, requirements: { combatLevel: 3 } } },
+        };
+        check("the next move by level", nextFightLine(cfg, 6, false), "-# Next: 🗡️ **Execute** unlocks at Combat 10 (4 levels to go).");
+        check("a level-up names the moves it opened, not scroll-only ones", newMoveLines(cfg, 2, 6), ["🆕 **New move: 🩸 Rend.** Pick it in `/moves`."]);
+        cfg.combat.enemies = { wolf: { id: "wolf", name: "Wolf", minLevel: 8, maxLevel: 20 } as EnemyConfig };
+        cfg.combat.places = { woods: { id: "woods", name: "Darkwood", emoji: "🌲", channelIds: ["c"], enemies: [{ enemyId: "wolf" }] } };
+        check("too easy: where the fair fights are", nextFightLine(cfg, 12, true), "-# Next: 🌲 **Darkwood** has enemies more your level.");
+        const act = { skillName: "Mining", locations: { a: { name: "Shallows", emoji: "⛏️", minSkill: 1 }, b: { name: "Deep Vein", emoji: "🌑", minSkill: 30 } } } as any;
+        check("the next location", nextGatherLine(act, 27), "-# Next: 🌑 **Deep Vein** opens at Mining 30 (3 levels to go).");
+        check("nothing left: nothing said", nextGatherLine(act, 40), null);
+    });
+
+    await test("enemies below your level pay less XP, gently", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const wolf = { minLevel: 5, maxLevel: 15 } as EnemyConfig;
+        check("inside its range: full", easyXpShare(wolf, 15, cfg), 1);
+        check("3 over: 70%", easyXpShare(wolf, 18, cfg), 0.7);
+        check("never below the floor", easyXpShare(wolf, 60, cfg), 0.25);
+        check("no top to its range: always full", easyXpShare({ minLevel: 1, maxLevel: null } as EnemyConfig, 99, cfg), 1);
+        // Outside places, a rare elite turns up rarely: weight 0.2 against 1.
+        cfg.combat.enemies = { rat: { id: "rat", minLevel: 1, maxLevel: null } as EnemyConfig, elite: { id: "elite", minLevel: 1, maxLevel: null, spawnWeight: 0.2 } as EnemyConfig };
+        check("weights decide who turns up", [pickRandomEnemy(cfg, 5, undefined, () => 0.8)?.id, pickRandomEnemy(cfg, 5, undefined, () => 0.9)?.id], ["rat", "elite"]);
+        cfg.combat.easyXp = { enabled: false };
+        check("owners can turn it off", easyXpShare(wolf, 60, cfg), 1);
+    });
+
+    await test("daily stock: a member can buy so many a day, and it restocks", async () => {
+        const ids = await reset();
+        const cfg = structuredClone(ids.config);
+        cfg.shop.items = { draught: { id: "draught", name: "Draught", categoryId: "", price: 5, dailyLimit: 2 } } as any;
+        await setGuildConfig(TEST_DISCORD_GUILD, cfg);
+        guildConfigCache.clear();
+        await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+        await flushDirtyProfiles(true);
+        await seed({ discordId: TEST_DISCORD_USER, userId: ids.userId } as any, ids.guildId, {}, 100);
+        const buy = (quantity: number) => purchaseItem({ userId: ids.userId, guildId: ids.guildId, discordGuildId: TEST_DISCORD_GUILD, itemId: "draught", quantity });
+        check("buying under the limit works", (await buy(2)).success, true);
+        const third = await buy(1);
+        check("past it is refused", [third.success, !third.success && third.message.startsWith("You've bought today's 2 Draught")], [false, true]);
+        const row = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("bought items count as found", row.user_stats?.found?.includes("draught"), true);
+        const yesterday = { boughtToday: { day: "2000-01-01", items: { draught: 2 } } } as any;
+        check("a new day restocks", leftToday({ id: "draught", dailyLimit: 2 }, yesterday), 2);
+        check("no limit, no cap", leftToday({ id: "x" }, row.user_stats), Infinity);
+    });
+
+    await test("the activity log keeps 90 days", async () => {
+        const ids = await reset();
+        await query(`DELETE FROM events WHERE event_type = 'smoke-prune'`);
+        const add = (daysAgo: number) => query(
+            `INSERT INTO events (guild_id, discord_guild_id, user_id, category, event_type, "timestamp")
+             VALUES ($1, $2, $3, 'xp', 'smoke-prune', NOW() - make_interval(days => $4))`,
+            [ids.guildId, TEST_DISCORD_GUILD, ids.userId, daysAgo],
+        );
+        await add(120);
+        await add(91);
+        await add(10);
+        await pruneOldEvents();
+        const left = await query(`SELECT count(*)::int AS n FROM events WHERE event_type = 'smoke-prune'`);
+        check("older rows go, recent ones stay", left.rows[0]?.n, 1);
+    });
+
+    await test("tips show once per member, and Quiet stops pings", async () => {
+        const ids = await reset();
+        const cfg = structuredClone(ids.config);
+        const first = await tipOnce(ids.userId, ids.guildId, cfg, "firstFight");
+        check("a member's first fight gets the tip", first?.includes("The headline is what the enemy does next"), true);
+        check("only once", await tipOnce(ids.userId, ids.guildId, cfg, "firstFight"), null);
+        cfg.style.tips = false;
+        check("owners can turn tips off", await tipOnce(ids.userId, ids.guildId, cfg, "firstWin"), null);
+
+        check("members are pinged by default", await mentionsFor(TEST_DISCORD_GUILD, TEST_DISCORD_USER, { users: [TEST_DISCORD_USER] }), { users: [TEST_DISCORD_USER] });
+        const { profile } = await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId });
+        profile.settings = { ...profile.settings, quiet: true };
+        check("Quiet names them without a ping, keeping role pings", await mentionsFor(TEST_DISCORD_GUILD, TEST_DISCORD_USER), { parse: ["roles", "everyone"] });
+    });
+
+    await test("HP comes back over two hours, and a loss leaves you at 25%", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        const stats = { maxHp: 100, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1 };
+        const hour = 60 * 60_000;
+        const at = (hp: number, ago: number) => ({ user_stats: storeHp(hp, Date.now() - ago) }) as any;
+        check("defaults: full in 2 hours, respawn at 25%", hpRules(cfg), { regenMinutes: 120, respawnPercent: 25, woundedMinutes: 10, woundedStatusId: "wounded" });
+        check("an hour brings back half", resolveCurrentHp(at(20, hour), stats, cfg), 70);
+        check("and never past full", resolveCurrentHp(at(20, 3 * hour), stats, cfg), 100);
+        check("HP stored before regen counts as full", resolveCurrentHp({ user_stats: { currentHp: 5 } } as any, stats, cfg), 100);
+        check("the wait to full is shown in minutes", minutesToFull(70, stats, cfg), 36);
+        check("a loss respawns at 25%", respawnHp(stats, cfg), 25);
+        // Wounded: −20% ATK and DEF for 10 minutes after a loss, then gone.
+        const lost = { user_stats: afterLoss(stats, cfg) } as any;
+        const fresh = calculateStats({ user_stats: {} } as any, cfg, {});
+        const hurt = calculateStats(lost, cfg, {});
+        check("a loss leaves you wounded: lower ATK and DEF", [hurt.atk < fresh.atk, hurt.def <= fresh.def, hurt.maxHp === fresh.maxHp], [true, true, true]);
+        check("and it wears off", woundedUntil(lost, cfg, Date.now() + 11 * 60_000), null);
+        cfg.combat.hp = { woundedMinutes: 0 };
+        check("an owner can turn it off", "woundedUntil" in afterLoss(stats, cfg), false);
+        cfg.combat.hp = { regenMinutes: 0 };
+        check("an owner can turn regen off", resolveCurrentHp(at(20, 3 * hour), stats, cfg), 20);
+    });
+
     await test("crafting: what a member can make, and making it", async () => {
         const ids = await reset();
         const config = ids.config;
@@ -1791,13 +2196,23 @@ async function main() {
             guildId: TEST_DISCORD_GUILD,
             channelId: "c1",
             reply: async (p: unknown) => { replies.push(p); },
-            update: async (p: unknown) => { updates.push(p); },
+            deferUpdate: async () => {},
+            editReply: async (p: unknown) => { updates.push(p); },
+            followUp: async () => {},
         } as any);
         await Promise.all([click(), click()]);
         check("one click gets the fight", updates.length, 1);
         check("the other is turned away", replies.length, 1);
         await click();
         check("a late click finds it gone", replies.length, 2);
+    });
+
+    await test("world bosses pick their next move, healing only when hurt", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.combat.moves = { ...DEFAULT_MOVES, feast: { id: "feast", name: "Feast", emoji: "🍷", effects: [{ type: "heal", percent: 10 }] } };
+        const enemy = { id: "king", hp: 1000, moves: [{ moveId: "feast", weight: 1000 }, { moveId: "attack", weight: 1 }] } as EnemyConfig;
+        check("at full HP it never heals", Array.from({ length: 20 }, () => nextIntent({ enemy, hp: 1000 }, cfg)).includes("feast"), false);
+        check("hurt, it does", nextIntent({ enemy, hp: 300 }, cfg), "feast");
     });
 
     await test("world bosses split rewards by damage and fall exactly once", async () => {
@@ -1972,9 +2387,9 @@ async function main() {
         await seed(fx.a, g, {}, 1000);
         await seed(fx.b, g, {}, 1000);
         await query(
-            `UPDATE user_guild_profiles SET user_stats = jsonb_set(COALESCE(user_stats, '{}'::jsonb), '{currentHp}', '0')
+            `UPDATE user_guild_profiles SET user_stats = COALESCE(user_stats, '{}'::jsonb) || jsonb_build_object('currentHp', 0, 'hpAt', $3::text)
              WHERE user_id = $1 AND guild_id = $2`,
-            [fx.b.userId, g],
+            [fx.b.userId, g, new Date().toISOString()],
         );
         userGuildProfileCache.delete(profileKey(g, fx.b.userId));
 
@@ -2034,6 +2449,7 @@ async function main() {
         check("sections become bold lines", entry?.body.startsWith("**New**"), true);
         check("older entries are left out", entry?.body.includes("old"), false);
         check("unreleased changes are not posted", newestEntry(md.replace("## v2", "## Unreleased\n\n- wip\n\n## v2"))?.title, "v2 · today");
+        check("Discord gets one line per change", shortEntry("Big update. More words here.\n\n**Fights**\n- **Party fights.** Press Join to help.\n- plain"), "Big update.\n\n**Fights**\n- Party fights\n- plain");
         check("the real CHANGELOG.md has an entry", !!newestEntry(readFileSync(new URL("../../CHANGELOG.md", import.meta.url), "utf8")), true);
     });
 
@@ -2112,7 +2528,7 @@ async function main() {
         const win = { outcome: "win", xpGained: 0, goldGained: 0, goldLost: 0, itemsDropped: [], rounds: 1, totalDamageDealt: 1, totalDamageTaken: 0 } as const;
         const beat = async (enemyId: string) => {
             const { profile } = await getOrCreateProfile({ userId: fx.a.userId, guildId: g });
-            await applyFightRewards({ ...win, itemsDropped: [] }, { playerCurrentHp: 50, combatType: "pve", enemy: { id: enemyId } } as any, profile, config);
+            await applyFightRewards({ ...win, itemsDropped: [] }, { combatType: "pve", enemy: { id: enemyId } } as any, { hp: 50, stats: { maxHp: 100 } } as any, profile, config);
         };
         await beat("slime");
         check("other enemies don't count", (await state(fx.a)).wolves.progress, 0);
@@ -2153,25 +2569,25 @@ async function main() {
         // No attack, so every swing does the minimum 1 damage; too much HP to die.
         const enemy: EnemyConfig = {
             id: "brute", name: "Brute", emoji: "🪨", hp: 100000, atk: 0, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
-            minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [],
+            minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "attack" }],
         };
         const profile = await row(fx.a, g);
         profile.inventory = { draught: { id: "draught", name: "Draught", quantity: 2 } } as any;
         const fight = startFight({
             discordUserId: fx.a.discordId, discordGuildId: fx.guild.discord_guild_id,
-            messageId: "smoke-fight-potion", channelId: "smoke-channel", combatType: "pve", profile, enemy, config,
+            messageId: "smoke-fight-potion", channelId: "smoke-channel", combatType: "pve", profile, enemy, config, loadout: ["attack"], name: "A",
         });
-        fight.playerCurrentHp = 20;
+        fight.members[0]!.hp = 20;
 
-        const row1 = JSON.stringify(buildActionRow(profile, config).toJSON());
+        const row1 = JSON.stringify(buildActionRows(fight.members[0]!, profile, config).map((r) => r.toJSON()));
         check("a potion button shows with its count", row1.includes("fight:potion:draught") && row1.includes("Draught ×2"), true);
         check("gear gets no button", row1.includes("sword"), false);
 
         const drink = applyAction(fight, "potion:draught", fx.guild, profile, config);
-        check("drinking heals, then the enemy still swings", fight.playerCurrentHp, 49);
+        check("drinking heals, then the enemy still swings", fight.members[0]!.hp, 49);
         check("and it uses the turn", fight.round, 1);
-        check("the log says what it did", drink.result.log[0]!.includes("❤️ 20 → 50"), true);
-        check("a non-potion can't be drunk", (() => { try { applyAction(fight, "potion:sword", fx.guild, profile, config); return "drank"; } catch { return "refused"; } })(), "refused");
+        check("the log says what it did", drink.result.log[0]!.includes("+30 HP"), true);
+        check("a non-potion can't be drunk", applyAction(fight, "potion:sword", fx.guild, profile, config).result.log[0], "That isn't one of your moves.");
 
         // Other HP and gear changes wait; the reply links to the fight.
         const busy = busyFighting(fx.a.discordId, fx.guild.discord_guild_id, "Later.");
@@ -2181,7 +2597,7 @@ async function main() {
         check("/equip waits during a fight", (await equipItemFromInventory(fake, "sword")).success, false);
 
         // Walking away: a flee that keeps the damage, with no penalty.
-        fight.playerCurrentHp = 7;
+        fight.members[0]!.hp = 7;
         const client = { channels: { fetch: async () => null } } as any;
         await abandonFight(fight, client, "timeout");
         await flushDirtyProfiles(true);
@@ -2193,6 +2609,122 @@ async function main() {
         await abandonFight(fight, client, "restart");
         await flushDirtyProfiles(true);
         check("ending it twice changes nothing", (await row(fx.a, g)).user_stats?.currentHp, 7);
+    });
+
+    await test("fight moves: telegraphs, guard and counter, cooldowns, statuses, stuns and drawbacks", async () => {
+        const fightWith = (cfg: GuildConfig, enemy: Partial<EnemyConfig>, you: Partial<CombatStats> = {}): ActiveFight => {
+            const f = handFight(enemy, you);
+            f.enemyIntent = pickIntent(f, cfg);
+            return f;
+        };
+        const base = DEFAULT_GUILD_CONFIG;
+        const move = (id: string): PlayerChoice => ({ kind: "move", moveId: id });
+
+        // Plain trade: 20 dealt, 10 taken.
+        const plain = fightWith(base, { moves: [{ moveId: "attack" }] });
+        check("the enemy's next move is picked and shown", intentLine(plain, base).includes("gets ready to strike"), true);
+        playTurn(plain, { u: move("attack") }, base);
+        check("attack trades blows", [plain.enemyCurrentHp, plain.members[0]!.hp], [80, 90]);
+
+        // Guard against a heavy hit: 22 x 40% = 9 taken, 30% of that countered back.
+        const guarded = fightWith(base, { moves: [{ moveId: "heavy" }] });
+        const g1 = playTurn(guarded, { u: move("guard") }, base);
+        check("guard blocks most of a heavy hit", guarded.members[0]!.hp, 91);
+        check("and counters it", [guarded.enemyCurrentHp, g1.log.some((l) => l.includes("countered"))], [97, true]);
+        check("a heavy hit coming turns the message red", intentThreat(fightWith(base, { moves: [{ moveId: "heavy" }] }), base), "danger");
+
+        // Heavy Strike: big hit, your defense drops for the enemy's swing, then a 2-turn cooldown.
+        const heavy = fightWith(base, { moves: [{ moveId: "attack" }] }, { def: 10 });
+        playTurn(heavy, { u: move("heavy") }, base);
+        check("heavy hits 220%", heavy.enemyCurrentHp, 56);
+        check("its drawback lowers your defense for the enemy's swing", heavy.members[0]!.hp, 94);
+        const heavyMove = moveById(base, "heavy");
+        const ready: boolean[] = [usable(heavy.members[0]!.state, heavyMove)];
+        playTurn(heavy, { u: move("attack") }, base); ready.push(usable(heavy.members[0]!.state, heavyMove));
+        playTurn(heavy, { u: move("attack") }, base); ready.push(usable(heavy.members[0]!.state, heavyMove));
+        check("a 2-turn cooldown skips two turns", ready, [false, false, true]);
+        const waiting = fightWith(base, { moves: [{ moveId: "attack" }] });
+        waiting.members[0]!.state.cooldowns.heavy = 2;
+        check("a move on cooldown isn't played", applyAction(waiting, "move:heavy", {} as any, {} as any, base).result.log[0], "⌛ **Heavy Strike** isn't ready yet.");
+
+        // A status, and a move that hits harder against it.
+        const custom = {
+            ...base,
+            combat: {
+                ...base.combat,
+                moves: {
+                    ...DEFAULT_MOVES,
+                    idle: { id: "idle", name: "Idle", emoji: "💤", effects: [] },
+                    rend: { id: "rend", name: "Rend", emoji: "🩸", effects: [{ type: "hit", power: 0.5 }, { type: "status", statusId: "bleed", turns: 3 }], players: {} },
+                    execute: { id: "execute", name: "Execute", emoji: "🗡️", effects: [{ type: "hit", power: 1 }, { type: "hit", power: 1.5, when: { type: "targetHasStatus", statusId: "bleed" } }], players: {} },
+                    ritual: { id: "ritual", name: "Dark Ritual", emoji: "🌑", telegraph: "gathers shadow…", charge: 2, effects: [{ type: "hit", power: 3 }] },
+                    bash: { id: "bash", name: "Shield Bash", emoji: "🛡️", effects: [{ type: "hit", power: 0.5 }, { type: "stun" }], players: { requirements: { combatLevel: 50 } } },
+                    pact: { id: "pact", name: "Blood Pact", emoji: "🩸", effects: [{ type: "hit", power: 2 }, { type: "heal", percent: -500 }], players: {} },
+                },
+            },
+        } as GuildConfig;
+        const bleed = fightWith(custom, { moves: [{ moveId: "idle" }] });
+        playTurn(bleed, { u: move("rend") }, custom);
+        check("rend hits and the bleed ticks at the end of the turn", [bleed.enemyCurrentHp, bleed.foe.statuses.bleed], [85, 2]);
+        playTurn(bleed, { u: move("execute") }, custom);
+        check("execute hits harder while the target bleeds", bleed.enemyCurrentHp, 30);
+
+        // A wind-up: it fires on the third turn unless it's stunned first.
+        const ritual = fightWith(custom, { moves: [{ moveId: "ritual" }] });
+        playTurn(ritual, { u: move("attack") }, custom);
+        playTurn(ritual, { u: move("attack") }, custom);
+        check("the warning says it's about to go off", intentLine(ritual, custom).includes("unleashes **Dark Ritual** this turn"), true);
+        playTurn(ritual, { u: move("attack") }, custom);
+        check("an unanswered wind-up lands", ritual.members[0]!.hp, 70);
+        const stopped = fightWith(custom, { moves: [{ moveId: "ritual" }] });
+        playTurn(stopped, { u: move("attack") }, custom);
+        playTurn(stopped, { u: move("attack") }, custom);
+        const s3 = playTurn(stopped, { u: move("bash") }, custom);
+        check("a stun interrupts it", [stopped.members[0]!.hp, !!stopped.foe.charging, s3.log.some((l) => l.includes("interrupted"))], [100, false, true]);
+
+        // Speed decides who goes first: a faster enemy's hit lands before your stun.
+        const fast = fightWith(custom, { moves: [{ moveId: "attack" }], spd: 50 });
+        check("the footer says who acts first", turnOrderLine(fast, custom), "⚡ Ogre is faster: it acts first");
+        const f1 = playTurn(fast, { u: move("bash") }, custom);
+        check("the faster side swings first", [f1.log[0]!.startsWith("⚔️ **Ogre**"), fast.members[0]!.hp], [true, 90]);
+        const slow = fightWith(custom, { moves: [{ moveId: "attack" }], spd: 1 });
+        check("slower enemies wait their turn", turnOrderLine(slow, custom), "You act first");
+        playTurn(slow, { u: move("bash") }, custom);
+        check("so a stun stops their swing", slow.members[0]!.hp, 100);
+
+        // A drawback that costs HP never kills you.
+        const pact = fightWith(custom, { moves: [{ moveId: "idle" }] });
+        playTurn(pact, { u: move("pact") }, custom);
+        check("losing HP to your own move stops at 1", pact.members[0]!.hp, 1);
+
+        // Plain-language text, with drawbacks apart.
+        const said = describeMove(heavyMove, base);
+        check("a move describes itself", said, { does: ["Deals 220% damage.", "2-turn cooldown."], drawbacks: ["Your DEF drops 30% this turn."] });
+
+        // What a player brings: requirements, a picked loadout, gear.
+        const profile = { level: 1, xp: "0", user_stats: {}, equips: {} } as any;
+        const facts = { roleIds: [], joinedAt: null, boosting: false };
+        check("a move behind requirements isn't available", loadoutFor(profile, custom, facts).includes("bash"), false);
+        profile.user_stats = { moves: { loadout: ["pact"] } };
+        check("the picked move goes first", loadoutFor(profile, custom, facts)[0], "pact");
+        const geared = { ...custom, shop: { ...custom.shop, items: { shield: { id: "shield", name: "Shield", effects: { moves: ["bash"] } } as any } } } as GuildConfig;
+        profile.equips = { offhand: "shield" };
+        check("gear gives its move, requirements or not", loadoutFor(profile, geared, facts).includes("bash"), true);
+
+        // The health check names broken references.
+        const broken = structuredClone(custom);
+        broken.combat.enabled = true;
+        broken.combat.enemies = { ogre: { id: "ogre", name: "Ogre", emoji: "👹", hp: 10, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "gone" }] } };
+        broken.combat.statuses = {};
+        broken.shop.items = { blade: { id: "blade", name: "Blade", effects: { moves: ["vanished"] } } as any };
+        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true };
+        const health = checkGuild(broken, allOk).map((i) => i.message).join("\n");
+        check("the health check finds broken move references", [
+            health.includes("The enemy Ogre uses a move that was deleted (gone)"),
+            health.includes("The move Rend uses a status that was deleted (bleed)"),
+            health.includes("The move Idle does nothing"),
+            health.includes("The item Blade gives a move that was deleted (vanished)"),
+        ], [true, true, true, true]);
     });
 
     await test("the health check finds setups that will fail quietly", async () => {
@@ -2245,7 +2777,7 @@ async function main() {
             draught: { id: "draught", name: "Healing Draught", emoji: "🧪", description: "", quantity: 2 },
             sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", description: "", quantity: 1 },
         };
-        profile.user_stats = { ...profile.user_stats, currentHp: 20 };
+        profile.user_stats = { ...profile.user_stats, ...storeHp(20) };
 
         const interaction = {
             guild: { id: TEST_DISCORD_GUILD, members: { fetch: async () => null } },

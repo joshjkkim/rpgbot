@@ -32,6 +32,8 @@ import * as me from "./user/me.js"
 import * as admin from "./admin/admin.js"
 import * as gather from "./user/gather.js"
 import * as craft from "./user/craft.js"
+import * as moves from "./user/moves.js"
+import * as collection from "./user/collection.js"
 
 export const commandList = [
     daily.data,
@@ -68,6 +70,8 @@ export const commandList = [
     me.data,
     gather.data,
     craft.data,
+    moves.data,
+    collection.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -105,4 +109,6 @@ export const commands = new Map<string, any>([
     [me.data.name, me],
     [gather.data.name, gather],
     [craft.data.name, craft],
+    [moves.data.name, moves],
+    [collection.data.name, collection],
 ])

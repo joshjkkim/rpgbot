@@ -8,7 +8,7 @@ import { FightMock, GatherDemo, QuestMock } from "./demos";
 
 export const metadata: Metadata = {
   title: "Features",
-  description: "Levels, combat, gathering minigames, gear, quests and a dashboard to set it all up. Everything havocish adds to a Discord server.",
+  description: "Levels, fights you read and unlock moves for, parties, gathering minigames with changing conditions, crafting, a collection log, quests and a dashboard to design it all. Everything havocish adds to a Discord server.",
 };
 
 const items = pack.content.shop.items as unknown as Record<string, shopItemConfig>;
@@ -45,8 +45,8 @@ export default function FeaturesPage() {
         <div className="mx-auto max-w-3xl px-6 pt-12 pb-6 text-center sm:pt-16">
           <h1 className="text-4xl leading-tight sm:text-5xl">Everything havocish does</h1>
           <p className="mt-4 text-lg leading-relaxed text-[var(--foreground)]/80">
-            A whole RPG for your server: characters that level up, fights, gathering, gear and quests.
-            You decide what every enemy, item and minigame is called and what it does.
+            A whole RPG for your server: characters that level up, fights, gathering, crafting, gear and quests.
+            You decide what every enemy, move, place, item and minigame is called and what it does.
           </p>
         </div>
 
@@ -71,13 +71,15 @@ export default function FeaturesPage() {
             ]} />
           </Feature>
 
-          <Feature flip title="Fights worth having" visual={<FightMock />}>
-            <p>Turn-based combat against enemies you write, from rats to liches.</p>
+          <Feature flip title="Fights you read, not just click" visual={<div className="w-full max-w-[460px]"><FightMock /></div>}>
+            <p>Every enemy shows what it does next. Guard the big hit, interrupt the wind-up, and save your best move for the opening.</p>
             <Points items={[
-              <><b>/fight:</b> pick your moves, drink potions mid-fight, and loot what drops.</>,
-              <><b>Wild encounters</b> wander into chat. The first to click Fight takes them on.</>,
-              <><b>World bosses</b> like {enemies["hollow-king"]?.emoji} the {enemies["hollow-king"]?.name ?? "Hollow King"} take the whole server, and pay out by damage dealt.</>,
-              <><b>Duels</b> between members, with gold on the line if they dare.</>,
+              <><b>Drawn as a scene:</b> the enemy, your avatar and the place, redrawn every turn. Use any emoji, even your server&apos;s own, as a monster.</>,
+              <><b>Moves to unlock:</b> new ones as your Combat level grows, from gear, and from scrolls rare enemies drop. Owners build moves from effects: bleeds, stuns, wind-ups, drawbacks.</>,
+              <><b>Fight together:</b> anyone can click Join, up to three a fight. The enemy picks a target each turn and says who.</>,
+              <><b>Your channels are places:</b> wolves in #darkwood, the Lich only in the crypt. In chat, a fight opens in a thread so the conversation carries on.</>,
+              <><b>World bosses</b> like {enemies["hollow-king"]?.emoji} the {enemies["hollow-king"]?.name ?? "Hollow King"} take the whole server, and <b>duels</b> put gold on the line.</>,
+              <><b>Wounds take time:</b> HP comes back over a couple of hours, faster with food and potions. Lose, and you&apos;re back on your feet at a quarter of your health.</>,
             ]} />
           </Feature>
 
@@ -88,14 +90,15 @@ export default function FeaturesPage() {
             </p>
             <Points items={[
               <><b>Make any activity you like.</b> Pick a minigame and write every word players see. Mining for a fantasy server, salvage for a sci-fi one, baking for a cozy one.</>,
-              <><b>Skills from 1 to 50.</b> Higher skill opens better locations, where finds are rarer but worth more.</>,
-              <><b>Tools</b> from your shop make the game easier, and open the best spots.</>,
+              <><b>Places with character:</b> one is pitch dark, so you plan a path; one has fast water, so it takes two good pulls. Each plays differently, not just harder.</>,
+              <><b>Weather that changes through the day:</b> a storm makes it rough but turns up rarer finds; fog closes in; clear skies ease off. Everyone sees the same, and it changes every few hours.</>,
+              <><b>Skills from 1 to 50</b> open better locations, and <b>tools</b> from your shop make the game easier.</>,
             ]} />
           </Feature>
 
           <Feature
             flip
-            title="Gear you design"
+            title="Gear you design, find and craft"
             visual={
               <div className="grid w-full max-w-[460px] gap-3 sm:grid-cols-2">
                 <ItemTooltip item={items["dragonfang-sword"]!} />
@@ -108,9 +111,11 @@ export default function FeaturesPage() {
           >
             <p>Stock a shop with your own weapons, armour, potions and tools, each with its own rarity and stats.</p>
             <Points items={[
-              <><b>Nine gear slots</b> from head to aura, so every upgrade shows on your stats.</>,
-              <><b>Items that do things:</b> heal, give XP or gold, hand out roles, or grant other items.</>,
-              <><b>A living economy:</b> members buy, sell, trade and gift, and rare drops are worth chasing.</>,
+              <><b>Crafting stations</b> with a timing minigame: a perfect strike makes a masterwork. The best gear and food come from crafting and drops, not the shop.</>,
+              <><b>Recipes you discover:</b> find a rare material once and a new recipe opens up. Others come from scrolls.</>,
+              <><b>A collection log:</b> /collection shows everything you&apos;ve found, enemy by enemy and place by place, with blanks for what&apos;s left.</>,
+              <><b>Nine gear slots,</b> items that heal, give XP, roles or moves, and a shop whose stock can refresh daily.</>,
+              <><b>A living economy:</b> members buy, sell, trade and gift, and rare drops are announced to the server.</>,
             ]} />
           </Feature>
 
@@ -140,11 +145,12 @@ export default function FeaturesPage() {
               </div>
             }
           >
-            <p>A web dashboard where every enemy, item, quest and minigame is a slot you click and edit.</p>
+            <p>A web dashboard where every enemy, move, place, item, quest and minigame is a slot you click and edit.</p>
             <Points items={[
               <><b>A setup wizard</b> asks five questions and configures the bot for you.</>,
               <><b>Starter packs</b> fill your shop, enemies, quests and gathering in one click, and never overwrite your own work.</>,
               <><b>Simple and Advanced</b> settings, and a health check that spots what would quietly fail.</>,
+              <><b>Kind to newcomers:</b> new players get a private tip the first time they fight, win, lose or join a party, and anyone can turn off pings with /settings quiet.</>,
               <><b>Your moderators can help:</b> anyone with Manage Server can use the dashboard, and <b>/config</b> switches features on and off from Discord.</>,
             ]} />
           </Feature>

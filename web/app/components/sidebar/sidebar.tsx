@@ -32,6 +32,7 @@ const sections: Array<{ label: string; tabs: Array<{ href: string; label: string
             { href: "combat", label: "Combat", sprite: "swords" },
             { href: "gathering", label: "Gathering", sprite: "pickaxe" },
             { href: "crafting", label: "Crafting", sprite: "anvil" },
+            { href: "collections", label: "Collections", sprite: "book" },
             { href: "quests", label: "Quests", sprite: "scroll" },
             { href: "achievements", label: "Achievements", sprite: "trophy" },
         ],

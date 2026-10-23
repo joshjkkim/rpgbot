@@ -2,6 +2,7 @@ import type { AttachmentBuilder, User } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
 import { renderLevelUpBanner } from "./canvas/levelUpBanner.js";
 import { bestEffort } from "./bestEffort.js";
+import { mentionsFor } from "./mentions.js";
 
 /**
  * The level-up banner for the RPG: a card for every Combat level, and for a
@@ -47,7 +48,7 @@ export async function rpgLevelUpCard(opts: {
             await bestEffort("level-up announcement", channel.send({
                 content: `🎉 <@${user.id}> reached **${label} ${after}**!`,
                 files: [card],
-                allowedMentions: { users: [user.id] },
+                allowedMentions: await mentionsFor("guildId" in channel ? channel.guildId : "", user.id, { users: [user.id] }),
             }));
         }
     }

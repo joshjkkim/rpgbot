@@ -8,6 +8,7 @@ import { MessageFlags } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
 import { bestEffort } from "../../ui/bestEffort.js";
+import { mentionsFor } from "../../ui/mentions.js";
 
 export const data = new SlashCommandBuilder()
     .setName("daily")
@@ -60,7 +61,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         if (config.xp.announceDailyInChannelId) {
             const channel = await interaction.client.channels.fetch(config.xp.announceDailyInChannelId).catch(() => null);
             if (channel && channel.isTextBased() && channel.isSendable()) {
-                await bestEffort("daily announcement", channel.send(dailyMessage));
+                await bestEffort("daily announcement", channel.send({ content: dailyMessage, allowedMentions: await mentionsFor(interaction.guildId!, interaction.user.id) }));
             }
         }
         
@@ -99,7 +100,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                     .replace(`{goldName}`, config.style.gold.name || "Gold")
                     .replace(`{goldIcon}`, config.style.gold.icon || "💰");
 
-                await bestEffort("daily announcement", channel.send(streakMessage));
+                await bestEffort("daily announcement", channel.send({ content: streakMessage, allowedMentions: await mentionsFor(interaction.guildId!, interaction.user.id) }));
             }
         }
 
@@ -119,7 +120,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                             .replace('{gold}', streakReward.goldBonus.toString())
                         : `<@${interaction.user.id}> has reached a ${profile.streak_count}-day streak and earned ${streakReward.xpBonus} ${config.style.xp.name || "XP"} ${config.style.xp.icon || "⭐"} and ${streakReward.goldBonus} ${config.style.gold.name || "Gold"} ${config.style.gold.icon || "💰"}!`;
 
-                    await bestEffort("daily announcement", channel.send(streakMessage));
+                    await bestEffort("daily announcement", channel.send({ content: streakMessage, allowedMentions: await mentionsFor(interaction.guildId!, interaction.user.id) }));
                 }
             }
         }

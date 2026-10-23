@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Field, FieldGrid, NumberField, SelectField, TextAreaField, TextField, Toggle } from "@/app/components/ui/form";
-import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { ChannelField, ItemField, MovesField, RoleField } from "@/app/components/ui/pickers";
 import RequirementsField, { type SkillOption } from "@/app/components/ui/requirementsField";
 import { RARITIES } from "@/app/components/shop/itemTooltip";
 import type { ShopConfig, shopItemAction, shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
@@ -20,6 +20,7 @@ export const ITEM_ACTION_TYPES = [
   { value: "giveStat" as const, label: "Give stat" },
   { value: "giveItem" as const, label: "Give item" },
   { value: "learnRecipe" as const, label: "Teach a recipe" },
+  { value: "learnMove" as const, label: "Teach a fight move" },
 ];
 
 /** Crafting stations, as the "teach a recipe" action needs them. */
@@ -105,6 +106,7 @@ export default function ItemForm({
   activities,
   skills,
   stations,
+  moves,
 }: {
   item: shopItemConfig;
   onChange: (next: shopItemConfig) => void;
@@ -117,6 +119,8 @@ export default function ItemForm({
   skills: SkillOption[];
   /** Crafting stations, for the "teach a recipe" action. */
   stations: StationOptions;
+  /** Fight moves, so gear can give one and scrolls can teach one. */
+  moves: Record<string, { name?: string; emoji?: string; players?: { learned?: boolean } }>;
 }) {
   const [tab, setTab] = useState<Tab>("basics");
   const upsertItem = onChange;
@@ -209,11 +213,19 @@ export default function ItemForm({
                 onChange={(v) => upsertItem({ ...item, maxPerUser: v })}
                 hint="0 means no cap."
               />
+              <NumberField
+                label="Per member per day"
+                value={item.dailyLimit ?? 0}
+                min={0}
+                onChange={(v) => upsertItem({ ...item, dailyLimit: v > 0 ? v : undefined })}
+                hint="How many one member can buy a day; restocks at midnight UTC. 0 means no limit. Keeps the shop a backup, so crafting stays worth it."
+              />
             </FieldGrid>
           </Field>
 
           {/* The item's old level and role fields are shown here and moved into requirements on the first edit. */}
           <RequirementsField
+            items={allItems}
             value={{
               ...item.requirements,
               ...(item.minLevel ? { combatLevel: Math.max(item.minLevel, item.requirements?.combatLevel ?? 0) } : {}),
@@ -274,6 +286,16 @@ export default function ItemForm({
               ))}
             </FieldGrid>
           </Field>
+
+          {item.equipable && (
+            <MovesField
+              label="Fight moves while equipped"
+              moves={moves}
+              value={effects.moves ?? []}
+              onChange={(v) => patchEffects({ moves: v.length ? v : undefined })}
+              hint="Members wearing it get these moves in fights, whatever the move's own requirements: a greatsword that gives Cleave."
+            />
+          )}
 
           <Field label="Boosts">
             <FieldGrid>
@@ -459,6 +481,19 @@ export default function ItemForm({
                           </>
                         );
                       })()}
+
+                      {action.type === "learnMove" && (
+                        <SelectField
+                          label="Move"
+                          value={action.moveId ?? ""}
+                          onChange={(v) => patch({ moveId: v })}
+                          options={[{ value: "", label: "Choose a move" }, ...Object.entries(moves).filter(([, m]) => m.players).map(([id, m]) => ({
+                            value: id,
+                            label: `${m.emoji ?? ""} ${m.name ?? id}${m.players?.learned ? "" : " (doesn't need learning)"}`.trim(),
+                          }))]}
+                          hint="Turn on “Must be learned” for the move on the Combat page, so members only get it from this."
+                        />
+                      )}
 
                       {action.type === "giveItem" && (
                         <>

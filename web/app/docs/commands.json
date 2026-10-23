@@ -1,5 +1,11 @@
 [
   {
+    "name": "collection",
+    "description": "This server's collections: what you've found and beaten, and what's left",
+    "managersOnly": false,
+    "options": []
+  },
+  {
     "name": "craft",
     "description": "Craft at one of this server's stations",
     "managersOnly": false,
@@ -52,12 +58,12 @@
   },
   {
     "name": "fight",
-    "description": "Fight an enemy for XP and gold!",
+    "description": "Hunt for an enemy where you are, for Combat XP and loot",
     "managersOnly": false,
     "options": [
       {
         "name": "enemy",
-        "description": "Enemy ID to fight (leave blank for a random eligible enemy)",
+        "description": "A specific enemy's ID (managers, or when the server allows it)",
         "type": "text",
         "required": false
       }
@@ -197,6 +203,12 @@
     ]
   },
   {
+    "name": "moves",
+    "description": "See your fight moves and pick the ones you take into fights",
+    "managersOnly": false,
+    "options": []
+  },
+  {
     "name": "profile",
     "description": "View your profile",
     "managersOnly": false,
@@ -228,6 +240,19 @@
       {
         "name": "update",
         "description": "Update your user settings",
+        "kind": "subcommand"
+      },
+      {
+        "name": "quiet",
+        "description": "Never get pinged by level-ups, rare finds and other announcements about you",
+        "options": [
+          {
+            "name": "on",
+            "description": "On: you're named without a ping",
+            "type": "true/false",
+            "required": true
+          }
+        ],
         "kind": "subcommand"
       }
     ]

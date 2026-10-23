@@ -26,12 +26,65 @@ export default function Combat() {
 
       <H2>How a fight works</H2>
       <List>
-        <li><C>/fight</C> picks an enemy suited to the member&apos;s level, or one they name.</li>
-        <li>Each round they choose an action: <b>Attack</b>, drink a healing potion from their bag, or <b>Flee</b>. Drinking uses the turn, so the enemy still swings.</li>
-        <li>A win pays the enemy&apos;s Combat XP and gold, and rolls its drops.</li>
-        <li><b>HP carries over</b> between fights. Members heal with <C>/daily</C> or a potion.</li>
-        <li>One fight at a time. While fighting, other commands wait, and <C>/fight</C> brings the fight back if it scrolled away.</li>
-        <li>Walking away, or a bot restart, counts as fleeing: no penalty, but the damage taken stays.</li>
+        <li><C>/fight</C> picks an enemy suited to the member&apos;s level (from the channel&apos;s place, if it has one), or one they name.</li>
+        <li><b>The enemy shows its next move</b> before the member picks theirs: a heavy blow coming, a wind-up, a guard. Reading it is the game: guard the big hit, strike while it winds up.</li>
+        <li>Each round the member picks one of their <b>moves</b>, drinks a potion (which uses the turn), or flees.</li>
+        <li><b>Speed decides who acts first</b>, and the fight says so under the buttons. Some moves always go first.</li>
+        <li>A win pays the enemy&apos;s Combat XP and gold, and rolls its drops. An enemy well below the member&apos;s level pays less XP (10% less per level past its max, down to 25%), and the result says where fairer fights are.</li>
+        <li>One fight at a time. <C>/fight</C> brings it back if it scrolled away. Walking away, or a bot restart, counts as fleeing.</li>
+        <li>Fights show a drawn <b>battle scene</b> of both sides and their statuses. Turn it off under Combat if you prefer text.</li>
+      </List>
+
+      <H2>Moves</H2>
+      <P>
+        Players and enemies use the same moves, built at <Where>Combat → Moves</Where> from blocks: <b>hit</b> (power,
+        several hits, pierce, lifesteal), <b>guard</b>, <b>counter</b>, <b>heal</b>, <b>boost</b> a stat, apply a{" "}
+        <b>status</b>, <b>stun</b> and <b>cleanse</b>. Blocks can aim at yourself, which is how drawbacks work (a heavy hit
+        that lowers your defence), and can need a condition (if the target is bleeding) or a chance.
+      </P>
+      <List>
+        <li><b>Wind-up:</b> takes turns to charge first, and the other side sees it coming.</li>
+        <li><b>Cooldown</b> and <b>uses per fight</b> keep strong moves from being spammed.</li>
+        <li><b>Who gets it:</b> players by Combat level and any requirements, only once learned from a <b>move scroll</b>, or from gear that grants it.</li>
+        <li>Members choose four with <C>/moves</C>. A level-up that opens a move says so.</li>
+        <li>Enemies pick from their own move list by weight. Without one they attack, sometimes hit hard, sometimes guard.</li>
+      </List>
+      <H3>Statuses</H3>
+      <P>
+        Owner-made effects that last some turns: a share of max HP lost or gained each turn (bleed, regen), stat changes
+        (−25% attack), and how many times they stack. The defaults are Bleeding, Poisoned, Burning, Regenerating and Wounded.
+      </P>
+
+      <H2>Parties</H2>
+      <P>
+        Anyone can press <b>Join</b> on a fight to help. Each member picks their move and the round plays once everyone has
+        picked or the timer runs out. Each extra player adds the enemy&apos;s HP again, and each player rolls their own drops.
+        A knocked-out member gets half rewards and no drops.
+      </P>
+      <Table
+        head={["Setting", "Default"]}
+        rows={[
+          ["Players per fight", "3"],
+          ["Time to pick a move", "30 s"],
+          ["Enemy HP per extra player", "+100%"],
+          ["Joiners must be in the enemy's level range", "On"],
+        ]}
+      />
+      <P>An enemy can be set solo only.</P>
+
+      <H2>Places</H2>
+      <P>
+        Places map channels (or whole categories) to enemy pools: wolves in #the-woods, the Lich only in #the-crypt. Each
+        enemy in a pool has a weight, and an enemy&apos;s own <b>spawn weight</b> makes rare elites rare everywhere. Fights in
+        a place open in a thread by default, to keep chat clear. Channels outside every place meet any enemy that suits the level.
+      </P>
+
+      <H2>Health and losing</H2>
+      <List>
+        <li><b>HP carries over</b> between fights and refills on its own: from 0 to full in 2 hours. Food and potions heal right away.</li>
+        <li>A loss, or a knockout in a party or by a world boss, brings you back at <b>25% HP</b>.</li>
+        <li>It also leaves you <b>Wounded</b> for 10 minutes: −20% attack and defence, in and out of fights. Pick another status, change the time, or set it to 0 under Combat → Health.</li>
+        <li>Losing to an enemy drops <b>5% of carried gold</b> (at least 10). Duels have their own penalty, off by default. Each can also take Combat XP, off by default since it can undo a level.</li>
       </List>
 
       <H2>Player stats</H2>
@@ -64,15 +117,11 @@ export default function Combat() {
           ["Min and max Combat level", <>Which members can meet it in <C>/fight</C> and encounters. A max of 0 means no upper limit.</>],
           ["Combat XP and gold reward", "What beating it pays."],
           ["Drops", "Items it can drop, each with a chance from 0 to 1 and a quantity."],
+          ["Moves", "What it can do, with weights. Bosses and elites deserve their own."],
+          ["Spawn weight", "How often it turns up compared with others. 0.2 makes an elite rare."],
           ["World boss", "Makes it a server-wide boss instead (below)."],
         ]}
       />
-
-      <H2>Losing</H2>
-      <P>
-        Death penalties are separate for enemies and for duels. Each can take a percentage of gold, a flat amount (whichever
-        is larger), and a percentage of Combat XP. Combat XP loss is off by default, since it can undo a level.
-      </P>
 
       <H2>Wild encounters</H2>
       <P>While people chat, an enemy sometimes turns up in the channel. The first member to click <b>Fight</b> takes it on.</P>
@@ -91,6 +140,11 @@ export default function Combat() {
         Mark an enemy as a <b>world boss</b> and the whole server fights it together. Rewards are split by damage dealt, and
         the top damage dealer rolls its drops. Managers can summon one any time with <C>/boss summon</C>.
       </P>
+      <P>
+        The boss acts in <b>waves</b>. Its next move is shown on the message with a countdown, and it lands on everyone who
+        attacked since the last wave. <b>Guard</b> takes 70% off, without using an attack. Each member is told privately
+        what the wave did to them. Its guard moves make it harder to hurt until the next wave; heals heal it.
+      </P>
       <Table
         head={["Setting", "Default"]}
         rows={[
@@ -99,6 +153,7 @@ export default function Combat() {
           ["Shortest gap between random bosses", "6 hours"],
           ["Time to kill before it escapes", "30 minutes"],
           ["How often one member can attack", "Every 20 s"],
+          ["Time between waves", "25 s"],
         ]}
       />
       <Note>Give bosses lots of HP. They&apos;re meant to take many members several minutes.</Note>

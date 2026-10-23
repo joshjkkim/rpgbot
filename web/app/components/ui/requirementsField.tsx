@@ -1,8 +1,9 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Field, FieldGrid, NumberField, SelectField, Toggle } from "@/app/components/ui/form";
-import { RolesField } from "@/app/components/ui/pickers";
+import { ItemField, RolesField } from "@/app/components/ui/pickers";
 
 /** Mirrored from havocish/src/types/requirements.ts. All set conditions must hold; roles are "any one of". */
 export interface Requirements {
@@ -12,6 +13,16 @@ export interface Requirements {
   roles?: string[];
   memberDays?: number;
   booster?: boolean;
+  /** Must have found (ever owned) each of these items. */
+  found?: string[];
+  /** Must have completed each of these collections. */
+  collections?: string[];
+}
+
+/** The server's collections, for "has completed": set once per page instead of threaded through every editor. */
+const CollectionsContext = createContext<Record<string, { name?: string; emoji?: string }>>({});
+export function RequirementLists({ collections, children }: { collections: Record<string, { name?: string; emoji?: string }> | undefined; children: React.ReactNode }) {
+  return <CollectionsContext.Provider value={collections ?? {}}>{children}</CollectionsContext.Provider>;
 }
 
 /** Skills a requirement can name: gathering activities and crafting stations. */
@@ -26,6 +37,8 @@ function tidy(r: Requirements): Requirements | undefined {
   if (r.roles?.length) out.roles = r.roles;
   if (r.memberDays) out.memberDays = r.memberDays;
   if (r.booster) out.booster = true;
+  if (r.found?.length) out.found = r.found;
+  if (r.collections?.length) out.collections = r.collections; // blanks stay while an owner picks; the bot ignores unknown ids
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -39,13 +52,17 @@ export default function RequirementsField({
   onChange,
   skills,
   hint,
+  items,
 }: {
   value: Requirements | undefined;
   onChange: (next: Requirements | undefined) => void;
   skills: SkillOption[];
   hint?: string;
+  /** The server's items, for "has found". Without them that part is hidden. */
+  items?: Record<string, { name?: string; emoji?: string }>;
 }) {
   const r = value ?? {};
+  const collections = useContext(CollectionsContext);
   const set = (patch: Partial<Requirements>) => onChange(tidy({ ...r, ...patch }));
   const skillRows = Object.entries(r.skills ?? {});
   const free = skills.filter((s) => !(s.id in (r.skills ?? {})));
@@ -110,6 +127,57 @@ export default function RequirementsField({
                 <Plus size={14} /> Add a skill requirement
               </button>
             )}
+          </div>
+        )}
+
+        {Object.keys(collections).length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Has completed</p>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(collections).map(([id, c]) => {
+                const on = (r.collections ?? []).includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => set({ collections: on ? (r.collections ?? []).filter((x) => x !== id) : [...(r.collections ?? []), id] })}
+                    className={`rounded-sm border px-2 py-1 text-xs transition-colors ${on ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--border-bright)]"}`}
+                  >
+                    {c.emoji} {c.name ?? id}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {items && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Has found</p>
+            <p className="text-xs text-[var(--muted)]">Items they must have owned at some point (their /collection). Good for recipes: find the rare ore, learn to work it.</p>
+            {(r.found ?? []).map((id, i) => (
+              <div key={i} className="flex items-end gap-2">
+                <div className="flex-1">
+                  <ItemField items={items} value={id} onChange={(v) => set({ found: (r.found ?? []).map((x, j) => (j === i ? v : x)) })} emptyLabel="Choose an item" />
+                </div>
+                <button
+                  type="button"
+                  aria-label="Remove found requirement"
+                  onClick={() => set({ found: (r.found ?? []).filter((_, j) => j !== i) })}
+                  className="mb-2.5 text-[var(--muted)] transition-colors hover:text-red-400"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => set({ found: [...(r.found ?? []), ""] })}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+            >
+              <Plus size={14} /> Add an item they must have found
+            </button>
           </div>
         )}
       </div>

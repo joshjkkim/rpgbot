@@ -1,5 +1,6 @@
 "use client";
 
+import { RequirementLists } from "@/app/components/ui/requirementsField";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import ConfigDisplay from "./configDisplay";
 import { SettingsMode } from "./ui/form";
@@ -43,6 +44,7 @@ export default function ConfigPage({
   dirty,
   onSave,
   rawSection,
+  collections,
   children,
 }: {
   title: string;
@@ -56,6 +58,8 @@ export default function ConfigPage({
   /** The slice of config shown under "raw JSON", if any. */
   rawSection?: unknown;
   children: React.ReactNode;
+  /** The server's collections, so Requirements blocks on the page can offer "has completed". */
+  collections?: Record<string, { name?: string; emoji?: string }>;
 }) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -172,7 +176,7 @@ export default function ConfigPage({
       )}
 
       <SettingsMode.Provider value={{ showAdvanced, countHidden }}>
-        {!loading && children}
+        {!loading && <RequirementLists collections={collections}>{children}</RequirementLists>}
       </SettingsMode.Provider>
 
       {!loading && hiddenCount > 0 && (

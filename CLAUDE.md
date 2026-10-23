@@ -53,7 +53,7 @@ env $(grep '^DISCORD_TOKEN=' .env.prod.bak | xargs) CLIENT_ID=144016937843504337
 - One PR per change, **squash merge** (`gh pr merge N --squash --delete-branch`).
 - **Wait for CI to pass before merging.** It runs typecheck, lint, build, the smoke suite, the schema check, the Docker build and the command-reference check.
 - Don't stack a PR on another PR's branch: `--delete-branch` on the base closes the stacked PR. Merge, then branch from main.
-- Player-facing changes add a bullet under `## Unreleased` in `CHANGELOG.md`. Use only `##`/`###` headings, flat `- ` bullets and `**bold**`/`*italic*`/`` `code` ``, since the changelog page's parser handles nothing else.
+- Player-facing changes add a bullet under `## Unreleased` in `CHANGELOG.md`. Use only `##`/`###` headings, flat `- ` bullets and `**bold**`/`*italic*`/`` `code` ``, since the changelog page's parser handles nothing else. Start each bullet with a bold lead that reads on its own (`- **Party fights: join someone's fight.** …`): the Discord post shows only the leads and links to the full notes on the site.
 - Releases go out in batches: rename Unreleased to `## vX.Y · Month D, YYYY`, preview with `npm run changelog:post`, and post with `-- --send` **only after the owner says yes**.
 - Changed a command? Run `npm run docs:commands` and commit the JSON.
 - `/docs` pages state defaults (XP per message, cooldowns, curves). Update them when a default changes.

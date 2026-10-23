@@ -1,5 +1,5 @@
 import type { shopItemConfig } from "../types/economy.js";
-import type { item } from "../types/userprofile.js";
+import type { item, UserStats } from "../types/userprofile.js";
 import { withTransaction } from "./index.js";
 import { flushProfileCacheToDb } from "../cache/profileService.js";
 import { guildConfigCache, profileKey, userGuildProfileCache } from "../cache/caches.js";
@@ -13,7 +13,20 @@ type LockedProfile = {
     gold: string;
     level: number;
     inventory: Record<string, item> | null;
+    user_stats: UserStats | null;
 };
+
+/** Today, in UTC: daily limits restock at midnight UTC for everyone. */
+export function shopDay(now = Date.now()): string {
+    return new Date(now).toISOString().slice(0, 10);
+}
+
+/** How many more of an item a member can buy today; Infinity without a daily limit. */
+export function leftToday(item: Pick<shopItemConfig, "id" | "dailyLimit">, stats: UserStats | null | undefined, now = Date.now()): number {
+    if (!item.dailyLimit) return Infinity;
+    const bought = stats?.boughtToday?.day === shopDay(now) ? stats.boughtToday.items[item.id] ?? 0 : 0;
+    return Math.max(0, item.dailyLimit - bought);
+}
 
 /**
  * Buys `quantity` of `itemId` for a player, as one transaction.
@@ -68,7 +81,7 @@ export async function purchaseItem(opts: {
             const price = BigInt(shopItem.price ?? 0) * BigInt(quantity);
 
             const profileRes = await client.query<LockedProfile>(
-                `SELECT id, gold, level, inventory
+                `SELECT id, gold, level, inventory, user_stats
                  FROM user_guild_profiles WHERE user_id = $1 AND guild_id = $2 FOR UPDATE`,
                 [userId, guildId]
             );
@@ -79,6 +92,14 @@ export async function purchaseItem(opts: {
 
             // The item's level requirement is a Combat level, checked with its other
             // requirements before the purchase starts (shop.ts, itemRequirements).
+
+            // Daily limits read the locked row, so two quick buys can't both slip under it.
+            const left = leftToday({ ...shopItem, id: itemId }, profile.user_stats);
+            if (left < quantity) {
+                return { success: false, message: left === 0
+                    ? `You've bought today's ${shopItem.dailyLimit} ${shopItem.name}. More tomorrow (<t:${Math.floor(Date.parse(shopDay() + "T00:00:00Z") / 1000) + 86400}:R>).`
+                    : `Only ${left} more ${shopItem.name} today.` };
+            }
 
             const gold = BigInt(profile.gold ?? 0);
             if (gold < price) {
@@ -113,12 +134,21 @@ export async function purchaseItem(opts: {
                 };
             }
 
+            // Counted toward today's limit, and found for the collection: this
+            // write skips the profile cache, where found is otherwise recorded.
+            const stats: UserStats = { ...(profile.user_stats ?? {}) } as UserStats;
+            if (shopItem.dailyLimit) {
+                const today = stats.boughtToday?.day === shopDay() ? stats.boughtToday.items : {};
+                stats.boughtToday = { day: shopDay(), items: { ...today, [itemId]: (today[itemId] ?? 0) + quantity } };
+            }
+            if (!stats.found?.includes(itemId)) stats.found = [...(stats.found ?? []), itemId];
+
             const newGold = gold - price;
             await client.query(
                 `UPDATE user_guild_profiles
-                 SET inventory = $2, gold = $3, updated_at = NOW()
+                 SET inventory = $2, gold = $3, user_stats = $4, updated_at = NOW()
                  WHERE id = $1`,
-                [profile.id, JSON.stringify(inventory), newGold.toString()]
+                [profile.id, JSON.stringify(inventory), newGold.toString(), JSON.stringify(stats)]
             );
 
             purchased = true;

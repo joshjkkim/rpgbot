@@ -8,8 +8,8 @@ export default function Quests() {
     <>
       <DocTitle
         path="quests"
-        title="Quests and achievements"
-        lead="Quests are goals members take on and claim. Achievements unlock on their own when a member reaches a milestone."
+        title="Quests, achievements and collections"
+        lead="Quests are goals members take on and claim. Achievements unlock on their own when a member reaches a milestone. Collections are sets to complete, with rewards along the way."
       />
 
       <H2>Quests</H2>
@@ -27,6 +27,8 @@ export default function Quests() {
           [<C key="c">dailyClaim</C>, <><C>/daily</C> claims.</>],
           [<C key="c">defeatEnemies</C>, "Fights won, against any enemy or only chosen ones (Defeat Grey Wolf ×10). World bosses count."],
           [<C key="c">winDuels</C>, "Duels won."],
+          [<C key="c">gatherItems</C>, "Items found gathering, any or only chosen ones."],
+          [<C key="c">craftItems</C>, "Items crafted, any or only chosen ones."],
         ]}
       />
       <List>
@@ -49,7 +51,7 @@ export default function Quests() {
           [<C key="c">xp</C>, "Total XP."],
           [<C key="c">gold</C>, "Current gold."],
           [<C key="c">streak</C>, "Current daily streak."],
-          [<C key="c">stat</C>, <>A tracked stat, like <C>messagesSent</C>, <C>fightsWon</C>, <C>enemiesDefeated</C>, <C>duelsWon</C>, <C>dailiesClaimed</C> or <C>timeSpentInVC</C>.</>],
+          [<C key="c">stat</C>, <>A tracked stat, like <C>messagesSent</C>, <C>fightsWon</C>, <C>partyWins</C>, <C>gatherRuns</C>, <C>craftsMade</C>, <C>collectionsCompleted</C>, <C>duelsWon</C>, <C>dailiesClaimed</C> or <C>timeSpentInVC</C>.</>],
         ]}
       />
       <List>
@@ -59,6 +61,18 @@ export default function Quests() {
         <li>Unlocks can be announced server-wide, or per achievement in its own channel.</li>
       </List>
       <Note>Members see their achievements with the button on <C>/profile</C>.</Note>
+
+      <H2>Collections</H2>
+      <P>
+        Groups of things to find and beat that you make at <Where>Collections</Where>: every ore and gem, a bestiary, a set
+        of crafted arms. Items count once a member has ever had one; enemies once they&apos;ve beaten one. Members see their
+        progress in <C>/collection</C>, with missing entries as ???. Servers without collections show none.
+      </P>
+      <List>
+        <li><b>Milestones</b> pay at counts you choose (gold, items, Combat XP, a role), each once. Put the best one at the full count, and an early one so nobody needs the whole set for a first reward.</li>
+        <li>Recipes, moves, places and quests can require a finished collection (Requirements → Has completed).</li>
+        <li>Milestones are announced in a channel you pick, or where the find happened.</li>
+      </List>
     </>
   );
 }

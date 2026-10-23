@@ -18,6 +18,10 @@ import { itemLabel, type Ctx, type EndReason, type Game, type Run, type Words } 
 import { grid } from "../../ui/gathering/grid.js";
 import { timing } from "../../ui/gathering/timing.js";
 import { find } from "../../ui/gathering/find.js";
+import { conditionNow, runMods } from "../../player/twists.js";
+import { checkCollections } from "../../player/collections.js";
+import { nextGatherLine } from "../../player/nextSteps.js";
+import { questCompleteLines } from "../../player/quests.js";
 
 export const data = new SlashCommandBuilder()
     .setName("gather")
@@ -55,6 +59,7 @@ function render(run: Run, config: GuildConfig) {
         .setAccentColor(accentColor(config.style.mainThemeColor))
         .addTextDisplayComponents((t) => t.setContent([
             `## ${run.activity.emoji} ${run.activity.name} · ${run.location.emoji} ${run.location.name}`,
+            ...run.mods.lines,
             `-# ${run.energyLabel}${run.toolId ? ` · with ${itemLabel(config, run.toolId)}` : ""}`,
             `Found: ${Object.keys(run.found).length ? foundLine(run.found, config) : "nothing yet"}`,
             ...(run.status ? [`-# ${run.status}`] : []),
@@ -102,8 +107,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
     const progress = profile.user_stats?.gathering?.[activity.id];
     const power = energyNow(progress, activity);
+    const t = (ms: number) => `<t:${Math.ceil(ms / 1000)}:R>`;
     if (power.energy < 1) {
-        const t = (ms: number) => `<t:${Math.ceil(ms / 1000)}:R>`;
         return void await say(`⚡ You're out of energy for ${activity.name}. One more point ${t(power.nextAt!)}, full ${t(power.fullAt!)}.`);
     }
 
@@ -129,13 +134,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return void await say(`${location.emoji} ${location.name} needs a better tool${options.length ? `, like ${options.slice(0, 3).join(" or ")}` : ""}.`);
     }
     if (!rollLoot(location.loot ?? [], config)) return void await say(`${location.name} has nothing to find yet.`);
+    // The location's traits and today's condition; a costly one takes more energy.
+    const mods = runMods(config, activity, location);
+    const cost = 1 + mods.energy;
+    if (power.energy < cost) {
+        return void await say(`⚡ ${location.emoji} ${location.name} takes **${cost}** energy today and you have ${power.energy}. Full ${t(power.fullAt ?? Date.now())}.`);
+    }
 
     // Checked again after the awaits, so a double-tapped command can't start two runs.
     if (runs.has(key)) return void await say("You're already out gathering.");
     const run = {
         ownerId: interaction.user.id, discordGuildId: interaction.guildId, userId: user.id, guildId: guild.id,
         activity, location, skill, toolId: tool?.itemId ?? null, toolBonus: tool?.bonus ?? 0,
-        energyLabel: `⚡ ${power.energy - 1}/${power.max}`, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
+        energyLabel: `⚡ ${power.energy - cost}/${power.max}`, mods, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
     } as unknown as LiveRun;
     run.ctx = {
         config,
@@ -153,7 +164,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     runs.set(key, run);
     run.state = gameOf(activity).start(run, wordsOf(activity), run.ctx);
 
-    await spendEnergy(user.id, guild.id, activity);
+    await spendEnergy(user.id, guild.id, activity, cost);
     const response = await interaction.reply({ ...render(run, config), withResponse: true });
     run.message = response.resource?.message ?? null;
     run.deadline = setTimeout(() => void endRun(run, "timeout").catch((err) => console.error("Gathering timeout failed:", err)), RUN_TIMEOUT_MS);
@@ -171,14 +182,18 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
 
     const { config } = await getOrCreateGuildConfig({ discordGuildId: run.discordGuildId });
     const w = wordsOf(run.activity);
-    // Rounded up: rounding down wiped out small hauls, which read as a bug.
-    if (why === "hazard") for (const id of Object.keys(run.found)) run.found[id] = Math.ceil(run.found[id]! / 2);
-    const result = await finishRun({ userId: run.userId, guildId: run.guildId, config, activity: run.activity, location: run.location, found: run.found });
+    // Rounded up: rounding down wiped out small hauls, which read as a bug. "Unstable" loses it all.
+    const unstable = why === "hazard" && run.mods.rules.has("grid.unstable");
+    if (unstable) run.found = {};
+    else if (why === "hazard") for (const id of Object.keys(run.found)) run.found[id] = Math.ceil(run.found[id]! / 2);
+    const result = await finishRun({ userId: run.userId, guildId: run.guildId, config, activity: run.activity, location: run.location, found: run.found, xpMult: run.mods.xp });
 
     const lines = [
-        ...(why === "hazard" ? [`${w.hazard} ${w.hazardLine}`] : []),
+        ...(why === "hazard" ? [`${w.hazard} ${unstable ? w.collapseLine ?? "It all comes down: everything you found is lost." : w.hazardLine}`] : []),
         `<@${run.ownerId}> ${w.verb} ${foundLine(result.kept, config) || "nothing"} at ${run.location.emoji} ${run.location.name}.`,
         `-# +${result.skillXp} ${run.activity.skillName} XP · ${run.energyLabel} left`,
+        ...(result.questsCompleted.length ? [questCompleteLines(result.questsCompleted)] : []),
+        ...[nextGatherLine(run.activity, result.skillAfter)].filter((l): l is string => !!l),
     ];
     if (result.skillAfter > result.skillBefore) {
         lines.push(`**${run.activity.skillName} ${result.skillAfter}!**`);
@@ -197,6 +212,7 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
     else await run.message?.edit(view).catch(() => null);
 
     const client = interaction?.client ?? run.message?.client;
+    if (client) await checkCollections({ client, config, discordUserId: run.ownerId, discordGuildId: run.discordGuildId, fallbackChannelId: run.message?.channelId ?? null });
     if (client) await announceRareFinds({
         client, config, discordUserId: run.ownerId, verb: "found",
         items: Object.entries(result.kept).map(([itemId, quantity]) => ({ itemId, quantity })),
@@ -246,8 +262,11 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     const { profile } = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
     const skill = skillLevel(profile.user_stats?.gathering?.[activity.id]?.xp ?? 0, config);
     const tier = bestTool(profile.inventory, config, activity.id)?.tier ?? 0;
-    return respondFiltered(interaction, unlockedLocations(activity, skill).map((l) => ({
-        name: `${l.emoji} ${l.name}${(l.minToolTier ?? 0) > tier ? ` (needs a tier ${l.minToolTier} tool)` : ""}`,
-        value: l.id,
-    })));
+    return respondFiltered(interaction, unlockedLocations(activity, skill).map((l) => {
+        const now = conditionNow(config, activity, l);
+        return {
+            name: `${l.emoji} ${l.name}${now ? ` · ${now.emoji} ${now.name}` : ""}${(l.minToolTier ?? 0) > tier ? ` (needs a tier ${l.minToolTier} tool)` : ""}`,
+            value: l.id,
+        };
+    }));
 }
