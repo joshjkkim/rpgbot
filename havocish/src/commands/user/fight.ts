@@ -217,8 +217,6 @@ async function drawScene(fight: ActiveFight, config: GuildConfig): Promise<Attac
             ...(fight.members.length > 1 && m.userId === fight.enemyTarget && { targeted: true }),
             ...(hits?.members[m.userId] && { hit: hits.members[m.userId] }),
         })),
-        intent: intentLine(fight, config).replaceAll("**", ""),
-        danger: intentThreat(fight, config) === "danger",
     });
     const timeout = new Promise<null>((resolve) => setTimeout(resolve, SCENE_TIMEOUT_MS, null).unref());
     const png = await Promise.race([render, timeout]).catch((err) => {

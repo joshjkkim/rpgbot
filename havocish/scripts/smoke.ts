@@ -1756,11 +1756,10 @@ async function main() {
         // A 1x1 PNG, so nothing is fetched from the network.
         const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
         const enemy = { name: "Ogre", emoji: "", image: png, hp: 40, maxHp: 90, hit: 12 };
-        const solo = await renderBattleScene({ place: { colour: "#334455" }, enemy, members: [{ name: "Josh", avatarUrl: png, hp: 80, maxHp: 100, hit: 5 }], intent: "Ogre winds up a heavy blow…", danger: true });
+        const solo = await renderBattleScene({ place: { colour: "#334455" }, enemy, members: [{ name: "Josh", avatarUrl: png, hp: 80, maxHp: 100, hit: 5 }] });
         const party = await renderBattleScene({
             place: { image: png }, enemy,
             members: [{ name: "Josh", avatarUrl: png, hp: 80, maxHp: 100, targeted: true }, { name: "Sam", hp: 0, maxHp: 100, down: true }, { name: "Ana", avatarUrl: png, hp: 50, maxHp: 120 }],
-            intent: "Ogre gets ready to strike. (at Josh)",
         });
         const isPng = (b: Buffer) => b.subarray(1, 4).toString() === "PNG" && b.length > 5000;
         check("a solo scene draws", isPng(solo), true);

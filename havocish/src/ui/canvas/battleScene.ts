@@ -1,6 +1,6 @@
 import { createCanvas } from "@napi-rs/canvas";
 import { registerCardFonts } from "./fonts.js";
-import { drawTextWithEmojis, emojiImageUrl, loadCachedImage } from "./drawEmojis.js";
+import { emojiImageUrl, loadCachedImage } from "./drawEmojis.js";
 import { PARCHMENT, PARCHMENT_DIM, RED, STONE_BORDER, drawPanelFrame, roundRectPath } from "./theme.js";
 
 /**
@@ -12,7 +12,9 @@ import { PARCHMENT, PARCHMENT_DIM, RED, STONE_BORDER, drawPanelFrame, roundRectP
  */
 
 const W = 640;
-const H = 300;
+// No text along the bottom: the warning is the message's headline, where it
+// stays readable when Discord shrinks the picture on a phone.
+const H = 250;
 const SCALE = 2;
 const FLOOR = 186;
 
@@ -22,9 +24,6 @@ export type SceneArgs = {
     place?: { emoji?: string; colour?: string; image?: string } | null;
     enemy: { name: string; emoji: string; image?: string; hp: number; maxHp: number; hit?: number };
     members: SceneMember[];
-    /** The warning line along the bottom: what the enemy does next. */
-    intent: string;
-    danger?: boolean;
 };
 
 function hpBar(ctx: any, x: number, y: number, w: number, hp: number, max: number) {
@@ -181,18 +180,6 @@ export async function renderBattleScene(args: SceneArgs): Promise<Buffer> {
             damage(ctx, m.hit, cx + 44, 162);
         }
     }
-
-    // The warning line: the one thing to read before choosing.
-    ctx.fillStyle = "rgba(10,8,6,0.85)";
-    roundRectPath(ctx, 24, 240, W - 48, 36, 4);
-    ctx.fill();
-    ctx.strokeStyle = args.danger ? RED : STONE_BORDER;
-    ctx.lineWidth = args.danger ? 2 : 1;
-    ctx.stroke();
-    ctx.fillStyle = args.danger ? "#f0c0b0" : PARCHMENT;
-    ctx.font = "14px InterSemi";
-    ctx.textAlign = "left";
-    await drawTextWithEmojis({ ctx, text: args.intent, x: 36, y: 263, emojiSize: 16 }).catch(() => ctx.fillText(args.intent, 36, 263));
 
     return canvas.toBuffer("image/png");
 }
