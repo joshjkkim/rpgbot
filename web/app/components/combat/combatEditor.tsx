@@ -105,7 +105,7 @@ export interface CombatConfig {
   statuses?: Record<string, StatusConfig>;
   places?: Record<string, PlaceConfig>;
   /** Others joining a fight (mirrored from havocish/src/player/fight.ts partyRules). */
-  party?: { enabled?: boolean; maxPlayers?: number; turnSeconds?: number; hpPerExtraPlayer?: number };
+  party?: { enabled?: boolean; maxPlayers?: number; turnSeconds?: number; hpPerExtraPlayer?: number; levelRange?: boolean };
   allowEnemyChoice?: boolean;
   fightsIn?: "thread" | "channel";
   /** HP refill time and where a loss leaves you (mirrored from havocish/src/player/combat.ts). */
@@ -573,6 +573,16 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
           onChange={(v) => updateRoot({ party: { ...local.party, enabled: v } })}
           hint="The enemy aims at one player each turn and says who, so the party can guard and cover for each other."
         />
+        <div className="mt-3">
+          <Toggle
+            label="Joiners must be in the enemy's level range"
+            checked={local.party?.levelRange !== false}
+            onChange={(v) => updateRoot({ party: { ...local.party, levelRange: v } })}
+            hint={local.party?.levelRange !== false
+              ? "A Combat 40 can't carry a Combat 5 through its fights. The enemy's requirements always apply."
+              : "Off: anyone can join any fight, whatever their level. Handy for testing, or for servers that like carrying friends."}
+          />
+        </div>
         <div className="mt-4">
           <FieldGrid>
             <NumberField label="Most players" value={local.party?.maxPlayers ?? 3} min={2} max={5} onChange={(v) => updateRoot({ party: { ...local.party, maxPlayers: v } })} />

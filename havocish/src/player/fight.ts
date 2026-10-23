@@ -195,7 +195,7 @@ export function startFight(opts: StartFightOptions): ActiveFight {
     return fight;
 }
 
-const PARTY_DEFAULTS = { enabled: true, maxPlayers: 3, turnSeconds: 20, hpPerExtraPlayer: 100 };
+const PARTY_DEFAULTS = { enabled: true, maxPlayers: 3, turnSeconds: 20, hpPerExtraPlayer: 100, levelRange: true };
 
 export function partyRules(config: GuildConfig) {
     return { ...PARTY_DEFAULTS, ...config.combat?.party };

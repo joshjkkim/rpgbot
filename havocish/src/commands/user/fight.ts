@@ -705,7 +705,8 @@ async function joinButton(interaction: ButtonInteraction, fight: ActiveFight, co
     const { profile } = ready;
     const enemy = fight.enemy;
     const level = combatLevel(profile, config);
-    if (level < enemy.minLevel || (enemy.maxLevel !== null && level > enemy.maxLevel)) {
+    const inRange = level >= enemy.minLevel && (enemy.maxLevel === null || level <= enemy.maxLevel);
+    if (partyRules(config).levelRange && !inRange) {
         return void await interaction.reply({
             content: `You need Combat **${enemy.minLevel}**${enemy.maxLevel !== null ? `–${enemy.maxLevel}` : "+"} to fight **${enemy.emoji} ${enemy.name}**.`,
             flags: MessageFlags.Ephemeral,
