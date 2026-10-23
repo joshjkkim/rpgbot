@@ -41,7 +41,7 @@ import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
-import { newestEntry, splitEntry } from "./changelog-post.js";
+import { newestEntry, shortEntry } from "./changelog-post.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
 import { applyQuestEvent } from "../src/player/quests.js";
@@ -2449,10 +2449,7 @@ async function main() {
         check("sections become bold lines", entry?.body.startsWith("**New**"), true);
         check("older entries are left out", entry?.body.includes("old"), false);
         check("unreleased changes are not posted", newestEntry(md.replace("## v2", "## Unreleased\n\n- wip\n\n## v2"))?.title, "v2 · today");
-        const long = Array.from({ length: 4 }, (_, i) => `**Part ${i}**\n${"- a bullet\n".repeat(150)}`).join("\n").trim();
-        const split = splitEntry(long);
-        check("a long entry splits into embed-sized parts, at headings", [split.length > 1, split.every((x) => x.length <= 4000), split.slice(1).every((x) => x.startsWith("**Part"))], [true, true, true]);
-        check("and loses nothing", split.join("\n"), long);
+        check("Discord gets one line per change", shortEntry("Big update. More words here.\n\n**Fights**\n- **Party fights.** Press Join to help.\n- plain"), "Big update.\n\n**Fights**\n- Party fights\n- plain");
         check("the real CHANGELOG.md has an entry", !!newestEntry(readFileSync(new URL("../../CHANGELOG.md", import.meta.url), "utf8")), true);
     });
 

@@ -4,53 +4,53 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 
 ## Unreleased
 
-Combat v2. Fights are now a read of what's coming, not a click on Attack: enemies show their next move, you pick from moves you've earned, and friends can jump in. Around it, the rest of the game got reasons to play: places with their own enemies, gathering that changes with the weather, collections to complete, crafted gear that beats bought, and losses that sting.
+Combat v2: fights you read and answer, party play, places, collections and losses that sting. Fights are now a read of what's coming, not a click on Attack: enemies show their next move, you pick from moves you've earned, and friends can jump in. Around it, the rest of the game got reasons to play: places with their own enemies, gathering that changes with the weather, collections to complete, crafted gear that beats bought, and losses that sting.
 
 ### Fights
 - **Enemies show their next move.** Every round you see what's coming: "👁️ Grey Wolf crouches low…", or a red ❗ when a big hit is winding up. Guard the heavy blow, strike while it charges, interrupt it with a stun.
-- **Moves.** Fights now use moves, not just Attack: Heavy Strike, Guard and Counter to start, and more that unlock with Combat level, from gear, or from move scrolls you find. Pick the four you take in with the new `/moves`. When a level-up opens a new move, the fight tells you.
-- **Speed matters.** The faster side acts first, and the fight says who goes first under the buttons. Some moves always strike first.
-- **Statuses.** Bleeding, poison, burning and regeneration tick each turn; others lower or raise stats, and some stack. The battle shows them with turns left.
-- **Battle scenes.** Each fight is drawn: you, the enemy, HP bars and statuses, updated every round. Server owners can turn it off.
-- **Party fights.** Press **Join** on someone's fight to help, up to 3 of you. Everyone picks a move, the round plays when you've all picked (or after 30 seconds), and each player rolls their own drops. The enemy gets tougher for each extra player.
-- **Places.** Channels can be places with their own enemies: wolves in #the-woods, the dead in #the-crypt. Fights there open in a thread so chat stays clear.
-- **What's next.** Every fight, gathering run and craft ends with what you're working toward: the next move, location or recipe, and how many levels away it is. Outgrown an enemy? It says where fairer fights are.
+- **Moves to choose each turn, and `/moves` to pick them.** Fights now use moves, not just Attack: Heavy Strike, Guard and Counter to start, and more that unlock with Combat level, from gear, or from move scrolls you find. Pick the four you take in with the new `/moves`. When a level-up opens a new move, the fight tells you.
+- **Speed decides who acts first.** The faster side acts first, and the fight says who goes first under the buttons. Some moves always strike first.
+- **Statuses that tick, change stats and stack.** Bleeding, poison, burning and regeneration tick each turn; others lower or raise stats, and some stack. The battle shows them with turns left.
+- **Battle scenes, drawn every round.** Each fight is drawn: you, the enemy, HP bars and statuses, updated every round. Server owners can turn it off.
+- **Party fights: join someone's fight, up to 3 of you.** Press **Join** on someone's fight to help, up to 3 of you. Everyone picks a move, the round plays when you've all picked (or after 30 seconds), and each player rolls their own drops. The enemy gets tougher for each extra player.
+- **Places: channels with their own enemies.** Channels can be places with their own enemies: wolves in #the-woods, the dead in #the-crypt. Fights there open in a thread so chat stays clear.
+- **Every result shows what you're working toward.** Every fight, gathering run and craft ends with what you're working toward: the next move, location or recipe, and how many levels away it is. Outgrown an enemy? It says where fairer fights are.
 - **Easy enemies pay less.** Beating something far below your level gives less XP, so it pays to move on.
-- **Rare elites.** Some enemies turn up only now and then, and they hit harder.
+- **Rare elite enemies.** Some enemies turn up only now and then, and they hit harder.
 
 ### Health and losing
 - **HP refills on its own.** From empty to full over two hours. Food and potions still heal right away.
-- **Losing costs something.** You drop 5% of the gold you're carrying (at least 10), come back on 25% HP, and are 🩹 Wounded for 10 minutes: lower attack and defence until it wears off. A good time to gather or craft.
+- **Losing drops some gold and leaves you Wounded.** You drop 5% of the gold you're carrying (at least 10), come back on 25% HP, and are 🩹 Wounded for 10 minutes: lower attack and defence until it wears off. A good time to gather or craft.
 
 ### World bosses
 - **Bosses fight back in waves.** The boss shows its next move with a countdown, then it lands on everyone who attacked since the last wave. Press 🛡️ **Guard** to take 70% less. Each fighter is told privately what hit them. Some bosses guard or heal between waves.
 
 ### Gathering and crafting
-- **Locations have character.** Some have traits that change how they play: only digging next to what you've opened, false alarms, a glimpse before it hides.
-- **Conditions.** Every few hours each location rolls a condition, the same for everyone: richer finds, harder going, rare loot, or calm. Runs show what's on and when it ends.
-- **Daily stock.** Some shop items now have a daily limit, so the best ones are worth crafting.
+- **Gathering locations with traits that change how they play.** Some have traits that change how they play: only digging next to what you've opened, false alarms, a glimpse before it hides.
+- **Conditions that change every few hours.** Every few hours each location rolls a condition, the same for everyone: richer finds, harder going, rare loot, or calm. Runs show what's on and when it ends.
+- **Daily stock on some shop items.** Some shop items now have a daily limit, so the best ones are worth crafting.
 - **Gathering and crafting quests.** Quests can now ask you to gather or craft items, any or specific ones.
 
 ### Collections
-- **`/collection`.** Server-made sets to complete: every ore and gem, a bestiary, a set of crafted arms. Items count once you've had one, enemies once you've beaten one, and missing ones show as ???. Rewards come at milestones along the way, with the best at the end, and finishing one can unlock recipes, moves or places.
+- **`/collection`: sets to complete, with rewards along the way.** Server-made sets to complete: every ore and gem, a bestiary, a set of crafted arms. Items count once you've had one, enemies once you've beaten one, and missing ones show as ???. Rewards come at milestones along the way, with the best at the end, and finishing one can unlock recipes, moves or places.
 
 ### Classic Fantasy
 - **A slower, fairer pace.** XP retuned so each area lasts longer, and gathering and crafting matter: 8 armour pieces crafted from monster parts, stronger forged swords, and three locations that need Combat 15.
-- **New content.** Moves for every enemy, places, rare elites, the Hollow King's four moves, 7 collections, new quests (a prospector's contract, kitchen duty, a smith's commission, a herb run) and achievements for parties, gathering, crafting and collections. Server owners: re-apply the pack on the dashboard to get it. Nothing you've changed is overwritten.
+- **New moves, places, elites, quests, achievements and 7 collections.** Moves for every enemy, places, rare elites, the Hollow King's four moves, 7 collections, new quests (a prospector's contract, kitchen duty, a smith's commission, a herb run) and achievements for parties, gathering, crafting and collections. Server owners: re-apply the pack on the dashboard to get it. Nothing you've changed is overwritten.
 
 ### Your settings
-- **Quiet.** `/settings quiet` stops the bot pinging you. You still see everything, just without the notification.
-- **Tips.** The first time you fight, lose or join a party, a short tip explains what's going on.
+- **Quiet mode: no pings from the bot.** `/settings quiet` stops the bot pinging you. You still see everything, just without the notification.
+- **One-time tips for your first fight, loss and party.** The first time you fight, lose or join a party, a short tip explains what's going on.
 
 ### For server owners
-- **Build moves and statuses** on the Combat page from blocks: hit, guard, counter, heal, boost, status, stun, cleanse. Add drawbacks, wind-ups, cooldowns, uses per fight and conditions. Give enemies their own moves with weights.
-- **Places** on the Combat page map channels or categories to enemy pools, each enemy with a weight, plus a spawn weight per enemy for rare elites.
-- **Party settings:** players per fight, the turn timer, how much tougher the enemy gets, and whether joiners must be in the enemy's level range.
-- **Health:** how fast HP refills, where a loss leaves members, and how long they're wounded (and with which status). Losing to an enemy now costs 5% of carried gold by default; set your own under Death penalty.
-- **Traits and conditions** on the Gathering page, built from the same effects, and how many hours a condition lasts.
-- **Collections** have their own page: pick items and enemies, set milestone rewards, and lock recipes, moves, places or quests behind finishing one.
-- **New quest goals and achievement stats:** gather items, craft items, party wins, gathering runs, crafts made and collections completed.
-- **Daily limits** per shop item.
+- **Build your own moves and statuses.** On the Combat page, from blocks: hit, guard, counter, heal, boost, status, stun, cleanse. Add drawbacks, wind-ups, cooldowns, uses per fight and conditions. Give enemies their own moves with weights.
+- **Map channels to enemy pools.** Places on the Combat page map channels or categories to enemy pools, each enemy with a weight, plus a spawn weight per enemy for rare elites.
+- **Party settings.** Players per fight, the turn timer, how much tougher the enemy gets, and whether joiners must be in the enemy's level range.
+- **Health settings.** How fast HP refills, where a loss leaves members, and how long they're wounded (and with which status). Losing to an enemy now costs 5% of carried gold by default; set your own under Death penalty.
+- **Gathering traits and conditions.** On the Gathering page, built from the same effects, and how many hours a condition lasts.
+- **A Collections page.** Pick items and enemies, set milestone rewards, and lock recipes, moves, places or quests behind finishing one.
+- **New quest goals and achievement stats.** Gather items, craft items, party wins, gathering runs, crafts made and collections completed.
+- **Daily limits per shop item.**
 - **A level-up channel for the RPG.** Combat and skill level-up cards can now also be posted in a channel you pick, like #level-ups, as well as under the fight or gathering result. Set it on the Style page, under Level-up cards.
 - **Set Combat and skill levels.** `/admin set combat` and `/admin set skill` put a member at any Combat, gathering or crafting level, for fixing mistakes or moving players over.
 

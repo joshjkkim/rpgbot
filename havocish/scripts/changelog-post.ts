@@ -32,23 +32,17 @@ export function newestEntry(markdown: string, version?: string): { title: string
 }
 
 /**
- * Splits a long entry into embed-sized parts at its section headings (or
- * bullets, for one huge section), so a big release posts as a few messages.
+ * The Discord version: one line per change, its bold lead ("- **Party fights.** Press…"
+ * becomes "- Party fights"), and only the first sentence of any paragraph. The
+ * website has the full text.
  */
-export function splitEntry(body: string, max = 4000): string[] {
-    // Whole sections where they fit; a section too big for one part is cut between bullets.
-    const pieces = body.split(/\n(?=\*\*[^*\n]+\*\*\n)/).flatMap((section) =>
-        section.length <= max ? [section] : section.split(/\n(?=- )/));
-    const parts: string[] = [];
-    let current = "";
-    for (const piece of pieces) {
-        if (current && current.length + piece.length + 1 > max) {
-            parts.push(current);
-            current = piece;
-        } else current += (current ? "\n" : "") + piece;
-    }
-    if (current) parts.push(current);
-    return parts;
+export function shortEntry(body: string): string {
+    return body.split("\n").map((line) => {
+        const lead = line.match(/^- \*\*(.+?)\.?\*\*/);
+        if (lead) return `- ${lead[1]}`;
+        if (!line.trim() || line.startsWith("**") || line.startsWith("- ")) return line;
+        return line.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? line;
+    }).join("\n");
 }
 
 async function main() {
@@ -56,32 +50,30 @@ async function main() {
     const version = at > -1 ? process.argv[at + 1] : undefined;
     const entry = newestEntry(readFileSync(CHANGELOG, "utf8"), version);
     if (!entry) throw new Error(version ? `No CHANGELOG.md entry for ${version}.` : "CHANGELOG.md has no ## entry.");
+    const description = `${shortEntry(entry.body)}\n\n**[Read the full notes →](https://havocish.com/changelog)**`;
+    if (description.length > 4000) throw new Error(`Entry is ${description.length} characters; an embed holds 4096.`);
 
-    const parts = splitEntry(entry.body);
-    // One message per part: Discord caps all embeds in one message at 6000 characters together.
-    const payloads = parts.map((description, i) => ({
+    const payload = {
         username: "havocish updates",
         avatar_url: AVATAR,
         embeds: [{
-            ...(i === 0 && { title: `📜 ${entry.title}`, url: "https://havocish.com/changelog" }),
+            title: `📜 ${entry.title}`,
             description,
             color: GOLD,
-            ...(i === parts.length - 1 && { footer: { text: "Full history at havocish.com/changelog" } }),
+            url: "https://havocish.com/changelog",
         }],
-    }));
+    };
 
     if (!process.argv.includes("--send")) {
-        console.log(`Would post ${parts.length} message${parts.length === 1 ? "" : "s"}:\n\n# 📜 ${entry.title}\n\n${parts.join("\n\n─── next message ───\n\n")}\n\nRun with --send to post it.`);
+        console.log(`Would post:\n\n# ${payload.embeds[0]!.title}\n\n${description}\n\nRun with --send to post it.`);
         return;
     }
 
     const url = process.env.CHANGELOG_WEBHOOK_URL?.trim();
     if (!url) throw new Error("Set CHANGELOG_WEBHOOK_URL in havocish/.env first.");
-    for (const payload of payloads) {
-        const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
-        if (!res.ok) throw new Error(`Discord answered ${res.status}: ${await res.text()}`);
-    }
-    console.log(`Posted "${entry.title}" in ${parts.length} message${parts.length === 1 ? "" : "s"}.`);
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error(`Discord answered ${res.status}: ${await res.text()}`);
+    console.log(`Posted "${entry.title}".`);
 }
 
 // Imported by the smoke tests for newestEntry; only run when called directly.
