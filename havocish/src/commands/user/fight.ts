@@ -182,10 +182,26 @@ export function buildFightEmbed(fight: ActiveFight, config: GuildConfig, log: st
 
 /** A slow or failed drawing never holds up a fight: it falls back to text. */
 const SCENE_TIMEOUT_MS = 4000;
+/**
+ * Drawings in progress at once. Each canvas holds a few MB the garbage
+ * collector frees late, so a burst past this shows text for that turn
+ * rather than spiking memory on the small bot machine.
+ */
+const MAX_SCENES_AT_ONCE = 3;
+let scenesInFlight = 0;
 
 /** The fight drawn as a picture, or null when the server turned scenes off or it couldn't be drawn. */
 async function sceneFile(fight: ActiveFight, config: GuildConfig): Promise<AttachmentBuilder | null> {
-    if (config.style?.battleScenes === false) return null;
+    if (config.style?.battleScenes === false || scenesInFlight >= MAX_SCENES_AT_ONCE) return null;
+    scenesInFlight++;
+    try {
+        return await drawScene(fight, config);
+    } finally {
+        scenesInFlight--;
+    }
+}
+
+async function drawScene(fight: ActiveFight, config: GuildConfig): Promise<AttachmentBuilder | null> {
     const place = fight.placeId ? config.combat.places?.[fight.placeId] : undefined;
     const hits = fight.lastHits;
     const render = renderBattleScene({
