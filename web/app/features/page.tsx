@@ -8,7 +8,7 @@ import { FightMock, GatherDemo, QuestMock } from "./demos";
 
 export const metadata: Metadata = {
   title: "Features",
-  description: "Levels, fights you read and unlock moves for, parties, gathering minigames with daily conditions, crafting, a collection log, quests and a dashboard to design it all. Everything havocish adds to a Discord server.",
+  description: "Levels, fights you read and unlock moves for, parties, gathering minigames with changing conditions, crafting, a collection log, quests and a dashboard to design it all. Everything havocish adds to a Discord server.",
 };
 
 const items = pack.content.shop.items as unknown as Record<string, shopItemConfig>;
@@ -91,7 +91,7 @@ export default function FeaturesPage() {
             <Points items={[
               <><b>Make any activity you like.</b> Pick a minigame and write every word players see. Mining for a fantasy server, salvage for a sci-fi one, baking for a cozy one.</>,
               <><b>Places with character:</b> one is pitch dark, so you plan a path; one has fast water, so it takes two good pulls. Each plays differently, not just harder.</>,
-              <><b>Weather that changes daily:</b> a storm makes it rough but turns up rarer finds; fog closes in; a clear day eases off. Everyone sees the same, and tomorrow is different.</>,
+              <><b>Weather that changes through the day:</b> a storm makes it rough but turns up rarer finds; fog closes in; clear skies ease off. Everyone sees the same, and it changes every few hours.</>,
               <><b>Skills from 1 to 50</b> open better locations, and <b>tools</b> from your shop make the game easier.</>,
             ]} />
           </Feature>

@@ -18,7 +18,7 @@ import { itemLabel, type Ctx, type EndReason, type Game, type Run, type Words } 
 import { grid } from "../../ui/gathering/grid.js";
 import { timing } from "../../ui/gathering/timing.js";
 import { find } from "../../ui/gathering/find.js";
-import { conditionToday, runMods } from "../../player/twists.js";
+import { conditionNow, runMods } from "../../player/twists.js";
 
 export const data = new SlashCommandBuilder()
     .setName("gather")
@@ -257,9 +257,9 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     const skill = skillLevel(profile.user_stats?.gathering?.[activity.id]?.xp ?? 0, config);
     const tier = bestTool(profile.inventory, config, activity.id)?.tier ?? 0;
     return respondFiltered(interaction, unlockedLocations(activity, skill).map((l) => {
-        const today = conditionToday(config, activity, l);
+        const now = conditionNow(config, activity, l);
         return {
-            name: `${l.emoji} ${l.name}${today ? ` · ${today.emoji} ${today.name} today` : ""}${(l.minToolTier ?? 0) > tier ? ` (needs a tier ${l.minToolTier} tool)` : ""}`,
+            name: `${l.emoji} ${l.name}${now ? ` · ${now.emoji} ${now.name}` : ""}${(l.minToolTier ?? 0) > tier ? ` (needs a tier ${l.minToolTier} tool)` : ""}`,
             value: l.id,
         };
     }));

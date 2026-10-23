@@ -104,8 +104,9 @@ export interface GatheringConfig {
         curveParams: Record<string, number>;
     };
     activities: Record<string, GatheringActivity>;
-    /** Conditions locations can roll each day. */
+    /** Conditions locations can roll, a new roll every `conditionHours` (default 6). */
     conditions?: Record<string, GatheringCondition>;
+    conditionHours?: number;
 }
 
 /** Per activity id, stored in user_stats.gathering. */

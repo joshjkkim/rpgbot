@@ -64,6 +64,8 @@ export interface GatheringConfig {
   skill: { maxLevel: number; curveType: string; curveParams: Record<string, number> };
   activities: Record<string, GatheringActivity>;
   conditions?: Record<string, GatheringCondition>;
+  /** How long a condition lasts before locations roll again (default 6). */
+  conditionHours?: number;
 }
 
 export const DEFAULT_GATHERING: GatheringConfig = {
@@ -445,11 +447,20 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
       </Section>
 
       <Section
-        title="Daily conditions"
-        description="Weather for your locations, or whatever fits your theme: each day a location can roll one of these, changing how it plays and what it pays. Make them here, then pick which each location can get."
+        title="Conditions"
+        description="Weather for your locations, or whatever fits your theme: every few hours each location can roll one of these, changing how it plays and what it pays. Make them here, then pick which each location can get."
         defaultOpen={false}
       >
-        <ConditionsEditor value={local.conditions} onChange={(conditions) => commit({ ...local, conditions })} />
+        <div className="space-y-4">
+          <SelectField
+            label="Conditions change every"
+            value={String(local.conditionHours ?? 6)}
+            onChange={(v) => commit({ ...local, conditionHours: Number(v) === 6 ? undefined : Number(v) })}
+            options={[1, 3, 6, 12, 24].map((h) => ({ value: String(h), label: h === 24 ? "Day (at midnight UTC)" : `${h} hour${h === 1 ? "" : "s"}` }))}
+            hint="Everyone sees the same conditions. Shorter means members in every time zone see a few different ones."
+          />
+          <ConditionsEditor value={local.conditions} onChange={(conditions) => commit({ ...local, conditions })} />
+        </div>
       </Section>
 
       <Section title="General" description="Whether members can gather at all." defaultOpen={!local.enabled}>

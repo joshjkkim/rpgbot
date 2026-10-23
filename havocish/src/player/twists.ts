@@ -3,7 +3,7 @@ import type { GuildConfig } from "../types/guild.js";
 
 /**
  * What makes a gathering spot play differently, not just harder: a location's
- * fixed traits, plus a condition rolled for the day. Both are owner-made from
+ * fixed traits, plus a condition rolled every few hours (conditionHours). Both are owner-made from
  * the same effects: general ones that work in any game (difficulty, rare loot,
  * yield, XP, energy) and rules for one game type. Nothing is themed: "storm"
  * or "pitch dark" are just what an owner calls them.
@@ -39,9 +39,18 @@ export type RunMods = {
     lines: string[];
 };
 
-/** A day key in UTC, so everyone sees the same conditions and they change at midnight UTC. */
-export function dayKey(now = Date.now()): string {
-    return new Date(now).toISOString().slice(0, 10);
+/** Hours a condition lasts unless the owner picks otherwise. Short enough that members in every time zone see a few. */
+export const DEFAULT_CONDITION_HOURS = 6;
+
+/**
+ * The current stretch of time conditions are rolled for, and when it ends.
+ * Counted from midnight UTC, so everyone sees the same, and a 24-hour setting
+ * changes at midnight UTC.
+ */
+export function conditionSlot(config: GuildConfig, now = Date.now()): { key: string; endsAt: number } {
+    const ms = Math.max(1, config.gathering?.conditionHours ?? DEFAULT_CONDITION_HOURS) * 3_600_000;
+    const slot = Math.floor(now / ms);
+    return { key: `${ms}:${slot}`, endsAt: (slot + 1) * ms };
 }
 
 /** A steady number in [0, 1) for a string: the same day and place always roll the same. */
@@ -51,14 +60,14 @@ function hash01(s: string): number {
     return (h >>> 0) / 4294967296;
 }
 
-/** Today's condition at a location, or null for a calm day. Nothing is stored: it's worked out from the date. */
-export function conditionToday(config: GuildConfig, activity: GatheringActivity, location: GatheringLocation, now = Date.now()): GatheringCondition | null {
+/** The condition at a location right now, or null when it's calm. Nothing is stored: it's worked out from the time. */
+export function conditionNow(config: GuildConfig, activity: GatheringActivity, location: GatheringLocation, now = Date.now()): GatheringCondition | null {
     const all = config.gathering?.conditions ?? {};
     const options = (location.conditions ?? []).filter((c) => all[c.conditionId] && (c.weight ?? 1) > 0);
     if (!options.length) return null;
     const calm = Math.max(0, location.calmWeight ?? 2);
     const total = calm + options.reduce((sum, c) => sum + (c.weight ?? 1), 0);
-    let r = hash01(`${dayKey(now)}:${activity.id}:${location.id}`) * total - calm;
+    let r = hash01(`${conditionSlot(config, now).key}:${activity.id}:${location.id}`) * total - calm;
     if (r < 0) return null;
     for (const c of options) {
         r -= c.weight ?? 1;
@@ -85,10 +94,11 @@ export function runMods(config: GuildConfig, activity: GatheringActivity, locati
         apply(t.effects);
         mods.lines.push(`${t.emoji || "✦"} **${t.name}:** ${t.line || ruleLines(t.effects) || "—"}`);
     }
-    const today = conditionToday(config, activity, location, now);
-    if (today) {
-        apply(today.effects);
-        mods.lines.push(`${today.emoji || "🌤️"} **${today.name} today:** ${today.line || ruleLines(today.effects) || "—"}`);
+    const current = conditionNow(config, activity, location, now);
+    if (current) {
+        apply(current.effects);
+        const ends = Math.floor(conditionSlot(config, now).endsAt / 1000);
+        mods.lines.push(`${current.emoji || "🌤️"} **${current.name}** (ends <t:${ends}:R>): ${current.line || ruleLines(current.effects) || "—"}`);
     }
     mods.energy = Math.max(0, Math.round(mods.energy));
     mods.yield = Math.max(0, Math.round(mods.yield));

@@ -34,7 +34,7 @@ const SHOWCASE = [
 
 const ALSO: Array<[SpriteName, string]> = [
   ["pickaxe", "Gathering skills you invent, each played as a minigame"],
-  ["hourglass", "Places with their own character, and weather that changes daily"],
+  ["hourglass", "Places with their own character, and weather that changes through the day"],
   ["anvil", "Crafting, with recipes you unlock by finding rare materials"],
   ["map", "Your channels become places, each with its own enemies"],
   ["book", "A collection log of everything you've ever found"],

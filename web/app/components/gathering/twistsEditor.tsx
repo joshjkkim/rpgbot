@@ -171,22 +171,22 @@ export function LocationConditionsField({ value, calmWeight, onChange, condition
   const options = Object.values(conditions).map((c) => ({ value: c.id, label: `${c.emoji} ${c.name}` }));
   const set = (next: typeof list) => onChange({ conditions: next.length ? next : undefined, calmWeight });
   if (!options.length) {
-    return <Field label="Daily conditions"><p className="text-xs text-[var(--muted)]">Make conditions under Daily conditions below, then pick which this place can get.</p></Field>;
+    return <Field label="Conditions"><p className="text-xs text-[var(--muted)]">Make conditions under Conditions below, then pick which this place can get.</p></Field>;
   }
   return (
-    <Field label="Daily conditions" hint="Each day this place rolls one of these, or none. Everyone sees the same, and it changes at midnight UTC.">
+    <Field label="Conditions" hint="Every few hours (set under Conditions below) this place rolls one of these, or none. Everyone sees the same.">
       <div className="space-y-2">
         {list.map((c, i) => (
           <div key={i} className="flex items-end gap-3">
             <div className="grid flex-1 gap-3 sm:grid-cols-2">
               <SelectField label="Condition" value={c.conditionId} onChange={(v) => set(list.map((x, j) => (j === i ? { ...x, conditionId: v } : x)))} options={options.some((o) => o.value === c.conditionId) ? options : [{ value: c.conditionId, label: `Deleted (${c.conditionId})` }, ...options]} />
-              <NumberField label="Weight" value={c.weight ?? 1} min={0} onChange={(v) => set(list.map((x, j) => (j === i ? { ...x, weight: v } : x)))} hint={`About ${Math.round(((c.weight ?? 1) / total) * 100)}% of days.`} />
+              <NumberField label="Weight" value={c.weight ?? 1} min={0} onChange={(v) => set(list.map((x, j) => (j === i ? { ...x, weight: v } : x)))} hint={`About ${Math.round(((c.weight ?? 1) / total) * 100)}% of the time.`} />
             </div>
             <div className="mb-2"><RemoveButton label="Remove condition" onClick={() => set(list.filter((_, j) => j !== i))} /></div>
           </div>
         ))}
         {list.length > 0 && (
-          <NumberField label="Calm days (weight)" value={calm} min={0} onChange={(v) => onChange({ conditions: list, calmWeight: v === 2 ? undefined : v })} hint={`About ${Math.round((calm / total) * 100)}% of days have no condition.`} />
+          <NumberField label="Calm (weight)" value={calm} min={0} onChange={(v) => onChange({ conditions: list, calmWeight: v === 2 ? undefined : v })} hint={`About ${Math.round((calm / total) * 100)}% of the time there's no condition.`} />
         )}
         <button type="button" onClick={() => set([...list, { conditionId: options[0]!.value, weight: 1 }])} className={smallButton}>
           <Plus size={14} /> Add a condition
@@ -216,7 +216,7 @@ export function ConditionsEditor({ value, onChange }: { value: Record<string, Ga
             <FieldGrid>
               <TextField label="Name" value={c.name} onChange={(v) => upsert({ ...c, name: v })} />
               <TextField label="Emoji" value={c.emoji} onChange={(v) => upsert({ ...c, emoji: v })} />
-              <TextField wide label="Line" value={c.line ?? ""} onChange={(v) => upsert({ ...c, line: v || undefined })} placeholder="Rain lashes down." hint="Shown as “⛈️ Storm today: …” when a run starts." />
+              <TextField wide label="Line" value={c.line ?? ""} onChange={(v) => upsert({ ...c, line: v || undefined })} placeholder="Rain lashes down." hint="Shown as “⛈️ Storm (ends in 2 hours): …” when a run starts." />
             </FieldGrid>
             <EffectsEditor value={c.effects ?? {}} onChange={(effects) => upsert({ ...c, effects })} />
           </div>

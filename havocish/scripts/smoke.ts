@@ -67,7 +67,7 @@ import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/pl
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
 import { energyNow, gridRules, makeClusteredGrid, makeGrid, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
-import { conditionToday, runMods } from "../src/player/twists.js";
+import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
 
@@ -1823,10 +1823,16 @@ async function main() {
         const mods = runMods(cfg, activity, location, day);
         check("the trait and today's condition both apply", [mods.difficulty, mods.rareLoot, mods.xp], [1, 2, 1.5]);
         check("a rule for another game is ignored", [...mods.rules], ["grid.adjacent"]);
-        check("both show when a run starts", mods.lines, ["🌑 **Pitch dark:** You can only open tiles next to ones you've uncovered.", "⛈️ **Storm today:** Rain lashes down."]);
-        check("everyone gets the same weather on a day", conditionToday(cfg, activity, location, day)?.id === conditionToday(cfg, activity, location, day + 3600_000)?.id, true);
+        check("both show when a run starts, with when the condition ends", mods.lines, [
+            "🌑 **Pitch dark:** You can only open tiles next to ones you've uncovered.",
+            `⛈️ **Storm** (ends <t:${Date.parse("2026-10-23T18:00:00Z") / 1000}:R>): Rain lashes down.`,
+        ]);
+        check("conditions last 6 hours by default, from midnight UTC", conditionSlot(cfg, day).endsAt, Date.parse("2026-10-23T18:00:00Z"));
+        cfg.gathering.conditionHours = 24;
+        check("or what the owner picks", conditionSlot(cfg, day).endsAt, Date.parse("2026-10-24T00:00:00Z"));
+        check("everyone gets the same weather in a stretch", conditionNow(cfg, activity, location, day)?.id === conditionNow(cfg, activity, location, day + 3600_000)?.id, true);
         location.calmWeight = 1_000_000;
-        check("a calm day has no condition", conditionToday(cfg, activity, location, day), null);
+        check("a calm stretch has no condition", conditionNow(cfg, activity, location, day), null);
 
         // Difficulty is read by each game its own way.
         check("grid: a hazard more, a try fewer", [gridRules(location, 1, 0, 1).hazards, gridRules(location, 1, 0, 1).tries], [3, 4]);
