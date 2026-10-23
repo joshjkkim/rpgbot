@@ -66,7 +66,8 @@ import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
-import { energyNow, gridRules, makeGrid, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
+import { energyNow, gridRules, makeClusteredGrid, makeGrid, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
+import { conditionToday, runMods } from "../src/player/twists.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
 
@@ -1805,6 +1806,43 @@ async function main() {
         const progress = collectionProgress(later, cfg);
         check("the log counts each item once, from every source", [progress.found, progress.total], [1, 3]);
         check("by source", progress.sources.map((s) => [s.id, s.found, s.itemIds.length]), [["enemy:wyrm", 1, 1], ["craft:smith", 0, 1], ["shop", 0, 1]]);
+    });
+
+    await test("gathering twists: traits, a daily condition, and rules that change the game", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.gathering.conditions = {
+            storm: { id: "storm", name: "Storm", emoji: "⛈️", line: "Rain lashes down.", effects: { difficulty: 1, rareLoot: 200, rules: ["timing.falseAlarm"] } },
+        };
+        const activity = { id: "dig", name: "Digging", game: "grid", locations: {} } as any;
+        const location = {
+            id: "deep", name: "Deep Veins", emoji: "⛏️", minSkill: 1, skillXp: 10, loot: [],
+            traits: [{ name: "Pitch dark", emoji: "🌑", effects: { rules: ["grid.adjacent"], xp: 150 } }],
+            conditions: [{ conditionId: "storm", weight: 1 }], calmWeight: 0,
+        } as any;
+        const day = Date.parse("2026-10-23T12:00:00Z");
+        const mods = runMods(cfg, activity, location, day);
+        check("the trait and today's condition both apply", [mods.difficulty, mods.rareLoot, mods.xp], [1, 2, 1.5]);
+        check("a rule for another game is ignored", [...mods.rules], ["grid.adjacent"]);
+        check("both show when a run starts", mods.lines, ["🌑 **Pitch dark:** You can only open tiles next to ones you've uncovered.", "⛈️ **Storm today:** Rain lashes down."]);
+        check("everyone gets the same weather on a day", conditionToday(cfg, activity, location, day)?.id === conditionToday(cfg, activity, location, day + 3600_000)?.id, true);
+        location.calmWeight = 1_000_000;
+        check("a calm day has no condition", conditionToday(cfg, activity, location, day), null);
+
+        // Difficulty is read by each game its own way.
+        check("grid: a hazard more, a try fewer", [gridRules(location, 1, 0, 1).hazards, gridRules(location, 1, 0, 1).tries], [3, 4]);
+        check("timing: a shorter window", timingWindowMs(location, 1, 0, 1), 2600);
+        check("find: less time, more look-alikes", [findRules(location, 1, 0, 1).seconds, findRules(location, 1, 0, 1).decoyKinds], [6.5, 4]);
+
+        // Clustered: every find but the first sits next to another, almost always.
+        let touching = 0;
+        for (let n = 0; n < 50; n++) {
+            const cells = makeClusteredGrid({ size: 16, finds: 5, hazards: 2 });
+            const finds = cells.map((c, i) => (c === "find" ? i : -1)).filter((i) => i >= 0);
+            const near = (a: number, b: number) => Math.abs(a - b) === 4 || (Math.abs(a - b) === 1 && Math.floor(a / 4) === Math.floor(b / 4));
+            if (finds.every((a) => finds.some((b) => a !== b && near(a, b)))) touching++;
+            check(`clustered grid ${n} keeps its counts`, [finds.length, cells.filter((c) => c === "hazard").length], [5, 2]);
+        }
+        check("clustered finds touch each other", touching >= 35, true);
     });
 
     await test("enemies below your level pay less XP, gently", async () => {

@@ -1,6 +1,8 @@
 import type { ActionRowBuilder, ButtonBuilder, Message } from "discord.js";
 import type { GatheringActivity, GatheringLocation } from "../../types/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
+import type { RunMods } from "../../player/twists.js";
+import { rollLoot } from "../../player/gathering.js";
 
 /**
  * What every gathering minigame shares. A game only decides what a run looks
@@ -30,6 +32,8 @@ export type Run = {
     timer: NodeJS.Timeout | null;
     /** Ends a run nobody finishes. */
     deadline: NodeJS.Timeout | null;
+    /** The location's traits and today's condition (player/twists.ts). */
+    mods: RunMods;
     // Each game keeps its own state here.
     state: any;
 };
@@ -66,8 +70,11 @@ export const itemLabel = (config: GuildConfig, id: string, n?: number) => {
 };
 
 export const addFind = (run: Run, drop: { itemId: string; quantity: number }) => {
-    run.found[drop.itemId] = (run.found[drop.itemId] ?? 0) + drop.quantity;
+    run.found[drop.itemId] = (run.found[drop.itemId] ?? 0) + drop.quantity + run.mods.yield;
 };
+
+/** One roll of this run's loot, with today's rare-loot boost. */
+export const rollRunLoot = (run: Run, config: GuildConfig) => rollLoot(run.location.loot ?? [], config, Math.random, run.mods.rareLoot);
 
 /** A word with "{name}" placeholders filled in. */
 export const fill = (word: string, values: Record<string, string>) =>

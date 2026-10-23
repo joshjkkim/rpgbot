@@ -68,16 +68,20 @@ export function toolsAtTier(config: GuildConfig, activityId: string, tier: numbe
     return Object.values(config.shop?.items ?? {}).filter((i) => i.tool?.activityId === activityId && (i.tool.tier ?? 1) >= tier);
 }
 
+const RARE = new Set(["rare", "epic", "legendary"]);
+
 /** One weighted pick from a loot table, or null when it has nothing to give. */
-export function rollLoot(loot: GatheringLoot[], config: GuildConfig, roll = Math.random): { itemId: string; quantity: number } | null {
+export function rollLoot(loot: GatheringLoot[], config: GuildConfig, roll = Math.random, rareBoost = 1): { itemId: string; quantity: number } | null {
     // An entry for a deleted item would hand out nothing, so it never takes a share.
     const live = loot.filter((l) => l.chance > 0 && config.shop?.items?.[l.itemId]);
-    const total = live.reduce((sum, l) => sum + l.chance, 0);
+    // A condition can make rare-and-up items more (or less) likely.
+    const weight = (l: GatheringLoot) => l.chance * (RARE.has(config.shop?.items?.[l.itemId]?.rarity ?? "") ? rareBoost : 1);
+    const total = live.reduce((sum, l) => sum + weight(l), 0);
     if (total <= 0) return null;
 
     let r = roll() * total;
     for (const l of live) {
-        r -= l.chance;
+        r -= weight(l);
         if (r < 0) {
             const min = Math.max(1, l.min ?? 1);
             const max = Math.max(min, l.max ?? min);
@@ -130,15 +134,41 @@ export type GridCell = "find" | "hazard" | "empty";
  * The grid game's difficulty after skill eases it: one extra try per 12 skill
  * levels, one fewer hazard per 15 (never below 1 while the location has any).
  */
-export function gridRules(location: GatheringLocation, skill: number, toolBonus = 0) {
+export function gridRules(location: GatheringLocation, skill: number, toolBonus = 0, difficulty = 0) {
     const d = location.difficulty ?? {};
     const hazards = d.hazards ?? 2;
+    // Each step of difficulty is one more hazard and one fewer try (and the reverse).
+    const eased = hazards > 0 ? Math.max(1, hazards - Math.floor(skill / 15)) : 0;
     return {
         size: 16,
         finds: Math.min(d.finds ?? 5, 15),
-        hazards: hazards > 0 ? Math.max(1, hazards - Math.floor(skill / 15)) : 0,
-        tries: (d.tries ?? 5) + Math.floor((skill - 1) / 12) + toolBonus,
+        hazards: Math.max(0, Math.min(10, eased + difficulty)),
+        tries: Math.max(1, (d.tries ?? 5) + Math.floor((skill - 1) / 12) + toolBonus - difficulty),
     };
+}
+
+/**
+ * Finds placed in clumps: each new find goes next to an earlier one where it
+ * can, so uncovering one tells you where to dig next. Hazards fill in after.
+ */
+export function makeClusteredGrid(rules: { size: number; finds: number; hazards: number }, roll = Math.random): GridCell[] {
+    const side = Math.round(Math.sqrt(rules.size));
+    const cells: GridCell[] = Array(rules.size).fill("empty");
+    const near = (i: number) => [i - side, i + side, ...(i % side ? [i - 1] : []), ...((i + 1) % side ? [i + 1] : [])].filter((j) => j >= 0 && j < rules.size);
+    const finds: number[] = [];
+    while (finds.length < Math.min(rules.finds, rules.size)) {
+        const open = finds.flatMap(near).filter((j) => cells[j] === "empty");
+        const pool = open.length && roll() < 0.85 ? open : cells.map((c, i) => (c === "empty" ? i : -1)).filter((i) => i >= 0);
+        const pick = pool[Math.floor(roll() * pool.length)]!;
+        cells[pick] = "find";
+        finds.push(pick);
+    }
+    const empty = cells.map((c, i) => (c === "empty" ? i : -1)).filter((i) => i >= 0);
+    for (let n = 0; n < Math.min(rules.hazards, empty.length); n++) {
+        const k = Math.floor(roll() * empty.length);
+        cells[empty.splice(k, 1)[0]!] = "hazard";
+    }
+    return cells;
 }
 
 /** A shuffled grid with the given number of finds and hazards. */
@@ -157,13 +187,15 @@ export function makeGrid(rules: { size: number; finds: number; hazards: number }
 }
 
 /** Spends a point of energy. Called when a run begins, so quitting early still costs it. Returns energy left. */
-export async function spendEnergy(userId: number, guildId: number, activity: GatheringActivity): Promise<number> {
+export async function spendEnergy(userId: number, guildId: number, activity: GatheringActivity, cost = 1): Promise<number> {
     const cached = await getOrCreateProfile({ userId, guildId });
     const p = cached.profile;
     const stats = { ...(p.user_stats ?? {}) } as NonNullable<typeof p.user_stats>;
     const progress = { ...(stats.gathering ?? {}) };
     const mine = progress[activity.id] ?? { xp: 0, runs: 0 };
-    progress[activity.id] = { ...mine, ...spentEnergy(mine, activity) };
+    let after = mine;
+    for (let i = 0; i < cost; i++) after = { ...after, ...spentEnergy(after, activity) };
+    progress[activity.id] = after;
     stats.gathering = progress;
     p.user_stats = stats;
     commitProfileChanges({
@@ -205,8 +237,11 @@ export async function finishRun(opts: {
     activity: GatheringActivity;
     location: GatheringLocation;
     found: Record<string, number>;
+    /** Multiplier on skill XP from the location's traits and today's condition. */
+    xpMult?: number;
 }) {
     const { userId, guildId, config, activity, location, found } = opts;
+    const skillXp = Math.round(Math.max(0, location.skillXp ?? 0) * (opts.xpMult ?? 1));
     const cached = await getOrCreateProfile({ userId, guildId });
     const p = cached.profile;
 
@@ -221,7 +256,7 @@ export async function finishRun(opts: {
     const progress = { ...(stats.gathering ?? {}) };
     const mine = progress[activity.id] ?? { xp: 0, runs: 0 };
     const before = skillLevel(mine.xp, config);
-    const xp = mine.xp + Math.max(0, location.skillXp ?? 0);
+    const xp = mine.xp + skillXp;
     progress[activity.id] = { ...mine, xp, runs: mine.runs + 1 };
     stats.gathering = progress;
 
@@ -233,5 +268,5 @@ export async function finishRun(opts: {
         baseline: { xp: p.xp, gold: p.gold },
     });
 
-    return { kept, skillBefore: before, skillAfter: skillLevel(xp, config), skillXp: location.skillXp ?? 0 };
+    return { kept, skillBefore: before, skillAfter: skillLevel(xp, config), skillXp };
 }

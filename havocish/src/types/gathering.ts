@@ -17,6 +17,45 @@ export interface GatheringLoot {
     max: number;
 }
 
+/** Rules that change how one game plays (player/twists.ts RULES says what each does). */
+export type TwistRule =
+    | "grid.adjacent" | "grid.clustered" | "grid.unstable"
+    | "timing.falseAlarm" | "timing.twice" | "timing.fragile"
+    | "find.glimpse" | "find.reshuffle" | "find.twin";
+
+/** What a trait or condition does. General effects work in any game; rules only in theirs. */
+export interface TwistEffects {
+    /** Steps harder (+) or easier (−). */
+    difficulty?: number;
+    /** Rare-and-up items' share of the loot, in % (200 doubles it). */
+    rareLoot?: number;
+    /** Extra items per find. */
+    yield?: number;
+    /** Skill XP, in % (150 is half again). */
+    xp?: number;
+    /** Extra energy a run costs. */
+    energy?: number;
+    rules?: TwistRule[];
+}
+
+/** A location's fixed character: "Pitch dark", "Fast water". */
+export interface LocationTrait {
+    name: string;
+    emoji: string;
+    /** Shown when a run starts; without one, the rules describe themselves. */
+    line?: string;
+    effects: TwistEffects;
+}
+
+/** A server-wide condition locations can have on a given day: "Storm", "Fog". */
+export interface GatheringCondition {
+    id: string;
+    name: string;
+    emoji: string;
+    line?: string;
+    effects: TwistEffects;
+}
+
 export interface GatheringLocation {
     id: string;
     name: string;
@@ -31,6 +70,11 @@ export interface GatheringLocation {
     loot: GatheringLoot[];
     /** Per game. Grid: finds, hazards, tries. */
     difficulty?: Record<string, number>;
+    /** Its fixed character. */
+    traits?: LocationTrait[];
+    /** Conditions it can have on a day, by weight, against `calmWeight` (default 2) for none. */
+    conditions?: { conditionId: string; weight?: number }[];
+    calmWeight?: number;
 }
 
 export interface GatheringActivity {
@@ -60,6 +104,8 @@ export interface GatheringConfig {
         curveParams: Record<string, number>;
     };
     activities: Record<string, GatheringActivity>;
+    /** Conditions locations can roll each day. */
+    conditions?: Record<string, GatheringCondition>;
 }
 
 /** Per activity id, stored in user_stats.gathering. */

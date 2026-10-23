@@ -1,4 +1,5 @@
 import { movesOf, statusesOf } from "../player/moves.js";
+import { RULES } from "../player/twists.js";
 import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -237,6 +238,13 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                     issues.push({ severity: "warning", message: `${a.name} at ${l.name} has nothing to find.`, page: "gathering" });
                 }
                 for (const x of l.loot ?? []) item(x.itemId, `${a.name} at ${l.name}`, "gathering");
+                for (const c of l.conditions ?? []) {
+                    if (!config.gathering.conditions?.[c.conditionId]) issues.push({ severity: "warning", message: `${a.name} at ${l.name} can get a condition that was deleted (${c.conditionId}).`, page: "gathering" });
+                }
+                for (const t of l.traits ?? []) {
+                    const elsewhere = (t.effects?.rules ?? []).filter((r) => RULES[r] && RULES[r].game !== a.game);
+                    if (elsewhere.length) issues.push({ severity: "warning", message: `${a.name} at ${l.name}: the trait ${t.name} has rules for another game (${elsewhere.map((r) => RULES[r].name).join(", ")}), which do nothing here.`, page: "gathering" });
+                }
             }
         }
     }
