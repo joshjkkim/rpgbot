@@ -164,6 +164,12 @@ export function MovesField({ moves, ...props }: ChipsProps & { moves: Record<str
   return <IdChips {...props} options={options} unknownLabel="Move" emptyHint="it gives none" />;
 }
 
+/** Several items at once, from the config. */
+export function ItemsField({ items, emptyHint = "any item counts", ...props }: ChipsProps & { items: Record<string, { name?: string; emoji?: string }>; emptyHint?: string }) {
+  const options = Object.entries(items).map(([id, it]) => ({ id, name: `${it.emoji ? it.emoji + " " : ""}${it.name || id}` }));
+  return <IdChips {...props} options={options} unknownLabel="Item" emptyHint={emptyHint} />;
+}
+
 /** Several text channels at once, as toggle chips. Empty means every channel. */
 export function ChannelsField(props: ChipsProps) {
   return <IdChips {...props} options={useChannelOptions()} unknownLabel="Channel" emptyHint="every channel" />;

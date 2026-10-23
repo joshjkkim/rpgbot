@@ -72,7 +72,12 @@ export async function payCollectionMilestones(userId: number, guildId: number, c
         }
     }
     if (!out.length) return [];
-    p.user_stats = { ...(p.user_stats ?? {}), collectionMilestones: [...paid] } as typeof p.user_stats;
+    const completed = out.filter((x) => x.complete).length;
+    p.user_stats = {
+        ...(p.user_stats ?? {}), collectionMilestones: [...paid],
+        // For achievements: how many collections they've finished.
+        ...(completed && { collectionsCompleted: (p.user_stats?.collectionsCompleted ?? 0) + completed }),
+    } as typeof p.user_stats;
     commitProfileChanges({
         userId, guildId, profile: p,
         changes: { ...(cached.pendingChanges ?? {}), ...changes, user_stats: p.user_stats },

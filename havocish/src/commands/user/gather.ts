@@ -21,6 +21,7 @@ import { find } from "../../ui/gathering/find.js";
 import { conditionNow, runMods } from "../../player/twists.js";
 import { checkCollections } from "../../player/collections.js";
 import { nextGatherLine } from "../../player/nextSteps.js";
+import { questCompleteLines } from "../../player/quests.js";
 
 export const data = new SlashCommandBuilder()
     .setName("gather")
@@ -191,6 +192,7 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
         ...(why === "hazard" ? [`${w.hazard} ${unstable ? w.collapseLine ?? "It all comes down: everything you found is lost." : w.hazardLine}`] : []),
         `<@${run.ownerId}> ${w.verb} ${foundLine(result.kept, config) || "nothing"} at ${run.location.emoji} ${run.location.name}.`,
         `-# +${result.skillXp} ${run.activity.skillName} XP · ${run.energyLabel} left`,
+        ...(result.questsCompleted.length ? [questCompleteLines(result.questsCompleted)] : []),
         ...[nextGatherLine(run.activity, result.skillAfter)].filter((l): l is string => !!l),
     ];
     if (result.skillAfter > result.skillBefore) {

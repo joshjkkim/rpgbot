@@ -45,6 +45,11 @@ export interface UserStats {
     roleRewards?: string[];
     /** What they bought today, for items with a daily limit (db/shop.ts). */
     boughtToday?: { day: string; items: Record<string, number> };
+    /** Counters for achievements: party fights won, gathering runs, crafts, collections finished. */
+    partyWins?: number;
+    gatherRuns?: number;
+    craftsMade?: number;
+    collectionsCompleted?: number;
     /** Every enemy this member has beaten at least once (player/fight.ts), for collections. */
     defeated?: string[];
     /** Collection milestones already paid, as "setId:at". */

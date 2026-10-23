@@ -413,7 +413,7 @@ function calcDeathGoldLoss(
 
 export async function applyFightRewards(
     summary: FightEndSummary,
-    fight: Pick<ActiveFight, "combatType" | "enemy">,
+    fight: Pick<ActiveFight, "combatType" | "enemy"> & { members?: unknown[] },
     /** Their HP when it ended; knocked out, or on a loss, they respawn low instead. */
     fighter: { hp: number; stats: CombatStats; out?: FightMember["out"] },
     profile: DbUserGuildProfile,
@@ -504,6 +504,7 @@ export async function applyFightRewards(
 
     if (summary.outcome === "win") {
         stats.fightsWon        = (stats.fightsWon        ?? 0) + 1;
+        if ((fight.members?.length ?? 1) > 1) stats.partyWins = (stats.partyWins ?? 0) + 1;
         stats.enemiesDefeated  = (stats.enemiesDefeated  ?? 0) + 1;
         if (fight.enemy?.id && !stats.defeated?.includes(fight.enemy.id)) stats.defeated = [...(stats.defeated ?? []), fight.enemy.id];
     } else if (summary.outcome === "loss") {

@@ -5,6 +5,7 @@ import type { shopItemConfig } from "../types/economy.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp, calculateTotalXpForLevel } from "../leveling/levels.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
+import { runQuestPipeline } from "./quests.js";
 
 /**
  * The parts every gathering game shares: skill levels, which locations a player
@@ -259,14 +260,28 @@ export async function finishRun(opts: {
     const xp = mine.xp + skillXp;
     progress[activity.id] = { ...mine, xp, runs: mine.runs + 1 };
     stats.gathering = progress;
+    // Every run counts, for achievements.
+    stats.gatherRuns = (stats.gatherRuns ?? 0) + 1;
 
     p.inventory = inv;
     p.user_stats = stats;
+    let pending = { ...(cached.pendingChanges ?? {}), inventory: inv, user_stats: stats } as PendingProfileChanges;
+    let profile = p;
+    const questsCompleted: string[] = [];
+    for (const [itemId, quantity] of Object.entries(kept)) {
+        const q = await runQuestPipeline({
+            profile, pending, config,
+            event: { type: "gather", guildId: String(p.guild_id), userId: String(p.user_id), itemId, quantity },
+        });
+        profile = q.profile;
+        pending = q.pending;
+        questsCompleted.push(...q.completed.map((c) => c.name));
+    }
     commitProfileChanges({
-        userId, guildId, profile: p,
-        changes: { ...(cached.pendingChanges ?? {}), inventory: inv, user_stats: stats } as PendingProfileChanges,
+        userId, guildId, profile,
+        changes: pending,
         baseline: { xp: p.xp, gold: p.gold },
     });
 
-    return { kept, skillBefore: before, skillAfter: skillLevel(xp, config), skillXp };
+    return { kept, skillBefore: before, skillAfter: skillLevel(xp, config), skillXp, questsCompleted };
 }

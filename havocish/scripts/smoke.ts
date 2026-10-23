@@ -44,6 +44,7 @@ import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry } from "./changelog-post.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
+import { applyQuestEvent } from "../src/player/quests.js";
 import { checkGuild, type Access } from "../src/health/checkGuild.js";
 import { DEFAULT_GUILD_CONFIG } from "../src/types/guild.js";
 import { equipItemFromInventory, useItemFromInventory } from "../src/player/inventory.js";
@@ -1873,6 +1874,24 @@ async function main() {
             check(`clustered grid ${n} keeps its counts`, [finds.length, cells.filter((c) => c === "hazard").length], [5, 2]);
         }
         check("clustered finds touch each other", touching >= 35, true);
+    });
+
+    await test("quests can ask for gathering and crafting", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.quests = { enabled: true, quests: {
+            ore: { id: "ore", name: "Ore Run", description: "", conditions: { type: "gatherItems", target: 5, itemIds: ["iron"] }, cooldownSeconds: 0 } as any,
+            forge: { id: "forge", name: "Forge Work", description: "", conditions: { type: "craftItems", target: 1 }, cooldownSeconds: 0 } as any,
+        } } as any;
+        // Quests only move once accepted.
+        let profile = { user_stats: {}, quests: { ore: { acceptedAt: "2026-01-01" }, forge: { acceptedAt: "2026-01-01" } } } as any;
+        const pending = {} as any;
+        const ev = (e: any) => applyQuestEvent({ profile, pending, config: cfg, event: { guildId: "g", userId: "u", ...e } });
+        let r = ev({ type: "gather", itemId: "copper", quantity: 9 });
+        check("other items don't count", r.completedQuestIds, []);
+        r = ev({ type: "gather", itemId: "iron", quantity: 5 });
+        check("five iron finishes the ore run", r.completedQuestIds, ["ore"]);
+        profile = r.profile;
+        check("any craft counts when no items are named", ev({ type: "craft", itemId: "sword", quantity: 1 }).completedQuestIds, ["forge"]);
     });
 
     await test("what's next: the move to unlock, a fairer place, the next location", async () => {

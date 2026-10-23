@@ -14,9 +14,9 @@ import {
   Toggle,
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
-import { ChannelField, EnemiesField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { ChannelField, EnemiesField, ItemField, ItemsField, RoleField } from "@/app/components/ui/pickers";
 
-export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim" | "defeatEnemies" | "winDuels";
+export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim" | "defeatEnemies" | "winDuels" | "gatherItems" | "craftItems";
 
 export type QuestCondition =
   | { type: "messages"; target: number; channelIds?: string[] }
@@ -25,7 +25,9 @@ export type QuestCondition =
   | { type: "earnXp"; target: number }
   | { type: "dailyClaim"; target: number }
   | { type: "defeatEnemies"; target: number; enemyIds?: string[] }
-  | { type: "winDuels"; target: number };
+  | { type: "winDuels"; target: number }
+  | { type: "gatherItems"; target: number; itemIds?: string[] }
+  | { type: "craftItems"; target: number; itemIds?: string[] };
 
 export interface QuestReward {
   xp?: number;
@@ -80,6 +82,8 @@ const CONDITIONS = [
   { value: "dailyClaim" as const, label: "Daily claims" },
   { value: "defeatEnemies" as const, label: "Enemies defeated" },
   { value: "winDuels" as const, label: "Duels won" },
+  { value: "gatherItems" as const, label: "Items gathered" },
+  { value: "craftItems" as const, label: "Items crafted" },
 ];
 
 const CHANNEL_SCOPED: QuestConditionType[] = ["messages", "vcMinutes"];
@@ -249,6 +253,17 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies,
                       value={condition.enemyIds ?? []}
                       onChange={(ids) =>
                         upsertQuest({ ...quest, conditions: { ...condition, enemyIds: ids.length ? ids : undefined } })
+                      }
+                    />
+                  )}
+                  {(condition.type === "gatherItems" || condition.type === "craftItems") && (
+                    <ItemsField
+                      wide
+                      label="Which items"
+                      items={shopItems}
+                      value={condition.itemIds ?? []}
+                      onChange={(ids) =>
+                        upsertQuest({ ...quest, conditions: { ...condition, itemIds: ids.length ? ids : undefined } })
                       }
                     />
                   )}

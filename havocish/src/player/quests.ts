@@ -64,6 +64,12 @@ function eventMatchesCondition(ev: QuestEvent, cond: any): number {
     case "winDuels": {
       return ev.type === "winDuel" ? 1 : 0;
     }
+    case "gatherItems":
+    case "craftItems": {
+      if (ev.type !== (cond.type === "gatherItems" ? "gather" : "craft")) return 0;
+      if (cond.itemIds?.length && !cond.itemIds.includes(ev.itemId)) return 0;
+      return ev.quantity;
+    }
     default:
       return 0;
   }
