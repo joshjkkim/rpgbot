@@ -5,6 +5,9 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### For server owners
+- **Fair numbers in one click.** Making an enemy? Pick a level and a kind (weak, normal, tough, rare elite or world boss) and press **Fill in the numbers**: its stats, level range and rewards are set the way Classic Fantasy's are balanced. Gear works the same way, from its slot, level and rarity. Everything stays editable.
+- **A tidier dashboard.** The sidebar is now Start, World (what members meet) and Rules (switches you set once). Combat's player stats, parties, duels, encounters and bosses moved to their own **Combat rules** page.
+- **Make an item where you need it.** Picking a drop, an ingredient or a reward that doesn't exist yet? Choose **+ New item…** in the list, name it, and it's made on the spot.
 - **Set up havocish without leaving Discord.** Run `/setup`, or press **Set up here** on the welcome message. It asks who handles leveling, how fast members level, which world to start with (a starter pack, or blank to build your own), what to call money and XP, and where level-ups go. The dashboard's setup still works the same.
 - **A second starting world: Frontier Station.** A sci-fi station at the edge of known space: drones, scavengers and rogue AIs to fight, salvaging, hacking and scanning to gather, a fabricator and a research lab, EMP bursts that break an enemy's wind-up, and the Hive Mind as the world boss. Pick it in `/setup`, or take pieces of it from the Library.
 - **The Library: take only the pieces you want.** The Starter packs page is now the Library. Add a whole pack, or tick single pieces (one enemy, a crafting station, a quest), and anything they need comes along. Before adding, it shows exactly what you'll get, and it never touches what you've already made.
