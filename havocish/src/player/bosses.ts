@@ -440,7 +440,15 @@ export function splitBossRewards(enemy: EnemyConfig, fighters: Map<string, Fight
     });
 }
 
-async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: GuildConfig) {
+/** Ends the server's live boss now, with no rewards: /boss dismiss. Returns it, or null when there's none. */
+export async function dismissBoss(discordGuildId: string) {
+    const boss = live.get(discordGuildId);
+    if (!boss || boss.ended) return null;
+    await finish(boss, "dismissed");
+    return boss;
+}
+
+async function finish(boss: LiveBoss, outcome: "defeated" | "escaped" | "dismissed", known?: GuildConfig) {
     boss.ended = true;
     clearTimeout(boss.escapeTimer);
     if (boss.waveTimer) clearTimeout(boss.waveTimer);
@@ -454,12 +462,14 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
     const { enemy } = boss;
     const goldIcon = config.style.gold.icon || "💰";
 
-    if (outcome === "escaped") {
+    if (outcome !== "defeated") {
         await editSpoken(boss.message, {
             embeds: [new EmbedBuilder()
-                .setTitle(`${enemy.emoji} ${enemy.name} escaped!`)
+                .setTitle(outcome === "escaped" ? `${enemy.emoji} ${enemy.name} escaped!` : `${enemy.emoji} ${enemy.name} was sent away`)
                 .setColor("#555555")
-                .setDescription(`It got away with ❤️ ${boss.hp.toLocaleString()} HP left. No rewards this time.`)],
+                .setDescription(outcome === "escaped"
+                    ? `It got away with ❤️ ${boss.hp.toLocaleString()} HP left. No rewards this time.`
+                    : "A server manager ended this fight. No rewards this time.")],
             components: [],
         }).catch(() => null);
         return;

@@ -35,7 +35,7 @@ import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
-import { handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
+import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
@@ -2271,6 +2271,23 @@ async function main() {
         check("the whole pool went to the only fighter, as Combat XP", `${BigInt(after.xp) - xpBefore}|${after.user_stats?.combat?.xp}`, "0|1000");
         const leftover = await query(`SELECT 1 FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
         check("a fallen boss leaves no saved row", leftover.rowCount, 0);
+    });
+
+    await test("a manager can send a world boss away", async () => {
+        const { config } = await reset();
+        config.combat.enabled = true;
+        check("nothing to dismiss", await dismissBoss(TEST_DISCORD_GUILD), null);
+        let shown: any = null;
+        const message = { id: "3001", channelId: "3000", edit: async (p: any) => { shown = p; return null; } };
+        const boss = {
+            id: "golem", name: "Golem", emoji: "🗿", hp: 500, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+            minLevel: 0, maxLevel: null, xpReward: 10, goldReward: 10, drops: [], boss: true,
+        };
+        await spawnBoss({ send: async () => message } as any, TEST_DISCORD_GUILD, config, boss);
+        check("it's gone", [(await dismissBoss(TEST_DISCORD_GUILD))?.enemy.id, liveBoss(TEST_DISCORD_GUILD)], ["golem", undefined]);
+        check("and its message says so, with no rewards", [shown.embeds[0].data.title, shown.components], ["🗿 Golem was sent away", []]);
+        const saved = await query(`SELECT 1 FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
+        check("and it won't come back after a restart", saved.rowCount, 0);
     });
 
     await test("a live world boss survives a restart", async () => {

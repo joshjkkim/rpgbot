@@ -617,6 +617,11 @@
           }
         ],
         "kind": "subcommand"
+      },
+      {
+        "name": "dismiss",
+        "description": "End the current world boss now, with no rewards",
+        "kind": "subcommand"
       }
     ]
   },
