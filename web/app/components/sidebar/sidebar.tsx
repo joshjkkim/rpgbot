@@ -13,7 +13,7 @@ const sections: Array<{ label: string; tabs: Array<{ href: string; label: string
         label: "Server",
         tabs: [
             { href: "", label: "Overview", sprite: "map" },
-            { href: "presets", label: "Starter packs", sprite: "bag" },
+            { href: "presets", label: "Library", sprite: "bag" },
             { href: "styles", label: "Style", sprite: "palette" },
             { href: "logging", label: "Logging", sprite: "book" },
         ],

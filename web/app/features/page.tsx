@@ -148,7 +148,7 @@ export default function FeaturesPage() {
             <p>A web dashboard where every enemy, move, place, item, quest and minigame is a slot you click and edit.</p>
             <Points items={[
               <><b>A setup wizard</b> asks five questions and configures the bot for you.</>,
-              <><b>Starter packs</b> fill your shop, enemies, quests and gathering in one click, and never overwrite your own work.</>,
+              <><b>Starter packs</b> fill your shop, enemies, quests and gathering in one click, or take just the pieces you want. They never overwrite your own work.</>,
               <><b>Simple and Advanced</b> settings, and a health check that spots what would quietly fail.</>,
               <><b>Kind to newcomers:</b> new players get a private tip the first time they fight, win, lose or join a party, and anyone can turn off pings with /settings quiet.</>,
               <><b>Your moderators can help:</b> anyone with Manage Server can use the dashboard, and <b>/config</b> switches features on and off from Discord.</>,
