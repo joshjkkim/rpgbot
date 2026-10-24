@@ -43,6 +43,7 @@ import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
+import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { getOrCreateGuildConfig } from "../src/cache/guildService.js";
@@ -2484,6 +2485,23 @@ async function main() {
         check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
         check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
         await setGuildConfig(TEST_DISCORD_GUILD, before);
+    });
+
+    await test("balanced presets land near Classic Fantasy's own numbers", async () => {
+        const cf = STARTER_PACKS.find((p) => p.id === "classic-fantasy")!.content as any;
+        const near = (got: number, want: number, within = 0.3) => Math.abs(got - want) <= want * within;
+        for (const [id, role] of [["grey-wolf", "normal"], ["roadside-bandit", "normal"], ["dire-wolf", "elite"], ["bandit-captain", "elite"], ["bridge-troll", "tough"], ["stone-golem", "tough"], ["hollow-king", "boss"]] as const) {
+            const e = cf.combat.enemies[id];
+            const p = enemyPreset(e.boss ? 1 : e.minLevel, role);
+            check(`${role} at Combat ${e.minLevel} is about a ${e.name}`, [near(p.hp, e.hp), near(p.atk, e.atk), near(p.xpReward, e.xpReward)], [true, true, true]);
+        }
+        check("elites are rare, bosses are bosses", [enemyPreset(10, "elite").spawnWeight, enemyPreset(10, "boss").boss], [0.2, true]);
+        for (const [id, slot, rarity] of [["knights-chainmail", "body", "rare"], ["knights-helm", "head", "rare"], ["iron-kite-shield", "shield", "uncommon"]] as const) {
+            const it = cf.shop.items[id];
+            const g = gearPreset(slot, it.minLevel, rarity);
+            check(`${rarity} ${slot} at ${it.minLevel} is about ${it.name}`, [near(g.stats.def!, it.effects.stats.def), near(g.price, it.price, 0.4)], [true, true]);
+        }
+        check("stronger with level", enemyPreset(30, "normal").hp > enemyPreset(10, "normal").hp && gearPreset("weapon", 30, "rare").stats.atk! > gearPreset("weapon", 10, "rare").stats.atk!, true);
     });
 
     await test("every starter pack is self-contained", async () => {
