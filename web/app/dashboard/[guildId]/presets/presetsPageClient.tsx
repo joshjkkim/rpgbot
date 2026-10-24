@@ -12,7 +12,7 @@ import {
   packFeatures,
   type GuildConfigJson,
   type StarterPack,
-} from "@/app/lib/starterPacks";
+} from "@content/packs";
 
 const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   shop: "Shop",

@@ -1,4 +1,4 @@
-import classicFantasy from "./packs/classic-fantasy.json";
+import classicFantasy from "./packs/classic-fantasy.json" with { type: "json" };
 
 /** Guild config as the dashboard holds it: untyped JSON, section by section. */
 export type GuildConfigJson = Record<string, (Record<string, unknown> & { enabled?: boolean }) | undefined>;

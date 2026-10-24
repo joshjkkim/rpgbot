@@ -42,6 +42,8 @@ import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveli
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
+import { STARTER_PACKS } from "../src/content/packs.js";
+import { addEntries, plan, refsOf, type Ref } from "../src/content/library.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
 import { applyQuestEvent } from "../src/player/quests.js";
@@ -2440,6 +2442,26 @@ async function main() {
         config.combat.enabled = false;
         const noCombat = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
         check("no HP or stats when combat is off", noCombat.includes("**HP**"), false);
+    });
+
+    await test("the content library adds one entry and what it needs", async () => {
+        const source = STARTER_PACKS[0]!.content;
+        const keys = (refs: Ref[]) => refs.map((r) => `${r.kind}:${r.id}`).sort();
+        const wolf = plan(null, source, [{ kind: "enemies", id: "grey-wolf" }]);
+        check("an enemy brings its moves, their statuses and its drops", [
+            "enemies:grey-wolf", "moves:bite", "moves:howl", "statuses:enraged", "items:wolf-pelt", "items:travelers-boots",
+        ].every((k) => keys(wolf).includes(k)), true);
+        check("but not other enemies", keys(wolf).filter((k) => k.startsWith("enemies:")), ["enemies:grey-wolf"]);
+        const mine = { shop: { items: { "wolf-pelt": { id: "wolf-pelt", name: "My Own Pelt" } } } } as any;
+        const again = addEntries(mine, source, [{ kind: "enemies", id: "grey-wolf" }]);
+        check("what the server has stays its own", [keys(again.added).includes("items:wolf-pelt"), (again.config.shop!.items as any)["wolf-pelt"].name], [false, "My Own Pelt"]);
+        check("and adding it switches combat on", again.config.combat?.enabled, true);
+        check("adding twice adds nothing", addEntries(again.config, source, [{ kind: "enemies", id: "grey-wolf" }]).added, []);
+        const place = addEntries(null, source, [{ kind: "places", id: "old-road" }]);
+        check("a place comes with its enemies, but none of the source's channels", [keys(place.added).includes("enemies:grey-wolf"), (place.config.combat!.places as any)["old-road"].channelIds], [true, []]);
+        const smithing = plan(null, source, [{ kind: "stations", id: "smithing" }]);
+        check("a station brings its recipes' ingredients and outputs", keys(smithing).includes("items:iron-sword"), true);
+        check("requirements pull what they point at", refsOf("recipes" as any, { requirements: { found: ["ghostfin"], collections: ["satchel"] } }), [{ kind: "items", id: "ghostfin" }, { kind: "collections", id: "satchel" }]);
     });
 
     await test("the changelog post takes only the newest entry", async () => {

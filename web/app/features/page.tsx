@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import pack from "@/app/lib/packs/classic-fantasy.json";
+import pack from "@content/packs/classic-fantasy.json";
 import ItemTooltip from "@/app/components/shop/itemTooltip";
 import type { shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
 import { SiteFooter, SiteHeader } from "@/app/components/siteChrome";
