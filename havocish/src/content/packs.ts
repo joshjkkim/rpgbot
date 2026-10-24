@@ -16,8 +16,8 @@ export type StarterPack = {
   description: string;
   content: {
     shop: {
-      categories: Record<string, Named>;
-      items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean }>;
+      categories: Record<string, Named & { icon?: string }>;
+      items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean; categoryId?: string }>;
     };
     combat: {
       enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }>;

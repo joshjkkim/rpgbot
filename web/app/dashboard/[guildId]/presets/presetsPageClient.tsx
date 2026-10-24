@@ -23,26 +23,22 @@ const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   crafting: "Crafting",
 };
 
-type Row = { id: string; label: string; detail?: string; colour?: string };
+type Row = { id: string; label: string; detail?: string; colour?: string; group?: string };
 
 const refKey = (r: Ref) => `${r.kind}:${r.id}`;
 
 /** A pack's entries of one kind. Tick any to add them on their own, with what they need. */
-function PackColumn({ title, kind, rows, config, picked, onToggle }: {
-  title: string;
+function PackColumn({ kind, rows, config, picked, onToggle }: {
   kind: Kind;
   rows: Row[];
   config: GuildConfigJson;
   picked: Set<string>;
   onToggle: (ref: Ref) => void;
 }) {
-  if (!rows.length) return null;
+  if (!rows.length) return <p className="text-sm text-[var(--muted)]">Nothing matches.</p>;
   return (
     <div>
-      <h3 className="text-sm text-[var(--accent)]">
-        {title} <span className="font-sans text-xs text-[var(--muted)]">({rows.length})</span>
-      </h3>
-      <ul className="mt-2 space-y-1 text-sm">
+      <ul className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((r) => {
           const ref = { kind, id: r.id };
           const taken = !!entryOf(config, ref);
@@ -84,6 +80,9 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
   const featuresOff = packFeatures(pack).filter((f) => !config?.[f]?.enabled);
   const upToDate = missing === 0 && featuresOff.length === 0;
   const [picks, setPicks] = useState<Ref[]>([]);
+  const [tab, setTab] = useState<Kind>("enemies");
+  const [query, setQuery] = useState("");
+  const [group, setGroup] = useState<string | null>(null);
   const picked = new Set(picks.map(refKey));
   const toggle = (ref: Ref) => setPicks((p) => (picked.has(refKey(ref)) ? p.filter((x) => refKey(x) !== refKey(ref)) : [...p, ref]));
   const adds = plan(config, pack.content, picks);
@@ -94,6 +93,7 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
     label: named(item, id),
     detail: item.hidden ? "drop only" : `${item.price} gold`,
     colour: (RARITIES.find((r) => r.value === item.rarity) ?? RARITIES[1]).colour,
+    ...(item.categoryId && { group: item.categoryId }),
   }));
   const enemies: Row[] = Object.entries(combat.enemies ?? {}).map(([id, e]) => ({
     id,
@@ -122,16 +122,60 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
       </div>
       <p className="text-xs text-[var(--muted)]">Or tick just the pieces you want: anything they need comes with them.</p>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <PackColumn title="Items" kind="items" rows={items} config={config} picked={picked} onToggle={toggle} />
-        <PackColumn title="Enemies" kind="enemies" rows={enemies} config={config} picked={picked} onToggle={toggle} />
-        <PackColumn title="Places" kind="places" rows={rows(combat.places)} config={config} picked={picked} onToggle={toggle} />
-        <PackColumn title="Quests" kind="quests" rows={rows(quests.quests)} config={config} picked={picked} onToggle={toggle} />
-        <PackColumn title="Achievements" kind="achievements" rows={rows(achievements.achievements)} config={config} picked={picked} onToggle={toggle} />
-        <PackColumn title="Gathering" kind="activities" rows={rows(gathering?.activities, count("locations", "locations"))} config={config} picked={picked} onToggle={toggle} />
-        <PackColumn title="Crafting" kind="stations" rows={rows(crafting?.stations, count("recipes", "recipes"))} config={config} picked={picked} onToggle={toggle} />
-        <PackColumn title="Collections" kind="collections" rows={rows(collections?.sets)} config={config} picked={picked} onToggle={toggle} />
-      </div>
+      {(() => {
+        const all: Array<{ kind: Kind; title: string; rows: Row[] }> = [
+          { kind: "enemies", title: "Enemies", rows: enemies },
+          { kind: "items", title: "Items", rows: items },
+          { kind: "places", title: "Places", rows: rows(combat.places) },
+          { kind: "activities", title: "Gathering", rows: rows(gathering?.activities, count("locations", "locations")) },
+          { kind: "stations", title: "Crafting", rows: rows(crafting?.stations, count("recipes", "recipes")) },
+          { kind: "quests", title: "Quests", rows: rows(quests.quests) },
+          { kind: "achievements", title: "Achievements", rows: rows(achievements.achievements) },
+          { kind: "collections", title: "Collections", rows: rows(collections?.sets) },
+        ];
+        const tabs = all.filter((t) => t.rows.length > 0);
+        const q = query.trim().toLowerCase();
+        const match = (r: Row) => !q || r.label.toLowerCase().includes(q) || r.id.includes(q);
+        const chosen = tabs.find((t) => t.kind === tab) ?? tabs[0];
+        // Searching from a tab with no matches shows the first tab that has some.
+        const current = q && !chosen?.rows.some(match) ? tabs.find((t) => t.rows.some(match)) ?? chosen : chosen;
+        const groups = current?.kind === "items" ? Object.values(shop.categories ?? {}) : [];
+        const shown = (current?.rows ?? []).filter((r) => match(r) && (!group || current?.kind !== "items" || r.group === group));
+        const chip = (active: boolean) =>
+          `rounded-sm border px-2.5 py-1 text-xs transition-colors ${active ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"}`;
+        return (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {tabs.map((t) => {
+                const n = t.rows.filter(match).length;
+                return (
+                  <button key={t.kind} type="button" className={chip(t.kind === current?.kind)} onClick={() => { setTab(t.kind); setGroup(null); }}>
+                    {t.title} <span className="opacity-70">{q ? n : t.rows.length}</span>
+                  </button>
+                );
+              })}
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search…"
+                className="ml-auto w-full rounded-sm border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-sm sm:w-56"
+              />
+            </div>
+            {groups.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={chip(!group)} onClick={() => setGroup(null)}>All items</button>
+                {groups.map((g) => (
+                  <button key={g.id} type="button" className={chip(group === g.id)} onClick={() => setGroup(g.id)}>
+                    {`${g.icon ?? ""} ${g.name}`.trim()}
+                  </button>
+                ))}
+              </div>
+            )}
+            {current && <PackColumn kind={current.kind} rows={shown} config={config} picked={picked} onToggle={toggle} />}
+          </div>
+        );
+      })()}
 
       {picks.length > 0 && (
         <div className="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-[var(--accent)]/60 bg-[#14100c]/95 px-4 py-3 shadow-[0_4px_16px_rgb(0_0_0/0.6)] backdrop-blur">
