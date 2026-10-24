@@ -2788,5 +2788,11 @@
         "kind": "subcommand"
       }
     ]
+  },
+  {
+    "name": "setup",
+    "description": "Set havocish up for this server: leveling, pace and a starting world",
+    "managersOnly": true,
+    "options": []
   }
 ]

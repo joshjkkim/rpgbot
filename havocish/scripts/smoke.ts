@@ -44,6 +44,8 @@ import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
 import { addEntries, plan, refsOf, type Ref } from "../src/content/library.js";
+import { handleSetupInteraction } from "../src/commands/admin/setup.js";
+import { getOrCreateGuildConfig } from "../src/cache/guildService.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
 import { applyQuestEvent } from "../src/player/quests.js";
@@ -2442,6 +2444,46 @@ async function main() {
         config.combat.enabled = false;
         const noCombat = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
         check("no HP or stats when combat is off", noCombat.includes("**HP**"), false);
+    });
+
+    await test("/setup in Discord: questions to a set-up server", async () => {
+        // Setup rewrites the whole config; the tests after this one need it back as it was.
+        const before = structuredClone((await reset()).config);
+        let shown: any = null;
+        const click = (customId: string, extra: Record<string, unknown> = {}) => handleSetupInteraction({
+            customId, guildId: TEST_DISCORD_GUILD, guild: {}, user: { id: TEST_DISCORD_USER },
+            memberPermissions: { has: () => true },
+            isButton: () => !("values" in extra), isStringSelectMenu: () => "values" in extra && !extra.channel,
+            isChannelSelectMenu: () => !!extra.channel, isModalSubmit: () => false,
+            reply: async (p: any) => { shown = p; }, update: async (p: any) => { shown = p; },
+            ...extra,
+        } as any);
+        const title = () => shown.embeds[0].data.description?.split("\n").find((l: string) => l.startsWith("**")) ?? shown.embeds[0].data.title;
+
+        await click("setup:start");
+        check("it starts by asking about leveling", title(), "**Who handles leveling here?**");
+        await click("setup:lvl:other");
+        check("with another leveling bot, pace is skipped", title(), "**What world should it start with?**");
+        await click("setup:world", { values: ["classic-fantasy"] });
+        await click("setup:names:keep");
+        check("and so are level-up channels", shown.components[0].components[0].data.label, "Set it up");
+        await click("setup:apply");
+        const after = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
+        check("the pack is in, leveling is off, the RPG is on", [Object.keys(after.combat.enemies ?? {}).length > 0, after.xp.enabled, after.combat.enabled], [true, false, true]);
+
+        await setGuildConfig(TEST_DISCORD_GUILD, structuredClone(before));
+        await click("setup:start");
+        await click("setup:lvl:own");
+        await click("setup:pace:relaxed");
+        await click("setup:world", { values: ["blank"] });
+        await click("setup:names:save", { isModalSubmit: () => true, isButton: () => false, isFromMessage: () => true, fields: { getTextInputValue: (id: string) => (id === "gold" ? "credits" : "rep") } });
+        await click("setup:channel", { values: ["123"], channel: true });
+        await click("setup:apply");
+        const blank = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
+        check("blank adds nothing and leaves the RPG off", [Object.keys(blank.combat.enemies ?? {}).length, blank.combat.enabled], [Object.keys(before.combat.enemies ?? {}).length, false]);
+        check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
+        check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
+        await setGuildConfig(TEST_DISCORD_GUILD, before);
     });
 
     await test("the content library adds one entry and what it needs", async () => {
