@@ -76,7 +76,7 @@ function view(s: State, guildId: string) {
         case "world": {
             embed.setDescription(`${head}**What world should it start with?**\nA starter pack fills in enemies, places, items, gathering, crafting and quests, ready to play. Change any of it later, or start blank and build your own on the dashboard.`);
             const menu = new StringSelectMenuBuilder().setCustomId("setup:world").setPlaceholder("Pick a starting world").addOptions(
-                ...STARTER_PACKS.map((p) => ({ label: p.name, value: p.id, description: p.description.slice(0, 100) })),
+                ...STARTER_PACKS.map((p) => ({ label: p.name, value: p.id, description: (p.tagline ?? p.description).slice(0, 100) })),
                 { label: "Start blank", value: "blank", description: "Nothing added: build your own world on the dashboard." },
             );
             return { embeds: [embed], components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu)] };

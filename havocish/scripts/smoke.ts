@@ -43,7 +43,7 @@ import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
-import { addEntries, plan, refsOf, type Ref } from "../src/content/library.js";
+import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { getOrCreateGuildConfig } from "../src/cache/guildService.js";
 import { readFileSync } from "node:fs";
@@ -2484,6 +2484,27 @@ async function main() {
         check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
         check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
         await setGuildConfig(TEST_DISCORD_GUILD, before);
+    });
+
+    await test("every starter pack is self-contained", async () => {
+        for (const pack of STARTER_PACKS) {
+            const broken: string[] = [];
+            const has = (kind: Kind, id: string) => !!entryOf(pack.content, { kind, id });
+            for (const kind of Object.keys(KINDS) as Kind[]) {
+                const [section, map] = KINDS[kind];
+                for (const [id, entry] of Object.entries(((pack.content as any)[section]?.[map] ?? {}) as Record<string, any>)) {
+                    for (const ref of refsOf(kind, entry)) if (!has(ref.kind, ref.id)) broken.push(`${kind}:${id} -> ${ref.kind}:${ref.id}`);
+                    // The loose links the library doesn't follow still have to exist inside a pack.
+                    if (entry.tool && !has("activities", entry.tool.activityId)) broken.push(`${id} tool -> ${entry.tool.activityId}`);
+                    for (const a of Object.values(entry.actions ?? {}) as any[]) {
+                        if (a.type === "learnRecipe" && !(pack.content as any).crafting?.stations?.[a.stationId]?.recipes?.[a.recipeId]) broken.push(`${id} teaches ${a.stationId}/${a.recipeId}`);
+                        if (a.type === "learnMove" && !has("moves", a.moveId)) broken.push(`${id} teaches ${a.moveId}`);
+                    }
+                }
+            }
+            check(`${pack.name}: every reference resolves`, broken, []);
+        }
+        check("pack ids are unique", new Set(STARTER_PACKS.map((p) => p.id)).size, STARTER_PACKS.length);
     });
 
     await test("the content library adds one entry and what it needs", async () => {

@@ -2,6 +2,7 @@
   "id": "classic-fantasy",
   "name": "Classic Fantasy",
   "description": "A tavern-and-dungeon starter: a gear upgrade every few levels in every slot, fifteen enemies from giant rats to a lich, each with its own moves to read, fight moves to unlock and learn, loot to sell and rare drops to chase, a world boss (the Hollow King), hunting quests and milestone achievements.",
+  "tagline": "Tavern-and-dungeon fantasy: rats to a lich, mining, fishing, smithing and alchemy.",
   "content": {
     "shop": {
       "categories": {
