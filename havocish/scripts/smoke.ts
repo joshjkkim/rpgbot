@@ -42,6 +42,10 @@ import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveli
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
+import { STARTER_PACKS } from "../src/content/packs.js";
+import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
+import { handleSetupInteraction } from "../src/commands/admin/setup.js";
+import { getOrCreateGuildConfig } from "../src/cache/guildService.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
 import { applyQuestEvent } from "../src/player/quests.js";
@@ -2440,6 +2444,87 @@ async function main() {
         config.combat.enabled = false;
         const noCombat = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
         check("no HP or stats when combat is off", noCombat.includes("**HP**"), false);
+    });
+
+    await test("/setup in Discord: questions to a set-up server", async () => {
+        // Setup rewrites the whole config; the tests after this one need it back as it was.
+        const before = structuredClone((await reset()).config);
+        let shown: any = null;
+        const click = (customId: string, extra: Record<string, unknown> = {}) => handleSetupInteraction({
+            customId, guildId: TEST_DISCORD_GUILD, guild: {}, user: { id: TEST_DISCORD_USER },
+            memberPermissions: { has: () => true },
+            isButton: () => !("values" in extra), isStringSelectMenu: () => "values" in extra && !extra.channel,
+            isChannelSelectMenu: () => !!extra.channel, isModalSubmit: () => false,
+            reply: async (p: any) => { shown = p; }, update: async (p: any) => { shown = p; },
+            ...extra,
+        } as any);
+        const title = () => shown.embeds[0].data.description?.split("\n").find((l: string) => l.startsWith("**")) ?? shown.embeds[0].data.title;
+
+        await click("setup:start");
+        check("it starts by asking about leveling", title(), "**Who handles leveling here?**");
+        await click("setup:lvl:other");
+        check("with another leveling bot, pace is skipped", title(), "**What world should it start with?**");
+        await click("setup:world", { values: ["classic-fantasy"] });
+        await click("setup:names:keep");
+        check("and so are level-up channels", shown.components[0].components[0].data.label, "Set it up");
+        await click("setup:apply");
+        const after = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
+        check("the pack is in, leveling is off, the RPG is on", [Object.keys(after.combat.enemies ?? {}).length > 0, after.xp.enabled, after.combat.enabled], [true, false, true]);
+
+        await setGuildConfig(TEST_DISCORD_GUILD, structuredClone(before));
+        await click("setup:start");
+        await click("setup:lvl:own");
+        await click("setup:pace:relaxed");
+        await click("setup:world", { values: ["blank"] });
+        await click("setup:names:save", { isModalSubmit: () => true, isButton: () => false, isFromMessage: () => true, fields: { getTextInputValue: (id: string) => (id === "gold" ? "credits" : "rep") } });
+        await click("setup:channel", { values: ["123"], channel: true });
+        await click("setup:apply");
+        const blank = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
+        check("blank adds nothing and leaves the RPG off", [Object.keys(blank.combat.enemies ?? {}).length, blank.combat.enabled], [Object.keys(before.combat.enemies ?? {}).length, false]);
+        check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
+        check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
+        await setGuildConfig(TEST_DISCORD_GUILD, before);
+    });
+
+    await test("every starter pack is self-contained", async () => {
+        for (const pack of STARTER_PACKS) {
+            const broken: string[] = [];
+            const has = (kind: Kind, id: string) => !!entryOf(pack.content, { kind, id });
+            for (const kind of Object.keys(KINDS) as Kind[]) {
+                const [section, map] = KINDS[kind];
+                for (const [id, entry] of Object.entries(((pack.content as any)[section]?.[map] ?? {}) as Record<string, any>)) {
+                    for (const ref of refsOf(kind, entry)) if (!has(ref.kind, ref.id)) broken.push(`${kind}:${id} -> ${ref.kind}:${ref.id}`);
+                    // The loose links the library doesn't follow still have to exist inside a pack.
+                    if (entry.tool && !has("activities", entry.tool.activityId)) broken.push(`${id} tool -> ${entry.tool.activityId}`);
+                    for (const a of Object.values(entry.actions ?? {}) as any[]) {
+                        if (a.type === "learnRecipe" && !(pack.content as any).crafting?.stations?.[a.stationId]?.recipes?.[a.recipeId]) broken.push(`${id} teaches ${a.stationId}/${a.recipeId}`);
+                        if (a.type === "learnMove" && !has("moves", a.moveId)) broken.push(`${id} teaches ${a.moveId}`);
+                    }
+                }
+            }
+            check(`${pack.name}: every reference resolves`, broken, []);
+        }
+        check("pack ids are unique", new Set(STARTER_PACKS.map((p) => p.id)).size, STARTER_PACKS.length);
+    });
+
+    await test("the content library adds one entry and what it needs", async () => {
+        const source = STARTER_PACKS[0]!.content;
+        const keys = (refs: Ref[]) => refs.map((r) => `${r.kind}:${r.id}`).sort();
+        const wolf = plan(null, source, [{ kind: "enemies", id: "grey-wolf" }]);
+        check("an enemy brings its moves, their statuses and its drops", [
+            "enemies:grey-wolf", "moves:bite", "moves:howl", "statuses:enraged", "items:wolf-pelt", "items:travelers-boots",
+        ].every((k) => keys(wolf).includes(k)), true);
+        check("but not other enemies", keys(wolf).filter((k) => k.startsWith("enemies:")), ["enemies:grey-wolf"]);
+        const mine = { shop: { items: { "wolf-pelt": { id: "wolf-pelt", name: "My Own Pelt" } } } } as any;
+        const again = addEntries(mine, source, [{ kind: "enemies", id: "grey-wolf" }]);
+        check("what the server has stays its own", [keys(again.added).includes("items:wolf-pelt"), (again.config.shop!.items as any)["wolf-pelt"].name], [false, "My Own Pelt"]);
+        check("and adding it switches combat on", again.config.combat?.enabled, true);
+        check("adding twice adds nothing", addEntries(again.config, source, [{ kind: "enemies", id: "grey-wolf" }]).added, []);
+        const place = addEntries(null, source, [{ kind: "places", id: "old-road" }]);
+        check("a place comes with its enemies, but none of the source's channels", [keys(place.added).includes("enemies:grey-wolf"), (place.config.combat!.places as any)["old-road"].channelIds], [true, []]);
+        const smithing = plan(null, source, [{ kind: "stations", id: "smithing" }]);
+        check("a station brings its recipes' ingredients and outputs", keys(smithing).includes("items:iron-sword"), true);
+        check("requirements pull what they point at", refsOf("recipes" as any, { requirements: { found: ["ghostfin"], collections: ["satchel"] } }), [{ kind: "items", id: "ghostfin" }, { kind: "collections", id: "satchel" }]);
     });
 
     await test("the changelog post takes only the newest entry", async () => {

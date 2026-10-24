@@ -24,7 +24,7 @@ export default function Dashboard() {
         head={["Page", "What's there"]}
         rows={[
           ["Overview", "Each feature in a sentence, a setup checklist, and the health check."],
-          ["Starter packs", "Ready-made content to add in one click."],
+          ["Library", "Ready-made content: a whole starter pack in one click, or single pieces with what they need."],
           ["Style", "Your theme colour, profile card style, and what XP and gold are called (with their icons), with live previews."],
           ["XP", "Message, voice and daily XP, streaks, and channel and role bonuses."],
           ["Shop", "The shop switch, its categories, gifting, and a live preview of /shop."],

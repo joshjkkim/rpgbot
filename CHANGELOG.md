@@ -2,6 +2,13 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### For server owners
+- **Set up havocish without leaving Discord.** Run `/setup`, or press **Set up here** on the welcome message. It asks who handles leveling, how fast members level, which world to start with (a starter pack, or blank to build your own), what to call money and XP, and where level-ups go. The dashboard's setup still works the same.
+- **A second starting world: Frontier Station.** A sci-fi station at the edge of known space: drones, scavengers and rogue AIs to fight, salvaging, hacking and scanning to gather, a fabricator and a research lab, EMP bursts that break an enemy's wind-up, and the Hive Mind as the world boss. Pick it in `/setup`, or take pieces of it from the Library.
+- **The Library: take only the pieces you want.** The Starter packs page is now the Library. Add a whole pack, or tick single pieces (one enemy, a crafting station, a quest), and anything they need comes along. Before adding, it shows exactly what you'll get, and it never touches what you've already made.
+
 ## v0.15 · October 22, 2026
 
 Combat v2: fights you read and answer, party play, places, collections and losses that sting. Fights are now a read of what's coming, not a click on Attack: enemies show their next move, you pick from moves you've earned, and friends can jump in. Around it, the rest of the game got reasons to play: places with their own enemies, gathering that changes with the weather, collections to complete, crafted gear that beats bought, and losses that sting.

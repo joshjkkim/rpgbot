@@ -7,7 +7,7 @@ import { Toggle } from "@/app/components/ui/form";
 import { ChannelField, RoleField } from "@/app/components/ui/pickers";
 import { Sprite } from "@/app/components/ui/sprite";
 import type { SpriteName } from "@/app/sprites";
-import type { GuildConfigJson, StarterPack } from "@/app/lib/starterPacks";
+import type { GuildConfigJson, StarterPack } from "@content/packs";
 import { buildSetup, messagesToLevel, PACES, type Answers, type Pace } from "@/app/lib/setupWizard";
 
 /**

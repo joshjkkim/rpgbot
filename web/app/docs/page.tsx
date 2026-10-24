@@ -55,7 +55,7 @@ export default function GettingStarted() {
       <P>
         A starter pack fills your shop, enemies, quests, achievements and gathering activities in one go. <b>Classic
         Fantasy</b> comes with 16 enemies from giant rats to a lich, gear for every slot, potions, hunting quests, and
-        Mining, Fishing and Foraging with their tools. Find it at <Where>Starter packs</Where>.
+        Mining, Fishing and Foraging with their tools. Find it in the <Where>Library</Where>, as a whole pack or piece by piece.
       </P>
       <List>
         <li>A pack <b>never overwrites</b> your own content. Anything with the same ID as yours is skipped.</li>

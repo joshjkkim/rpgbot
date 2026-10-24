@@ -6,13 +6,13 @@ import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import { RARITIES } from "@/app/components/shop/itemTooltip";
 import {
   applyPack,
-  hasEntry,
   missingCount,
   PACK_FEATURES,
   packFeatures,
   type GuildConfigJson,
   type StarterPack,
-} from "@/app/lib/starterPacks";
+} from "@content/packs";
+import { addEntries, entryOf, plan, type Kind, type Ref } from "@content/library";
 
 const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   shop: "Shop",
@@ -23,56 +23,86 @@ const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   crafting: "Crafting",
 };
 
-type Row = { id: string; label: string; detail?: string; colour?: string };
+type Row = { id: string; label: string; detail?: string; colour?: string; group?: string };
 
-function PackColumn({ title, rows, taken }: { title: string; rows: Row[]; taken: (id: string) => boolean }) {
+const refKey = (r: Ref) => `${r.kind}:${r.id}`;
+
+/** A pack's entries of one kind. Tick any to add them on their own, with what they need. */
+function PackColumn({ kind, rows, config, picked, onToggle }: {
+  kind: Kind;
+  rows: Row[];
+  config: GuildConfigJson;
+  picked: Set<string>;
+  onToggle: (ref: Ref) => void;
+}) {
+  if (!rows.length) return <p className="text-sm text-[var(--muted)]">Nothing matches.</p>;
   return (
     <div>
-      <h3 className="text-sm text-[var(--accent)]">
-        {title} <span className="font-sans text-xs text-[var(--muted)]">({rows.length})</span>
-      </h3>
-      <ul className="mt-2 space-y-1 text-sm">
-        {rows.map((r) => (
-          <li key={r.id} className={taken(r.id) ? "text-[var(--muted)]" : ""}>
-            <span style={taken(r.id) ? undefined : { color: r.colour }}>{r.label}</span>
-            {r.detail && <span className="text-xs text-[var(--muted)]"> · {r.detail}</span>}
-            {taken(r.id) && <span className="text-xs"> · keeps yours</span>}
-          </li>
-        ))}
+      <ul className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map((r) => {
+          const ref = { kind, id: r.id };
+          const taken = !!entryOf(config, ref);
+          return (
+            <li key={r.id} className={taken ? "text-[var(--muted)]" : ""}>
+              <label className={`flex items-baseline gap-2 ${taken ? "" : "cursor-pointer"}`}>
+                <input
+                  type="checkbox"
+                  className="translate-y-0.5 accent-[var(--accent)]"
+                  disabled={taken}
+                  checked={taken || picked.has(refKey(ref))}
+                  onChange={() => onToggle(ref)}
+                />
+                <span>
+                  <span style={taken ? undefined : { color: r.colour }}>{r.label}</span>
+                  {r.detail && <span className="text-xs text-[var(--muted)]"> · {r.detail}</span>}
+                  {taken && <span className="text-xs"> · you have it</span>}
+                </span>
+              </label>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 }
 
-function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: GuildConfigJson; saving: boolean; onAdd: () => void }) {
-  const { shop, combat, quests, achievements, gathering, crafting } = pack.content;
+const named = (e: { emoji?: string; name?: string } | undefined, id: string) => `${e?.emoji ?? ""} ${e?.name ?? id}`.trim();
+
+function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
+  pack: StarterPack;
+  config: GuildConfigJson;
+  saving: boolean;
+  onAdd: () => void;
+  onAddPicks: (picks: Ref[]) => Promise<boolean>;
+}) {
+  const { shop, combat, quests, achievements, gathering, crafting, collections } = pack.content;
   const missing = missingCount(config, pack);
   const featuresOff = packFeatures(pack).filter((f) => !config?.[f]?.enabled);
   const upToDate = missing === 0 && featuresOff.length === 0;
+  const [picks, setPicks] = useState<Ref[]>([]);
+  const [tab, setTab] = useState<Kind>("enemies");
+  const [query, setQuery] = useState("");
+  const [group, setGroup] = useState<string | null>(null);
+  const picked = new Set(picks.map(refKey));
+  const toggle = (ref: Ref) => setPicks((p) => (picked.has(refKey(ref)) ? p.filter((x) => refKey(x) !== refKey(ref)) : [...p, ref]));
+  const adds = plan(config, pack.content, picks);
+  const extras = adds.filter((a) => !picked.has(refKey(a)));
 
   const items: Row[] = Object.entries(shop.items ?? {}).map(([id, item]) => ({
     id,
-    label: `${item.emoji ?? ""} ${item.name}`.trim(),
+    label: named(item, id),
     detail: item.hidden ? "drop only" : `${item.price} gold`,
     colour: (RARITIES.find((r) => r.value === item.rarity) ?? RARITIES[1]).colour,
+    ...(item.categoryId && { group: item.categoryId }),
   }));
   const enemies: Row[] = Object.entries(combat.enemies ?? {}).map(([id, e]) => ({
     id,
-    label: `${e.emoji} ${e.name}`,
+    label: named(e, id),
     detail: e.boss ? "world boss" : `level ${e.minLevel}${e.maxLevel == null ? "+" : `–${e.maxLevel}`}`,
   }));
-  const questRows: Row[] = Object.entries(quests.quests ?? {}).map(([id, q]) => ({ id, label: q.name }));
-  const achievementRows: Row[] = Object.entries(achievements.achievements ?? {}).map(([id, a]) => ({ id, label: a.name }));
-  const activityRows: Row[] = Object.entries(gathering?.activities ?? {}).map(([id, a]) => ({
-    id,
-    label: `${a.emoji ?? ""} ${a.name}`.trim(),
-    detail: `${Object.keys(a.locations ?? {}).length} locations`,
-  }));
-  const stationRows: Row[] = Object.entries(crafting?.stations ?? {}).map(([id, s]) => ({
-    id,
-    label: `${s.emoji ?? ""} ${s.name}`.trim(),
-    detail: `${Object.keys(s.recipes ?? {}).length} recipes`,
-  }));
+  const rows = (entries: Record<string, { name?: string; emoji?: string }> | undefined, detail?: (e: Record<string, unknown>) => string) =>
+    Object.entries(entries ?? {}).map(([id, e]) => ({ id, label: named(e, id), ...(detail && { detail: detail(e as Record<string, unknown>) }) }));
+  const count = (key: string, noun: string) => (e: Record<string, unknown>) => `${Object.keys((e[key] ?? {}) as object).length} ${noun}`;
 
   return (
     <section className="frame space-y-5 p-5">
@@ -87,26 +117,87 @@ function PackCard({ pack, config, saving, onAdd }: { pack: StarterPack; config: 
           )}
         </div>
         <button className="btn shrink-0 px-4 py-2 text-sm" disabled={saving || upToDate} onClick={onAdd}>
-          {saving ? "Adding…" : upToDate ? "Already added" : "Add to my server"}
+          {saving ? "Adding…" : upToDate ? "Already added" : "Add the whole pack"}
         </button>
       </div>
+      <p className="text-xs text-[var(--muted)]">Or tick just the pieces you want: anything they need comes with them.</p>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <PackColumn title="Items" rows={items} taken={(id) => hasEntry(config, "shop", "items", id)} />
-        <PackColumn title="Enemies" rows={enemies} taken={(id) => hasEntry(config, "combat", "enemies", id)} />
-        <PackColumn title="Quests" rows={questRows} taken={(id) => hasEntry(config, "quests", "quests", id)} />
-        <PackColumn
-          title="Achievements"
-          rows={achievementRows}
-          taken={(id) => hasEntry(config, "achievements", "achievements", id)}
-        />
-        {activityRows.length > 0 && (
-          <PackColumn title="Gathering" rows={activityRows} taken={(id) => hasEntry(config, "gathering", "activities", id)} />
-        )}
-        {stationRows.length > 0 && (
-          <PackColumn title="Crafting" rows={stationRows} taken={(id) => hasEntry(config, "crafting", "stations", id)} />
-        )}
-      </div>
+      {(() => {
+        const all: Array<{ kind: Kind; title: string; rows: Row[] }> = [
+          { kind: "enemies", title: "Enemies", rows: enemies },
+          { kind: "items", title: "Items", rows: items },
+          { kind: "places", title: "Places", rows: rows(combat.places) },
+          { kind: "activities", title: "Gathering", rows: rows(gathering?.activities, count("locations", "locations")) },
+          { kind: "stations", title: "Crafting", rows: rows(crafting?.stations, count("recipes", "recipes")) },
+          { kind: "quests", title: "Quests", rows: rows(quests.quests) },
+          { kind: "achievements", title: "Achievements", rows: rows(achievements.achievements) },
+          { kind: "collections", title: "Collections", rows: rows(collections?.sets) },
+        ];
+        const tabs = all.filter((t) => t.rows.length > 0);
+        const q = query.trim().toLowerCase();
+        const match = (r: Row) => !q || r.label.toLowerCase().includes(q) || r.id.includes(q);
+        const chosen = tabs.find((t) => t.kind === tab) ?? tabs[0];
+        // Searching from a tab with no matches shows the first tab that has some.
+        const current = q && !chosen?.rows.some(match) ? tabs.find((t) => t.rows.some(match)) ?? chosen : chosen;
+        const groups = current?.kind === "items" ? Object.values(shop.categories ?? {}) : [];
+        const shown = (current?.rows ?? []).filter((r) => match(r) && (!group || current?.kind !== "items" || r.group === group));
+        const chip = (active: boolean) =>
+          `rounded-sm border px-2.5 py-1 text-xs transition-colors ${active ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"}`;
+        return (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {tabs.map((t) => {
+                const n = t.rows.filter(match).length;
+                return (
+                  <button key={t.kind} type="button" className={chip(t.kind === current?.kind)} onClick={() => { setTab(t.kind); setGroup(null); }}>
+                    {t.title} <span className="opacity-70">{q ? n : t.rows.length}</span>
+                  </button>
+                );
+              })}
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search…"
+                className="ml-auto w-full rounded-sm border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-sm sm:w-56"
+              />
+            </div>
+            {groups.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={chip(!group)} onClick={() => setGroup(null)}>All items</button>
+                {groups.map((g) => (
+                  <button key={g.id} type="button" className={chip(group === g.id)} onClick={() => setGroup(g.id)}>
+                    {`${g.icon ?? ""} ${g.name}`.trim()}
+                  </button>
+                ))}
+              </div>
+            )}
+            {current && <PackColumn kind={current.kind} rows={shown} config={config} picked={picked} onToggle={toggle} />}
+          </div>
+        );
+      })()}
+
+      {picks.length > 0 && (
+        <div className="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-[var(--accent)]/60 bg-[#14100c]/95 px-4 py-3 shadow-[0_4px_16px_rgb(0_0_0/0.6)] backdrop-blur">
+          <p className="min-w-0 flex-1 text-sm">
+            Adds {picks.map((r) => named(entryOf(pack.content, r), r.id)).join(", ")}
+            {extras.length > 0 && (
+              <span className="text-[var(--muted)]">
+                , plus what {picks.length === 1 ? "it needs" : "they need"}: {extras.map((r) => named(entryOf(pack.content, r), r.id)).join(", ")}
+              </span>
+            )}
+            .
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" className="px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--foreground)]" onClick={() => setPicks([])}>
+              Clear
+            </button>
+            <button className="btn px-4 py-2 text-sm" disabled={saving} onClick={async () => { if (await onAddPicks(picks)) setPicks([]); }}>
+              {saving ? "Adding…" : `Add ${adds.length} ${adds.length === 1 ? "entry" : "entries"}`}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -125,13 +216,22 @@ export default function PresetsPageClient({ guildId, packs }: { guildId: string;
     }
   }
 
+  async function addPicks(pack: StarterPack, picks: Ref[]) {
+    setNotice(null);
+    const { config: next, added } = addEntries(config, pack.content, picks);
+    const ok = await save(next);
+    if (ok) setNotice(`Added ${added.length} ${added.length === 1 ? "entry" : "entries"} from ${pack.name}.`);
+    return !!ok;
+  }
+
   return (
     <main className="mx-auto max-w-5xl space-y-5">
       <header className="border-b border-[var(--border)] pb-4">
-        <h1 className="text-2xl">Starter packs</h1>
+        <h1 className="text-2xl">Library</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Ready-made items, enemies, quests and achievements to get your server going. Adding a pack never
-          changes what you have already made: anything with the same ID as yours is skipped.
+          Ready-made content: add a whole starter pack, or only the pieces you want, like one enemy, a crafting
+          station or a quest. Adding never changes what you have already made: anything with the same ID as yours
+          is kept as yours.
         </p>
       </header>
 
@@ -163,7 +263,7 @@ export default function PresetsPageClient({ guildId, packs }: { guildId: string;
       {!loading &&
         config &&
         packs.map((pack) => (
-          <PackCard key={pack.id} pack={pack} config={config} saving={saving} onAdd={() => add(pack)} />
+          <PackCard key={pack.id} pack={pack} config={config} saving={saving} onAdd={() => add(pack)} onAddPicks={(picks) => addPicks(pack, picks)} />
         ))}
     </main>
   );

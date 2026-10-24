@@ -1,4 +1,5 @@
-import classicFantasy from "./packs/classic-fantasy.json";
+import classicFantasy from "./packs/classic-fantasy.json" with { type: "json" };
+import frontierStation from "./packs/frontier-station.json" with { type: "json" };
 
 /** Guild config as the dashboard holds it: untyped JSON, section by section. */
 export type GuildConfigJson = Record<string, (Record<string, unknown> & { enabled?: boolean }) | undefined>;
@@ -14,10 +15,12 @@ export type StarterPack = {
   id: string;
   name: string;
   description: string;
+  /** One short line (Discord menus cut at 100 characters). */
+  tagline?: string;
   content: {
     shop: {
-      categories: Record<string, Named>;
-      items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean }>;
+      categories: Record<string, Named & { icon?: string }>;
+      items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean; categoryId?: string }>;
     };
     combat: {
       enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }>;
@@ -37,7 +40,7 @@ export type StarterPack = {
   };
 };
 
-export const STARTER_PACKS: StarterPack[] = [classicFantasy as StarterPack];
+export const STARTER_PACKS: StarterPack[] = [classicFantasy as StarterPack, frontierStation as StarterPack];
 
 /** Where pack content lands in the guild config: [section, map]. */
 const TARGETS = [

@@ -48,14 +48,14 @@ async function sendWelcome(guild: Guild) {
       [
         `Adventurers of **${guild.name}** now earn XP and gold just by chatting. Try \`/profile\` to see your character, \`/daily\` to claim a reward, and \`/help\` for everything else.`,
         "",
-        "**Server owner:** answer five quick questions on the dashboard (how fast people level, which features, where level-ups go) and havocish sets itself up, starter content included. You can change anything afterwards.",
+        "**Server owner:** press **Set up here** to choose how fast people level and what world to start in (a ready-made one, or blank to build your own). It takes a minute, right here in Discord. Prefer the website? The dashboard has the same setup, and everything after it.",
       ].join("\n")
     );
   const payload = {
     embeds: [embed],
     components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
-      dashboardButton(guild.id, "setup", "⚡ Set up havocish"),
-      dashboardButton(guild.id),
+      new ButtonBuilder().setCustomId("setup:start").setStyle(ButtonStyle.Primary).setLabel("⚡ Set up here"),
+      dashboardButton(guild.id, "setup", "Set up on the dashboard"),
       new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Support server").setURL("https://discord.gg/9dV5NnV9tq"),
     )],
   };
