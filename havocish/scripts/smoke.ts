@@ -45,7 +45,7 @@ import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
-import { announcer, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
+import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
 import { EmbedBuilder } from "discord.js";
 import { getOrCreateGuildConfig } from "../src/cache/guildService.js";
 import { readFileSync } from "node:fs";
@@ -2523,6 +2523,11 @@ async function main() {
         check("or tops the embed, with their picture", [sent.embeds[0].data.author.name, sent.embeds[0].data.author.icon_url], ["The Hollow King", "https://example.com/king.png"]);
         await speak(channel, null, { content: "plain" });
         check("nobody: the bot posts as it always has", sent.content, "plain");
+        // A /fight board is a command reply: Discord gives it the app's id as a webhook id. It's still the bot's to edit.
+        let edited: any = null;
+        const reply = { webhookId: "app-1", applicationId: "app-1", client: { application: { id: "app-1" } }, edit: async (p: any) => { edited = p; return p; } } as any;
+        await editSpoken(reply, { content: "round 2" });
+        check("a command reply is edited as the bot's own message", edited?.content, "round 2");
     });
 
     await test("every starter pack is self-contained", async () => {

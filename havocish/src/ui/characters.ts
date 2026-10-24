@@ -91,7 +91,10 @@ function withHeader(payload: MessageCreateOptions, who: Speaker | null): Message
 
 /** Edits a message `speak` posted: through its webhook when a webhook sent it. */
 export async function editSpoken(message: Message, payload: Parameters<Message["edit"]>[0]): Promise<Message | null> {
-    if (!message.webhookId) return message.edit(payload).catch(() => null);
+    // Replies to commands carry the app's own id as their webhook: those are the bot's, edited as usual.
+    if (!message.webhookId || message.webhookId === message.applicationId || message.webhookId === message.client.application?.id) {
+        return message.edit(payload).catch(() => null);
+    }
     try {
         // After a restart the cache is empty: the channel's list includes the token editing needs.
         const parent = message.channel.isThread() ? message.channel.parent : message.channel;
