@@ -37,6 +37,8 @@ export type StarterPack = {
     crafting?: { stations: Record<string, Named & { emoji?: string; recipes?: Record<string, unknown> }> };
     /** Optional: owner-made collections. */
     collections?: { sets: Record<string, Named> };
+    /** Optional: the pack's cast, and who keeps the shop and makes announcements. */
+    characters?: { list: Record<string, Named & { avatar?: string }>; shopkeeperId?: string; announcerId?: string };
   };
 };
 
@@ -56,6 +58,7 @@ const TARGETS = [
   ["gathering", "conditions"],
   ["crafting", "stations"],
   ["collections", "sets"],
+  ["characters", "list"],
 ] as const;
 
 /**
@@ -73,7 +76,8 @@ type Entry = Record<string, unknown>;
  * and activities come in the same way.
  */
 const FILLS: Array<{ section: string; map: string; paths: (entry: Entry) => string[][] }> = [
-  { section: "combat", map: "enemies", paths: () => [["moves"]] },
+  { section: "combat", map: "enemies", paths: () => [["moves"], ["characterId"]] },
+  { section: "quests", map: "quests", paths: () => [["characterId"]] },
   { section: "shop", map: "items", paths: () => [["effects", "moves"], ["dailyLimit"]] },
   {
     section: "gathering", map: "activities",
@@ -192,6 +196,15 @@ export function applyPack(config: GuildConfigJson | null, pack: StarterPack) {
   }
 
   for (const feature of packFeatures(pack)) next[feature]!.enabled = true;
+
+  // The pack's shopkeeper and announcer, where the server hasn't picked its own.
+  const cast = pack.content.characters;
+  if (cast) {
+    const mine = next.characters!;
+    for (const role of ["shopkeeperId", "announcerId"] as const) {
+      if (cast[role] && !mine[role]) { mine[role] = cast[role]; added++; }
+    }
+  }
 
   // Servers created before the default was fixed store crit as 0.05 / 0.01,
   // which combat reads as percentages -- effectively never a crit. Repair only

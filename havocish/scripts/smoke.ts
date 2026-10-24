@@ -45,6 +45,8 @@ import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
+import { announcer, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
+import { EmbedBuilder } from "discord.js";
 import { getOrCreateGuildConfig } from "../src/cache/guildService.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
@@ -1760,7 +1762,7 @@ async function main() {
 
         cfg.combat.enabled = true;
         cfg.combat.places.empty = { id: "empty", name: "Empty Hall", emoji: "🏚️", channelIds: [], enemies: [{ enemyId: "ghost" }] };
-        const noThreads: Access = { channelName: (id) => id, missingIn: (_, perms) => perms.filter((p) => p === "threads"), roleName: () => "Hero", canManageRole: () => true };
+        const noThreads: Access = { channelName: (id) => id, missingIn: (_, perms) => perms.filter((p) => p === "threads"), roleName: () => "Hero", canManageRole: () => true, canManageWebhooks: () => true };
         const health = checkGuild(cfg, noThreads).map((i) => i.message).join("\n");
         check("the health check covers places", [
             health.includes("can't post Woods fights in #cat-wild. Give it Create Public Threads"),
@@ -2486,6 +2488,26 @@ async function main() {
         await setGuildConfig(TEST_DISCORD_GUILD, before);
     });
 
+    await test("characters: the game's posts under an owner-made name and picture", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.characters = { list: {
+            bram: { id: "bram", name: "Old Bram", avatar: "💰", lines: ["Fine wares!"] },
+            king: { id: "king", name: "The Hollow King", avatar: "https://example.com/king.png" },
+        }, shopkeeperId: "bram" };
+        check("an emoji becomes a picture", speaker(cfg, "bram")?.avatarUrl?.endsWith(".png"), true);
+        check("a link is used as is", speaker(cfg, "king")?.avatarUrl, "https://example.com/king.png");
+        check("an unknown or unset character is nobody", [speaker(cfg, "gone"), speaker(cfg, undefined), announcer(cfg)], [null, null, null]);
+        check("their line, quoted", lineOf(speaker(cfg, "bram")), "*“Fine wares!”*");
+        let sent: any = null;
+        const channel = { send: async (p: any) => { sent = p; return p; } } as any;
+        await speak(channel, shopkeeper(cfg), { content: "✨ a rare find!" });
+        check("without a webhook, their name leads the text", sent.content, "**Old Bram:** ✨ a rare find!");
+        await speak(channel, speaker(cfg, "king"), { embeds: [new EmbedBuilder().setTitle("WORLD BOSS")] });
+        check("or tops the embed, with their picture", [sent.embeds[0].data.author.name, sent.embeds[0].data.author.icon_url], ["The Hollow King", "https://example.com/king.png"]);
+        await speak(channel, null, { content: "plain" });
+        check("nobody: the bot posts as it always has", sent.content, "plain");
+    });
+
     await test("every starter pack is self-contained", async () => {
         for (const pack of STARTER_PACKS) {
             const broken: string[] = [];
@@ -2802,7 +2824,7 @@ async function main() {
         broken.combat.enemies = { ogre: { id: "ogre", name: "Ogre", emoji: "👹", hp: 10, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "gone" }] } };
         broken.combat.statuses = {};
         broken.shop.items = { blade: { id: "blade", name: "Blade", effects: { moves: ["vanished"] } } as any };
-        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true };
+        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true, canManageWebhooks: () => true };
         const health = checkGuild(broken, allOk).map((i) => i.message).join("\n");
         check("the health check finds broken move references", [
             health.includes("The enemy Ogre uses a move that was deleted (gone)"),
@@ -2814,7 +2836,7 @@ async function main() {
 
     await test("the health check finds setups that will fail quietly", async () => {
         const base = structuredClone(DEFAULT_GUILD_CONFIG);
-        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true };
+        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true, canManageWebhooks: () => true };
         check("a fresh server has nothing to fix", checkGuild(base, allOk).length, 0);
 
         const c = structuredClone(DEFAULT_GUILD_CONFIG);
@@ -2831,6 +2853,7 @@ async function main() {
             missingIn: (id, perms) => (id === "levels" ? perms.filter((p) => p === "files") : []),
             roleName: (id) => (id === "veteran" ? "Veteran" : null),
             canManageRole: () => false,
+            canManageWebhooks: () => true,
         };
         const msgs = checkGuild(c, access).map((i) => `${i.severity}:${i.page}:${i.message}`);
         const has = (part: string) => msgs.some((m) => m.includes(part));

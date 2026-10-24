@@ -7,6 +7,7 @@ import { bestEffort } from "../ui/bestEffort.js";
 import { mentionsFor } from "../ui/mentions.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
+import { announcer, speak } from "../ui/characters.js";
 
 /**
  * Collections: owner-made groups of items to find and enemies to defeat, like
@@ -116,7 +117,7 @@ export async function checkCollections(opts: {
     if (!channelId) return;
     const channel = await opts.client.channels.fetch(channelId).catch(() => null);
     if (!channel?.isTextBased() || !channel.isSendable()) return;
-    await bestEffort("collection announcement", channel.send({
+    await bestEffort("collection announcement", speak(channel, announcer(opts.config), {
         content: lines.join("\n"),
         allowedMentions: await mentionsFor(opts.discordGuildId, opts.discordUserId, { users: [opts.discordUserId] }),
     }));

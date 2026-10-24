@@ -6,6 +6,7 @@ import type { AchievementConfig, AchievementCondition, AchievementCheckArgs, Ach
 import type { Client, GuildMember, MessageMentionOptions, TextChannel, TextBasedChannel } from "discord.js";
 import { bestEffort } from "../ui/bestEffort.js";
 import { mentionsFor } from "../ui/mentions.js";
+import { announcer, speak, speaker, type Speaker } from "../ui/characters.js";
 
 function getConditionCurrentValue(condition: AchievementCondition, profile: DbUserGuildProfile): number {
     switch (condition.type) {
@@ -186,10 +187,10 @@ function formatTemplate(template: string, args: { userMention: string; achieveme
     return out;
 }
 
-async function safeSend(channel: TextBasedChannel | null, content: string, allowedMentions: MessageMentionOptions) {
+async function safeSend(channel: TextBasedChannel | null, content: string, allowedMentions: MessageMentionOptions, who: Speaker | null) {
     if (!channel) return;
     if (!content?.trim()) return;
-    await bestEffort("achievement announcement", (channel as TextChannel).send({ content, allowedMentions }));
+    await bestEffort("achievement announcement", speak(channel as TextChannel, who, { content, allowedMentions }));
 }
 
 export async function applyAchievementSideEffects(args: { client: Client; discordGuildId: string; discordUserId: string; member?: GuildMember | null; channelIdHint?: string | null; config: GuildConfig; unlocked: AchievementConfig[]; rewards: RewardEffectsLike | null;}) {
@@ -212,7 +213,7 @@ export async function applyAchievementSideEffects(args: { client: Client; discor
         const ch = await guild.channels.fetch(channelId).catch(() => null);
         const textCh = ch && ch.isTextBased() ? ch : null;
 
-        await safeSend(textCh, formatTemplate(template, { userMention, achievement: ach }), pings);
+        await safeSend(textCh, formatTemplate(template, { userMention, achievement: ach }), pings, announcer(config));
     }
 
     if (rewards?.messages?.length) {
@@ -220,7 +221,7 @@ export async function applyAchievementSideEffects(args: { client: Client; discor
         const ch = await guild.channels.fetch(m.channelId).catch(() => null);
         const textCh = ch && ch.isTextBased() ? ch : null;
 
-        await safeSend(textCh, formatTemplate(m.message, { userMention }), pings);
+        await safeSend(textCh, formatTemplate(m.message, { userMention }), pings, announcer(config));
         }
     }
 

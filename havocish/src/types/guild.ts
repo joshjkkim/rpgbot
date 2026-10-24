@@ -49,6 +49,15 @@ export interface CollectionEntry {
     id: string;
 }
 
+export interface CharacterConfig {
+    id: string;
+    name: string;
+    /** An image link, or an emoji drawn as one. */
+    avatar?: string;
+    /** Said when they turn up (an enemy appearing, a boss arriving), one at random. */
+    lines?: string[];
+}
+
 export interface CollectionConfig {
     id: string;
     name: string;
@@ -278,6 +287,18 @@ export interface GuildConfig {
      * with rewards at milestones along the way (player/collections.ts). Unset or
      * empty: /collection says there are none yet.
      */
+    /**
+     * Owner-made characters who post the game's public messages under their
+     * own name and picture (ui/characters.ts): enemies and quest givers name
+     * theirs, the shopkeeper and announcer are set here. Unset: the bot posts.
+     */
+    characters?: {
+        list: Record<string, CharacterConfig>;
+        /** Rare finds and daily stock. */
+        shopkeeperId?: string | null;
+        /** Level-ups, achievements, collection milestones, quest completions without a giver. */
+        announcerId?: string | null;
+    };
     collections?: {
         /** Where "@member completed …" is posted. Unset: where it happened. */
         channelId?: string | null;
