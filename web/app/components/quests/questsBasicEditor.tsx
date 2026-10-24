@@ -50,6 +50,8 @@ export interface QuestConfig {
   active: boolean;
   cooldown: number;
   overrideChannelId?: string | null;
+  /** Who gives it, and announces it done (mirrored from havocish/src/types/quest.ts). */
+  characterId?: string;
   overrideAnnouncement?: string | null;
   requirements?: Requirements;
 }
@@ -72,6 +74,8 @@ type Props = {
   onChange: (next: QuestsConfig) => void;
   /** Skills a requirement can name. */
   skills: SkillOption[];
+  /** The server's characters, so a quest can have a giver. */
+  characters?: Record<string, { name?: string }>;
 };
 
 const CONDITIONS = [
@@ -128,7 +132,7 @@ function normalizeQuests(raw: Record<string, any> | undefined): Record<string, Q
   return out;
 }
 
-export default function QuestsBasicEditor({ value, onChange, shopItems, enemies, skills }: Props) {
+export default function QuestsBasicEditor({ value, onChange, shopItems, enemies, skills, characters = {} }: Props) {
   const [local, setLocal] = useState<QuestsConfig>(() => ({
     ...(value ?? {}),
     quests: normalizeQuests(value?.quests),
@@ -216,6 +220,13 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies,
                     value={quest.description ?? ""}
                     onChange={(v) => upsertQuest({ ...quest, description: v })}
                     rows={2}
+                  />
+                  <SelectField
+                    label="Quest giver"
+                    value={quest.characterId ?? ""}
+                    options={[{ value: "", label: "Nobody: the announcer" }, ...Object.entries(characters).map(([id, c]) => ({ value: id, label: c.name || id }))]}
+                    onChange={(id) => upsertQuest({ ...quest, characterId: id || undefined })}
+                    hint="Announces the quest done, in their name. Make characters on the Characters page."
                   />
                 </FieldGrid>
 

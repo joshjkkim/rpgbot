@@ -28,6 +28,7 @@ export default function QuestsPageClient({ guildId }: { guildId: string }) {
           value={quests}
           shopItems={config.shop?.items ?? {}}
           enemies={config.combat?.enemies ?? {}}
+          characters={config.characters?.list}
           onChange={(next) => setConfig((prev) => ({ ...prev, quests: next }))}
         />
       )}

@@ -203,6 +203,20 @@ CREATE TABLE IF NOT EXISTS public.live_bosses (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── character_images ────────────────────────────────────────────────────────
+-- Pictures uploaded for characters, served at /api/images/<id>. See
+-- migrations/005_character_images.sql.
+
+CREATE TABLE IF NOT EXISTS public.character_images (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    discord_guild_id BIGINT      NOT NULL,
+    content_type     TEXT        NOT NULL,
+    data             BYTEA       NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS character_images_guild_idx ON public.character_images (discord_guild_id);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed
