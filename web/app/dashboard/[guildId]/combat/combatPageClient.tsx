@@ -7,6 +7,7 @@ import CombatEditor from "@/app/components/combat/combatEditor";
 import MovesEditor from "@/app/components/combat/movesEditor";
 import PlacesEditor from "@/app/components/combat/placesEditor";
 import { skillOptions } from "@/app/components/ui/requirementsField";
+import { itemCreator } from "@/app/lib/newItem";
 
 /** The page in parts, so owners open the one they came for instead of scrolling past the rest. */
 const TABS = [
@@ -39,6 +40,7 @@ export default function CombatPageClient({ guildId, rules = false }: { guildId: 
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
+      onCreateItem={itemCreator(config, setConfig)}
       collections={config?.collections?.sets}
       rawSection={combat}
     >
