@@ -6,39 +6,41 @@ import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { Sprite } from "@/app/components/ui/sprite";
 import type { SpriteName } from "@/app/sprites";
 
-// Grouped the way the product is: the server, its leveling (optional, and
-// replaceable by any leveling bot), the RPG, and what happened.
+// Grouped by what an owner is doing: getting started, making the world
+// (things members meet), setting the rules (switches you touch once), and
+// looking back at what happened.
 const sections: Array<{ label: string; tabs: Array<{ href: string; label: string; sprite: SpriteName }> }> = [
     {
-        label: "Server",
+        label: "Start",
         tabs: [
             { href: "", label: "Overview", sprite: "map" },
             { href: "presets", label: "Library", sprite: "bag" },
+        ],
+    },
+    {
+        label: "World",
+        tabs: [
+            { href: "combat", label: "Combat", sprite: "swords" },
+            { href: "items", label: "Items", sprite: "chest" },
+            { href: "gathering", label: "Gathering", sprite: "pickaxe" },
+            { href: "crafting", label: "Crafting", sprite: "anvil" },
+            { href: "quests", label: "Quests", sprite: "scroll" },
+            { href: "achievements", label: "Achievements", sprite: "trophy" },
+            { href: "collections", label: "Collections", sprite: "book" },
+        ],
+    },
+    {
+        label: "Rules",
+        tabs: [
+            { href: "leveling", label: "Leveling", sprite: "star" },
+            { href: "combat-rules", label: "Combat rules", sprite: "skull" },
+            { href: "shop", label: "Shop", sprite: "coin" },
             { href: "styles", label: "Style", sprite: "palette" },
             { href: "logging", label: "Logging", sprite: "book" },
         ],
     },
     {
-        label: "Leveling",
-        tabs: [
-            { href: "leveling", label: "Leveling", sprite: "star" },
-        ],
-    },
-    {
-        label: "RPG",
-        tabs: [
-            { href: "items", label: "Items", sprite: "chest" },
-            { href: "shop", label: "Shop", sprite: "coin" },
-            { href: "combat", label: "Combat", sprite: "swords" },
-            { href: "gathering", label: "Gathering", sprite: "pickaxe" },
-            { href: "crafting", label: "Crafting", sprite: "anvil" },
-            { href: "collections", label: "Collections", sprite: "book" },
-            { href: "quests", label: "Quests", sprite: "scroll" },
-            { href: "achievements", label: "Achievements", sprite: "trophy" },
-        ],
-    },
-    {
-        label: "Analytics",
+        label: "Activity",
         tabs: [
             { href: "logs", label: "Logs", sprite: "hourglass" },
         ],

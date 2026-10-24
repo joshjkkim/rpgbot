@@ -138,10 +138,10 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
             issues.push({ severity: "warning", message: "Random world bosses are on, but no enemy is marked as a world boss.", page: "combat" });
         }
         if (config.combat.encounters?.enabled) {
-            for (const id of config.combat.encounters.channelIds ?? []) channel(id, "random encounters", "combat", POST_EMBED);
+            for (const id of config.combat.encounters.channelIds ?? []) channel(id, "random encounters", "combat-rules", POST_EMBED);
         }
         if (config.combat.bosses?.enabled) {
-            for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat", POST_EMBED);
+            for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat-rules", POST_EMBED);
         }
         for (const e of enemies) for (const d of e.drops ?? []) item(d.itemId, `The enemy ${e.name}`, "combat");
 
