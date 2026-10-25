@@ -2653,6 +2653,7 @@ async function main() {
         const after = await now();
         check("a success raises the level and spends the gold", [up.ok && up.success, upgradeLevel(after, "sword"), after.gold], [true, 1, "940"]);
         check("and fights see it", calculateStats(after, config, items).atk, before + 1);
+        check("and /me says +9 ATK for an 8 ATK sword at +1", JSON.stringify(renderSheet(after, config, "T", TEST_DISCORD_USER, true).map((x: any) => x.toJSON())).includes("Iron Sword +1** (+9 ATK)"), true);
 
         after.user_stats = { ...after.user_stats, upgrades: { sword: 3 } } as any;
         const fail = await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made", roll: () => 0.99 });
