@@ -1467,8 +1467,13 @@ async function main() {
         const cfg = DEFAULT_GUILD_CONFIG;
         const chat1 = calculateStats({ level: 1, user_stats: {} } as any, cfg, {});
         const chat41 = calculateStats({ level: 41, user_stats: {} } as any, cfg, {});
-        check("40 chat levels add 80 HP", chat41.maxHp - chat1.maxHp, 80);
-        check("and 20 attack", chat41.atk - chat1.atk, 20);
+        // At Combat 1 only 7 chat levels count (5 + twice the Combat level): no skipping the early game.
+        check("a chat-41 regular at Combat 1 gets 7 levels' worth", [chat41.maxHp - chat1.maxHp, chat41.atk - chat1.atk], [12, 3]);
+        const veteran = { level: 41, user_stats: {} } as any;
+        addCombatXp(veteran, cfg, combatXpForLevel(18, cfg));
+        const combat18 = { level: 1, user_stats: {} } as any;
+        addCombatXp(combat18, cfg, combatXpForLevel(18, cfg));
+        check("by Combat 18 all 40 count: 80 HP, 20 attack", [calculateStats(veteran, cfg, {}).maxHp - calculateStats(combat18, cfg, {}).maxHp, calculateStats(veteran, cfg, {}).atk - calculateStats(combat18, cfg, {}).atk], [80, 20]);
         const off = { ...cfg, combat: { ...cfg.combat, chatBonus: { hp: 0, atk: 0 } } };
         check("an owner can turn it off", calculateStats({ level: 41, user_stats: {} } as any, off, {}).maxHp, chat1.maxHp - 2);
     });

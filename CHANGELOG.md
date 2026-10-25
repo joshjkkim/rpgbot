@@ -5,11 +5,14 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### Improved
+- **Gold is worth chasing.** In both starter packs, late gear costs more (about double by Combat 40), crafting costs a little gold, and collections and quests pay more in items and XP than in gold. Fighting alone no longer buys everything; gathering, crafting and questing do their part.
 - **`/me` draws your character.** A character pane like the classic RPGs: your avatar with your gear in slots around it, each in its rarity's colour, and your Combat level, HP and XP. Wounded shows on your portrait. Server owners can turn it off on Style.
 - **`/me` catches up with Combat v2.** Your character sheet now shows your four fight moves, your title from gear next to your name, and when you're Wounded (and when it wears off). New **Moves** and **Collection** buttons sit beside Inventory and Change gear.
 - **Fight threads tidy themselves away.** A fight's thread now leaves the channel list as soon as the fight ends, instead of an hour later. The result line stays in chat, and opens the thread if you want to look back.
 
 ### Fixed
+- **Early enemies last more than one hit.** Giant rats, slimes and their sci-fi cousins now take a few turns, so even a first fight has a move to read. New enemies made with Fill in the numbers start the same way.
+- **The chat bonus can't skip the early game.** Chat levels still make you stronger, but count up to 5 + twice your Combat level: a long-time chatter starts with a head start, not a free pass, and gets the full bonus by around Combat 18.
 - **Running `/setup` again with "Start blank" no longer turns features off.** Blank adds nothing, so a server that's already playing keeps combat, the shop, quests and achievements exactly as they were.
 
 ## v0.16 · October 24, 2026
