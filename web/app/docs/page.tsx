@@ -72,7 +72,7 @@ export default function GettingStarted() {
         <li><b>Fair numbers in one click:</b> on any enemy, pick a level and a kind (weak, normal, tough, rare elite or world boss) and press <b>Fill in the numbers</b>. Gear does the same from its slot, level and rarity. The numbers follow Classic Fantasy&apos;s balance, and stay editable.</li>
         <li><b>Make items where you need them:</b> any item list on Combat, Gathering, Crafting or Quests ends with <b>+ New item…</b>, so a drop or ingredient that doesn&apos;t exist yet is one name away.</li>
         <li><b>Give it voices:</b> make <Link href="/docs/characters" className="text-[var(--accent)] underline">characters</Link> for your villains, quest givers and shopkeeper.</li>
-        <li><b>Open places as members grow:</b> a place can give a role at a Combat level or skill; hide its channels behind the role and they appear when it&apos;s earned (see <Link href="/docs/combat#unlocking-places" className="text-[var(--accent)] underline">Unlocking places</Link>).</li>
+        <li><b>Open places as members grow:</b> give a role at a Combat or skill level, and hide a place&apos;s channels behind it: they appear when it&apos;s earned (see <Link href="/docs/combat#unlocking-places" className="text-[var(--accent)] underline">Unlocking places</Link>).</li>
       </List>
 
       <H2>Try it</H2>

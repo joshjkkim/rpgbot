@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { ColorField, Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
-import { ChannelField, PlaceChannelsField, RoleField, useRoleOptions } from "@/app/components/ui/pickers";
-import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
+import Link from "next/link";
+import { PlaceChannelsField } from "@/app/components/ui/pickers";
 import type { CombatConfig } from "./combatEditor";
 import type { PlaceConfig } from "./moveText";
 
@@ -14,27 +13,11 @@ const FIGHT_STYLES = [
   { value: "channel" as const, label: "Right in the channel" },
 ];
 
-// Mirrored from havocish/src/types/guild.ts (UnlockConfig).
-export type UnlockConfig = { id: string; roleId: string; requirements?: Requirements; placeId?: string };
-export type UnlocksConfig = { list: Record<string, UnlockConfig>; channelId?: string | null };
-
 /** Places: the server's channels as its map, each with the enemies met there, and the role that opens it. */
-export default function PlacesEditor({ value, onChange, unlocks, onUnlocks, skills, items }: {
+export default function PlacesEditor({ value, onChange }: {
   value: CombatConfig;
   onChange: (next: CombatConfig) => void;
-  unlocks: UnlocksConfig | undefined;
-  onUnlocks: (next: UnlocksConfig) => void;
-  skills: SkillOption[];
-  items: Record<string, { name?: string; emoji?: string }>;
 }) {
-  const unlockList = unlocks?.list ?? {};
-  // One unlock per place, keyed by its id (as packs ship them).
-  const unlockFor = (placeId: string) => Object.values(unlockList).find((u) => u.placeId === placeId);
-  const setUnlock = (placeId: string, u: UnlockConfig | null) => {
-    const next = Object.fromEntries(Object.entries(unlockList).filter(([, x]) => x.placeId !== placeId));
-    if (u) next[u.id] = u;
-    onUnlocks({ ...unlocks, list: next });
-  };
   const places = value.places ?? {};
   const enemies = Object.values(value.enemies ?? {}).filter((e) => !e.boss);
   const enemyOptions = enemies.map((e) => ({ value: e.id, label: `${e.emoji} ${e.name} (Combat ${e.minLevel}${e.maxLevel == null ? "+" : `–${e.maxLevel}`})` }));
@@ -110,7 +93,7 @@ export default function PlacesEditor({ value, onChange, unlocks, onUnlocks, skil
                   label="Channels"
                   value={place.channelIds ?? []}
                   onChange={(v) => upsert({ ...place, channelIds: v })}
-                  hint="Pick channels, or a 📁 category for every channel in it. A channel picked on its own belongs to that place rather than its category's."
+                  hint={<>Pick channels, or a 📁 category for every channel in it. A channel picked on its own belongs to that place rather than its category&apos;s. To open this place at a Combat level, give a role at that level on <Link href="combat-rules" className="text-[var(--accent)] hover:underline">Combat rules</Link> and hide these channels behind it.</>}
                 />
 
                 <SelectField
@@ -166,25 +149,10 @@ export default function PlacesEditor({ value, onChange, unlocks, onUnlocks, skil
                     )}
                   </div>
                 </Field>
-                <UnlockBlock
-                  place={place}
-                  unlock={unlockFor(id)}
-                  entryLevel={pool.length ? Math.min(99, ...pool.map((p) => value.enemies?.[p.enemyId]?.minLevel ?? 1)) : 1}
-                  onChange={(u) => setUnlock(id, u)}
-                  skills={skills}
-                  items={items}
-                />
                 <p className="font-mono text-xs text-[var(--muted)]">id: {id}</p>
               </div>
             );
           }}
-        />
-        <ChannelField
-          label="Announce unlocks in"
-          value={unlocks?.channelId ?? ""}
-          onChange={(ch) => onUnlocks({ list: unlockList, ...unlocks, channelId: ch || null })}
-          emptyLabel="Where it happened"
-          hint="“🗺️ @member unlocked ⚰️ The Barrow Crypt!”, from your announcer character if you have one."
         />
       </Section>
 
@@ -210,62 +178,3 @@ export default function PlacesEditor({ value, onChange, unlocks, onUnlocks, skil
   );
 }
 
-/**
- * "Locked until Combat 14: members who get there are given @Crypt Dweller."
- * The level leads because that's what an owner is deciding; the role is how
- * Discord shows it. Other conditions sit behind "More conditions".
- */
-function UnlockBlock({ place, unlock, entryLevel, onChange, skills, items }: {
-  place: PlaceConfig;
-  unlock: UnlockConfig | undefined;
-  entryLevel: number;
-  onChange: (u: UnlockConfig | null) => void;
-  skills: SkillOption[];
-  items: Record<string, { name?: string; emoji?: string }>;
-}) {
-  const roles = useRoleOptions();
-  const [more, setMore] = useState(false);
-  if (!unlock) {
-    return (
-      <button
-        type="button"
-        onClick={() => onChange({ id: place.id, roleId: "", placeId: place.id, requirements: { combatLevel: Math.max(1, entryLevel) } })}
-        className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
-      >
-        🔒 Lock this place until a Combat level
-      </button>
-    );
-  }
-  const req = unlock.requirements ?? {};
-  const set = (p: Partial<UnlockConfig>) => onChange({ ...unlock, ...p });
-  const others = Object.keys(req).filter((k) => k !== "combatLevel").length;
-  const roleName = roles?.find((r) => r.id === unlock.roleId)?.name;
-  return (
-    <div className="space-y-3 rounded-sm border border-[var(--border)] bg-black/20 p-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <span className="mb-2 text-sm">🔒 Locked until Combat</span>
-        <div className="w-24">
-          <NumberField value={req.combatLevel ?? 1} min={1} onChange={(v) => set({ requirements: { ...req, combatLevel: v } })} />
-        </div>
-        <span className="mb-2 text-sm">. Members who get there are given</span>
-        <div className="min-w-48 flex-1">
-          <RoleField value={unlock.roleId} emptyLabel="Pick a role" onChange={(roleId) => set({ roleId })} />
-        </div>
-      </div>
-      <p className="text-sm text-[var(--muted)]">
-        {unlock.roleId
-          ? <>In Discord, hide {place.name}&apos;s channels from everyone without {roleName ?? "that role"}. They appear the moment a member earns it: “🗺️ @member unlocked {place.emoji} {place.name}!”</>
-          : "Pick the role that can see this place's channels (make one in Discord first, e.g. @Crypt Dweller)."}
-      </p>
-      <div className="flex flex-wrap gap-3 text-xs">
-        <button type="button" onClick={() => setMore((m) => !m)} className="text-[var(--accent)] hover:underline">
-          {more ? "Hide other conditions" : others ? `More conditions (${others})` : "More conditions: a skill, a collection…"}
-        </button>
-        <button type="button" onClick={() => onChange(null)} className="text-[var(--muted)] transition-colors hover:text-red-400">Unlock it for everyone</button>
-      </div>
-      {more && (
-        <RequirementsField value={req} onChange={(requirements) => set({ requirements: requirements ?? {} })} skills={skills} items={items} hint="Members need all of these. The Combat level here is the same one as above." />
-      )}
-    </div>
-  );
-}
