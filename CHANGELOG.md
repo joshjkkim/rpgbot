@@ -5,6 +5,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### Improved
+- **`/me` draws your character.** A character pane like the classic RPGs: your avatar with your gear in slots around it, each in its rarity's colour, and your Combat level, HP and XP. Wounded shows on your portrait. Server owners can turn it off on Style.
 - **`/me` catches up with Combat v2.** Your character sheet now shows your four fight moves, your title from gear next to your name, and when you're Wounded (and when it wears off). New **Moves** and **Collection** buttons sit beside Inventory and Change gear.
 
 ## v0.16 · October 24, 2026

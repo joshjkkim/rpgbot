@@ -43,6 +43,7 @@ import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
+import { renderCharacterPane } from "../src/ui/canvas/characterPane.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
@@ -2464,6 +2465,9 @@ async function main() {
         profile.user_stats = { ...profile.user_stats, ...afterLoss(calculateStats(profile, config, config.shop.items), config) } as any;
         const hurt = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
         check("gear's title follows the name, and Wounded says so", [hurt.includes("## Tester *the Bold*"), hurt.includes("Wounded")], [true, true]);
+        check("with a pane, the picture leads the sheet", json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true, undefined, true)).includes("attachment://me.png"), true);
+        const png = await renderCharacterPane({ name: "Tester", combatLevel: 3, xp: 0.5, hp: 10, maxHp: 20, left: [{ label: "Head" }], right: [{ label: "Weapon" }] });
+        check("the pane draws as a PNG", png.subarray(1, 4).toString(), "PNG");
 
         const theirs = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, false));
         check("someone else's sheet has no buttons", theirs.includes("inventory:"), false);

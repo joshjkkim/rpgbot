@@ -1,5 +1,5 @@
 import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
@@ -17,6 +17,8 @@ import { memberFacts, type MemberFacts } from "../../player/requirements.js";
 import { collectionSets } from "../../player/collections.js";
 import { execute as openMoves } from "./moves.js";
 import { execute as openCollection } from "./collection.js";
+import { renderCharacterPane, type PaneSlot } from "../../ui/canvas/characterPane.js";
+import type { EquipSlot } from "../../types/economy.js";
 
 /**
  * /me: the character sheet. Level, HP, combat stats and equipped gear in one
@@ -66,7 +68,46 @@ function titleOf(profile: DbUserGuildProfile, config: GuildConfig): string | nul
     return title;
 }
 
-export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, name: string, ownerId: string, canAct: boolean, facts: MemberFacts = memberFacts(null)) {
+/** Draws at once at most; past it, /me shows text only for that call (like battle scenes). */
+const MAX_PANES_AT_ONCE = 3;
+let panesInFlight = 0;
+
+/** The drawn character pane, or null when the server turned it off, combat is off, or it couldn't be drawn in time. */
+async function paneFile(profile: DbUserGuildProfile, config: GuildConfig, name: string, avatarUrl: string): Promise<AttachmentBuilder | null> {
+    if (config.style?.characterPane === false || !config.combat?.enabled || panesInFlight >= MAX_PANES_AT_ONCE) return null;
+    panesInFlight++;
+    try {
+        const items = config.shop?.items ?? {};
+        const equips = profile.equips ?? {};
+        const slotOf = (key: EquipSlot): PaneSlot => {
+            const meta = SLOT_META.find((m) => m.key === key)!;
+            const item = equips[key] ? items[equips[key]!] : undefined;
+            const held = equips[key] ? profile.inventory?.[equips[key]!] : undefined;
+            return { label: meta.label, emoji: item?.emoji ?? held?.emoji ?? null, rarity: (item?.rarity as PaneSlot["rarity"]) ?? null };
+        };
+        const stats = calculateStats(profile, config, items);
+        const cp = combatProgress(profile, config);
+        const render = renderCharacterPane({
+            name, title: titleOf(profile, config), avatarUrl,
+            combatLevel: cp.level, xp: cp.span ? cp.into / cp.span : null,
+            hp: resolveCurrentHp(profile, stats, config), maxHp: stats.maxHp,
+            status: woundedUntil(profile, config)?.status.emoji ?? null,
+            left: (["head", "body", "hands", "legs", "feet"] as const).map(slotOf),
+            right: (["weapon", "shield", "accessory", "aura"] as const).map(slotOf),
+        });
+        // A slow avatar or emoji fetch must not hold the reply.
+        const timeout = new Promise<null>((resolve) => setTimeout(resolve, 4000, null).unref());
+        const png = await Promise.race([render, timeout]).catch((err) => {
+            console.error("Failed to draw a character pane:", err);
+            return null;
+        });
+        return png ? new AttachmentBuilder(png, { name: "me.png" }) : null;
+    } finally {
+        panesInFlight--;
+    }
+}
+
+export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, name: string, ownerId: string, canAct: boolean, facts: MemberFacts = memberFacts(null), withPane = false) {
     const xp = Number(profile.xp ?? 0);
     const level = calculateLevelFromXp(xp, config);
     const from = levelStartXp(level, config);
@@ -78,6 +119,8 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
 
     const c = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
     // Servers that keep another leveling bot turn havocish's off: no chat level to show.
+    // The drawn pane leads, when there is one; the text below keeps the details.
+    if (withPane) c.addMediaGalleryComponents((g) => g.addItems((i) => i.setURL("attachment://me.png")));
     const title = titleOf(profile, config);
     const heading = `## ${name}${title ? ` *${title}*` : ""}`;
     c.addTextDisplayComponents(t => t.setContent(config.xp.enabled === false ? heading : [
@@ -180,8 +223,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const member = self ? interaction.member : await interaction.guild.members.fetch(target.id).catch(() => null);
     const name = member?.displayName ?? target.displayName;
+    const pane = await paneFile(profile, config, name, (member ?? target).displayAvatarURL({ extension: "png", size: 256 }));
     await interaction.editReply({
-        components: renderSheet(profile, config, name, target.id, self, memberFacts(member)),
+        components: renderSheet(profile, config, name, target.id, self, memberFacts(member), !!pane),
+        files: pane ? [pane] : [],
         flags: MessageFlags.IsComponentsV2,
     });
 }

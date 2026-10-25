@@ -248,6 +248,8 @@ export async function handleInventoryButton(interaction: ButtonInteraction | Str
 
     await interaction.editReply({
         components: showGear ? renderGear(view) : renderInventory(view),
+        // From /me, the message carries its character pane: the inventory has no picture.
+        attachments: [],
         flags: MessageFlags.IsComponentsV2,
     });
 }
