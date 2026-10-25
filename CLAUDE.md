@@ -82,6 +82,7 @@ env $(grep '^DISCORD_TOKEN=' .env.prod.bak | xargs) CLIENT_ID=144016937843504337
 
 **Content (`havocish/src/content/`)** is the one folder both the bot and the dashboard import (the dashboard as `@content/*`): starter packs, server setup, and the content library.
 - Starter packs: `content/packs/*.json`, plus rows in the `starter_packs` table that read live from a template server. `applyPack` never overwrites an id the server already has. The Features page's demos read `classic-fantasy.json`, so pack edits show up there.
+- Re-adding a pack updates fields the owner never touched and keeps edited ones (`content/packHistory.ts`), by comparing with fingerprints of the pack's past values. **After changing a pack, run `npm run pack-history` in `havocish/` and commit the `.history.json` files**, or servers won't pick up the change.
 - The library (`content/library.ts`) adds single entries with what they need (`plan`, `addEntries`), reusing what the server has.
 - Files here import each other with `.ts` extensions (the bot's build rewrites them to `.js`; Turbopack can't map `.js` to `.ts`), and nothing here may import from the rest of the bot or from `web/`.
 

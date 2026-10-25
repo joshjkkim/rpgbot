@@ -81,9 +81,14 @@ export function calculateStats(
 export function chatLevelBonus(profile: DbUserGuildProfile, config: GuildConfig) {
     // Without havocish's leveling there is no chat level to reward.
     const per = config.xp?.enabled === false ? {} : config.combat?.chatBonus ?? DEFAULT_GUILD_CONFIG.combat.chatBonus!;
-    const level = profile.level ?? 1;
+    const chat = profile.level ?? 1;
+    // Chatting helps, but can't skip the early game: it counts at most 5 + twice
+    // the Combat level, so a chat-40 regular at Combat 1 gets 7 levels' worth.
+    // ponytail: fixed rule; make it an owner setting if a server asks.
+    const level = Math.min(chat, 5 + 2 * combatLevel(profile, config));
     return {
         level,
+        chat,
         hp:   level * (per.hp   ?? 0),
         atk:  level * (per.atk  ?? 0),
         def:  level * (per.def  ?? 0),

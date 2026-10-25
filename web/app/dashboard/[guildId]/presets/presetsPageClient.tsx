@@ -13,6 +13,7 @@ import {
   type StarterPack,
 } from "@content/packs";
 import { addEntries, entryOf, plan, type Kind, type Ref } from "@content/library";
+import { packChanges } from "@content/packHistory";
 
 const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   shop: "Shop",
@@ -77,6 +78,7 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
 }) {
   const { shop, combat, quests, achievements, gathering, crafting, collections, characters } = pack.content;
   const missing = missingCount(config, pack);
+  const changes = packChanges(config, pack);
   const featuresOff = packFeatures(pack).filter((f) => !config?.[f]?.enabled);
   const upToDate = missing === 0 && featuresOff.length === 0;
   const [picks, setPicks] = useState<Ref[]>([]);
@@ -115,9 +117,15 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
               Also turns on: {featuresOff.map((f) => FEATURE_NAMES[f]).join(", ")}.
             </p>
           )}
+          {(changes.updates.length > 0 || changes.kept > 0) && (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              {changes.updates.length > 0 && <>Updates {changes.updates.length} value{changes.updates.length === 1 ? "" : "s"} you haven&apos;t changed to the pack&apos;s latest. </>}
+              {changes.kept > 0 && <>Keeps {changes.kept} you edited as yours.</>}
+            </p>
+          )}
         </div>
         <button className="btn shrink-0 px-4 py-2 text-sm" disabled={saving || upToDate} onClick={onAdd}>
-          {saving ? "Adding…" : upToDate ? "Already added" : "Add the whole pack"}
+          {saving ? "Adding…" : upToDate ? "Already added" : missing === changes.updates.length ? "Update to the latest" : "Add the whole pack"}
         </button>
       </div>
       <p className="text-xs text-[var(--muted)]">Or tick just the pieces you want: anything they need comes with them.</p>

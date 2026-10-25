@@ -119,8 +119,9 @@ export default function Combat() {
       <H3>Chat level bonus</H3>
       <P>
         Chatting makes members a little stronger too: each chat level adds <b>+2 HP</b> and <b>+0.5 attack</b> by default,
-        on top of the Combat-level stats. A member at chat level 40 gets +80 HP and +20 attack, shown on <C>/me</C>. It is
-        kept well below the per-Combat-level values so fighting stays the main way up. Change it, or set it to 0, at <Where>Combat</Where>.
+        on top of the Combat-level stats, shown on <C>/me</C>. It counts at most <b>5 + twice your Combat level</b> chat levels,
+        so a chat-40 regular starts at Combat 1 with 7 levels&apos; worth and gets the full +80 HP and +20 attack by Combat 18:
+        chatting helps, but doesn&apos;t skip the early game. Change it, or set it to 0, at <Where>Combat rules</Where>.
       </P>
 
       <H2>Enemies</H2>

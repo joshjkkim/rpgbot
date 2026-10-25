@@ -12,6 +12,7 @@
     "deploy-test-commands": "tsx src/deploy-commands.ts --guild",
     "clear-test-commands": "tsx src/deploy-commands.ts --guild --clear",
     "smoke": "tsx scripts/smoke.ts",
+    "pack-history": "tsx scripts/pack-history.ts",
     "doctor": "tsx scripts/doctor.ts",
     "alert:test": "tsx src/alert.ts",
     "migrate": "./scripts/migrate.sh --all",

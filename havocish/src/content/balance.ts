@@ -15,8 +15,9 @@ export const ROLE_LABELS: Record<EnemyRole, string> = {
 
 /** A normal enemy at each anchor level: [level, hp, atk, def, spd, crit %, xp, gold]. In between is interpolated. */
 const NORMAL: Array<[number, number, number, number, number, number, number, number]> = [
-    [1, 26, 7, 2, 5, 1, 42, 7],
-    [3, 55, 14, 4, 10, 4, 50, 14],
+    // Level 1-3 enemies take a few hits even from a Heavy Strike: a first fight has turns to read.
+    [1, 48, 7, 2, 5, 1, 42, 7],
+    [3, 65, 14, 4, 10, 4, 50, 14],
     [5, 85, 25, 7, 15, 5, 100, 21],
     [9, 120, 30, 12, 12, 5, 135, 30],
     [13, 215, 44, 17, 16, 6, 150, 58],
@@ -119,7 +120,8 @@ export function gearPreset(slot: GearSlot, level: number, rarity: Rarity): GearN
         const v = Math.round((base + per * L) * RARITY_STATS[rarity]);
         if (v > 0) stats[stat] = v;
     }
-    const price = nice((120 + 1.8 * L * L) * RARITY_PRICE[rarity] * (slot === "hands" || slot === "feet" ? 0.8 : 1));
+    // The cubic term makes late gear the coin grind: about 1.4x at Combat 20, 1.8x at 30, 2x at 40.
+    const price = nice((120 + 1.8 * L * L + 0.05 * L ** 3) * RARITY_PRICE[rarity] * (slot === "hands" || slot === "feet" ? 0.8 : 1));
     return { stats, price, sellPrice: Math.round(price * 0.35), ...(L > 0 && { minLevel: L }) };
 }
 

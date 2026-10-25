@@ -42,7 +42,8 @@ import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveli
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
-import { STARTER_PACKS } from "../src/content/packs.js";
+import { STARTER_PACKS, applyPack } from "../src/content/packs.js";
+import { packChanges, stableJson } from "../src/content/packHistory.js";
 import { renderCharacterPane } from "../src/ui/canvas/characterPane.js";
 import { postResultLine } from "../src/player/fight.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
@@ -1467,8 +1468,13 @@ async function main() {
         const cfg = DEFAULT_GUILD_CONFIG;
         const chat1 = calculateStats({ level: 1, user_stats: {} } as any, cfg, {});
         const chat41 = calculateStats({ level: 41, user_stats: {} } as any, cfg, {});
-        check("40 chat levels add 80 HP", chat41.maxHp - chat1.maxHp, 80);
-        check("and 20 attack", chat41.atk - chat1.atk, 20);
+        // At Combat 1 only 7 chat levels count (5 + twice the Combat level): no skipping the early game.
+        check("a chat-41 regular at Combat 1 gets 7 levels' worth", [chat41.maxHp - chat1.maxHp, chat41.atk - chat1.atk], [12, 3]);
+        const veteran = { level: 41, user_stats: {} } as any;
+        addCombatXp(veteran, cfg, combatXpForLevel(18, cfg));
+        const combat18 = { level: 1, user_stats: {} } as any;
+        addCombatXp(combat18, cfg, combatXpForLevel(18, cfg));
+        check("by Combat 18 all 40 count: 80 HP, 20 attack", [calculateStats(veteran, cfg, {}).maxHp - calculateStats(combat18, cfg, {}).maxHp, calculateStats(veteran, cfg, {}).atk - calculateStats(combat18, cfg, {}).atk], [80, 20]);
         const off = { ...cfg, combat: { ...cfg.combat, chatBonus: { hp: 0, atk: 0 } } };
         check("an owner can turn it off", calculateStats({ level: 41, user_stats: {} } as any, off, {}).maxHp, chat1.maxHp - 2);
     });
@@ -2605,6 +2611,23 @@ async function main() {
             : { isThread: () => true, archived: false, setArchived: async (on: boolean) => { archived = on; } } } } as any;
         await postResultLine(client, { channelId: "thread", origin: { channelId: "chat", messageId: "m" } } as any, "🏆 won");
         check("the result line is posted and the thread archived", [line?.content, archived], ["🏆 won", true]);
+    });
+
+    await test("re-adding a pack updates what the owner never touched, and keeps what they changed", async () => {
+        const pack = STARTER_PACKS.find((p) => p.id === "classic-fantasy")!;
+        const cf = pack.content as any;
+        // A server that added Classic Fantasy before the retune: old prices, one renamed, one repriced by hand.
+        const server: any = { shop: { items: {
+            "knights-chainmail": { ...cf.shop.items["knights-chainmail"], price: 900, name: "Grandpa's Mail" },
+            "knights-helm": { ...cf.shop.items["knights-helm"], price: 1500 },
+        } } };
+        const { updates, kept } = packChanges(server, pack);
+        check("the untouched old price updates; the renamed name and the hand-set price don't", [updates.map((u) => `${u.id}.${u.field}`), kept], [["knights-chainmail.price"], 2]);
+        const { config } = applyPack(server, pack);
+        const items = (config.shop as any).items;
+        check("after adding: the new price, their own name, their own price", [items["knights-chainmail"].price, items["knights-chainmail"].name, items["knights-helm"].price], [cf.shop.items["knights-chainmail"].price, "Grandpa's Mail", 1500]);
+        check("adding again changes nothing more", packChanges(config, pack).updates.length, 0);
+        check("values compare whatever their key order", stableJson({ b: 1, a: [{ d: 2, c: 3 }] }), stableJson({ a: [{ c: 3, d: 2 }], b: 1 }));
     });
 
     await test("every starter pack is self-contained", async () => {

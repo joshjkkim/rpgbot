@@ -55,7 +55,8 @@ function chatBonusLine(profile: DbUserGuildProfile, config: GuildConfig) {
     const parts = (Object.keys(STAT_LABELS) as Array<keyof typeof STAT_LABELS>)
         .filter((k) => Math.round(b[k]) > 0)
         .map((k) => `+${Math.round(b[k])}${k === "crit" ? STAT_LABELS[k] : ` ${STAT_LABELS[k]}`}`);
-    return parts.length ? [`-# 💬 From chat level ${b.level}: ${parts.join(", ")}`] : [];
+    const capped = b.level < b.chat ? ` (${b.level} of your ${b.chat} chat levels count, more as your Combat level grows)` : "";
+    return parts.length ? [`-# 💬 From chat level: ${parts.join(", ")}${capped}`] : [];
 }
 
 /** The title from equipped gear ("the Wanderer"), as /profile shows it. The last equipped one wins. */
