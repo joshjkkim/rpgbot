@@ -9,6 +9,8 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **Characters.** Villains, quest givers and shopkeepers now speak in their own name. A world boss arrives saying one of its lines, the quest giver announces your quest done, the merchant shouts about your rare find. Both starter packs come with a cast: re-add yours from the Library to get it.
 
 ### For server owners
+- **Every announcement on one page.** The new Announcements page lists everything havocish posts for the server (level-ups, rare finds, quests, achievements, milestones, places opening, dailies, streaks, gifts, role rewards) with its channel, message and who says it. Point them all at #adventure-log in one go.
+- **See which tools open a location.** A gathering location that needs a tool now lists the tools that open it, right under the tier, so planning it doesn't mean a trip to the Items page.
 - **Materials in their own category.** In both starter packs, ores, herbs, fish, data and monster parts now sit apart from charms, rings and scrolls, so the shop and the Library are easier to browse. Items you already have stay where you put them.
 - **Roles at Combat and skill levels.** On Combat rules, give a role at any Combat level or gathering and crafting skill level: "At Combat 14 give @Crypt Dweller". Hide a place's channels behind that role in Discord and it opens as members grow. Both starter packs come with levels set for their tougher places; you pick the roles.
 - **Send a world boss away.** `/boss dismiss` ends the current world boss at once, with no rewards, for when one was summoned by mistake or at a bad time.

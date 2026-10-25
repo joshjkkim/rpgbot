@@ -165,7 +165,7 @@ const GAMES: Record<GameType, {
 
 const GAME_OPTIONS = (Object.keys(GAMES) as GameType[]).map((g) => ({ value: g, label: GAMES[g].label }));
 
-type ShopItems = Record<string, { name?: string; emoji?: string }>;
+type ShopItems = Record<string, { name?: string; emoji?: string; tool?: { activityId?: string; tier?: number } }>;
 
 type Props = {
   shopItems: ShopItems;
@@ -177,6 +177,7 @@ type Props = {
 
 function LocationEditor({
   location,
+  activityId,
   game,
   shopItems,
   skills,
@@ -184,6 +185,8 @@ function LocationEditor({
   onChange,
 }: {
   location: GatheringLocation;
+  /** Its activity, to list the tools that open it. */
+  activityId: string;
   game: GameType;
   shopItems: ShopItems;
   skills: SkillOption[];
@@ -214,7 +217,15 @@ function LocationEditor({
           value={location.minToolTier ?? 0}
           min={0}
           onChange={(v) => onChange({ ...location, minToolTier: v > 0 ? v : undefined })}
-          hint="0 means no tool needed. Make tools on the Items page."
+          hint={(() => {
+            const tier = location.minToolTier ?? 0;
+            if (tier <= 0) return "0 means no tool needed.";
+            // The tools live on the Items page; listing them here saves the trip when planning.
+            const opens = Object.values(shopItems).filter((it) => it.tool?.activityId === activityId && (it.tool.tier ?? 0) >= tier);
+            return opens.length
+              ? `Opens with: ${opens.map((it) => `${it.emoji ?? ""} ${it.name}`.trim()).join(", ")}.`
+              : `No tool of tier ${tier} for this activity yet. Make one on the Items page (Gathering tool).`;
+          })()}
         />
         <NumberField
           label="Skill XP per run"
@@ -390,6 +401,7 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
             renderItem={(lid, l) => (
               <LocationEditor
                 location={l}
+                activityId={a.id}
                 game={game}
                 shopItems={shopItems}
                 skills={skills}
