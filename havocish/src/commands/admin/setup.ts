@@ -167,6 +167,13 @@ export async function handleSetupInteraction(
         case "restart": sessions.set(sessionKey(interaction), Object.assign(s, fresh())); break;
         case "apply": {
             const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+            // Blank adds nothing, so it changes no switches either: a server already
+            // playing keeps combat, the shop and the rest exactly as they are.
+            if (!a.packId) a.features = {
+                shop: !!config.shop?.enabled, combat: !!config.combat?.enabled,
+                duels: !!config.combat?.pvp?.enabled, encounters: !!config.combat?.encounters?.enabled,
+                quests: !!config.quests?.enabled, achievements: !!config.achievements?.enabled,
+            };
             const built = buildSetup(config as unknown as GuildConfigJson, a, STARTER_PACKS) as unknown as GuildConfig;
             if (s.names) built.style = { ...built.style, gold: { ...built.style?.gold, name: s.names.gold }, xp: { ...built.style?.xp, name: s.names.xp } };
             await setGuildConfig(interaction.guildId, built);

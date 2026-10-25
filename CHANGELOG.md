@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### Fixed
+- **Running `/setup` again with "Start blank" no longer turns features off.** Blank adds nothing, so a server that's already playing keeps combat, the shop, quests and achievements exactly as they were.
+
 ## v0.16 · October 24, 2026
 
 Easy to start, and part of your Discord: set up in a minute without leaving it, a second world to start in, characters who speak in their own name, and new areas that open as members grow.
