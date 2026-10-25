@@ -2,7 +2,9 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.17 · October 25, 2026
+
+A polish update from playtesting: your character drawn on /me, gold that's worth chasing, sturdier early fights, and starter packs that update without undoing your work.
 
 ### Improved
 - **Starter packs update without undoing your work.** Adding a pack you already have now brings its latest numbers to everything you haven't changed, and keeps anything you edited exactly as you left it. The Library says how much will update and how much it keeps before you add. Add Classic Fantasy or Frontier Station again to get this update's new balance.
