@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### Improved
+- **Fight threads tidy themselves away.** A fight's thread now leaves the channel list as soon as the fight ends, instead of an hour later. The result line stays in chat, and opens the thread if you want to look back.
+
 ## v0.16 · October 24, 2026
 
 Easy to start, and part of your Discord: set up in a minute without leaving it, a second world to start in, characters who speak in their own name, and new areas that open as members grow.
