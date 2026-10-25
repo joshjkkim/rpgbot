@@ -15,7 +15,7 @@ const H = 300;
 const SCALE = 2;
 const SLOT = 44;
 
-export type PaneSlot = { label: string; emoji?: string | null; rarity?: keyof typeof RARITY_COLOURS | null };
+export type PaneSlot = { label: string; emoji?: string | null; rarity?: keyof typeof RARITY_COLOURS | null; /** Upgrade level, shown as a +N badge. */ plus?: number };
 
 export type PaneArgs = {
     name: string;
@@ -56,6 +56,15 @@ async function slot(ctx: any, x: number, y: number, s: PaneSlot) {
     const icon = s.emoji ? await image(emojiImageUrl(s.emoji)) : null;
     if (icon) {
         ctx.drawImage(icon, x + 8, y + 8, SLOT - 16, SLOT - 16);
+        if (s.plus) {
+            ctx.font = "10px InterBold";
+            ctx.textAlign = "right";
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "rgba(0,0,0,0.9)";
+            ctx.strokeText(`+${s.plus}`, x + SLOT - 3, y + SLOT - 4);
+            ctx.fillStyle = GOLD;
+            ctx.fillText(`+${s.plus}`, x + SLOT - 3, y + SLOT - 4);
+        }
     } else {
         ctx.font = "9px Inter";
         ctx.fillStyle = PARCHMENT_DIM;

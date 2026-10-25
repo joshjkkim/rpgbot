@@ -24,6 +24,7 @@ import { handleCollectionSelect } from "../commands/user/collection.js";
 import { busyFighting } from "../player/fight.js";
 import { handleSetupInteraction } from "../commands/admin/setup.js";
 import { handleMeButton } from "../commands/user/me.js";
+import { handleUpgradeInteraction } from "../commands/user/upgrade.js";
 
 /** While fighting, you fight: /fight (which brings the fight back) and /help are all that work. */
 function allowedMidFight(interaction: Interaction): boolean {
@@ -47,6 +48,11 @@ export function registerInteractionCreate(client: Client) {
                     await interaction.reply({ content: busy, flags: MessageFlags.Ephemeral });
                     return;
                 }
+            }
+
+            if ((interaction.isButton() || interaction.isStringSelectMenu()) && interaction.customId.startsWith("upgrade:")) {
+                await handleUpgradeInteraction(interaction);
+                return;
             }
 
             if ((interaction.isButton() || interaction.isStringSelectMenu() || interaction.isChannelSelectMenu() || interaction.isModalSubmit())

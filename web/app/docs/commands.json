@@ -346,6 +346,12 @@
     ]
   },
   {
+    "name": "upgrade",
+    "description": "Make a piece of your gear stronger",
+    "managersOnly": false,
+    "options": []
+  },
+  {
     "name": "use",
     "description": "Use an item from your inventory",
     "managersOnly": false,

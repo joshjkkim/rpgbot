@@ -62,6 +62,7 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                         ...(Object.keys(config.combat.places ?? {}).length ? ["🗺️ **Places:** some channels have their own enemies. Fight there to meet them"] : []),
                         "`/duel @someone` challenge another member, with gold on the line if you like",
                         "`/equip` and `/unequip` put on gear. Better gear means more HP, attack and defence",
+                        ...(config.shop?.upgrades?.enabled !== false ? ["`/upgrade` make a piece of your gear stronger, +1 at a time. Strike the forge bar well for a better chance"] : []),
                         "",
                         config.combat.encounters?.enabled
                             ? "👾 **Wild enemies** sometimes appear while people chat. Click **Fight** to take one on before it wanders off."

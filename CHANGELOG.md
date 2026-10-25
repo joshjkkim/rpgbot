@@ -2,6 +2,14 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### New
+- **Upgrade your gear.** `/upgrade` takes a piece of your gear from +1 to +5 for gold (and, on some servers, a material). Each step costs more and is less sure, and a good strike on the forge bar raises your chance. A failed step costs what it cost, never the item. Upgrades show on `/me` and your character pane.
+
+### For server owners
+- **Gear upgrades are yours to tune.** On the Shop page: turn them on or off, rename them (Enhance, Overclock…), set the chance of each step and how many there are, what each + adds, the gold cost, the strike bonus, and an optional material, so gathering has another use.
+
 ## v0.17 · October 25, 2026
 
 A polish update from playtesting: your character drawn on /me, gold that's worth chasing, sturdier early fights, and starter packs that update without undoing your work.

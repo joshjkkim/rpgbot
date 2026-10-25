@@ -15,7 +15,7 @@ import type { ItemRarity } from "./itemTooltip";
 import type { Requirements } from "@/app/components/ui/requirementsField";
 import Link from "next/link";
 import ShopPreview from "./shopPreview";
-import { RolesField } from "@/app/components/ui/pickers";
+import { ItemField, RolesField } from "@/app/components/ui/pickers";
 
 type EquipSlot =
   | "head" | "body" | "legs" | "feet" | "hands"
@@ -112,7 +112,20 @@ export type ShopConfig = {
     dm: boolean;
     levelReq: number;
   };
+  /** Gear upgrades with /upgrade (mirrored from havocish/src/types/guild.ts, defaults in player/upgrades.ts). */
+  upgrades?: {
+    enabled?: boolean;
+    name?: string;
+    chances?: number[];
+    statPercent?: number;
+    goldPercent?: number;
+    material?: { itemId: string; perStep?: number } | null;
+    strikeBonus?: number;
+  };
 };
+
+// Mirrors UPGRADE_DEFAULTS in havocish/src/player/upgrades.ts.
+const UPGRADE_DEFAULTS = { name: "Upgrade", chances: [100, 100, 100, 75, 50], statPercent: 10, goldPercent: 25, strikeBonus: 15 };
 
 type Props = {
   value: ShopConfig | null | undefined;
@@ -222,6 +235,51 @@ export default function ShopEconomyEditor({ value, onChange, guildId, serverName
           </FieldGrid>
           <AnnouncedOn what="gifts" />
         </div>
+      </Section>
+
+      <Section
+        title="Gear upgrades"
+        description="With /upgrade, members spend gold (and maybe a material) to take a piece of gear from +1 to the top level. Each step costs more and is less sure, and a strike on the forge bar nudges the chance. A failed step spends its cost but never takes the item."
+      >
+        {(() => {
+          const u = local.upgrades ?? {};
+          const set = (p: Partial<NonNullable<ShopConfig["upgrades"]>>) => updateRoot({ upgrades: { ...u, ...p } });
+          const chances = u.chances?.length ? u.chances : UPGRADE_DEFAULTS.chances;
+          return (
+            <div className="space-y-4">
+              <Toggle label="Gear upgrades" checked={u.enabled !== false} onChange={(v) => set({ enabled: v ? undefined : false })} />
+              {u.enabled !== false && (
+                <>
+                  <FieldGrid>
+                    <TextField label="What it's called" value={u.name ?? ""} placeholder={UPGRADE_DEFAULTS.name} onChange={(v) => set({ name: v || undefined })} hint="Enhance, Overclock, Reforge…" />
+                    <NumberField label="Each + adds (% of the item's stats)" value={u.statPercent ?? UPGRADE_DEFAULTS.statPercent} min={1} onChange={(v) => set({ statPercent: v })} hint="At least +1 per level on each of its stats." />
+                    <NumberField label="Gold per step (% of the item's value)" value={u.goldPercent ?? UPGRADE_DEFAULTS.goldPercent} min={0} onChange={(v) => set({ goldPercent: v })} hint="Times the step: +3 costs three times +1." />
+                    <NumberField label="Strike bonus (%)" value={u.strikeBonus ?? UPGRADE_DEFAULTS.strikeBonus} min={0} max={100} onChange={(v) => set({ strikeBonus: v })} hint="A perfect strike adds this to the chance; a miss takes it off." />
+                  </FieldGrid>
+                  <div>
+                    <p className="mb-2 text-sm">Chance of each step</p>
+                    <div className="flex flex-wrap items-end gap-2">
+                      {chances.map((c, i) => (
+                        <div key={i} className="w-20">
+                          <NumberField label={`+${i + 1}`} value={c} min={0} max={100} onChange={(v) => set({ chances: chances.map((x, j) => (j === i ? v : x)) })} />
+                        </div>
+                      ))}
+                      <button type="button" className="mb-0.5 rounded-sm border border-[var(--border)] px-2 py-1 text-xs" onClick={() => set({ chances: [...chances, Math.max(10, (chances.at(-1) ?? 50) - 15)] })}>+ a level</button>
+                      {chances.length > 1 && <button type="button" className="mb-0.5 px-2 py-1 text-xs text-[var(--muted)]" onClick={() => set({ chances: chances.slice(0, -1) })}>− a level</button>}
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--muted)]">In percent. The number of steps is the highest level, +{chances.length}.</p>
+                  </div>
+                  <FieldGrid>
+                    <ItemField items={local.items ?? {}} label="Material (optional)" value={u.material?.itemId ?? ""} emptyLabel="Gold only" onChange={(id) => set({ material: id ? { itemId: id, perStep: u.material?.perStep ?? 1 } : null })} hint="Something gathered, so upgrades give it a use." />
+                    {u.material?.itemId && (
+                      <NumberField label="Material per step" value={u.material.perStep ?? 1} min={1} onChange={(v) => set({ material: { itemId: u.material!.itemId, perStep: v } })} hint="Times the step, like the gold." />
+                    )}
+                  </FieldGrid>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </Section>
 
       <Section advanced title="Categories" description="How the shop is grouped." defaultOpen={false}>

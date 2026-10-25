@@ -55,6 +55,23 @@ export interface CollectionEntry {
  * finished collection). Hide a channel behind it in Discord and the channel
  * appears when they earn it. Given once, never taken away (player/unlocks.ts).
  */
+/** Gear upgrades: every number is the owner's (defaults in player/upgrades.ts). */
+export interface UpgradeRules {
+    enabled?: boolean;
+    /** What it's called: "Upgrade", "Enhance", "Overclock". */
+    name?: string;
+    /** Success chance for each step, in percent: the first is +1. Its length is the highest level. */
+    chances?: number[];
+    /** What each + adds, as a percent of the item's own stats (at least +1). */
+    statPercent?: number;
+    /** Gold per step, as a percent of the item's value, times the step. */
+    goldPercent?: number;
+    /** A material each step also takes, more at each step. */
+    material?: { itemId: string; perStep?: number } | null;
+    /** How much a perfect strike adds to the chance, and a miss takes off. */
+    strikeBonus?: number;
+}
+
 export interface UnlockConfig {
     id: string;
     roleId: string;
@@ -283,6 +300,8 @@ export interface GuildConfig {
         enabled?: boolean;
         categories?: Record<string, shopCategoryConfig>;
         items?: Record<string, shopItemConfig>;
+        /** Gear upgrades (+1, +2…) with /upgrade: on unless false. See player/upgrades.ts for the defaults. */
+        upgrades?: UpgradeRules;
         gifting?: { enabled: boolean, message: string | null, announceChannel: string | null, dm: boolean, levelReq: number  };
     },
     logging: {
