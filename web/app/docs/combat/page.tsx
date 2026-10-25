@@ -79,6 +79,21 @@ export default function Combat() {
         a place open in a thread by default, to keep chat clear. Channels outside every place meet any enemy that suits the level.
       </P>
 
+      <H2>Unlocking places</H2>
+      <P>
+        A place can be <b>earned</b>. Give it an unlock on the Places tab: the role it gives, and who earns it, using the usual
+        requirements (Combat level, a gathering or crafting skill, a finished collection, items found, days in the server).
+        Then, in Discord, hide the place&apos;s channels from everyone without that role. The moment a member qualifies,
+        havocish gives the role, the channels appear in their list, and it&apos;s announced: “🗺️ @member unlocked ⚰️ The
+        Barrow Crypt!”
+      </P>
+      <List>
+        <li>Roles are given, never taken away: a member who earned the Crypt keeps it.</li>
+        <li>It&apos;s checked after fights, gathering, crafting, buying and world bosses, and when a manager sets a level with <C>/admin set</C>.</li>
+        <li>Both starter packs come with unlocks for their tougher places. Roles belong to your server, so you pick the role; the health check reminds you until you do.</li>
+        <li>havocish can only give roles below its own: drag its role above the unlock roles in Server Settings → Roles.</li>
+      </List>
+
       <H2>Health and losing</H2>
       <List>
         <li><b>HP carries over</b> between fights and refills on its own: from 0 to full in 2 hours. Food and potions heal right away.</li>
