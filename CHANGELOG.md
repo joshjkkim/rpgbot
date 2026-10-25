@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### Improved
+- **`/me` catches up with Combat v2.** Your character sheet now shows your four fight moves, your title from gear next to your name, and when you're Wounded (and when it wears off). New **Moves** and **Collection** buttons sit beside Inventory and Change gear.
+
 ## v0.16 · October 24, 2026
 
 Easy to start, and part of your Discord: set up in a minute without leaving it, a second world to start in, characters who speak in their own name, and new areas that open as members grow.

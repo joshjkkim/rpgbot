@@ -2458,6 +2458,12 @@ async function main() {
         check("gear lists its bonus", own.includes("Iron Sword") && own.includes("+8 ATK, +2 DEF"), true);
         check("empty slots say so", own.includes("Head · _empty_"), true);
         check("your own sheet has inventory buttons", own.includes("inventory:gear:"), true);
+        check("it shows your moves, and a Moves button", own.includes("**Moves** ⚔️ Attack") && own.includes("me:moves"), true);
+        check("no collections, no Collection button", own.includes("me:collection"), false);
+        config.shop.items.sword!.effects = { ...config.shop.items.sword!.effects, cosmetic: { title: "the Bold" } } as any;
+        profile.user_stats = { ...profile.user_stats, ...afterLoss(calculateStats(profile, config, config.shop.items), config) } as any;
+        const hurt = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
+        check("gear's title follows the name, and Wounded says so", [hurt.includes("## Tester *the Bold*"), hurt.includes("Wounded")], [true, true]);
 
         const theirs = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, false));
         check("someone else's sheet has no buttons", theirs.includes("inventory:"), false);
