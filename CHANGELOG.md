@@ -9,6 +9,9 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **`/me` catches up with Combat v2.** Your character sheet now shows your four fight moves, your title from gear next to your name, and when you're Wounded (and when it wears off). New **Moves** and **Collection** buttons sit beside Inventory and Change gear.
 - **Fight threads tidy themselves away.** A fight's thread now leaves the channel list as soon as the fight ends, instead of an hour later. The result line stays in chat, and opens the thread if you want to look back.
 
+### Fixed
+- **Running `/setup` again with "Start blank" no longer turns features off.** Blank adds nothing, so a server that's already playing keeps combat, the shop, quests and achievements exactly as they were.
+
 ## v0.16 · October 24, 2026
 
 Easy to start, and part of your Discord: set up in a minute without leaving it, a second world to start in, characters who speak in their own name, and new areas that open as members grow.

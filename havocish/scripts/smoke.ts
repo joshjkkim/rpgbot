@@ -2515,6 +2515,18 @@ async function main() {
         check("blank adds nothing and leaves the RPG off", [Object.keys(blank.combat.enemies ?? {}).length, blank.combat.enabled], [Object.keys(before.combat.enemies ?? {}).length, false]);
         check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
         check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
+
+        // Blank on a server that's already playing leaves its switches alone.
+        await setGuildConfig(TEST_DISCORD_GUILD, { ...structuredClone(before), combat: { ...before.combat, enabled: true }, shop: { ...before.shop, enabled: true } });
+        await click("setup:start");
+        await click("setup:lvl:own");
+        await click("setup:pace:standard");
+        await click("setup:world", { values: ["blank"] });
+        await click("setup:names:keep");
+        await click("setup:channel:skip");
+        await click("setup:apply");
+        const kept = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
+        check("re-running setup with Blank keeps combat and the shop on", [kept.combat.enabled, kept.shop.enabled], [true, true]);
         await setGuildConfig(TEST_DISCORD_GUILD, before);
     });
 
