@@ -5,6 +5,7 @@ import type { QuestConfig } from "./quest.js";
 import type { EnemyConfig, MoveConfig, PlaceConfig, StatusConfig } from "./combat.js";
 import type { GatheringConfig } from "./gathering.js";
 import type { CraftingConfig } from "./crafting.js";
+import type { Requirements } from "./requirements.js";
 export interface DbGuild {
     id: number;
     discord_guild_id: string;
@@ -47,6 +48,19 @@ export interface LevelAction {
 export interface CollectionEntry {
     kind: "item" | "enemy";
     id: string;
+}
+
+/**
+ * A role a member earns by meeting requirements (Combat 15, Mining 20, a
+ * finished collection). Hide a channel behind it in Discord and the channel
+ * appears when they earn it. Given once, never taken away (player/unlocks.ts).
+ */
+export interface UnlockConfig {
+    id: string;
+    roleId: string;
+    requirements?: Requirements;
+    /** The place it opens, which names the announcement. */
+    placeId?: string;
 }
 
 export interface CharacterConfig {
@@ -287,6 +301,12 @@ export interface GuildConfig {
      * with rewards at milestones along the way (player/collections.ts). Unset or
      * empty: /collection says there are none yet.
      */
+    /** Roles members earn as they progress, to open hidden channels. */
+    unlocks?: {
+        list: Record<string, UnlockConfig>;
+        /** Where "@member unlocked …" is posted. Unset: where it happened. */
+        channelId?: string | null;
+    };
     /**
      * Owner-made characters who post the game's public messages under their
      * own name and picture (ui/characters.ts): enemies and quest givers name

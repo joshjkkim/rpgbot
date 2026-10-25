@@ -295,6 +295,12 @@
       },
       "shopkeeperId": "old-bram",
       "announcerId": "marta"
+    },
+    "unlocks": {
+      "list": {
+        "barrow-crypt": {"id":"barrow-crypt","roleId":"","placeId":"barrow-crypt","requirements":{"combatLevel":14}},
+        "high-pass": {"id":"high-pass","roleId":"","placeId":"high-pass","requirements":{"combatLevel":22}}
+      }
     }
   }
 }

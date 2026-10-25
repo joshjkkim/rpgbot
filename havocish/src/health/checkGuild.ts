@@ -319,6 +319,16 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         for (const r of Object.values(st.recipes ?? {})) reqs(r.requirements, `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "an item"}`, "crafting");
     }
 
+    // ── Unlocks ── (a role nobody can be given opens nothing)
+    channel(config.unlocks?.channelId, "unlock announcements", "combat", POST);
+    for (const u of Object.values(config.unlocks?.list ?? {})) {
+        const place = u.placeId ? config.combat.places?.[u.placeId] : undefined;
+        const what = `the unlock for ${place?.name ?? (u.placeId ? "a deleted place" : "a role")}`;
+        if (!u.roleId) issues.push({ severity: "warning", message: `The unlock for ${place?.name ?? "a place"} has no role yet, so nobody earns anything. Pick one on the Combat page's Places tab.`, page: "combat" });
+        role(u.roleId || undefined, what, "combat");
+        if (u.placeId && !place) issues.push({ severity: "warning", message: "An unlock opens a place that was deleted. Pick another or remove it.", page: "combat" });
+    }
+
     // ── Characters ── (a deleted character quietly falls back to the bot)
     const characters = config.characters?.list ?? {};
     const speaksFor = [

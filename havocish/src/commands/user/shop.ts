@@ -1,4 +1,4 @@
-import { checkCollections } from "../../player/collections.js";
+import { checkProgress } from "../../player/collections.js";
 import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
 import { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, GuildMember, ContainerBuilder, SectionBuilder, TextDisplayBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
@@ -237,7 +237,7 @@ async function buyItem(interaction: ButtonInteraction, itemId: string, quantity:
     if (!purchase.success) {
         return `❌ ${purchase.message}`;
     }
-    await checkCollections({ client: interaction.client, config, discordUserId: interaction.user.id, discordGuildId: dbGuild.discord_guild_id, fallbackChannelId: interaction.channelId });
+    await checkProgress({ client: interaction.client, config, discordUserId: interaction.user.id, discordGuildId: dbGuild.discord_guild_id, fallbackChannelId: interaction.channelId });
 
     const item = purchase.item;
     const price = Number(purchase.price);

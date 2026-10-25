@@ -292,6 +292,12 @@
       },
       "shopkeeperId": "quartermaster-vex",
       "announcerId": "station-control"
+    },
+    "unlocks": {
+      "list": {
+        "quarantine-wing": {"id":"quarantine-wing","roleId":"","placeId":"quarantine-wing","requirements":{"combatLevel":14}},
+        "deep-space": {"id":"deep-space","roleId":"","placeId":"deep-space","requirements":{"combatLevel":22}}
+      }
     }
   }
 }

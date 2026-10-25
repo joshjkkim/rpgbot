@@ -31,7 +31,7 @@ import { checkRequirements, memberFacts } from "../../player/requirements.js";
 import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
 import { tipOnce, type Tip } from "../../player/tips.js";
-import { checkCollections } from "../../player/collections.js";
+import { checkProgress } from "../../player/collections.js";
 import { newMoveLines, nextFightLine } from "../../player/nextSteps.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
@@ -693,7 +693,7 @@ async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ membe
     }
     await postResultLine(client, fight, resultLine(fight, round.outcome, results, config));
     for (const { member } of results) {
-        await checkCollections({ client, config, discordUserId: member.userId, discordGuildId: fight.guildId, fallbackChannelId: fight.origin?.channelId ?? fight.channelId });
+        await checkProgress({ client, config, discordUserId: member.userId, discordGuildId: fight.guildId, fallbackChannelId: fight.origin?.channelId ?? fight.channelId });
     }
     for (const { member, summary } of results) {
         await announceRareFinds({

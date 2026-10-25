@@ -8,6 +8,7 @@ import { mentionsFor } from "../ui/mentions.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { announcer, speak } from "../ui/characters.js";
+import { checkUnlocks } from "./unlocks.js";
 
 /**
  * Collections: owner-made groups of items to find and enemies to defeat, like
@@ -85,6 +86,16 @@ export async function payCollectionMilestones(userId: number, guildId: number, c
         baseline,
     });
     return out;
+}
+
+/**
+ * Everything that can follow from progress: unlock roles first (a channel can
+ * open), then collection milestones. Call it after anything that can move a
+ * member on.
+ */
+export async function checkProgress(opts: Parameters<typeof checkCollections>[0]): Promise<void> {
+    await checkUnlocks(opts).catch((err) => console.error("Unlock check failed:", err));
+    await checkCollections(opts);
 }
 
 /**
