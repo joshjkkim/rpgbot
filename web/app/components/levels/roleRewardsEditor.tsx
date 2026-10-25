@@ -2,8 +2,9 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { Field, FieldGrid, NumberField, Section, SelectField } from "@/app/components/ui/form";
-import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { ItemField, RoleField } from "@/app/components/ui/pickers";
 import type { LevelAction } from "@/app/components/levels/levelsEditor";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 
 /** Mirrored from havocish/src/types/guild.ts. */
 export type RoleRewardsConfig = { channelId?: string | null; roles: Record<string, LevelAction[]> };
@@ -38,12 +39,7 @@ export default function RoleRewardsEditor({
       description="Gold, items or Combat XP when a member gets a role, from any bot or a mod. Use another leveling bot? Reward the roles it gives at levels. Each member is paid once per role, and members who already have one get it next time they chat."
     >
       <div className="space-y-4">
-        <ChannelField
-          label="Announce in"
-          value={v.channelId ?? ""}
-          onChange={(c) => onChange({ ...v, channelId: c || null })}
-          emptyLabel="Nowhere (rewards arrive quietly)"
-        />
+        <AnnouncedOn what="role rewards" />
 
         {Object.entries(roles).map(([roleId, actions]) => (
           <div key={roleId || "new"} className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--surface)] p-3">

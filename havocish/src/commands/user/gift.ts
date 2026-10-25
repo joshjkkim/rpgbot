@@ -5,6 +5,7 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { transferItem } from "../../player/trading.js";
 import { bestEffort } from "../../ui/bestEffort.js";
+import { announcer, speak } from "../../ui/characters.js";
 
 export const data = new SlashCommandBuilder()
     .setName("gift")
@@ -66,8 +67,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         await interaction.editReply({ content: res.message });
         if (announceChannel) {
             const channel = await interaction.guild?.channels.fetch(announceChannel);
-            if (channel?.isTextBased()) {
-                await bestEffort("gift announcement", channel.send({ content: message ? message.replace("{giver}", interaction.user.username).replace("{receiver}", receiver.username).replace("{item}", itemId).replace("{quantity}", quantity.toString()) : res.message }));
+            if (channel?.isTextBased() && channel.isSendable()) {
+                await bestEffort("gift announcement", speak(channel, announcer(guildConfig), { content: message ? message.replace("{giver}", interaction.user.username).replace("{receiver}", receiver.username).replace("{item}", itemId).replace("{quantity}", quantity.toString()) : res.message }));
             }
         }
 

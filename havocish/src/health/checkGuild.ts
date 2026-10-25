@@ -88,7 +88,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     };
 
     // ── Levels ──
-    channel(config.levels.announceLevelUpInChannelId, "level-up announcements", "levels", [...POST, "files"]);
+    channel(config.levels.announceLevelUpInChannelId, "level-up announcements", "announcements", [...POST, "files"]);
     for (const [level, actions] of Object.entries(config.levels.levelActions ?? {})) {
         for (const a of actions ?? []) {
             if (a.type === "sendMessage") channel(a.channelId, `the level ${level} message`, "levels", POST);
@@ -97,11 +97,11 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
-    channel(config.rareFinds?.channelId, "rare-find announcements", "items", POST);
-    channel(config.style.levelUpCards?.channelId, "level-up card", "styles", [...POST, "files"]);
+    channel(config.rareFinds?.channelId, "rare-find announcements", "announcements", POST);
+    channel(config.style.levelUpCards?.channelId, "level-up card", "announcements", [...POST, "files"]);
 
     // ── Role rewards ── (the page is Leveling: they sit beside level rewards)
-    channel(config.roleRewards?.channelId, "role reward announcements", "leveling", POST);
+    channel(config.roleRewards?.channelId, "role reward announcements", "announcements", POST);
     for (const [roleId, actions] of Object.entries(config.roleRewards?.roles ?? {})) {
         // Only read, never given, so havocish needs no permission over it.
         if (access.roleName(roleId) === null) issues.push({ severity: "warning", message: `A role reward is for a role that was deleted (${roleId}).`, page: "leveling" });
@@ -109,8 +109,8 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     // ── XP and dailies ──
-    channel(config.xp.announceDailyInChannelId, "daily reward announcements", "xp", POST);
-    channel(config.xp.streakAnnounceChannelId, "streak announcements", "xp", POST);
+    channel(config.xp.announceDailyInChannelId, "daily reward announcements", "announcements", POST);
+    channel(config.xp.streakAnnounceChannelId, "streak announcements", "announcements", POST);
     for (const [days, reward] of Object.entries(config.xp.streakRewards ?? {})) {
         channel(reward?.channelId, `the ${days}-day streak reward`, "xp", POST);
     }
@@ -120,7 +120,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     if (config.shop?.enabled && visibleItems.length === 0) {
         issues.push({ severity: "warning", message: "The shop is open but has nothing for sale.", page: "shop" });
     }
-    if (config.shop?.gifting?.enabled) channel(config.shop.gifting.announceChannel, "gift announcements", "shop", POST);
+    if (config.shop?.gifting?.enabled) channel(config.shop.gifting.announceChannel, "gift announcements", "announcements", POST);
     for (const it of Object.values(items)) {
         for (const a of Object.values(it.actions ?? {})) {
             if (a.type === "assignRole" || a.type === "removeRole") role(a.roleId, `the item ${it.name}`, "items");
@@ -197,7 +197,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     if (config.quests?.enabled) {
         const active = Object.values(config.quests.quests ?? {}).filter((q) => q.active !== false);
         if (active.length === 0) issues.push({ severity: "warning", message: "Quests are on but none are active.", page: "quests" });
-        channel(config.quests.announceAllId, "quest announcements", "quests", POST);
+        channel(config.quests.announceAllId, "quest announcements", "announcements", POST);
         for (const q of active) {
             channel(q.overrideChannelId, `the quest ${q.name}'s announcements`, "quests", POST);
             for (const r of Object.values(q.reward ?? {})) {
@@ -212,7 +212,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     if (config.achievements?.enabled) {
         const all = Object.values(config.achievements.achievements ?? {});
         if (all.length === 0) issues.push({ severity: "warning", message: "Achievements are on but none exist yet.", page: "achievements" });
-        channel(config.achievements.announceAllId, "achievement announcements", "achievements", POST);
+        channel(config.achievements.announceAllId, "achievement announcements", "announcements", POST);
         for (const a of all) {
             channel(a.overrideChannelId, `the achievement ${a.name}'s announcements`, "achievements", POST);
             role(a.reward?.roleId, `the achievement ${a.name}`, "achievements");
@@ -252,7 +252,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     // ── Collections ──
-    channel(config.collections?.channelId, "collection announcements", "collections", POST);
+    channel(config.collections?.channelId, "collection announcements", "announcements", POST);
     for (const set of Object.values(config.collections?.sets ?? {})) {
         const gone = (set.entries ?? []).filter((e) => !(e.kind === "item" ? items[e.id] : config.combat?.enemies?.[e.id]));
         if (gone.length) issues.push({ severity: "warning", message: `The collection ${set.name} lists ${gone.length} thing${gone.length === 1 ? "" : "s"} that were deleted; they don't count.`, page: "collections" });
@@ -320,7 +320,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     // ── Unlocks ── (a role nobody can be given opens nothing)
-    channel(config.unlocks?.channelId, "unlock announcements", "combat", POST);
+    channel(config.unlocks?.channelId, "unlock announcements", "announcements", POST);
     for (const u of Object.values(config.unlocks?.list ?? {})) {
         const place = u.placeId ? config.combat.places?.[u.placeId] : undefined;
         const what = `the unlock for ${place?.name ?? (u.placeId ? "a deleted place" : "a role")}`;

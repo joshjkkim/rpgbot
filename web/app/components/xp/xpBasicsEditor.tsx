@@ -11,6 +11,7 @@ import {
   Toggle,
 } from "@/app/components/ui/form";
 import { ChannelField, useChannelOptions, useRoleOptions } from "@/app/components/ui/pickers";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 
 type RoleXpConfig = {
   extraXp?: number;
@@ -335,19 +336,8 @@ export default function XpBasicsEditor({ value, onChange, part }: Props) {
                 rows={2}
                 hint="{user} {xp} {gold} {xpName} {xpIcon} {goldName} {goldIcon} {streak}"
               />
-              <ChannelField
-                label="Announce channel"
-                value={form.announceDailyInChannelId ?? ""}
-                onChange={(v) => commit({ announceDailyInChannelId: v || null })}
-                emptyLabel="Don't announce"
-              />
-              <TextAreaField
-                label="Announce message"
-                value={form.announceDailyMessage}
-                onChange={(v) => commit({ announceDailyMessage: v })}
-                rows={2}
-              />
             </FieldGrid>
+            <AnnouncedOn what="daily rewards" />
           </div>
         </Section>
       )}
@@ -363,20 +353,8 @@ export default function XpBasicsEditor({ value, onChange, part }: Props) {
               onChange={(v) => commit({ streakMultiplier: v })}
               hint="Added per streak day — 0.1 is +10% a day."
             />
-            <ChannelField
-              label="Announce channel"
-              value={form.streakAnnounceChannelId ?? ""}
-              onChange={(v) => commit({ streakAnnounceChannelId: v || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextAreaField
-              label="Announce message"
-              value={form.streakAnnounceMessage}
-              onChange={(v) => commit({ streakAnnounceMessage: v })}
-              rows={2}
-              hint="{user} {streak} {xp} {gold}"
-            />
           </FieldGrid>
+          <AnnouncedOn what="streaks" />
         </Section>
       )}
 

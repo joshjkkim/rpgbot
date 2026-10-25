@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 import {
   FieldGrid,
   KeyedList,
@@ -14,7 +15,7 @@ import type { ItemRarity } from "./itemTooltip";
 import type { Requirements } from "@/app/components/ui/requirementsField";
 import Link from "next/link";
 import ShopPreview from "./shopPreview";
-import { ChannelField, RolesField } from "@/app/components/ui/pickers";
+import { RolesField } from "@/app/components/ui/pickers";
 
 type EquipSlot =
   | "head" | "body" | "legs" | "feet" | "hands"
@@ -218,19 +219,8 @@ export default function ShopEconomyEditor({ value, onChange, guildId, serverName
               min={0}
               onChange={(v) => updateGifting({ levelReq: v })}
             />
-            <ChannelField
-              label="Gift announce channel"
-              value={local.gifting?.announceChannel ?? ""}
-              onChange={(v) => updateGifting({ announceChannel: v.trim() || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextAreaField
-              label="Gift message"
-              value={local.gifting?.message ?? ""}
-              onChange={(v) => updateGifting({ message: v || null })}
-              rows={2}
-            />
           </FieldGrid>
+          <AnnouncedOn what="gifts" />
         </div>
       </Section>
 
