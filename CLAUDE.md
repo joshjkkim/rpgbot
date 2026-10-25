@@ -85,6 +85,8 @@ env $(grep '^DISCORD_TOKEN=' .env.prod.bak | xargs) CLIENT_ID=144016937843504337
 - The library (`content/library.ts`) adds single entries with what they need (`plan`, `addEntries`), reusing what the server has.
 - Files here import each other with `.ts` extensions (the bot's build rewrites them to `.js`; Turbopack can't map `.js` to `.ts`), and nothing here may import from the rest of the bot or from `web/`.
 
+**Characters:** public posts (encounters, bosses, announcements) go through `speak()` in `havocish/src/ui/characters.ts`, which posts as a character through a webhook or falls back to the bot. Edit those messages with `editSpoken()`, since a webhook's message can't be edited with `message.edit`. New public posts should use `speak()` too.
+
 **Health check:** `havocish/src/health/checkGuild.ts` lists setups that would fail quietly. A new feature that can be misconfigured should add checks there.
 
 ## Product decisions to respect

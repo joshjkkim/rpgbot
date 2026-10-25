@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction } from "discord.js";
 import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
-import { bossesIn, liveBoss, spawnBoss } from "../../player/bosses.js";
+import { bossesIn, dismissBoss, liveBoss, spawnBoss } from "../../player/bosses.js";
 
 export const data = new SlashCommandBuilder()
     .setName("boss")
@@ -13,7 +13,10 @@ export const data = new SlashCommandBuilder()
             .addStringOption(opt =>
                 opt.setName("boss")
                     .setDescription("Boss ID (leave blank for a random boss)")
-                    .setRequired(false)));
+                    .setRequired(false)))
+    .addSubcommand(sub =>
+        sub.setName("dismiss")
+            .setDescription("End the current world boss now, with no rewards"));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.inCachedGuild()) {
@@ -25,11 +28,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
 
+    if (interaction.options.getSubcommand() === "dismiss") {
+        const gone = await dismissBoss(interaction.guildId);
+        await interaction.reply({
+            content: gone ? `**${gone.enemy.emoji} ${gone.enemy.name}** is gone. Nobody was rewarded.` : "There's no world boss loose right now.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+
     const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
     const fail = (content: string) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
     if (!config.combat.enabled) return void await fail("⚔️ Combat isn't enabled on this server.");
-    if (liveBoss(interaction.guildId)) return void await fail("A boss is already loose! Defeat it first.");
+    if (liveBoss(interaction.guildId)) return void await fail("A boss is already loose! Defeat it first, or end it with `/boss dismiss`.");
 
     const bosses = bossesIn(config);
     const id = interaction.options.getString("boss");
