@@ -43,6 +43,7 @@ import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS, applyPack } from "../src/content/packs.js";
+import { attemptUpgrade, chanceAfterStrike, nextStep, upgradeBonus, upgradeLevel } from "../src/player/upgrades.js";
 import { packChanges, stableJson } from "../src/content/packHistory.js";
 import { renderCharacterPane } from "../src/ui/canvas/characterPane.js";
 import { postResultLine } from "../src/player/fight.js";
@@ -2629,6 +2630,42 @@ async function main() {
         check("after adding: the new price, their own name, their own price", [items["knights-chainmail"].price, items["knights-chainmail"].name, items["knights-helm"].price], [cf.shop.items["knights-chainmail"].price, "Grandpa's Mail", 1500]);
         check("adding again changes nothing more", packChanges(config, pack).updates.length, 0);
         check("values compare whatever their key order", stableJson({ b: 1, a: [{ d: 2, c: 3 }] }), stableJson({ a: [{ c: 3, d: 2 }], b: 1 }));
+    });
+
+    await test("gear upgrades: costs, chances, the strike, and a failure never takes the item", async () => {
+        const { userId, guildId, config } = await reset();
+        config.shop.items = { ...config.shop.items,
+            sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", categoryId: "gear", price: 250, equipable: true, equipSlot: "weapon", effects: { stats: { atk: 8 } } },
+            ore: { id: "ore", name: "Ore", categoryId: "gear", price: 0 },
+        } as any;
+        const items = config.shop.items!;
+        const sword = items.sword!;
+        check("+1 costs a quarter of its value, always works, adds +1 ATK", nextStep(sword, 0, config), { to: 1, chance: 100, gold: 60, material: null, gain: { atk: 1 } });
+        check("+4 and +5 are riskier, and +5 is the top", [nextStep(sword, 3, config)?.chance, nextStep(sword, 4, config)?.chance, nextStep(sword, 5, config)], [75, 50, null]);
+        check("+5 on 8 ATK adds 5 (at least +1 a level)", upgradeBonus({ atk: 8 }, 5, 10), { atk: 5 });
+        check("a perfect strike adds 15%, a miss takes 15% off", [chanceAfterStrike(50, "perfect", config), chanceAfterStrike(50, "ruin", config), chanceAfterStrike(100, "perfect", config)], [65, 35, 100]);
+
+        const p = (await getOrCreateProfile({ userId, guildId })).profile;
+        p.gold = "1000"; p.equips = { weapon: "sword" }; p.inventory = { sword: { id: "sword", name: "Iron Sword", quantity: 1 } } as any;
+        const before = calculateStats(p, config, items).atk;
+        const up = await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made", roll: () => 0 });
+        // A commit can hand back a fresh profile object: always read the cached one.
+        const now = async () => (await getOrCreateProfile({ userId, guildId })).profile;
+        const after = await now();
+        check("a success raises the level and spends the gold", [up.ok && up.success, upgradeLevel(after, "sword"), after.gold], [true, 1, "940"]);
+        check("and fights see it", calculateStats(after, config, items).atk, before + 1);
+        check("and /me says +9 ATK for an 8 ATK sword at +1", JSON.stringify(renderSheet(after, config, "T", TEST_DISCORD_USER, true).map((x: any) => x.toJSON())).includes("Iron Sword +1** (+9 ATK)"), true);
+
+        after.user_stats = { ...after.user_stats, upgrades: { sword: 3 } } as any;
+        const fail = await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made", roll: () => 0.99 });
+        const failed = await now();
+        check("a failure spends the cost but keeps the item and its level", [fail.ok && fail.success, upgradeLevel(failed, "sword"), failed.inventory?.sword?.quantity, failed.equips?.weapon], [false, 3, 1, "sword"]);
+
+        config.shop.upgrades = { material: { itemId: "ore", perStep: 2 } };
+        check("with a material, each step needs more of it", nextStep(sword, 3, config)?.material, { itemId: "ore", quantity: 8 });
+        check("and without it, nothing happens", (await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made", roll: () => 0 })).ok, false);
+        config.shop.upgrades = { enabled: false };
+        check("an owner can turn upgrades off", (await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made" })).ok, false);
     });
 
     await test("every starter pack is self-contained", async () => {

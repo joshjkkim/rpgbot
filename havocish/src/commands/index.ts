@@ -35,6 +35,7 @@ import * as craft from "./user/craft.js"
 import * as moves from "./user/moves.js"
 import * as collection from "./user/collection.js"
 import * as setup from "./admin/setup.js"
+import * as upgrade from "./user/upgrade.js"
 
 export const commandList = [
     daily.data,
@@ -74,6 +75,7 @@ export const commandList = [
     moves.data,
     collection.data,
     setup.data,
+    upgrade.data,
 ]
 
 export const commands = new Map<string, any>([
@@ -114,4 +116,5 @@ export const commands = new Map<string, any>([
     [moves.data.name, moves],
     [collection.data.name, collection],
     [setup.data.name, setup],
+    [upgrade.data.name, upgrade],
 ])

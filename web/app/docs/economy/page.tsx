@@ -65,6 +65,27 @@ export default function Economy() {
       />
       <Note>Stats on an item that isn&apos;t equipable do nothing. The dashboard tooltip warns you when that happens.</Note>
 
+      <H2>Gear upgrades</H2>
+      <P>
+        Members take a piece of their gear from +1 up to +5 with <C>/upgrade</C>. Each step costs gold (and a material, if you
+        pick one), and adds a share of the item&apos;s stats. Then they strike a forge bar: 🟩 raises the chance, 🟨 keeps it,
+        anywhere else lowers it. <b>A failed step spends its cost but never takes the item.</b> It&apos;s the gold sink that
+        keeps gold worth earning late in the game.
+      </P>
+      <Table
+        head={["Setting (Shop page)", "Default"]}
+        rows={[
+          ["On or off", "On"],
+          ["Chance of each step, +1 to +5", "100%, 100%, 100%, 75%, 50% (add or remove levels)"],
+          ["Each + adds", "10% of the item's stats, at least +1"],
+          ["Gold per step", "25% of the item's value, times the step"],
+          ["Strike bonus", "±15%"],
+          ["Material", "None (gold only)"],
+          ["What it's called", "Upgrade"],
+        ]}
+      />
+      <Note>Upgrade levels belong to the member and the kind of item: two Iron Swords share one level, and selling the last one resets it.</Note>
+
       <H2>Items that do things</H2>
       <P>Give an item actions and members trigger them with <C>/use</C>. One item can have several.</P>
       <Table

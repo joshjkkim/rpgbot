@@ -4,6 +4,7 @@ import { DEFAULT_GUILD_CONFIG, type GuildConfig } from "../types/guild.js";
 import type { shopItemConfig } from "../types/economy.js";
 import type { StatusConfig } from "../types/combat.js";
 import { DEFAULT_STATUSES, statusesOf } from "./moves.js";
+import { upgradeBonus, upgradeLevel, upgradeRules } from "./upgrades.js";
 
 // ─── Computed stat block ──────────────────────────────────────────────────────
 
@@ -44,18 +45,20 @@ export function calculateStats(
     spd   += bonus.spd;
     crit  += bonus.crit;
 
-    // Add bonuses from every equipped item
+    // Add bonuses from every equipped item, and what its upgrade level adds.
     const equips = profile.equips ?? {};
+    const { statPercent } = upgradeRules(config);
     for (const itemId of Object.values(equips)) {
         if (!itemId) continue;
         const itemCfg = guildItems[itemId];
         const s = itemCfg?.effects?.stats;
         if (!s) continue;
-        maxHp  += s.hp   ?? 0;
-        atk    += s.atk  ?? 0;
-        def    += s.def  ?? 0;
-        spd    += s.spd  ?? 0;
-        crit   += s.crit ?? 0;
+        const up = upgradeBonus(s, upgradeLevel(profile, itemId), statPercent);
+        maxHp  += (s.hp   ?? 0) + (up.hp   ?? 0);
+        atk    += (s.atk  ?? 0) + (up.atk  ?? 0);
+        def    += (s.def  ?? 0) + (up.def  ?? 0);
+        spd    += (s.spd  ?? 0) + (up.spd  ?? 0);
+        crit   += (s.crit ?? 0) + (up.crit ?? 0);
     }
 
     // Wounded after a loss: its status's stat changes, until it wears off.

@@ -47,6 +47,8 @@ export interface UserStats {
     roleRewards?: string[];
     /** What they bought today, for items with a daily limit (db/shop.ts). */
     boughtToday?: { day: string; items: Record<string, number> };
+    /** Gear upgrade levels by item id (player/upgrades.ts). */
+    upgrades?: Record<string, number>;
     /** Counters for achievements: party fights won, gathering runs, crafts, collections finished. */
     partyWins?: number;
     gatherRuns?: number;

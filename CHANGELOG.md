@@ -4,10 +4,14 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 
 ## Unreleased
 
+### New
+- **Upgrade your gear.** `/upgrade` takes a piece of your gear from +1 to +5 for gold (and, on some servers, a material). Each step costs more and is less sure, and a good strike on the forge bar raises your chance. A failed step costs what it cost, never the item. Upgrades show on `/me` and your character pane.
+
 ### Fixed
 - **Combat levels take a few hours, not one.** Since Combat v2, the starter packs' enemies gave so much XP that Combat 10 came after about 30 fights. Enemies now give half the XP (and half the gold, so gold still matches gear): about 60 fights to Combat 10 and some 12 hours of fighting to Combat 40 at the Standard pace. Quest, collection and achievement XP follow. Add your starter pack again in the Library to get it.
 
 ### For server owners
+- **Gear upgrades are yours to tune.** On the Shop page: turn them on or off, rename them (Enhance, Overclock…), set the chance of each step and how many there are, what each + adds, the gold cost, the strike bonus, and an optional material, so gathering has another use.
 - **The pace in `/setup` covers Combat too.** Relaxed, Standard and Hardcore now set how fast Combat levels come, not just chat levels: Relaxed about twice as fast, Hardcore about 1.4 times slower.
 
 ## v0.17 · October 25, 2026
