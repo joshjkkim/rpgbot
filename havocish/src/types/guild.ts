@@ -122,6 +122,8 @@ export interface GuildConfig {
         tips?: boolean;
         /** Fights drawn as a scene image (ui/canvas/battleScene.ts); on unless false. */
         battleScenes?: boolean;
+        /** /me's drawn character pane. Unset means on. */
+        characterPane?: boolean;
     },
     combat: {
         enabled: boolean;

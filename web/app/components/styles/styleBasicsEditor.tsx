@@ -28,6 +28,8 @@ export type StyleConfig = {
   levelUpCards?: { combat?: boolean; skills?: boolean; channelId?: string | null };
   tips?: boolean;
   battleScenes?: boolean;
+  /** /me's drawn character pane (mirrored from havocish/src/types/guild.ts). Unset means on. */
+  characterPane?: boolean;
 };
 
 type Props = {
@@ -185,6 +187,7 @@ export default function StyleBasicsEditor({ value, onChange }: Props) {
 
       <Section title="Battle scenes" description="Fights drawn as a picture: the enemy's emoji (or image) as its sprite, each player's avatar, and the place as a backdrop. Set a place's colour or background image on the Combat page's Places tab, and an enemy's image on its page.">
         <Toggle label="Draw fights as scenes" checked={style.battleScenes !== false} onChange={(v) => onChange({ ...style, battleScenes: v ? undefined : false })} hint="Off: fights show HP as text instead." />
+        <Toggle label="Draw /me as a character pane" checked={style.characterPane !== false} onChange={(v) => onChange({ ...style, characterPane: v ? undefined : false })} hint="The member's avatar with their gear around it, Combat level, HP and XP, above the character sheet. Off: the sheet is text only." />
       </Section>
 
       <Section title="New-player tips" description="A short private tip, once per member, the first time they fight, win, lose or join a party. Nobody else sees them.">

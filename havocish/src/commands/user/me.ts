@@ -1,9 +1,9 @@
-import type { ChatInputCommandInteraction } from "discord.js";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
-import { calculateStats, chatLevelBonus, minutesToFull, resolveCurrentHp } from "../../player/combat.js";
+import { calculateStats, chatLevelBonus, minutesToFull, resolveCurrentHp, woundedUntil, woundLine } from "../../player/combat.js";
 import { calculateLevelFromXp, calculateTotalXpForLevel, levelStartXp } from "../../leveling/levels.js";
 import { accentColor } from "../../ui/pager.js";
 import { SLOT_META } from "./inventory.js";
@@ -12,6 +12,13 @@ import { enabledStations } from "../../player/crafting.js";
 import { combatProgress } from "../../player/combatLevel.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
+import { loadoutFor, moveById } from "../../player/moves.js";
+import { memberFacts, type MemberFacts } from "../../player/requirements.js";
+import { collectionSets } from "../../player/collections.js";
+import { execute as openMoves } from "./moves.js";
+import { execute as openCollection } from "./collection.js";
+import { renderCharacterPane, type PaneSlot } from "../../ui/canvas/characterPane.js";
+import type { EquipSlot } from "../../types/economy.js";
 
 /**
  * /me: the character sheet. Level, HP, combat stats and equipped gear in one
@@ -51,7 +58,56 @@ function chatBonusLine(profile: DbUserGuildProfile, config: GuildConfig) {
     return parts.length ? [`-# 💬 From chat level ${b.level}: ${parts.join(", ")}`] : [];
 }
 
-export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, name: string, ownerId: string, canAct: boolean) {
+/** The title from equipped gear ("the Wanderer"), as /profile shows it. The last equipped one wins. */
+function titleOf(profile: DbUserGuildProfile, config: GuildConfig): string | null {
+    let title: string | null = null;
+    for (const id of Object.values(profile.equips ?? {})) {
+        const t = id ? config.shop?.items?.[id]?.effects?.cosmetic?.title : undefined;
+        if (t) title = t;
+    }
+    return title;
+}
+
+/** Draws at once at most; past it, /me shows text only for that call (like battle scenes). */
+const MAX_PANES_AT_ONCE = 3;
+let panesInFlight = 0;
+
+/** The drawn character pane, or null when the server turned it off, combat is off, or it couldn't be drawn in time. */
+async function paneFile(profile: DbUserGuildProfile, config: GuildConfig, name: string, avatarUrl: string): Promise<AttachmentBuilder | null> {
+    if (config.style?.characterPane === false || !config.combat?.enabled || panesInFlight >= MAX_PANES_AT_ONCE) return null;
+    panesInFlight++;
+    try {
+        const items = config.shop?.items ?? {};
+        const equips = profile.equips ?? {};
+        const slotOf = (key: EquipSlot): PaneSlot => {
+            const meta = SLOT_META.find((m) => m.key === key)!;
+            const item = equips[key] ? items[equips[key]!] : undefined;
+            const held = equips[key] ? profile.inventory?.[equips[key]!] : undefined;
+            return { label: meta.label, emoji: item?.emoji ?? held?.emoji ?? null, rarity: (item?.rarity as PaneSlot["rarity"]) ?? null };
+        };
+        const stats = calculateStats(profile, config, items);
+        const cp = combatProgress(profile, config);
+        const render = renderCharacterPane({
+            name, title: titleOf(profile, config), avatarUrl,
+            combatLevel: cp.level, xp: cp.span ? cp.into / cp.span : null,
+            hp: resolveCurrentHp(profile, stats, config), maxHp: stats.maxHp,
+            status: woundedUntil(profile, config)?.status.emoji ?? null,
+            left: (["head", "body", "hands", "legs", "feet"] as const).map(slotOf),
+            right: (["weapon", "shield", "accessory", "aura"] as const).map(slotOf),
+        });
+        // A slow avatar or emoji fetch must not hold the reply.
+        const timeout = new Promise<null>((resolve) => setTimeout(resolve, 4000, null).unref());
+        const png = await Promise.race([render, timeout]).catch((err) => {
+            console.error("Failed to draw a character pane:", err);
+            return null;
+        });
+        return png ? new AttachmentBuilder(png, { name: "me.png" }) : null;
+    } finally {
+        panesInFlight--;
+    }
+}
+
+export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, name: string, ownerId: string, canAct: boolean, facts: MemberFacts = memberFacts(null), withPane = false) {
     const xp = Number(profile.xp ?? 0);
     const level = calculateLevelFromXp(xp, config);
     const from = levelStartXp(level, config);
@@ -63,8 +119,12 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
 
     const c = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
     // Servers that keep another leveling bot turn havocish's off: no chat level to show.
-    c.addTextDisplayComponents(t => t.setContent(config.xp.enabled === false ? `## ${name}` : [
-        `## ${name} · Level ${level}`,
+    // The drawn pane leads, when there is one; the text below keeps the details.
+    if (withPane) c.addMediaGalleryComponents((g) => g.addItems((i) => i.setURL("attachment://me.png")));
+    const title = titleOf(profile, config);
+    const heading = `## ${name}${title ? ` *${title}*` : ""}`;
+    c.addTextDisplayComponents(t => t.setContent(config.xp.enabled === false ? heading : [
+        `${heading} · Level ${level}`,
         `\`${bar(into / span)}\` ${into.toLocaleString()} / ${span.toLocaleString()} ${xpName} to level ${level + 1}`,
     ].join("\n")));
 
@@ -79,6 +139,11 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
             `❤️ **HP** \`${bar(hp / stats.maxHp)}\` ${hp} / ${stats.maxHp}`,
             `⚔️ **ATK** ${stats.atk}  ·  🛡️ **DEF** ${stats.def}  ·  💨 **SPD** ${stats.spd}  ·  🎯 **CRIT** ${stats.critChance.toFixed(1)}%`,
             ...chatBonusLine(profile, config),
+            `🗡️ **Moves** ${loadoutFor(profile, config, facts).map((id) => { const m = moveById(config, id); return `${m.emoji} ${m.name}`; }).join("  ·  ")}`,
+            ...(() => {
+                const wound = woundedUntil(profile, config);
+                return wound ? [woundLine(wound.status, wound.until)] : [];
+            })(),
             hp <= 0
                 ? `-# ⚠️ 0 HP: rest, or heal with food, a potion or \`/daily\`.${rest}`
                 : hp < stats.maxHp / 3 ? `-# Low on HP. Heal before a tough fight.${rest}` : hp < stats.maxHp ? `-# Ready to fight.${rest}` : "-# Ready to fight.",
@@ -127,6 +192,8 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
         new ButtonBuilder().setCustomId(`inventory:page:${ownerId}:0`).setLabel("Inventory").setEmoji("🎒").setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId(`inventory:gear:${ownerId}:0`).setLabel("Change gear").setEmoji("⚔️").setStyle(ButtonStyle.Secondary),
     );
+    if (config.combat?.enabled) row.addComponents(new ButtonBuilder().setCustomId("me:moves").setLabel("Moves").setEmoji("🗡️").setStyle(ButtonStyle.Secondary));
+    if (collectionSets(config).length) row.addComponents(new ButtonBuilder().setCustomId("me:collection").setLabel("Collection").setEmoji("📖").setStyle(ButtonStyle.Secondary));
     return [c, row];
 }
 
@@ -156,8 +223,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const member = self ? interaction.member : await interaction.guild.members.fetch(target.id).catch(() => null);
     const name = member?.displayName ?? target.displayName;
+    const pane = await paneFile(profile, config, name, (member ?? target).displayAvatarURL({ extension: "png", size: 256 }));
     await interaction.editReply({
-        components: renderSheet(profile, config, name, target.id, self),
+        components: renderSheet(profile, config, name, target.id, self, memberFacts(member), !!pane),
+        files: pane ? [pane] : [],
         flags: MessageFlags.IsComponentsV2,
     });
+}
+
+/** /me's Moves and Collection buttons: open those views privately, for whoever pressed. */
+export async function handleMeButton(interaction: ButtonInteraction) {
+    if (interaction.customId === "me:moves") await openMoves(interaction);
+    else if (interaction.customId === "me:collection") await openCollection(interaction);
 }

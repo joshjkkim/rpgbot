@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
 import { ActionRowBuilder, EmbedBuilder, MessageFlags, SlashCommandBuilder, StringSelectMenuBuilder, type ColorResolvable } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -77,7 +77,8 @@ async function load(discordUserId: string, username: string, discordGuildId: str
     return { profile, config };
 }
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+/** /moves, and the Moves button on /me. */
+export async function execute(interaction: ChatInputCommandInteraction | ButtonInteraction): Promise<void> {
     if (!interaction.inGuild() || !interaction.guildId) {
         await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
         return;
