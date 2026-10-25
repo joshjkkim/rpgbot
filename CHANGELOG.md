@@ -2,6 +2,14 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### Fixed
+- **Combat levels take a few hours, not one.** Since Combat v2, the starter packs' enemies gave so much XP that Combat 10 came after about 30 fights. Enemies now give half the XP (and half the gold, so gold still matches gear): about 60 fights to Combat 10 and some 12 hours of fighting to Combat 40 at the Standard pace. Quest, collection and achievement XP follow. Add your starter pack again in the Library to get it.
+
+### For server owners
+- **The pace in `/setup` covers Combat too.** Relaxed, Standard and Hardcore now set how fast Combat levels come, not just chat levels: Relaxed about twice as fast, Hardcore about 1.4 times slower.
+
 ## v0.17 · October 25, 2026
 
 A polish update from playtesting: your character drawn on /me, gold that's worth chasing, sturdier early fights, and starter packs that update without undoing your work.
