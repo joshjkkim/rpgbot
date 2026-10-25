@@ -7,6 +7,7 @@ import CombatEditor from "@/app/components/combat/combatEditor";
 import MovesEditor from "@/app/components/combat/movesEditor";
 import PlacesEditor from "@/app/components/combat/placesEditor";
 import { skillOptions } from "@/app/components/ui/requirementsField";
+import { itemCreator } from "@/app/lib/newItem";
 
 /** The page in parts, so owners open the one they came for instead of scrolling past the rest. */
 const TABS = [
@@ -18,28 +19,35 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-export default function CombatPageClient({ guildId }: { guildId: string }) {
+/** The world's half (what members fight) and the rules' half (how fighting works) are separate pages. */
+const WORLD: Tab[] = ["enemies", "places", "moves"];
+
+export default function CombatPageClient({ guildId, rules = false }: { guildId: string; rules?: boolean }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
-  const [tab, setTab] = useState<Tab>("enemies");
+  const tabs = TABS.filter((t) => WORLD.includes(t.id) !== rules);
+  const [tab, setTab] = useState<Tab>(tabs[0]!.id);
 
   const combat = config?.combat ?? null;
 
   return (
     <ConfigPage
-      title="Combat"
-      description="The enemies members fight, the moves they fight with, player stats, and what losing costs them."
+      title={rules ? "Combat rules" : "Combat"}
+      description={rules
+        ? "How fighting works: combat on or off, player stats, what losing costs, parties, duels, wild encounters and world bosses."
+        : "What members fight: enemies, where they're met, and the moves everyone fights with."}
       loading={loading}
       saving={saving}
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
+      onCreateItem={itemCreator(config, setConfig)}
       collections={config?.collections?.sets}
       rawSection={combat}
     >
       {config && (
         <>
           <div role="tablist" className="flex flex-wrap gap-1 border-b border-[var(--border)]">
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -54,7 +62,7 @@ export default function CombatPageClient({ guildId }: { guildId: string }) {
               </button>
             ))}
           </div>
-          <p className="text-sm text-[var(--muted)]">{TABS.find((t) => t.id === tab)!.blurb}</p>
+          <p className="text-sm text-[var(--muted)]">{tabs.find((t) => t.id === tab)!.blurb}</p>
 
           {tab === "places" ? (
             <PlacesEditor

@@ -1,6 +1,7 @@
 "use client";
 
 import { RequirementLists } from "@/app/components/ui/requirementsField";
+import { CreateItemProvider } from "@/app/components/ui/pickers";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import ConfigDisplay from "./configDisplay";
 import { SettingsMode } from "./ui/form";
@@ -45,6 +46,7 @@ export default function ConfigPage({
   onSave,
   rawSection,
   collections,
+  onCreateItem,
   children,
 }: {
   title: string;
@@ -60,6 +62,8 @@ export default function ConfigPage({
   children: React.ReactNode;
   /** The server's collections, so Requirements blocks on the page can offer "has completed". */
   collections?: Record<string, { name?: string; emoji?: string }>;
+  /** Lets item pickers on the page make a new item ("+ New item…"): see lib/newItem.ts. */
+  onCreateItem?: (name: string) => string;
 }) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -176,7 +180,11 @@ export default function ConfigPage({
       )}
 
       <SettingsMode.Provider value={{ showAdvanced, countHidden }}>
-        {!loading && <RequirementLists collections={collections}>{children}</RequirementLists>}
+        {!loading && (
+          <CreateItemProvider value={onCreateItem ?? null}>
+            <RequirementLists collections={collections}>{children}</RequirementLists>
+          </CreateItemProvider>
+        )}
       </SettingsMode.Provider>
 
       {!loading && hiddenCount > 0 && (
