@@ -9,6 +9,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **Characters.** Villains, quest givers and shopkeepers now speak in their own name. A world boss arrives saying one of its lines, the quest giver announces your quest done, the merchant shouts about your rare find. Both starter packs come with a cast: re-add yours from the Library to get it.
 
 ### For server owners
+- **Materials in their own category.** In both starter packs, ores, herbs, fish, data and monster parts now sit apart from charms, rings and scrolls, so the shop and the Library are easier to browse. Items you already have stay where you put them.
 - **Unlock places with roles.** On the Combat page's Places tab, give any place an unlock: the role it gives and who earns it, with the usual requirements. Hide the place's channels behind that role in Discord. Both starter packs come with unlocks for their tougher places; you pick the role.
 - **Send a world boss away.** `/boss dismiss` ends the current world boss at once, with no rewards, for when one was summoned by mistake or at a bad time.
 - **Make your own characters.** The new Characters page: a name, a picture (an emoji, a link, or upload one) and lines they say. Pick who speaks for the shop and for announcements, and choose a character on any enemy or quest. For the full effect, give havocish the Manage Webhooks permission; without it, their name and picture sit at the top of the bot's posts.
