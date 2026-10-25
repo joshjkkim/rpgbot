@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import type { GuildMeta } from "@/app/lib/discord";
 import { Field, TextField } from "./form";
 
@@ -33,9 +33,11 @@ type PickerProps = {
   wide?: boolean;
 };
 
+const NEW = "__new__";
+
 function Picker({
-  label, hint, value, onChange, emptyLabel = "None", wide, options, unknownLabel,
-}: PickerProps & { options: { id: string; name: string }[] | null; unknownLabel: string }) {
+  label, hint, value, onChange, emptyLabel = "None", wide, options, unknownLabel, onNew,
+}: PickerProps & { options: { id: string; name: string }[] | null; unknownLabel: string; onNew?: () => void }) {
   if (!options) {
     return <TextField label={label} hint={hint} value={value} onChange={onChange} placeholder={`${unknownLabel} ID`} mono wide={wide} />;
   }
@@ -44,12 +46,13 @@ function Picker({
   const missing = value && !options.some((o) => o.id === value);
   return (
     <Field label={label} hint={hint} wide={wide}>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+      <select value={value} onChange={(e) => (e.target.value === NEW ? onNew?.() : onChange(e.target.value))} className={inputClass}>
         <option value="">{emptyLabel}</option>
         {missing && <option value={value}>Unknown {unknownLabel.toLowerCase()} ({value})</option>}
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.name}</option>
         ))}
+        {onNew && <option value={NEW}>+ New {unknownLabel.toLowerCase()}…</option>}
       </select>
     </Field>
   );
@@ -78,10 +81,42 @@ export function RoleField(props: PickerProps) {
   return <Picker {...props} options={useRoleOptions()} unknownLabel="Role" />;
 }
 
-/** Shop items by name. Needs no Discord access: the items come from the config. */
+/** Makes an item from a name and returns its id. Pages that can write the shop provide it (ConfigPage's onCreateItem). */
+const CreateItemContext = createContext<((name: string) => string) | null>(null);
+export const CreateItemProvider = CreateItemContext.Provider;
+
+/**
+ * Shop items by name. Needs no Discord access: the items come from the config.
+ * Where the page allows it, "+ New item…" makes one on the spot, so a drop or
+ * an ingredient that doesn't exist yet doesn't mean a trip to the Items page.
+ */
 export function ItemField({ items, ...props }: PickerProps & { items: Record<string, { name?: string; emoji?: string }> }) {
+  const create = useContext(CreateItemContext);
+  const [naming, setNaming] = useState<string | null>(null);
   const options = Object.entries(items).map(([id, it]) => ({ id, name: `${it.emoji ? it.emoji + " " : ""}${it.name || id}` }));
-  return <Picker {...props} options={options} unknownLabel="Item" />;
+  if (create && naming !== null) {
+    const done = () => {
+      if (naming.trim()) props.onChange(create(naming.trim()));
+      setNaming(null);
+    };
+    return (
+      <Field label={props.label} hint="A plain item for now: give it a picture, price and uses on the Items page." wide={props.wide}>
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            value={naming}
+            onChange={(e) => setNaming(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); done(); } if (e.key === "Escape") setNaming(null); }}
+            placeholder="Wolf Fang"
+            className={`${inputClass} min-w-0 flex-1`}
+          />
+          <button type="button" className="btn shrink-0 px-3 text-sm" onClick={done}>Create</button>
+          <button type="button" className="shrink-0 px-2 text-sm text-[var(--muted)]" onClick={() => setNaming(null)}>Cancel</button>
+        </div>
+      </Field>
+    );
+  }
+  return <Picker {...props} options={options} unknownLabel="Item" {...(create && { onNew: () => setNaming("") })} />;
 }
 
 type ChipsProps = {

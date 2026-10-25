@@ -20,21 +20,26 @@ export default function Dashboard() {
       </P>
 
       <H2>Pages</H2>
+      <P>
+        The sidebar is in four parts: <b>Start</b> to get going, <b>World</b> for the things members meet, <b>Rules</b> for
+        switches you set once, and <b>Activity</b> to see what happened.
+      </P>
       <Table
         head={["Page", "What's there"]}
         rows={[
           ["Overview", "Each feature in a sentence, a setup checklist, and the health check."],
           ["Library", "Ready-made content: a whole starter pack in one click, or single pieces with what they need."],
-          ["Style", "Your theme colour, profile card style, and what XP and gold are called (with their icons), with live previews."],
-          ["XP", "Message, voice and daily XP, streaks, and channel and role bonuses."],
+          ["Combat", "Enemies, the places they're met, and fight moves and statuses. New enemies fill in fair numbers from a level and a kind."],
+          ["Items", "Every item: where it comes from, what it's for, and all its settings. Gear fills in fair stats from its slot, level and rarity."],
+          ["Gathering, Crafting", "Activities with their minigames, locations and loot; stations with their recipes."],
+          ["Quests, Achievements, Collections", "As described in their guides."],
+          ["Characters", "The people and creatures who post your announcements under their own name and picture."],
+          ["Leveling", "Message, voice and daily XP, streaks, the level curve and level rewards."],
+          ["Combat rules", "Combat on or off, player stats, health and losing, roles at Combat and skill levels, parties, duels, wild encounters and world bosses."],
           ["Shop", "The shop switch, its categories, gifting, and a live preview of /shop."],
-          ["Items", "Every item: where it comes from, what it's for, and all its settings."],
-          ["Achievements, Levels, Quests", "As described in their guides."],
-          ["Combat", "Enemies, player stats, death penalties, encounters, bosses and duels."],
-          ["Gathering", "Activities, their minigames, locations and loot."],
-          ["Crafting", "Stations, their recipes and masterwork tables."],
-          ["Logging", "Which events get posted to which log channel."],
-          ["Logs", "A history of the events your server logs."],
+          ["Announcements", "Everything havocish posts for the server, in one list: the channel, the message and who says it."],
+          ["Style", "Your theme colour, profile card style, and what XP and gold are called (with their icons), with live previews."],
+          ["Logging, Logs", "Which events get posted to which log channel, and their history."],
         ]}
       />
       <List>

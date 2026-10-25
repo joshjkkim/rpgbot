@@ -42,6 +42,9 @@ export function SlotGrid<T>({
 }) {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = q ? entries.filter(([id, value]) => look(id, value).label.toLowerCase().includes(q) || id.includes(q)) : entries;
 
   function create() {
     if (!name.trim()) return;
@@ -52,8 +55,51 @@ export function SlotGrid<T>({
 
   return (
     <div className="space-y-3">
+      {/* New and search sit above the grid, so a long list never hides them. */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setNaming(true)}
+          className="flex shrink-0 items-center gap-1.5 rounded-sm border border-dashed border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+        >
+          <Plus size={15} /> {newLabel}
+        </button>
+        {entries.length > 8 && (
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search…"
+            className="min-w-0 flex-1 rounded-sm border px-2.5 py-1.5 text-sm"
+          />
+        )}
+      </div>
+      {naming && (
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create();
+          }}
+        >
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setNaming(false)}
+            placeholder="Name, e.g. Iron Sword"
+            className="w-full rounded-sm border px-3 py-2 text-sm"
+          />
+          <button type="submit" disabled={!name.trim()} className="btn shrink-0 px-3 py-2 text-sm">
+            Create
+          </button>
+          <button type="button" onClick={() => setNaming(false)} className="btn btn-stone shrink-0 px-3 py-2 text-sm">
+            Cancel
+          </button>
+        </form>
+      )}
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2">
-        {entries.map(([id, value]) => {
+        {shown.map(([id, value]) => {
           const s = look(id, value);
           const on = id === selected;
           return (
@@ -85,42 +131,8 @@ export function SlotGrid<T>({
           );
         })}
 
-        <li>
-          <button
-            type="button"
-            onClick={() => setNaming(true)}
-            className="flex h-full min-h-[4.6rem] w-full flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-[var(--border)] text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            <Plus size={18} />
-            <span className="text-[11px]">{newLabel}</span>
-          </button>
-        </li>
       </ul>
 
-      {naming && (
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create();
-          }}
-        >
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setNaming(false)}
-            placeholder="Name, e.g. Iron Sword"
-            className="w-full rounded-sm border px-3 py-2 text-sm"
-          />
-          <button type="submit" disabled={!name.trim()} className="btn shrink-0 px-3 py-2 text-sm">
-            Create
-          </button>
-          <button type="button" onClick={() => setNaming(false)} className="btn btn-stone shrink-0 px-3 py-2 text-sm">
-            Cancel
-          </button>
-        </form>
-      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Field, FieldGrid, NumberField, SelectField, TextAreaField, TextField, T
 import { ChannelField, ItemField, MovesField, RoleField } from "@/app/components/ui/pickers";
 import RequirementsField, { type SkillOption } from "@/app/components/ui/requirementsField";
 import { RARITIES } from "@/app/components/shop/itemTooltip";
+import { gearPreset, type GearSlot, type Rarity } from "@content/balance";
 import type { ShopConfig, shopItemAction, shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
 
 /*
@@ -97,6 +98,32 @@ const TABS = [
   { id: "tool", label: "Tool" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
+
+/**
+ * Fills a form's numbers from the balance tables (havocish/src/content/balance.ts):
+ * owners pick a level and a kind, not nine stats. The numbers stay editable.
+ */
+function BalanceRow<T extends string>({ level, kind, kinds, kindLabel, onApply, note }: {
+  level: number;
+  kind: T;
+  kinds: ReadonlyArray<{ value: T; label: string }>;
+  kindLabel: string;
+  onApply: (level: number, kind: T) => void;
+  note: string;
+}) {
+  const [lv, setLv] = useState(level);
+  const [k, setK] = useState<T>(kind);
+  return (
+    <div className="rounded-sm border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-28"><NumberField label="For level" value={lv} min={1} onChange={setLv} /></div>
+        <div className="w-44"><SelectField label={kindLabel} value={k} options={kinds} onChange={setK} /></div>
+        <button type="button" className="btn mb-0.5 px-3 py-1.5 text-sm" onClick={() => onApply(lv, k)}>Fill in the numbers</button>
+      </div>
+      <p className="mt-2 text-xs text-[var(--muted)]">{note}</p>
+    </div>
+  );
+}
 
 export default function ItemForm({
   item,
@@ -271,6 +298,21 @@ export default function ItemForm({
                 options={EQUIP_SLOTS}
               />
             </FieldGrid>
+          )}
+          {item.equipable && (
+            <BalanceRow
+              key={item.id}
+              level={item.minLevel || 1}
+              kind={(item.rarity ?? "uncommon") as Rarity}
+              kinds={RARITIES.filter((r) => r.value !== "poor").map((r) => ({ value: r.value as Rarity, label: r.label }))}
+              kindLabel="Rarity"
+              onApply={(level, rarity) => {
+                const g = gearPreset((item.equipSlot ?? "accessory") as GearSlot, level, rarity);
+                // A drop-only item keeps no shop price; it still sells for something.
+                upsertItem({ ...item, rarity, minLevel: g.minLevel, ...(item.hidden ? { sellPrice: g.sellPrice } : { price: g.price, sellPrice: g.sellPrice }), effects: { ...effects, stats: g.stats } });
+              }}
+              note="Sets its stats, level requirement and price for its slot, the way Classic Fantasy's gear is balanced. Crafted and rare drops should be a rarity above what the shop sells."
+            />
           )}
 
           <Field label="Equipped stat bonuses">

@@ -140,10 +140,10 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
             issues.push({ severity: "warning", message: "Random world bosses are on, but no enemy is marked as a world boss.", page: "combat" });
         }
         if (config.combat.encounters?.enabled) {
-            for (const id of config.combat.encounters.channelIds ?? []) channel(id, "random encounters", "combat", POST_EMBED);
+            for (const id of config.combat.encounters.channelIds ?? []) channel(id, "random encounters", "combat-rules", POST_EMBED);
         }
         if (config.combat.bosses?.enabled) {
-            for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat", POST_EMBED);
+            for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat-rules", POST_EMBED);
         }
         for (const e of enemies) for (const d of e.drops ?? []) item(d.itemId, `The enemy ${e.name}`, "combat");
 
@@ -324,9 +324,9 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     for (const u of Object.values(config.unlocks?.list ?? {})) {
         const place = u.placeId ? config.combat.places?.[u.placeId] : undefined;
         const what = `the unlock for ${place?.name ?? (u.placeId ? "a deleted place" : "a role")}`;
-        if (!u.roleId) issues.push({ severity: "warning", message: `The unlock for ${place?.name ?? "a place"} has no role yet, so nobody earns anything. Pick one on the Combat page's Places tab.`, page: "combat" });
-        role(u.roleId || undefined, what, "combat");
-        if (u.placeId && !place) issues.push({ severity: "warning", message: "An unlock opens a place that was deleted. Pick another or remove it.", page: "combat" });
+        if (!u.roleId) issues.push({ severity: "warning", message: `The role at a level for ${place?.name ?? "a place"} has no role picked yet, so nobody earns anything. Pick one under Roles at levels on the Combat rules page.`, page: "combat-rules" });
+        role(u.roleId || undefined, what, "combat-rules");
+        if (u.placeId && !place) issues.push({ severity: "warning", message: "A role at a level announces a place that was deleted. Pick another under Roles at levels on the Combat rules page.", page: "combat-rules" });
     }
 
     // ── Characters ── (a deleted character quietly falls back to the bot)
