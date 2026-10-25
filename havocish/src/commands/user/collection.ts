@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
+import type { ButtonInteraction, ChatInputCommandInteraction, StringSelectMenuInteraction } from "discord.js";
 import { ActionRowBuilder, EmbedBuilder, MessageFlags, SlashCommandBuilder, StringSelectMenuBuilder, type ColorResolvable } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -90,7 +90,8 @@ async function load(discordUserId: string, discordGuildId: string) {
     return { profile, config };
 }
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+/** /collection, and the Collection button on /me (which opens it privately). */
+export async function execute(interaction: ChatInputCommandInteraction | ButtonInteraction): Promise<void> {
     if (!interaction.inGuild()) {
         await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
         return;
@@ -104,8 +105,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         });
         return;
     }
-    // Public, so a near-complete collection can be shown off.
-    await interaction.reply(overview(profile, config, interaction.user.displayName));
+    // Public from the command, so a near-complete collection can be shown off; private from /me's button.
+    await interaction.reply({ ...overview(profile, config, interaction.user.displayName), ...(interaction.isButton() && { flags: MessageFlags.Ephemeral }) });
 }
 
 /** The picker: opens a collection privately, with the progress of whoever picked. */
