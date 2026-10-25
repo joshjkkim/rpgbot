@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { ColorField, Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
-import { ChannelField, PlaceChannelsField, RoleField } from "@/app/components/ui/pickers";
+import { ChannelField, PlaceChannelsField, RoleField, useRoleOptions } from "@/app/components/ui/pickers";
 import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 import type { CombatConfig } from "./combatEditor";
 import type { PlaceConfig } from "./moveText";
@@ -165,31 +166,14 @@ export default function PlacesEditor({ value, onChange, unlocks, onUnlocks, skil
                     )}
                   </div>
                 </Field>
-                {(() => {
-                  const u = unlockFor(id);
-                  return (
-                    <Field
-                      label="Unlocked by a role (optional)"
-                      hint="Members earn the role when they meet these requirements, and keep it. In Discord, hide this place's channels from everyone without the role, and they appear the moment it's earned."
-                    >
-                      {u ? (
-                        <div className="space-y-3 rounded-sm border border-[var(--border)] bg-black/20 p-3">
-                          <RoleField label="Role it gives" value={u.roleId} emptyLabel="Pick a role" onChange={(roleId) => setUnlock(id, { ...u, roleId })} />
-                          <RequirementsField value={u.requirements} onChange={(requirements) => setUnlock(id, { ...u, ...(requirements ? { requirements } : { requirements: undefined }) })} skills={skills} items={items} hint="Who earns it: Combat 15, a skill level, a finished collection…" />
-                          <button type="button" onClick={() => setUnlock(id, null)} className="text-xs text-[var(--muted)] transition-colors hover:text-red-400">Stop unlocking it</button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setUnlock(id, { id, roleId: "", placeId: id, requirements: { combatLevel: Math.max(1, Math.min(99, ...pool.map((p) => value.enemies?.[p.enemyId]?.minLevel ?? 1))) } })}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
-                        >
-                          <Plus size={14} /> Unlock it with a role
-                        </button>
-                      )}
-                    </Field>
-                  );
-                })()}
+                <UnlockBlock
+                  place={place}
+                  unlock={unlockFor(id)}
+                  entryLevel={pool.length ? Math.min(99, ...pool.map((p) => value.enemies?.[p.enemyId]?.minLevel ?? 1)) : 1}
+                  onChange={(u) => setUnlock(id, u)}
+                  skills={skills}
+                  items={items}
+                />
                 <p className="font-mono text-xs text-[var(--muted)]">id: {id}</p>
               </div>
             );
@@ -222,6 +206,66 @@ export default function PlacesEditor({ value, onChange, unlocks, onUnlocks, skil
           />
         </div>
       </Section>
+    </div>
+  );
+}
+
+/**
+ * "Locked until Combat 14: members who get there are given @Crypt Dweller."
+ * The level leads because that's what an owner is deciding; the role is how
+ * Discord shows it. Other conditions sit behind "More conditions".
+ */
+function UnlockBlock({ place, unlock, entryLevel, onChange, skills, items }: {
+  place: PlaceConfig;
+  unlock: UnlockConfig | undefined;
+  entryLevel: number;
+  onChange: (u: UnlockConfig | null) => void;
+  skills: SkillOption[];
+  items: Record<string, { name?: string; emoji?: string }>;
+}) {
+  const roles = useRoleOptions();
+  const [more, setMore] = useState(false);
+  if (!unlock) {
+    return (
+      <button
+        type="button"
+        onClick={() => onChange({ id: place.id, roleId: "", placeId: place.id, requirements: { combatLevel: Math.max(1, entryLevel) } })}
+        className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]"
+      >
+        🔒 Lock this place until a Combat level
+      </button>
+    );
+  }
+  const req = unlock.requirements ?? {};
+  const set = (p: Partial<UnlockConfig>) => onChange({ ...unlock, ...p });
+  const others = Object.keys(req).filter((k) => k !== "combatLevel").length;
+  const roleName = roles?.find((r) => r.id === unlock.roleId)?.name;
+  return (
+    <div className="space-y-3 rounded-sm border border-[var(--border)] bg-black/20 p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <span className="mb-2 text-sm">🔒 Locked until Combat</span>
+        <div className="w-24">
+          <NumberField value={req.combatLevel ?? 1} min={1} onChange={(v) => set({ requirements: { ...req, combatLevel: v } })} />
+        </div>
+        <span className="mb-2 text-sm">. Members who get there are given</span>
+        <div className="min-w-48 flex-1">
+          <RoleField value={unlock.roleId} emptyLabel="Pick a role" onChange={(roleId) => set({ roleId })} />
+        </div>
+      </div>
+      <p className="text-sm text-[var(--muted)]">
+        {unlock.roleId
+          ? <>In Discord, hide {place.name}&apos;s channels from everyone without {roleName ?? "that role"}. They appear the moment a member earns it: “🗺️ @member unlocked {place.emoji} {place.name}!”</>
+          : "Pick the role that can see this place's channels (make one in Discord first, e.g. @Crypt Dweller)."}
+      </p>
+      <div className="flex flex-wrap gap-3 text-xs">
+        <button type="button" onClick={() => setMore((m) => !m)} className="text-[var(--accent)] hover:underline">
+          {more ? "Hide other conditions" : others ? `More conditions (${others})` : "More conditions: a skill, a collection…"}
+        </button>
+        <button type="button" onClick={() => onChange(null)} className="text-[var(--muted)] transition-colors hover:text-red-400">Unlock it for everyone</button>
+      </div>
+      {more && (
+        <RequirementsField value={req} onChange={(requirements) => set({ requirements: requirements ?? {} })} skills={skills} items={items} hint="Members need all of these. The Combat level here is the same one as above." />
+      )}
     </div>
   );
 }
