@@ -83,6 +83,7 @@ export default function CombatPageClient({ guildId, rules = false }: { guildId: 
               skills={skillOptions(config)}
               value={combat}
               shopItems={config.shop?.items ?? {}}
+              characters={config.characters?.list}
               onChange={(next) => setConfig((prev) => ({ ...prev, combat: next }))}
             />
           )}

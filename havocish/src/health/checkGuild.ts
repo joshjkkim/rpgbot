@@ -35,6 +35,8 @@ export interface Access {
     roleName(id: string): string | null;
     /** Whether the bot can give and take the role. */
     canManageRole(id: string): boolean;
+    /** Whether the bot has Manage Webhooks server-wide, which characters post with. */
+    canManageWebhooks(): boolean;
 }
 
 const PERM_NAMES: Record<Perm, string> = {
@@ -317,6 +319,21 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         for (const r of Object.values(st.recipes ?? {})) reqs(r.requirements, `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "an item"}`, "crafting");
     }
 
+    // ── Characters ── (a deleted character quietly falls back to the bot)
+    const characters = config.characters?.list ?? {};
+    const speaksFor = [
+        ...Object.values(config.combat.enemies ?? {}).map((e) => [e.characterId, `The enemy ${e.name}`, "combat"] as const),
+        ...Object.values(config.quests?.quests ?? {}).map((q) => [q.characterId, `The quest ${q.name}`, "quests"] as const),
+        [config.characters?.shopkeeperId, "The shopkeeper", "characters"] as const,
+        [config.characters?.announcerId, "The announcer", "characters"] as const,
+    ].filter(([id]) => id);
+    for (const [id, what, page] of speaksFor) {
+        if (!characters[id!]) issues.push({ severity: "warning", message: `${what} speaks as a character that no longer exists, so the bot posts instead.`, page: page as DashboardPage });
+    }
+    if (speaksFor.length && !access.canManageWebhooks()) {
+        issues.push({ severity: "warning", message: "Characters post as the bot, with their name on top, until havocish has the Manage Webhooks permission. Give it in Server Settings → Roles.", page: "characters" });
+    }
+
     // ── Logging ──
     if (config.logging?.enabled) {
         if (!config.logging.mainChannelId) {
@@ -352,5 +369,6 @@ export function discordAccess(guild: Guild): Access {
         },
         roleName: (id) => guild.roles.cache.get(id)?.name ?? null,
         canManageRole: (id) => guild.roles.cache.get(id)?.editable ?? false,
+        canManageWebhooks: () => !!me?.permissions.has(PermissionFlagsBits.ManageWebhooks),
     };
 }

@@ -8,8 +8,9 @@
  *   Attach Files          32768   rendered profile images
  *   Read Message History  65536
  *   Manage Roles     268435456    level rewards, achievement roles, temp roles
+ *   Manage Webhooks  536870912    characters post under their own name and picture
  */
-const PERMISSIONS = 268553216;
+const PERMISSIONS = 805424128;
 
 /** Empty when DISCORD_CLIENT_ID is not exposed to the client -- callers hide the link. */
 export function inviteUrl(guildId?: string): string {

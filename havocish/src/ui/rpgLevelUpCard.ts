@@ -3,6 +3,7 @@ import type { GuildConfig } from "../types/guild.js";
 import { renderLevelUpBanner } from "./canvas/levelUpBanner.js";
 import { bestEffort } from "./bestEffort.js";
 import { mentionsFor } from "./mentions.js";
+import { announcer, speak } from "./characters.js";
 
 /**
  * The level-up banner for the RPG: a card for every Combat level, and for a
@@ -45,7 +46,7 @@ export async function rpgLevelUpCard(opts: {
     if (card && channelId) {
         const channel = await user.client.channels.fetch(channelId).catch(() => null);
         if (channel?.isTextBased() && channel.isSendable()) {
-            await bestEffort("level-up announcement", channel.send({
+            await bestEffort("level-up announcement", speak(channel, announcer(config), {
                 content: `🎉 <@${user.id}> reached **${label} ${after}**!`,
                 files: [card],
                 allowedMentions: await mentionsFor("guildId" in channel ? channel.guildId : "", user.id, { users: [user.id] }),

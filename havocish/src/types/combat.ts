@@ -14,6 +14,8 @@ export interface EnemyConfig {
     id: string;
     name: string;
     emoji: string;
+    /** The character it speaks as when it appears (config.characters). */
+    characterId?: string;
 
     hp: number;
     atk: number;

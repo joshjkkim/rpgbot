@@ -13,6 +13,7 @@ import { checkCollections } from "./collections.js";
 import { readyToFight } from "../commands/user/fight.js";
 import { enemyMoveList, moveById } from "./moves.js";
 import { query } from "../db/index.js";
+import { editSpoken, lineOf, speak, speaker } from "../ui/characters.js";
 
 /**
  * World bosses: one big enemy the whole server fights together. Everyone hits
@@ -202,7 +203,7 @@ async function wave(boss: LiveBoss) {
     boss.guards.clear();
     boss.intent = nextIntent(boss, config);
     scheduleWave(boss, config);
-    await boss.message.edit({ embeds: [bossEmbed(boss, config)], components: [attackRow()] }).catch(() => null);
+    await editSpoken(boss.message, { embeds: [bossEmbed(boss, config)], components: [attackRow()] }).catch(() => null);
 }
 
 /**
@@ -270,7 +271,10 @@ export async function spawnBoss(channel: SendableChannels, discordGuildId: strin
     const strikeAt = Date.now() + (config.combat.bosses?.strikeSeconds ?? DEFAULTS.strikeSeconds) * 1000;
     const draft = { enemy, hp: enemy.hp, endsAt, fighters: new Map<string, Fighter>(), intent: "", strikeAt, guarding: 0, lastWave: null };
     draft.intent = nextIntent(draft, config);
-    const message = await channel.send({ embeds: [bossEmbed(draft, config)], components: [attackRow()] });
+    // A boss with a character arrives in its own voice.
+    const who = speaker(config, enemy.characterId);
+    const line = lineOf(who);
+    const message = await speak(channel, who, { ...(line && { content: line }), embeds: [bossEmbed(draft, config)], components: [attackRow()] });
 
     const boss: LiveBoss = {
         ...draft,
@@ -336,7 +340,7 @@ function scheduleRedraw(boss: LiveBoss, config: GuildConfig) {
     boss.redrawTimer = setTimeout(() => {
         boss.redrawTimer = null;
         if (boss.ended) return;
-        void boss.message.edit({ embeds: [bossEmbed(boss, config)] }).catch(() => null);
+        void editSpoken(boss.message, { embeds: [bossEmbed(boss, config)] }).catch(() => null);
         void saveBoss(boss);
     }, REDRAW_MS);
     boss.redrawTimer.unref();
@@ -436,7 +440,15 @@ export function splitBossRewards(enemy: EnemyConfig, fighters: Map<string, Fight
     });
 }
 
-async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: GuildConfig) {
+/** Ends the server's live boss now, with no rewards: /boss dismiss. Returns it, or null when there's none. */
+export async function dismissBoss(discordGuildId: string) {
+    const boss = live.get(discordGuildId);
+    if (!boss || boss.ended) return null;
+    await finish(boss, "dismissed");
+    return boss;
+}
+
+async function finish(boss: LiveBoss, outcome: "defeated" | "escaped" | "dismissed", known?: GuildConfig) {
     boss.ended = true;
     clearTimeout(boss.escapeTimer);
     if (boss.waveTimer) clearTimeout(boss.waveTimer);
@@ -450,12 +462,14 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
     const { enemy } = boss;
     const goldIcon = config.style.gold.icon || "💰";
 
-    if (outcome === "escaped") {
-        await boss.message.edit({
+    if (outcome !== "defeated") {
+        await editSpoken(boss.message, {
             embeds: [new EmbedBuilder()
-                .setTitle(`${enemy.emoji} ${enemy.name} escaped!`)
+                .setTitle(outcome === "escaped" ? `${enemy.emoji} ${enemy.name} escaped!` : `${enemy.emoji} ${enemy.name} was sent away`)
                 .setColor("#555555")
-                .setDescription(`It got away with ❤️ ${boss.hp.toLocaleString()} HP left. No rewards this time.`)],
+                .setDescription(outcome === "escaped"
+                    ? `It got away with ❤️ ${boss.hp.toLocaleString()} HP left. No rewards this time.`
+                    : "A server manager ended this fight. No rewards this time.")],
             components: [],
         }).catch(() => null);
         return;
@@ -483,7 +497,7 @@ async function finish(boss: LiveBoss, outcome: "defeated" | "escaped", known?: G
         lines.push(`<@${pay.discordUserId}> · ${fighter.damage} dmg · ⚔️ ${pay.xp} · ${goldIcon} ${pay.gold}${drops.length ? ` · ${drops.join(", ")}` : ""}${quests.map((q) => ` · 📜 ${q}`).join("")}`);
     }
 
-    await boss.message.edit({
+    await editSpoken(boss.message, {
         embeds: [new EmbedBuilder()
             .setTitle(`🏆 ${enemy.emoji} ${enemy.name} has fallen!`)
             .setColor("#FFD700")

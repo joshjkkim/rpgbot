@@ -27,6 +27,7 @@ const sections: Array<{ label: string; tabs: Array<{ href: string; label: string
             { href: "quests", label: "Quests", sprite: "scroll" },
             { href: "achievements", label: "Achievements", sprite: "trophy" },
             { href: "collections", label: "Collections", sprite: "book" },
+            { href: "characters", label: "Characters", sprite: "hood" },
         ],
     },
     {

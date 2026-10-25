@@ -75,7 +75,7 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
   onAdd: () => void;
   onAddPicks: (picks: Ref[]) => Promise<boolean>;
 }) {
-  const { shop, combat, quests, achievements, gathering, crafting, collections } = pack.content;
+  const { shop, combat, quests, achievements, gathering, crafting, collections, characters } = pack.content;
   const missing = missingCount(config, pack);
   const featuresOff = packFeatures(pack).filter((f) => !config?.[f]?.enabled);
   const upToDate = missing === 0 && featuresOff.length === 0;
@@ -132,6 +132,7 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
           { kind: "quests", title: "Quests", rows: rows(quests.quests) },
           { kind: "achievements", title: "Achievements", rows: rows(achievements.achievements) },
           { kind: "collections", title: "Collections", rows: rows(collections?.sets) },
+          { kind: "characters", title: "Characters", rows: rows(Object.fromEntries(Object.entries(characters?.list ?? {}).map(([id, c]) => [id, { name: c.name, emoji: /^https?:/.test(c.avatar ?? "") ? "🖼️" : c.avatar }]))) },
         ];
         const tabs = all.filter((t) => t.rows.length > 0);
         const q = query.trim().toLowerCase();

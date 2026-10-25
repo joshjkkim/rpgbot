@@ -52,6 +52,8 @@ export interface EnemyConfig {
   image?: string;
   /** How often it turns up outside places (default 1). */
   spawnWeight?: number;
+  /** The character it speaks as when it appears (mirrored from havocish/src/types/combat.ts). */
+  characterId?: string;
 }
 
 export interface CombatDeathPenalty {
@@ -134,6 +136,8 @@ type Props = {
   skills: SkillOption[];
   /** Which tab of the Combat page this is. */
   part: "enemies" | "players" | "events";
+  /** The server's characters, so an enemy can speak as one. */
+  characters?: Record<string, { name?: string }>;
 };
 
 /** Each player stat is a base plus a per-level increment. */
@@ -192,7 +196,7 @@ function BalanceRow<T extends string>({ level, kind, kinds, kindLabel, onApply, 
   );
 }
 
-export default function CombatEditor({ value, onChange, shopItems, skills, part }: Props) {
+export default function CombatEditor({ value, onChange, shopItems, skills, part, characters = {} }: Props) {
   const defaults: CombatConfig = useMemo(() => ({ enabled: false, enemies: {} }), []);
 
   const [local, setLocal] = useState<CombatConfig>(value ?? defaults);
@@ -391,6 +395,13 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
                     step={0.1}
                     onChange={(v) => upsertEnemy({ ...enemy, spawnWeight: v === 1 ? undefined : v })}
                     hint="Against the others' 1, where no place decides: 0.2 makes a rare elite. Places use their own weights."
+                  />
+                  <SelectField
+                    label="Speaks as"
+                    value={enemy.characterId ?? ""}
+                    options={[{ value: "", label: "Nobody" }, ...Object.entries(characters).map(([id, c]) => ({ value: id, label: c.name || id }))]}
+                    onChange={(id) => upsertEnemy({ ...enemy, characterId: id || undefined })}
+                    hint="A character it turns up as, saying one of their lines. Make characters on the Characters page."
                   />
                 </FieldGrid>
               </Field>

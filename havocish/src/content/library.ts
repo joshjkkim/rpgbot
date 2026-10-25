@@ -21,6 +21,7 @@ export const KINDS = {
     conditions: ["gathering", "conditions"],
     stations: ["crafting", "stations"],
     collections: ["collections", "sets"],
+    characters: ["characters", "list"],
 } as const;
 
 export type Kind = keyof typeof KINDS;
@@ -35,6 +36,7 @@ const REF_KEYS: Record<string, Kind> = {
     statusId: "statuses",
     conditionId: "conditions",
     categoryId: "categories",
+    characterId: "characters",
 };
 
 /**
@@ -101,7 +103,7 @@ const FEATURE: Record<Kind, string> = {
     enemies: "combat", moves: "combat", statuses: "combat", places: "combat",
     quests: "quests", achievements: "achievements",
     activities: "gathering", conditions: "gathering",
-    stations: "crafting", collections: "collections",
+    stations: "crafting", collections: "collections", characters: "characters",
 };
 
 /** Adds the planned entries to a copy of `config`, and switches on what the picks are for. */
@@ -118,7 +120,7 @@ export function addEntries(config: GuildConfigJson | null, source: StarterPack["
     }
     for (const pick of picks) {
         const feature = FEATURE[pick.kind];
-        if (feature !== "collections" && added.some((a) => key(a) === key(pick))) (next[feature] ??= {}).enabled = true;
+        if (feature !== "collections" && feature !== "characters" && added.some((a) => key(a) === key(pick))) (next[feature] ??= {}).enabled = true;
     }
     return { config: next, added };
 }

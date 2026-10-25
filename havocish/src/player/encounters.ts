@@ -10,6 +10,7 @@ import { channelChain, fightsInThread, pickFromPlace, placeFor } from "./places.
 import { loadoutFor } from "./moves.js";
 import { tipOnce } from "./tips.js";
 import { boardView, placeFight, readyToFight } from "../commands/user/fight.js";
+import { editSpoken, lineOf, speak, speaker } from "../ui/characters.js";
 
 /**
  * Random encounters: while people chat, a wild enemy sometimes turns up in the
@@ -48,7 +49,11 @@ export async function maybeSpawnEncounter(message: Message<true>, config: GuildC
     lastSpawnAt.set(message.guildId, now);
 
     const fleeSeconds = enc.fleeSeconds ?? DEFAULTS.fleeSeconds;
-    const sent = await message.channel.send({
+    // An enemy with a character turns up in its own voice.
+    const who = speaker(config, enemy.characterId);
+    const line = lineOf(who);
+    const sent = await speak(message.channel, who, {
+        ...(line && { content: line }),
         embeds: [encounterEmbed(enemy, place, config, fleeSeconds)],
         components: [fightRow()],
     });
@@ -57,7 +62,8 @@ export async function maybeSpawnEncounter(message: Message<true>, config: GuildC
         const p = pending.get(sent.id);
         if (!p || p.claimed) return;
         pending.delete(sent.id);
-        void sent.edit({
+        void editSpoken(sent, {
+            content: "",
             embeds: [new EmbedBuilder()
                 .setDescription(`${enemy.emoji} The **${enemy.name}** wandered off. Nobody took it on.`)
                 .setColor("#555555")],
