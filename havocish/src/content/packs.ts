@@ -39,6 +39,8 @@ export type StarterPack = {
     collections?: { sets: Record<string, Named> };
     /** Optional: the pack's cast, and who keeps the shop and makes announcements. */
     characters?: { list: Record<string, Named & { avatar?: string }>; shopkeeperId?: string; announcerId?: string };
+    /** Optional: unlocks for the pack's places. Roles are the server's own, so the owner picks them. */
+    unlocks?: { list: Record<string, { id: string; roleId: string; placeId?: string }> };
   };
 };
 
@@ -59,6 +61,7 @@ const TARGETS = [
   ["crafting", "stations"],
   ["collections", "sets"],
   ["characters", "list"],
+  ["unlocks", "list"],
 ] as const;
 
 /**

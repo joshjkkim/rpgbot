@@ -16,6 +16,7 @@ export const DOC_PAGES = [
       { href: "/docs/gathering", label: "Gathering" },
       { href: "/docs/crafting", label: "Crafting" },
       { href: "/docs/quests", label: "Quests, achievements and collections" },
+      { href: "/docs/characters", label: "Characters" },
       { href: "/docs/dashboard", label: "Dashboard and tools" },
     ],
   },

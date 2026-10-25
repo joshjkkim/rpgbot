@@ -15,6 +15,7 @@ import {
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelField, EnemiesField, ItemField, ItemsField, RoleField } from "@/app/components/ui/pickers";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 
 export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim" | "defeatEnemies" | "winDuels" | "gatherItems" | "craftItems";
 
@@ -441,21 +442,7 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies,
         </div>
 
         <div className="mt-4">
-          <FieldGrid>
-            <ChannelField
-              label="Announce channel"
-              value={local.announceAllId ?? ""}
-              onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextField
-              label="Announce message"
-              value={local.announceMessage ?? ""}
-              onChange={(v) => updateRoot({ announceMessage: v || null })}
-              placeholder="{user} completed {questName}!"
-              hint="{user} {questName} {questDescription}"
-            />
-          </FieldGrid>
+          <AnnouncedOn what="completed quests" />
         </div>
       </Section>
 

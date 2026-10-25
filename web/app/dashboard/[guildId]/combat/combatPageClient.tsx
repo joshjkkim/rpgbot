@@ -7,6 +7,7 @@ import CombatEditor from "@/app/components/combat/combatEditor";
 import MovesEditor from "@/app/components/combat/movesEditor";
 import PlacesEditor from "@/app/components/combat/placesEditor";
 import { skillOptions } from "@/app/components/ui/requirementsField";
+import LevelRolesEditor from "@/app/components/combat/levelRolesEditor";
 import { itemCreator } from "@/app/lib/newItem";
 
 /** The page in parts, so owners open the one they came for instead of scrolling past the rest. */
@@ -78,14 +79,24 @@ export default function CombatPageClient({ guildId, rules = false }: { guildId: 
               skills={skillOptions(config)}
             />
           ) : (
-            <CombatEditor
-              part={tab}
-              skills={skillOptions(config)}
-              value={combat}
-              shopItems={config.shop?.items ?? {}}
-              characters={config.characters?.list}
-              onChange={(next) => setConfig((prev) => ({ ...prev, combat: next }))}
-            />
+            <>
+              <CombatEditor
+                part={tab}
+                skills={skillOptions(config)}
+                value={combat}
+                shopItems={config.shop?.items ?? {}}
+                characters={config.characters?.list}
+                onChange={(next) => setConfig((prev) => ({ ...prev, combat: next }))}
+              />
+              {tab === "players" && (
+                <LevelRolesEditor
+                  value={config.unlocks}
+                  onChange={(next) => setConfig((prev) => ({ ...prev, unlocks: next }))}
+                  skills={skillOptions(config)}
+                  places={config.combat?.places ?? {}}
+                />
+              )}
+            </>
           )}
         </>
       )}

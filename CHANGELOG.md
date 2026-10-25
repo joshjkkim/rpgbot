@@ -5,9 +5,14 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### New
+- **New areas open as you grow.** Reach the Combat level a place asks for (or a skill level, or finish a collection) and you earn its role: on servers that hide the channel behind it, a new channel appears in your list. "🗺️ @you unlocked ⚰️ The Barrow Crypt!"
 - **Characters.** Villains, quest givers and shopkeepers now speak in their own name. A world boss arrives saying one of its lines, the quest giver announces your quest done, the merchant shouts about your rare find. Both starter packs come with a cast: re-add yours from the Library to get it.
 
 ### For server owners
+- **Every announcement on one page.** The new Announcements page lists everything havocish posts for the server (level-ups, rare finds, quests, achievements, milestones, places opening, dailies, streaks, gifts, role rewards) with its channel, message and who says it. Point them all at #adventure-log in one go.
+- **See which tools open a location.** A gathering location that needs a tool now lists the tools that open it, right under the tier, so planning it doesn't mean a trip to the Items page.
+- **Materials in their own category.** In both starter packs, ores, herbs, fish, data and monster parts now sit apart from charms, rings and scrolls, so the shop and the Library are easier to browse. Items you already have stay where you put them.
+- **Roles at Combat and skill levels.** On Combat rules, give a role at any Combat level or gathering and crafting skill level: "At Combat 14 give @Crypt Dweller". Hide a place's channels behind that role in Discord and it opens as members grow. Both starter packs come with levels set for their tougher places; you pick the roles.
 - **Fair numbers in one click.** Making an enemy? Pick a level and a kind (weak, normal, tough, rare elite or world boss) and press **Fill in the numbers**: its stats, level range and rewards are set the way Classic Fantasy's are balanced. Gear works the same way, from its slot, level and rarity. Everything stays editable.
 - **A tidier dashboard.** The sidebar is now Start, World (what members meet) and Rules (switches you set once). Combat's player stats, parties, duels, encounters and bosses moved to their own **Combat rules** page.
 - **Make an item where you need it.** Picking a drop, an ingredient or a reward that doesn't exist yet? Choose **+ New item…** in the list, name it, and it's made on the spot.

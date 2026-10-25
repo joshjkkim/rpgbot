@@ -43,6 +43,7 @@ import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
+import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
@@ -2546,6 +2547,31 @@ async function main() {
         const reply = { webhookId: "app-1", applicationId: "app-1", client: { application: { id: "app-1" } }, edit: async (p: any) => { edited = p; return p; } } as any;
         await editSpoken(reply, { content: "round 2" });
         check("a command reply is edited as the bot's own message", edited?.content, "round 2");
+    });
+
+    await test("unlocks: earn a role by progressing, and the channel behind it opens", async () => {
+        const { userId, guildId, config } = await reset();
+        config.combat.places = { crypt: { id: "crypt", name: "The Crypt", emoji: "⚰️", channelIds: ["c1"], enemies: [] } } as any;
+        config.unlocks = { list: {
+            crypt: { id: "crypt", roleId: "r-crypt", placeId: "crypt", requirements: { combatLevel: 5 } },
+            unset: { id: "unset", roleId: "", requirements: {} },
+        } };
+        const profile = (await getOrCreateProfile({ userId, guildId })).profile;
+        const fakeMember = (roles: string[]) => ({ roles }) as any; // the raw member shape: role ids in a list
+        check("not yet at Combat 5", earned(config, profile, fakeMember([])).length, 0);
+        addCombatXp(profile, config, combatXpForLevel(5, config));
+        check("now they've earned it", earned(config, profile, fakeMember([])).map((u) => u.id), ["crypt"]);
+        check("an unlock with no role earns nothing, and a held role isn't given twice", earned(config, profile, fakeMember(["r-crypt"])), []);
+
+        let added: string | null = null;
+        let said: any = null;
+        const member = { roles: { add: async (r: string) => { added = r; } } };
+        const client = {
+            guilds: { cache: new Map([[TEST_DISCORD_GUILD, { members: { fetch: async () => member } }]]) },
+            channels: { fetch: async () => ({ isTextBased: () => true, isSendable: () => true, send: async (p: any) => { said = p; } }) },
+        } as any;
+        await checkUnlocks({ client, config, discordUserId: TEST_DISCORD_USER, discordGuildId: TEST_DISCORD_GUILD, fallbackChannelId: "c1" });
+        check("the role is given and the place announced", [added, said?.content], ["r-crypt", `🗺️ <@${TEST_DISCORD_USER}> unlocked **⚰️ The Crypt**!`]);
     });
 
     await test("every starter pack is self-contained", async () => {

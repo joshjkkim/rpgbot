@@ -13,6 +13,7 @@ import {
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 
 export interface AchievementCondition {
   type: "stat" | "level" | "xp" | "gold" | "streak";
@@ -280,22 +281,7 @@ export default function AchievementsEditor({ value, onChange, shopItems }: Props
           onChange={(v) => updateRoot({ enabled: v })}
         />
         <div className="mt-4">
-          <FieldGrid>
-            <ChannelField
-              label="Announce channel"
-              value={local.announceAllId ?? ""}
-              onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextAreaField
-              label="Announce message"
-              value={local.announceMessage ?? ""}
-              onChange={(v) => updateRoot({ announceMessage: v || null })}
-              rows={2}
-              placeholder="{user} unlocked {achievementName}!"
-              hint="{user} {achievementName} {achievementDescription}"
-            />
-          </FieldGrid>
+          <AnnouncedOn what="achievements" />
         </div>
       </Section>
 

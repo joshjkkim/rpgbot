@@ -33,9 +33,11 @@ export default function Dashboard() {
           ["Items", "Every item: where it comes from, what it's for, and all its settings. Gear fills in fair stats from its slot, level and rarity."],
           ["Gathering, Crafting", "Activities with their minigames, locations and loot; stations with their recipes."],
           ["Quests, Achievements, Collections", "As described in their guides."],
+          ["Characters", "The people and creatures who post your announcements under their own name and picture."],
           ["Leveling", "Message, voice and daily XP, streaks, the level curve and level rewards."],
-          ["Combat rules", "Combat on or off, player stats, health and losing, parties, duels, wild encounters and world bosses."],
+          ["Combat rules", "Combat on or off, player stats, health and losing, roles at Combat and skill levels, parties, duels, wild encounters and world bosses."],
           ["Shop", "The shop switch, its categories, gifting, and a live preview of /shop."],
+          ["Announcements", "Everything havocish posts for the server, in one list: the channel, the message and who says it."],
           ["Style", "Your theme colour, profile card style, and what XP and gold are called (with their icons), with live previews."],
           ["Logging, Logs", "Which events get posted to which log channel, and their history."],
         ]}
