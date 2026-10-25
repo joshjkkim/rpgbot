@@ -2,9 +2,10 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { Field, FieldGrid, NumberField, Section, SelectField, TextField } from "@/app/components/ui/form";
-import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { ItemField, RoleField } from "@/app/components/ui/pickers";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import type { LevelAction } from "@/app/components/levels/levelsEditor";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 
 // ─── Types (mirrored from havocish/src/types/guild.ts) ───
 
@@ -186,15 +187,7 @@ export default function CollectionsEditor({ value, onChange, items, enemies }: {
         />
       </Section>
 
-      <Section title="Announcements" defaultOpen={false}>
-        <ChannelField
-          label="Announce milestones in"
-          value={v.channelId ?? ""}
-          onChange={(ch) => onChange({ ...v, channelId: ch || null })}
-          emptyLabel="Where it happened"
-          hint="“📖 @member completed ⛏️ Ores & Gems! +500 gold”. Without a channel, it posts where the find or fight happened."
-        />
-      </Section>
+      <AnnouncedOn what="milestones" />
     </div>
   );
 }

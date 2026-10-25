@@ -35,6 +35,8 @@ export interface Access {
     roleName(id: string): string | null;
     /** Whether the bot can give and take the role. */
     canManageRole(id: string): boolean;
+    /** Whether the bot has Manage Webhooks server-wide, which characters post with. */
+    canManageWebhooks(): boolean;
 }
 
 const PERM_NAMES: Record<Perm, string> = {
@@ -86,7 +88,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     };
 
     // ── Levels ──
-    channel(config.levels.announceLevelUpInChannelId, "level-up announcements", "levels", [...POST, "files"]);
+    channel(config.levels.announceLevelUpInChannelId, "level-up announcements", "announcements", [...POST, "files"]);
     for (const [level, actions] of Object.entries(config.levels.levelActions ?? {})) {
         for (const a of actions ?? []) {
             if (a.type === "sendMessage") channel(a.channelId, `the level ${level} message`, "levels", POST);
@@ -95,11 +97,11 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
     }
 
-    channel(config.rareFinds?.channelId, "rare-find announcements", "items", POST);
-    channel(config.style.levelUpCards?.channelId, "level-up card", "styles", [...POST, "files"]);
+    channel(config.rareFinds?.channelId, "rare-find announcements", "announcements", POST);
+    channel(config.style.levelUpCards?.channelId, "level-up card", "announcements", [...POST, "files"]);
 
     // ── Role rewards ── (the page is Leveling: they sit beside level rewards)
-    channel(config.roleRewards?.channelId, "role reward announcements", "leveling", POST);
+    channel(config.roleRewards?.channelId, "role reward announcements", "announcements", POST);
     for (const [roleId, actions] of Object.entries(config.roleRewards?.roles ?? {})) {
         // Only read, never given, so havocish needs no permission over it.
         if (access.roleName(roleId) === null) issues.push({ severity: "warning", message: `A role reward is for a role that was deleted (${roleId}).`, page: "leveling" });
@@ -107,8 +109,8 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     // ── XP and dailies ──
-    channel(config.xp.announceDailyInChannelId, "daily reward announcements", "xp", POST);
-    channel(config.xp.streakAnnounceChannelId, "streak announcements", "xp", POST);
+    channel(config.xp.announceDailyInChannelId, "daily reward announcements", "announcements", POST);
+    channel(config.xp.streakAnnounceChannelId, "streak announcements", "announcements", POST);
     for (const [days, reward] of Object.entries(config.xp.streakRewards ?? {})) {
         channel(reward?.channelId, `the ${days}-day streak reward`, "xp", POST);
     }
@@ -118,7 +120,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     if (config.shop?.enabled && visibleItems.length === 0) {
         issues.push({ severity: "warning", message: "The shop is open but has nothing for sale.", page: "shop" });
     }
-    if (config.shop?.gifting?.enabled) channel(config.shop.gifting.announceChannel, "gift announcements", "shop", POST);
+    if (config.shop?.gifting?.enabled) channel(config.shop.gifting.announceChannel, "gift announcements", "announcements", POST);
     for (const it of Object.values(items)) {
         for (const a of Object.values(it.actions ?? {})) {
             if (a.type === "assignRole" || a.type === "removeRole") role(a.roleId, `the item ${it.name}`, "items");
@@ -138,10 +140,10 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
             issues.push({ severity: "warning", message: "Random world bosses are on, but no enemy is marked as a world boss.", page: "combat" });
         }
         if (config.combat.encounters?.enabled) {
-            for (const id of config.combat.encounters.channelIds ?? []) channel(id, "random encounters", "combat", POST_EMBED);
+            for (const id of config.combat.encounters.channelIds ?? []) channel(id, "random encounters", "combat-rules", POST_EMBED);
         }
         if (config.combat.bosses?.enabled) {
-            for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat", POST_EMBED);
+            for (const id of config.combat.bosses.channelIds ?? []) channel(id, "world bosses", "combat-rules", POST_EMBED);
         }
         for (const e of enemies) for (const d of e.drops ?? []) item(d.itemId, `The enemy ${e.name}`, "combat");
 
@@ -195,7 +197,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     if (config.quests?.enabled) {
         const active = Object.values(config.quests.quests ?? {}).filter((q) => q.active !== false);
         if (active.length === 0) issues.push({ severity: "warning", message: "Quests are on but none are active.", page: "quests" });
-        channel(config.quests.announceAllId, "quest announcements", "quests", POST);
+        channel(config.quests.announceAllId, "quest announcements", "announcements", POST);
         for (const q of active) {
             channel(q.overrideChannelId, `the quest ${q.name}'s announcements`, "quests", POST);
             for (const r of Object.values(q.reward ?? {})) {
@@ -210,7 +212,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     if (config.achievements?.enabled) {
         const all = Object.values(config.achievements.achievements ?? {});
         if (all.length === 0) issues.push({ severity: "warning", message: "Achievements are on but none exist yet.", page: "achievements" });
-        channel(config.achievements.announceAllId, "achievement announcements", "achievements", POST);
+        channel(config.achievements.announceAllId, "achievement announcements", "announcements", POST);
         for (const a of all) {
             channel(a.overrideChannelId, `the achievement ${a.name}'s announcements`, "achievements", POST);
             role(a.reward?.roleId, `the achievement ${a.name}`, "achievements");
@@ -250,7 +252,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
     }
 
     // ── Collections ──
-    channel(config.collections?.channelId, "collection announcements", "collections", POST);
+    channel(config.collections?.channelId, "collection announcements", "announcements", POST);
     for (const set of Object.values(config.collections?.sets ?? {})) {
         const gone = (set.entries ?? []).filter((e) => !(e.kind === "item" ? items[e.id] : config.combat?.enemies?.[e.id]));
         if (gone.length) issues.push({ severity: "warning", message: `The collection ${set.name} lists ${gone.length} thing${gone.length === 1 ? "" : "s"} that were deleted; they don't count.`, page: "collections" });
@@ -317,6 +319,31 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         for (const r of Object.values(st.recipes ?? {})) reqs(r.requirements, `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "an item"}`, "crafting");
     }
 
+    // ── Unlocks ── (a role nobody can be given opens nothing)
+    channel(config.unlocks?.channelId, "unlock announcements", "announcements", POST);
+    for (const u of Object.values(config.unlocks?.list ?? {})) {
+        const place = u.placeId ? config.combat.places?.[u.placeId] : undefined;
+        const what = `the unlock for ${place?.name ?? (u.placeId ? "a deleted place" : "a role")}`;
+        if (!u.roleId) issues.push({ severity: "warning", message: `The role at a level for ${place?.name ?? "a place"} has no role picked yet, so nobody earns anything. Pick one under Roles at levels on the Combat rules page.`, page: "combat-rules" });
+        role(u.roleId || undefined, what, "combat-rules");
+        if (u.placeId && !place) issues.push({ severity: "warning", message: "A role at a level announces a place that was deleted. Pick another under Roles at levels on the Combat rules page.", page: "combat-rules" });
+    }
+
+    // ── Characters ── (a deleted character quietly falls back to the bot)
+    const characters = config.characters?.list ?? {};
+    const speaksFor = [
+        ...Object.values(config.combat.enemies ?? {}).map((e) => [e.characterId, `The enemy ${e.name}`, "combat"] as const),
+        ...Object.values(config.quests?.quests ?? {}).map((q) => [q.characterId, `The quest ${q.name}`, "quests"] as const),
+        [config.characters?.shopkeeperId, "The shopkeeper", "characters"] as const,
+        [config.characters?.announcerId, "The announcer", "characters"] as const,
+    ].filter(([id]) => id);
+    for (const [id, what, page] of speaksFor) {
+        if (!characters[id!]) issues.push({ severity: "warning", message: `${what} speaks as a character that no longer exists, so the bot posts instead.`, page: page as DashboardPage });
+    }
+    if (speaksFor.length && !access.canManageWebhooks()) {
+        issues.push({ severity: "warning", message: "Characters post as the bot, with their name on top, until havocish has the Manage Webhooks permission. Give it in Server Settings → Roles.", page: "characters" });
+    }
+
     // ── Logging ──
     if (config.logging?.enabled) {
         if (!config.logging.mainChannelId) {
@@ -352,5 +379,6 @@ export function discordAccess(guild: Guild): Access {
         },
         roleName: (id) => guild.roles.cache.get(id)?.name ?? null,
         canManageRole: (id) => guild.roles.cache.get(id)?.editable ?? false,
+        canManageWebhooks: () => !!me?.permissions.has(PermissionFlagsBits.ManageWebhooks),
     };
 }

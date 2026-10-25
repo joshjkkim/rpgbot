@@ -9,7 +9,6 @@ import {
   NumberField,
   Section,
   SelectField,
-  TextAreaField,
   TextField,
 } from "@/app/components/ui/form";
 import LevelCurveChart from "@/app/components/levels/levelCurveChart";
@@ -21,6 +20,7 @@ import {
   type CurveType,
 } from "@/app/lib/levelCurve";
 import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 
 export interface LevelAction {
   type: "assignRole" | "removeRole" | "sendMessage" | "giveGold" | "giveItem" | "giveCombatXp";
@@ -157,20 +157,8 @@ export default function LevelsEditor({ value, onChange, shopItems, part }: Props
               onChange={(v) => updateRoot({ maxLevel: v > 0 ? v : null })}
               hint="0 means no cap."
             />
-            <ChannelField
-              label="Announce channel"
-              value={local.announceLevelUpInChannelId ?? ""}
-              onChange={(v) => updateRoot({ announceLevelUpInChannelId: v.trim() || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextAreaField
-              label="Level-up message"
-              value={local.announceLevelUpMessage}
-              onChange={(v) => updateRoot({ announceLevelUpMessage: v })}
-              rows={2}
-              hint="{user} {level}"
-            />
           </FieldGrid>
+          <AnnouncedOn what="level-ups" />
         </Section>
       )}
 

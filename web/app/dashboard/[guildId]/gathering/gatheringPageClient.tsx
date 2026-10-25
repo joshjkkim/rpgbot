@@ -4,6 +4,7 @@ import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import GatheringEditor from "@/app/components/gathering/gatheringEditor";
 import { skillOptions } from "@/app/components/ui/requirementsField";
+import { itemCreator } from "@/app/lib/newItem";
 
 export default function GatheringPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
@@ -19,6 +20,7 @@ export default function GatheringPageClient({ guildId }: { guildId: string }) {
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
+      onCreateItem={itemCreator(config, setConfig)}
       collections={config?.collections?.sets}
       rawSection={gathering}
     >

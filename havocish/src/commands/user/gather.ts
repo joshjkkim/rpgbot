@@ -19,7 +19,7 @@ import { grid } from "../../ui/gathering/grid.js";
 import { timing } from "../../ui/gathering/timing.js";
 import { find } from "../../ui/gathering/find.js";
 import { conditionNow, runMods } from "../../player/twists.js";
-import { checkCollections } from "../../player/collections.js";
+import { checkProgress } from "../../player/collections.js";
 import { nextGatherLine } from "../../player/nextSteps.js";
 import { questCompleteLines } from "../../player/quests.js";
 
@@ -212,7 +212,7 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
     else await run.message?.edit(view).catch(() => null);
 
     const client = interaction?.client ?? run.message?.client;
-    if (client) await checkCollections({ client, config, discordUserId: run.ownerId, discordGuildId: run.discordGuildId, fallbackChannelId: run.message?.channelId ?? null });
+    if (client) await checkProgress({ client, config, discordUserId: run.ownerId, discordGuildId: run.discordGuildId, fallbackChannelId: run.message?.channelId ?? null });
     if (client) await announceRareFinds({
         client, config, discordUserId: run.ownerId, verb: "found",
         items: Object.entries(result.kept).map(([itemId, quantity]) => ({ itemId, quantity })),

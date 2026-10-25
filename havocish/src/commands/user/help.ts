@@ -123,7 +123,8 @@ function pageBody(page: Page, config: GuildConfig): { title: string; lines: stri
                 title: "🛠️ For server owners",
                 lines: [
                     "Set everything up on the **dashboard**: XP, levels, the shop, enemies, quests and how the bot looks.",
-                    "New here? Use a **starter pack** there to fill the shop, enemies and quests in one click.",
+                    "New here? `/setup` sets havocish up in a minute: how fast people level, and a ready-made world or a blank one.",
+                    "The dashboard's **Library** adds a whole starter pack, or single pieces like one enemy or a crafting station.",
                     "",
                     "`/boss summon` call a world boss for the whole server to fight",
                     "`/config` turn features like the shop, quests and duels on or off",

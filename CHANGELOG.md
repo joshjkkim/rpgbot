@@ -2,6 +2,28 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## v0.16 · October 24, 2026
+
+Easy to start, and part of your Discord: set up in a minute without leaving it, a second world to start in, characters who speak in their own name, and new areas that open as members grow.
+
+### New
+- **New areas open as you grow.** Reach the Combat level a place asks for (or a skill level, or finish a collection) and you earn its role: on servers that hide the channel behind it, a new channel appears in your list. "🗺️ @you unlocked ⚰️ The Barrow Crypt!"
+- **Characters.** Villains, quest givers and shopkeepers now speak in their own name. A world boss arrives saying one of its lines, the quest giver announces your quest done, the merchant shouts about your rare find. Both starter packs come with a cast: re-add yours from the Library to get it.
+
+### For server owners
+- **Set up havocish without leaving Discord.** Run `/setup`, or press **Set up here** on the welcome message. It asks who handles leveling, how fast members level, which world to start with (a starter pack, or blank to build your own), what to call money and XP, and where level-ups go. The dashboard's setup still works the same.
+- **The Library: take only the pieces you want.** The Starter packs page is now the Library. Add a whole pack, or tick single pieces (one enemy, a crafting station, a quest), and anything they need comes along. Before adding, it shows exactly what you'll get, and it never touches what you've already made.
+- **A second starting world: Frontier Station.** A sci-fi station at the edge of known space: drones, scavengers and rogue AIs to fight, salvaging, hacking and scanning to gather, a fabricator and a research lab, EMP bursts that break an enemy's wind-up, and the Hive Mind as the world boss. Pick it in `/setup`, or take pieces of it from the Library.
+- **Make your own characters.** The new Characters page: a name, a picture (an emoji, a link, or upload one) and lines they say. Pick who speaks for the shop and for announcements, and choose a character on any enemy or quest. For the full effect, give havocish the Manage Webhooks permission; without it, their name and picture sit at the top of the bot's posts.
+- **Roles at Combat and skill levels.** On Combat rules, give a role at any Combat level or gathering and crafting skill level: "At Combat 14 give @Crypt Dweller". Hide a place's channels behind that role in Discord and it opens as members grow. Both starter packs come with levels set for their tougher places; you pick the roles.
+- **Every announcement on one page.** The new Announcements page lists everything havocish posts for the server (level-ups, rare finds, quests, achievements, milestones, places opening, dailies, streaks, gifts, role rewards) with its channel, message and who says it. Point them all at #adventure-log in one go.
+- **Fair numbers in one click.** Making an enemy? Pick a level and a kind (weak, normal, tough, rare elite or world boss) and press **Fill in the numbers**: its stats, level range and rewards are set the way Classic Fantasy's are balanced. Gear works the same way, from its slot, level and rarity. Everything stays editable.
+- **A tidier dashboard.** The sidebar is now Start, World (what members meet) and Rules (switches you set once). Combat's player stats, parties, duels, encounters and bosses moved to their own **Combat rules** page.
+- **Make an item where you need it.** Picking a drop, an ingredient or a reward that doesn't exist yet? Choose **+ New item…** in the list, name it, and it's made on the spot.
+- **See which tools open a location.** A gathering location that needs a tool now lists the tools that open it, right under the tier, so planning it doesn't mean a trip to the Items page.
+- **Materials in their own category.** In both starter packs, ores, herbs, fish, data and monster parts now sit apart from charms, rings and scrolls, so the shop and the Library are easier to browse. Items you already have stay where you put them.
+- **Send a world boss away.** `/boss dismiss` ends the current world boss at once, with no rewards, for when one was summoned by mistake or at a bad time.
+
 ## v0.15 · October 22, 2026
 
 Combat v2: fights you read and answer, party play, places, collections and losses that sting. Fights are now a read of what's coming, not a click on Attack: enemies show their next move, you pick from moves you've earned, and friends can jump in. Around it, the rest of the game got reasons to play: places with their own enemies, gathering that changes with the weather, collections to complete, crafted gear that beats bought, and losses that sting.

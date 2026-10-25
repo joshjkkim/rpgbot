@@ -10,6 +10,7 @@ import { profileKey, userGuildProfileCache } from "../../cache/caches.js";
 import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
 import { combatLevel, combatXpForLevel } from "../../player/combatLevel.js";
 import { skillLevel, skillXpForLevel } from "../../player/gathering.js";
+import { checkUnlocks } from "../../player/unlocks.js";
 import type { UserStats } from "../../types/userprofile.js";
 
 export const data = new SlashCommandBuilder()
@@ -250,6 +251,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
                 content: `✅ Set ${label} of <@${dbUser.discord_user_id}> to level **${reached}**${reached < level ? " (the most it goes)" : ""}.`,
                 flags: MessageFlags.Ephemeral,
             });
+            // A new level can earn an unlock role, as it would by playing.
+            await checkUnlocks({ client: interaction.client, config, discordUserId: dbUser.discord_user_id, discordGuildId: interaction.guildId, fallbackChannelId: interaction.channelId });
             break;
         }
 

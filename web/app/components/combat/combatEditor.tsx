@@ -15,6 +15,7 @@ import {
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
 import { ConditionFields } from "./movesEditor";
+import { ENEMY_ROLES, ROLE_LABELS, enemyPreset, type EnemyRole } from "@content/balance";
 import { DEFAULT_ENEMY_MOVES, DEFAULT_MOVES, DEFAULT_STATUSES, type EnemyMove, type MoveConfig, type PlaceConfig, type StatusConfig } from "./moveText";
 
 // ─── Types (mirrored from havocish) ─────────────────────────────────────────────
@@ -51,6 +52,8 @@ export interface EnemyConfig {
   image?: string;
   /** How often it turns up outside places (default 1). */
   spawnWeight?: number;
+  /** The character it speaks as when it appears (mirrored from havocish/src/types/combat.ts). */
+  characterId?: string;
 }
 
 export interface CombatDeathPenalty {
@@ -133,6 +136,8 @@ type Props = {
   skills: SkillOption[];
   /** Which tab of the Combat page this is. */
   part: "enemies" | "players" | "events";
+  /** The server's characters, so an enemy can speak as one. */
+  characters?: Record<string, { name?: string }>;
 };
 
 /** Each player stat is a base plus a per-level increment. */
@@ -165,7 +170,33 @@ const CHAT_BONUS: Array<{ key: keyof NonNullable<CombatConfig["chatBonus"]>; lab
   { key: "crit", label: "Crit chance %", step: 0.1 },
 ];
 
-export default function CombatEditor({ value, onChange, shopItems, skills, part }: Props) {
+/**
+ * Fills a form's numbers from the balance tables (havocish/src/content/balance.ts):
+ * owners pick a level and a kind, not nine stats. The numbers stay editable.
+ */
+function BalanceRow<T extends string>({ level, kind, kinds, kindLabel, onApply, note }: {
+  level: number;
+  kind: T;
+  kinds: ReadonlyArray<{ value: T; label: string }>;
+  kindLabel: string;
+  onApply: (level: number, kind: T) => void;
+  note: string;
+}) {
+  const [lv, setLv] = useState(level);
+  const [k, setK] = useState<T>(kind);
+  return (
+    <div className="rounded-sm border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-28"><NumberField label="For level" value={lv} min={1} onChange={setLv} /></div>
+        <div className="w-44"><SelectField label={kindLabel} value={k} options={kinds} onChange={setK} /></div>
+        <button type="button" className="btn mb-0.5 px-3 py-1.5 text-sm" onClick={() => onApply(lv, k)}>Fill in the numbers</button>
+      </div>
+      <p className="mt-2 text-xs text-[var(--muted)]">{note}</p>
+    </div>
+  );
+}
+
+export default function CombatEditor({ value, onChange, shopItems, skills, part, characters = {} }: Props) {
   const defaults: CombatConfig = useMemo(() => ({ enabled: false, enemies: {} }), []);
 
   const [local, setLocal] = useState<CombatConfig>(value ?? defaults);
@@ -270,22 +301,8 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
           )}
           onCreate={(name) => {
             const id = idFromName(name, Object.keys(local.enemies ?? {}));
-            upsertEnemy({
-              id,
-              name,
-              emoji: "👾",
-              hp: 50,
-              atk: 8,
-              def: 3,
-              spd: 5,
-              critChance: 5,
-              critMultiplier: 1.5,
-              minLevel: 1,
-              maxLevel: null,
-              xpReward: 25,
-              goldReward: 10,
-              drops: [],
-            });
+            // A fair level 1 enemy to start from; the Balance row retunes it.
+            upsertEnemy({ id, name, emoji: "👾", drops: [], ...enemyPreset(1, "normal") });
             return id;
           }}
           onRemove={(id) => {
@@ -312,6 +329,19 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
                   hint="A picture link to draw instead of the emoji. A transparent PNG looks best."
                 />
               </FieldGrid>
+              <BalanceRow
+                key={id}
+                level={enemy.minLevel || 1}
+                kind={(enemy.boss ? "boss" : enemy.spawnWeight != null && enemy.spawnWeight < 1 ? "elite" : "normal") as EnemyRole}
+                kinds={ENEMY_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+                kindLabel="Kind of enemy"
+                onApply={(level, role) => {
+                  const { boss, spawnWeight, ...numbers } = enemyPreset(level, role);
+                  upsertEnemy({ ...enemy, ...numbers, boss: !!boss, spawnWeight });
+                }}
+                note="Sets its stats, level range and rewards to fit that level, the way Classic Fantasy's enemies are balanced. Elites turn up rarely; world bosses are fought by the whole server. Tweak anything after."
+              />
+
               <Toggle
                 label="World boss"
                 checked={!!enemy.boss}
@@ -365,6 +395,13 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part 
                     step={0.1}
                     onChange={(v) => upsertEnemy({ ...enemy, spawnWeight: v === 1 ? undefined : v })}
                     hint="Against the others' 1, where no place decides: 0.2 makes a rare elite. Places use their own weights."
+                  />
+                  <SelectField
+                    label="Speaks as"
+                    value={enemy.characterId ?? ""}
+                    options={[{ value: "", label: "Nobody" }, ...Object.entries(characters).map(([id, c]) => ({ value: id, label: c.name || id }))]}
+                    onChange={(id) => upsertEnemy({ ...enemy, characterId: id || undefined })}
+                    hint="A character it turns up as, saying one of their lines. Make characters on the Characters page."
                   />
                 </FieldGrid>
               </Field>

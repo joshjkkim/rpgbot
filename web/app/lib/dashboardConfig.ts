@@ -5,6 +5,8 @@ import type { CraftingConfig } from "@/app/components/crafting/craftingEditor";
 import type { LevelsConfig } from "@/app/components/levels/levelsEditor";
 import type { RoleRewardsConfig } from "@/app/components/levels/roleRewardsEditor";
 import type { CollectionsConfig } from "@/app/components/collections/collectionsEditor";
+import type { CharactersConfig } from "@/app/components/characters/charactersEditor";
+import type { UnlocksConfig } from "@/app/components/combat/levelRolesEditor";
 import type { LoggingConfig } from "@/app/components/logging/loggingEditor";
 import type { QuestsConfig } from "@/app/components/quests/questsBasicEditor";
 import type { ShopConfig } from "@/app/components/shop/shopBasicsEditor";
@@ -21,6 +23,8 @@ export type DashboardConfig = {
   levels?: LevelsConfig;
   roleRewards?: RoleRewardsConfig;
   collections?: CollectionsConfig;
+  characters?: CharactersConfig;
+  unlocks?: UnlocksConfig;
   /** Mirrored from havocish/src/types/guild.ts. */
   rareFinds?: { channelId?: string | null; minRarity?: string };
   shop?: ShopConfig;

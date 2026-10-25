@@ -11,7 +11,10 @@ export type QuestLogConfig = {
     levelActions?: Record<string, Array<{ type?: string; roleId?: string }>>;
   };
   shop?: Toggle & { items?: object };
-  combat?: Toggle & { enemies?: object };
+  combat?: Toggle & { enemies?: object; places?: Record<string, { channelIds?: string[] }> };
+  gathering?: Toggle & { activities?: object };
+  crafting?: Toggle & { stations?: object };
+  collections?: { sets?: object };
   quests?: Toggle & { quests?: object };
   achievements?: Toggle & { achievements?: object };
   logging?: Toggle & { mainChannelId?: string | null };
@@ -20,7 +23,7 @@ export type QuestLogConfig = {
 const has = (record?: object) => Object.keys(record ?? {}).length > 0;
 
 function buildQuests(config: QuestLogConfig | null) {
-  const { xp = {}, levels = {}, shop = {}, combat = {}, quests = {}, achievements = {}, logging = {} } = config ?? {};
+  const { xp = {}, levels = {}, shop = {}, combat = {}, quests = {}, achievements = {}, logging = {}, gathering = {}, crafting = {}, collections = {} } = config ?? {};
   const givesRole = Object.values(levels.levelActions ?? {}).some(
     (actions) => Array.isArray(actions) && actions.some((a) => a?.type === "assignRole" && a.roleId)
   );
@@ -44,16 +47,34 @@ function buildQuests(config: QuestLogConfig | null) {
   return [
     ...leveling,
     {
+      href: "combat",
+      title: "Call to Arms",
+      done: !!combat.enabled && has(combat.enemies),
+      todo: "Turn on combat and add an enemy, or take some from the Library.",
+    },
+    {
+      href: "combat",
+      title: "Lay of the Land",
+      done: Object.values(combat.places ?? {}).some((p) => (p.channelIds?.length ?? 0) > 0),
+      todo: "Give a place its channels, so the enemies met there fit it (Combat → Places).",
+    },
+    {
+      href: "gathering",
+      title: "Hands to the Harvest",
+      done: !!gathering.enabled && has(gathering.activities),
+      todo: "Turn on gathering and add an activity.",
+    },
+    {
+      href: "crafting",
+      title: "The Forge Is Lit",
+      done: !!crafting.enabled && has(crafting.stations),
+      todo: "Turn on crafting and add a station with a recipe.",
+    },
+    {
       href: "shop",
       title: "Open for Business",
       done: !!shop.enabled && has(shop.items),
       todo: "Turn on the shop and stock an item.",
-    },
-    {
-      href: "combat",
-      title: "Call to Arms",
-      done: !!combat.enabled && has(combat.enemies),
-      todo: "Turn on combat and add an enemy.",
     },
     {
       href: "quests",
@@ -66,6 +87,12 @@ function buildQuests(config: QuestLogConfig | null) {
       title: "Deeds Worth Noting",
       done: !!achievements.enabled && has(achievements.achievements),
       todo: "Turn on achievements and add one.",
+    },
+    {
+      href: "collections",
+      title: "Sets to Complete",
+      done: has(collections.sets),
+      todo: "Make a collection with a reward along the way.",
     },
     {
       href: "logging",

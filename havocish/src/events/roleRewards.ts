@@ -4,6 +4,7 @@ import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { grantRoleRewards } from "../player/levelRewards.js";
 import { bestEffort } from "../ui/bestEffort.js";
 import { mentionsFor } from "../ui/mentions.js";
+import { announcer, speak } from "../ui/characters.js";
 
 /**
  * Pays role rewards (config.roleRewards) when a member holds a rewarded role
@@ -24,7 +25,7 @@ export async function checkRoleRewards(member: GuildMember) {
     const channel = await member.client.channels.fetch(channelId).catch(() => null);
     if (!channel?.isTextBased() || !channel.isSendable()) return;
     const lines = paid.filter((p) => p.given.length).map((p) => `🎁 <@${member.id}> got the <@&${p.roleId}> reward: ${p.given.join(", ")}`);
-    if (lines.length) await bestEffort("role reward announcement", channel.send({ content: lines.join("\n"), allowedMentions: await mentionsFor(member.guild.id, member.id, { users: [member.id] }) }));
+    if (lines.length) await bestEffort("role reward announcement", speak(channel, announcer(config), { content: lines.join("\n"), allowedMentions: await mentionsFor(member.guild.id, member.id, { users: [member.id] }) }));
 }
 
 export function registerRoleRewards(client: Client) {

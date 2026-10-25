@@ -14,7 +14,9 @@
     "exactOptionalPropertyTypes": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "rewriteRelativeImportExtensions": true
   },
   "include": ["src"]
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import pack from "@/app/lib/packs/classic-fantasy.json";
+import pack from "@content/packs/classic-fantasy.json";
 import { D, DButton, DiscordMessage, Sub } from "@/app/components/ui/discordMock";
 
 /*

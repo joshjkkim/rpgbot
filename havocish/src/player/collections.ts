@@ -7,6 +7,8 @@ import { bestEffort } from "../ui/bestEffort.js";
 import { mentionsFor } from "../ui/mentions.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
+import { announcer, speak } from "../ui/characters.js";
+import { checkUnlocks } from "./unlocks.js";
 
 /**
  * Collections: owner-made groups of items to find and enemies to defeat, like
@@ -87,6 +89,16 @@ export async function payCollectionMilestones(userId: number, guildId: number, c
 }
 
 /**
+ * Everything that can follow from progress: unlock roles first (a channel can
+ * open), then collection milestones. Call it after anything that can move a
+ * member on.
+ */
+export async function checkProgress(opts: Parameters<typeof checkCollections>[0]): Promise<void> {
+    await checkUnlocks(opts).catch((err) => console.error("Unlock check failed:", err));
+    await checkCollections(opts);
+}
+
+/**
  * Checks a member's collections after something that can move them on (a
  * win, a gathering run, a craft, a purchase): pays milestones, gives their
  * roles, and announces them in the collections channel, or `fallbackChannelId`.
@@ -116,7 +128,7 @@ export async function checkCollections(opts: {
     if (!channelId) return;
     const channel = await opts.client.channels.fetch(channelId).catch(() => null);
     if (!channel?.isTextBased() || !channel.isSendable()) return;
-    await bestEffort("collection announcement", channel.send({
+    await bestEffort("collection announcement", speak(channel, announcer(opts.config), {
         content: lines.join("\n"),
         allowedMentions: await mentionsFor(opts.discordGuildId, opts.discordUserId, { users: [opts.discordUserId] }),
     }));

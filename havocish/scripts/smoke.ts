@@ -35,13 +35,21 @@ import type { DbGuild, GuildConfig } from "../src/types/guild.js";
 import type { DbUserGuildProfile, item } from "../src/types/userprofile.js";
 import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
-import { handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
+import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
+import { STARTER_PACKS } from "../src/content/packs.js";
+import { checkUnlocks, earned } from "../src/player/unlocks.js";
+import { enemyPreset, gearPreset } from "../src/content/balance.js";
+import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
+import { handleSetupInteraction } from "../src/commands/admin/setup.js";
+import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
+import { EmbedBuilder } from "discord.js";
+import { getOrCreateGuildConfig } from "../src/cache/guildService.js";
 import { readFileSync } from "node:fs";
 import { handleQuestsButton, objective, renderQuestLog } from "../src/commands/user/quests.js";
 import { applyQuestEvent } from "../src/player/quests.js";
@@ -1756,7 +1764,7 @@ async function main() {
 
         cfg.combat.enabled = true;
         cfg.combat.places.empty = { id: "empty", name: "Empty Hall", emoji: "🏚️", channelIds: [], enemies: [{ enemyId: "ghost" }] };
-        const noThreads: Access = { channelName: (id) => id, missingIn: (_, perms) => perms.filter((p) => p === "threads"), roleName: () => "Hero", canManageRole: () => true };
+        const noThreads: Access = { channelName: (id) => id, missingIn: (_, perms) => perms.filter((p) => p === "threads"), roleName: () => "Hero", canManageRole: () => true, canManageWebhooks: () => true };
         const health = checkGuild(cfg, noThreads).map((i) => i.message).join("\n");
         check("the health check covers places", [
             health.includes("can't post Woods fights in #cat-wild. Give it Create Public Threads"),
@@ -2267,6 +2275,23 @@ async function main() {
         check("a fallen boss leaves no saved row", leftover.rowCount, 0);
     });
 
+    await test("a manager can send a world boss away", async () => {
+        const { config } = await reset();
+        config.combat.enabled = true;
+        check("nothing to dismiss", await dismissBoss(TEST_DISCORD_GUILD), null);
+        let shown: any = null;
+        const message = { id: "3001", channelId: "3000", edit: async (p: any) => { shown = p; return null; } };
+        const boss = {
+            id: "golem", name: "Golem", emoji: "🗿", hp: 500, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1,
+            minLevel: 0, maxLevel: null, xpReward: 10, goldReward: 10, drops: [], boss: true,
+        };
+        await spawnBoss({ send: async () => message } as any, TEST_DISCORD_GUILD, config, boss);
+        check("it's gone", [(await dismissBoss(TEST_DISCORD_GUILD))?.enemy.id, liveBoss(TEST_DISCORD_GUILD)], ["golem", undefined]);
+        check("and its message says so, with no rewards", [shown.embeds[0].data.title, shown.components], ["🗿 Golem was sent away", []]);
+        const saved = await query(`SELECT 1 FROM live_bosses WHERE discord_guild_id = $1`, [TEST_DISCORD_GUILD]);
+        check("and it won't come back after a restart", saved.rowCount, 0);
+    });
+
     await test("a live world boss survives a restart", async () => {
         const { config } = await reset();
         config.combat.enabled = true;
@@ -2440,6 +2465,154 @@ async function main() {
         config.combat.enabled = false;
         const noCombat = json(renderSheet(profile, config, "Tester", TEST_DISCORD_USER, true));
         check("no HP or stats when combat is off", noCombat.includes("**HP**"), false);
+    });
+
+    await test("/setup in Discord: questions to a set-up server", async () => {
+        // Setup rewrites the whole config; the tests after this one need it back as it was.
+        const before = structuredClone((await reset()).config);
+        let shown: any = null;
+        const click = (customId: string, extra: Record<string, unknown> = {}) => handleSetupInteraction({
+            customId, guildId: TEST_DISCORD_GUILD, guild: {}, user: { id: TEST_DISCORD_USER },
+            memberPermissions: { has: () => true },
+            isButton: () => !("values" in extra), isStringSelectMenu: () => "values" in extra && !extra.channel,
+            isChannelSelectMenu: () => !!extra.channel, isModalSubmit: () => false,
+            reply: async (p: any) => { shown = p; }, update: async (p: any) => { shown = p; },
+            ...extra,
+        } as any);
+        const title = () => shown.embeds[0].data.description?.split("\n").find((l: string) => l.startsWith("**")) ?? shown.embeds[0].data.title;
+
+        await click("setup:start");
+        check("it starts by asking about leveling", title(), "**Who handles leveling here?**");
+        await click("setup:lvl:other");
+        check("with another leveling bot, pace is skipped", title(), "**What world should it start with?**");
+        await click("setup:world", { values: ["classic-fantasy"] });
+        await click("setup:names:keep");
+        check("and so are level-up channels", shown.components[0].components[0].data.label, "Set it up");
+        await click("setup:apply");
+        const after = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
+        check("the pack is in, leveling is off, the RPG is on", [Object.keys(after.combat.enemies ?? {}).length > 0, after.xp.enabled, after.combat.enabled], [true, false, true]);
+
+        await setGuildConfig(TEST_DISCORD_GUILD, structuredClone(before));
+        await click("setup:start");
+        await click("setup:lvl:own");
+        await click("setup:pace:relaxed");
+        await click("setup:world", { values: ["blank"] });
+        await click("setup:names:save", { isModalSubmit: () => true, isButton: () => false, isFromMessage: () => true, fields: { getTextInputValue: (id: string) => (id === "gold" ? "credits" : "rep") } });
+        await click("setup:channel", { values: ["123"], channel: true });
+        await click("setup:apply");
+        const blank = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
+        check("blank adds nothing and leaves the RPG off", [Object.keys(blank.combat.enemies ?? {}).length, blank.combat.enabled], [Object.keys(before.combat.enemies ?? {}).length, false]);
+        check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
+        check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
+        await setGuildConfig(TEST_DISCORD_GUILD, before);
+    });
+
+    await test("balanced presets land near Classic Fantasy's own numbers", async () => {
+        const cf = STARTER_PACKS.find((p) => p.id === "classic-fantasy")!.content as any;
+        const near = (got: number, want: number, within = 0.3) => Math.abs(got - want) <= want * within;
+        for (const [id, role] of [["grey-wolf", "normal"], ["roadside-bandit", "normal"], ["dire-wolf", "elite"], ["bandit-captain", "elite"], ["bridge-troll", "tough"], ["stone-golem", "tough"], ["hollow-king", "boss"]] as const) {
+            const e = cf.combat.enemies[id];
+            const p = enemyPreset(e.boss ? 1 : e.minLevel, role);
+            check(`${role} at Combat ${e.minLevel} is about a ${e.name}`, [near(p.hp, e.hp), near(p.atk, e.atk), near(p.xpReward, e.xpReward)], [true, true, true]);
+        }
+        check("elites are rare, bosses are bosses", [enemyPreset(10, "elite").spawnWeight, enemyPreset(10, "boss").boss], [0.2, true]);
+        for (const [id, slot, rarity] of [["knights-chainmail", "body", "rare"], ["knights-helm", "head", "rare"], ["iron-kite-shield", "shield", "uncommon"]] as const) {
+            const it = cf.shop.items[id];
+            const g = gearPreset(slot, it.minLevel, rarity);
+            check(`${rarity} ${slot} at ${it.minLevel} is about ${it.name}`, [near(g.stats.def!, it.effects.stats.def), near(g.price, it.price, 0.4)], [true, true]);
+        }
+        check("stronger with level", enemyPreset(30, "normal").hp > enemyPreset(10, "normal").hp && gearPreset("weapon", 30, "rare").stats.atk! > gearPreset("weapon", 10, "rare").stats.atk!, true);
+    });
+
+    await test("characters: the game's posts under an owner-made name and picture", async () => {
+        const cfg = structuredClone(DEFAULT_GUILD_CONFIG);
+        cfg.characters = { list: {
+            bram: { id: "bram", name: "Old Bram", avatar: "💰", lines: ["Fine wares!"] },
+            king: { id: "king", name: "The Hollow King", avatar: "https://example.com/king.png" },
+        }, shopkeeperId: "bram" };
+        check("an emoji becomes a picture", speaker(cfg, "bram")?.avatarUrl?.endsWith(".png"), true);
+        check("a link is used as is", speaker(cfg, "king")?.avatarUrl, "https://example.com/king.png");
+        check("an unknown or unset character is nobody", [speaker(cfg, "gone"), speaker(cfg, undefined), announcer(cfg)], [null, null, null]);
+        check("their line, quoted", lineOf(speaker(cfg, "bram")), "*“Fine wares!”*");
+        let sent: any = null;
+        const channel = { send: async (p: any) => { sent = p; return p; } } as any;
+        await speak(channel, shopkeeper(cfg), { content: "✨ a rare find!" });
+        check("without a webhook, their name leads the text", sent.content, "**Old Bram:** ✨ a rare find!");
+        await speak(channel, speaker(cfg, "king"), { embeds: [new EmbedBuilder().setTitle("WORLD BOSS")] });
+        check("or tops the embed, with their picture", [sent.embeds[0].data.author.name, sent.embeds[0].data.author.icon_url], ["The Hollow King", "https://example.com/king.png"]);
+        await speak(channel, null, { content: "plain" });
+        check("nobody: the bot posts as it always has", sent.content, "plain");
+        // A /fight board is a command reply: Discord gives it the app's id as a webhook id. It's still the bot's to edit.
+        let edited: any = null;
+        const reply = { webhookId: "app-1", applicationId: "app-1", client: { application: { id: "app-1" } }, edit: async (p: any) => { edited = p; return p; } } as any;
+        await editSpoken(reply, { content: "round 2" });
+        check("a command reply is edited as the bot's own message", edited?.content, "round 2");
+    });
+
+    await test("unlocks: earn a role by progressing, and the channel behind it opens", async () => {
+        const { userId, guildId, config } = await reset();
+        config.combat.places = { crypt: { id: "crypt", name: "The Crypt", emoji: "⚰️", channelIds: ["c1"], enemies: [] } } as any;
+        config.unlocks = { list: {
+            crypt: { id: "crypt", roleId: "r-crypt", placeId: "crypt", requirements: { combatLevel: 5 } },
+            unset: { id: "unset", roleId: "", requirements: {} },
+        } };
+        const profile = (await getOrCreateProfile({ userId, guildId })).profile;
+        const fakeMember = (roles: string[]) => ({ roles }) as any; // the raw member shape: role ids in a list
+        check("not yet at Combat 5", earned(config, profile, fakeMember([])).length, 0);
+        addCombatXp(profile, config, combatXpForLevel(5, config));
+        check("now they've earned it", earned(config, profile, fakeMember([])).map((u) => u.id), ["crypt"]);
+        check("an unlock with no role earns nothing, and a held role isn't given twice", earned(config, profile, fakeMember(["r-crypt"])), []);
+
+        let added: string | null = null;
+        let said: any = null;
+        const member = { roles: { add: async (r: string) => { added = r; } } };
+        const client = {
+            guilds: { cache: new Map([[TEST_DISCORD_GUILD, { members: { fetch: async () => member } }]]) },
+            channels: { fetch: async () => ({ isTextBased: () => true, isSendable: () => true, send: async (p: any) => { said = p; } }) },
+        } as any;
+        await checkUnlocks({ client, config, discordUserId: TEST_DISCORD_USER, discordGuildId: TEST_DISCORD_GUILD, fallbackChannelId: "c1" });
+        check("the role is given and the place announced", [added, said?.content], ["r-crypt", `🗺️ <@${TEST_DISCORD_USER}> unlocked **⚰️ The Crypt**!`]);
+    });
+
+    await test("every starter pack is self-contained", async () => {
+        for (const pack of STARTER_PACKS) {
+            const broken: string[] = [];
+            const has = (kind: Kind, id: string) => !!entryOf(pack.content, { kind, id });
+            for (const kind of Object.keys(KINDS) as Kind[]) {
+                const [section, map] = KINDS[kind];
+                for (const [id, entry] of Object.entries(((pack.content as any)[section]?.[map] ?? {}) as Record<string, any>)) {
+                    for (const ref of refsOf(kind, entry)) if (!has(ref.kind, ref.id)) broken.push(`${kind}:${id} -> ${ref.kind}:${ref.id}`);
+                    // The loose links the library doesn't follow still have to exist inside a pack.
+                    if (entry.tool && !has("activities", entry.tool.activityId)) broken.push(`${id} tool -> ${entry.tool.activityId}`);
+                    for (const a of Object.values(entry.actions ?? {}) as any[]) {
+                        if (a.type === "learnRecipe" && !(pack.content as any).crafting?.stations?.[a.stationId]?.recipes?.[a.recipeId]) broken.push(`${id} teaches ${a.stationId}/${a.recipeId}`);
+                        if (a.type === "learnMove" && !has("moves", a.moveId)) broken.push(`${id} teaches ${a.moveId}`);
+                    }
+                }
+            }
+            check(`${pack.name}: every reference resolves`, broken, []);
+        }
+        check("pack ids are unique", new Set(STARTER_PACKS.map((p) => p.id)).size, STARTER_PACKS.length);
+    });
+
+    await test("the content library adds one entry and what it needs", async () => {
+        const source = STARTER_PACKS[0]!.content;
+        const keys = (refs: Ref[]) => refs.map((r) => `${r.kind}:${r.id}`).sort();
+        const wolf = plan(null, source, [{ kind: "enemies", id: "grey-wolf" }]);
+        check("an enemy brings its moves, their statuses and its drops", [
+            "enemies:grey-wolf", "moves:bite", "moves:howl", "statuses:enraged", "items:wolf-pelt", "items:travelers-boots",
+        ].every((k) => keys(wolf).includes(k)), true);
+        check("but not other enemies", keys(wolf).filter((k) => k.startsWith("enemies:")), ["enemies:grey-wolf"]);
+        const mine = { shop: { items: { "wolf-pelt": { id: "wolf-pelt", name: "My Own Pelt" } } } } as any;
+        const again = addEntries(mine, source, [{ kind: "enemies", id: "grey-wolf" }]);
+        check("what the server has stays its own", [keys(again.added).includes("items:wolf-pelt"), (again.config.shop!.items as any)["wolf-pelt"].name], [false, "My Own Pelt"]);
+        check("and adding it switches combat on", again.config.combat?.enabled, true);
+        check("adding twice adds nothing", addEntries(again.config, source, [{ kind: "enemies", id: "grey-wolf" }]).added, []);
+        const place = addEntries(null, source, [{ kind: "places", id: "old-road" }]);
+        check("a place comes with its enemies, but none of the source's channels", [keys(place.added).includes("enemies:grey-wolf"), (place.config.combat!.places as any)["old-road"].channelIds], [true, []]);
+        const smithing = plan(null, source, [{ kind: "stations", id: "smithing" }]);
+        check("a station brings its recipes' ingredients and outputs", keys(smithing).includes("items:iron-sword"), true);
+        check("requirements pull what they point at", refsOf("recipes" as any, { requirements: { found: ["ghostfin"], collections: ["satchel"] } }), [{ kind: "items", id: "ghostfin" }, { kind: "collections", id: "satchel" }]);
     });
 
     await test("the changelog post takes only the newest entry", async () => {
@@ -2717,7 +2890,7 @@ async function main() {
         broken.combat.enemies = { ogre: { id: "ogre", name: "Ogre", emoji: "👹", hp: 10, atk: 1, def: 0, spd: 1, critChance: 0, critMultiplier: 1, minLevel: 0, maxLevel: null, xpReward: 0, goldReward: 0, drops: [], moves: [{ moveId: "gone" }] } };
         broken.combat.statuses = {};
         broken.shop.items = { blade: { id: "blade", name: "Blade", effects: { moves: ["vanished"] } } as any };
-        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true };
+        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true, canManageWebhooks: () => true };
         const health = checkGuild(broken, allOk).map((i) => i.message).join("\n");
         check("the health check finds broken move references", [
             health.includes("The enemy Ogre uses a move that was deleted (gone)"),
@@ -2729,7 +2902,7 @@ async function main() {
 
     await test("the health check finds setups that will fail quietly", async () => {
         const base = structuredClone(DEFAULT_GUILD_CONFIG);
-        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true };
+        const allOk: Access = { channelName: () => "general", missingIn: () => [], roleName: () => "Hero", canManageRole: () => true, canManageWebhooks: () => true };
         check("a fresh server has nothing to fix", checkGuild(base, allOk).length, 0);
 
         const c = structuredClone(DEFAULT_GUILD_CONFIG);
@@ -2746,6 +2919,7 @@ async function main() {
             missingIn: (id, perms) => (id === "levels" ? perms.filter((p) => p === "files") : []),
             roleName: (id) => (id === "veteran" ? "Veteran" : null),
             canManageRole: () => false,
+            canManageWebhooks: () => true,
         };
         const msgs = checkGuild(c, access).map((i) => `${i.severity}:${i.page}:${i.message}`);
         const has = (part: string) => msgs.some((m) => m.includes(part));

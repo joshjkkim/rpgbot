@@ -1,4 +1,5 @@
-import classicFantasy from "./packs/classic-fantasy.json";
+import classicFantasy from "./packs/classic-fantasy.json" with { type: "json" };
+import frontierStation from "./packs/frontier-station.json" with { type: "json" };
 
 /** Guild config as the dashboard holds it: untyped JSON, section by section. */
 export type GuildConfigJson = Record<string, (Record<string, unknown> & { enabled?: boolean }) | undefined>;
@@ -14,10 +15,12 @@ export type StarterPack = {
   id: string;
   name: string;
   description: string;
+  /** One short line (Discord menus cut at 100 characters). */
+  tagline?: string;
   content: {
     shop: {
-      categories: Record<string, Named>;
-      items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean }>;
+      categories: Record<string, Named & { icon?: string }>;
+      items: Record<string, Named & { emoji?: string; rarity?: string; price: number; hidden?: boolean; categoryId?: string }>;
     };
     combat: {
       enemies: Record<string, Named & { emoji: string; minLevel: number; maxLevel: number | null; boss?: boolean }>;
@@ -34,10 +37,14 @@ export type StarterPack = {
     crafting?: { stations: Record<string, Named & { emoji?: string; recipes?: Record<string, unknown> }> };
     /** Optional: owner-made collections. */
     collections?: { sets: Record<string, Named> };
+    /** Optional: the pack's cast, and who keeps the shop and makes announcements. */
+    characters?: { list: Record<string, Named & { avatar?: string }>; shopkeeperId?: string; announcerId?: string };
+    /** Optional: unlocks for the pack's places. Roles are the server's own, so the owner picks them. */
+    unlocks?: { list: Record<string, { id: string; roleId: string; placeId?: string }> };
   };
 };
 
-export const STARTER_PACKS: StarterPack[] = [classicFantasy as StarterPack];
+export const STARTER_PACKS: StarterPack[] = [classicFantasy as StarterPack, frontierStation as StarterPack];
 
 /** Where pack content lands in the guild config: [section, map]. */
 const TARGETS = [
@@ -53,6 +60,8 @@ const TARGETS = [
   ["gathering", "conditions"],
   ["crafting", "stations"],
   ["collections", "sets"],
+  ["characters", "list"],
+  ["unlocks", "list"],
 ] as const;
 
 /**
@@ -70,7 +79,8 @@ type Entry = Record<string, unknown>;
  * and activities come in the same way.
  */
 const FILLS: Array<{ section: string; map: string; paths: (entry: Entry) => string[][] }> = [
-  { section: "combat", map: "enemies", paths: () => [["moves"]] },
+  { section: "combat", map: "enemies", paths: () => [["moves"], ["characterId"]] },
+  { section: "quests", map: "quests", paths: () => [["characterId"]] },
   { section: "shop", map: "items", paths: () => [["effects", "moves"], ["dailyLimit"]] },
   {
     section: "gathering", map: "activities",
@@ -189,6 +199,15 @@ export function applyPack(config: GuildConfigJson | null, pack: StarterPack) {
   }
 
   for (const feature of packFeatures(pack)) next[feature]!.enabled = true;
+
+  // The pack's shopkeeper and announcer, where the server hasn't picked its own.
+  const cast = pack.content.characters;
+  if (cast) {
+    const mine = next.characters!;
+    for (const role of ["shopkeeperId", "announcerId"] as const) {
+      if (cast[role] && !mine[role]) { mine[role] = cast[role]; added++; }
+    }
+  }
 
   // Servers created before the default was fixed store crit as 0.05 / 0.01,
   // which combat reads as percentages -- effectively never a crit. Repair only

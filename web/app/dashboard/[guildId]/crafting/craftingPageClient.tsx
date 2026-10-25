@@ -4,6 +4,7 @@ import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import CraftingEditor from "@/app/components/crafting/craftingEditor";
 import { skillOptions } from "@/app/components/ui/requirementsField";
+import { itemCreator } from "@/app/lib/newItem";
 
 export default function CraftingPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
@@ -18,6 +19,7 @@ export default function CraftingPageClient({ guildId }: { guildId: string }) {
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
+      onCreateItem={itemCreator(config, setConfig)}
       collections={config?.collections?.sets}
       rawSection={crafting}
     >

@@ -22,6 +22,7 @@ import { handleCraftButton } from "../commands/user/craft.js";
 import { handleMovesSelect } from "../commands/user/moves.js";
 import { handleCollectionSelect } from "../commands/user/collection.js";
 import { busyFighting } from "../player/fight.js";
+import { handleSetupInteraction } from "../commands/admin/setup.js";
 
 /** While fighting, you fight: /fight (which brings the fight back) and /help are all that work. */
 function allowedMidFight(interaction: Interaction): boolean {
@@ -45,6 +46,12 @@ export function registerInteractionCreate(client: Client) {
                     await interaction.reply({ content: busy, flags: MessageFlags.Ephemeral });
                     return;
                 }
+            }
+
+            if ((interaction.isButton() || interaction.isStringSelectMenu() || interaction.isChannelSelectMenu() || interaction.isModalSubmit())
+                && interaction.customId.startsWith("setup:")) {
+                await handleSetupInteraction(interaction);
+                return;
             }
 
             if (interaction.isChatInputCommand()) {

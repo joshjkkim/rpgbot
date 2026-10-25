@@ -19,6 +19,7 @@ import {
 import { intentLine, intentThreat, loadoutFor, turnOrderLine, moveById, statusesOf, usable } from "../../player/moves.js";
 import { calculateLevelFromXp } from "../../leveling/levels.js";
 import type { PendingProfileChanges } from "../../types/cache.js";
+import { editSpoken } from "../../ui/characters.js";
 import { bestEffort } from "../../ui/bestEffort.js";
 import type { ActiveFight, EnemyConfig, FightEndSummary, FightMember, FighterState } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
@@ -30,7 +31,7 @@ import { checkRequirements, memberFacts } from "../../player/requirements.js";
 import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
 import { tipOnce, type Tip } from "../../player/tips.js";
-import { checkCollections } from "../../player/collections.js";
+import { checkProgress } from "../../player/collections.js";
 import { newMoveLines, nextFightLine } from "../../player/nextSteps.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
@@ -603,7 +604,8 @@ function takePotion(profile: DbUserGuildProfile, pending: PendingProfileChanges 
 async function editBoard(client: Client, fight: ActiveFight, view: Parameters<Message["edit"]>[0]) {
     await bestEffort("fight board", (async () => {
         const channel = await client.channels.fetch(fight.channelId);
-        if (channel?.isTextBased()) await channel.messages.edit(fight.messageId, view);
+        // An encounter's own message can be the board, and a character may have posted it.
+        if (channel?.isTextBased()) await editSpoken(await channel.messages.fetch(fight.messageId), view);
     })());
 }
 
@@ -691,7 +693,7 @@ async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ membe
     }
     await postResultLine(client, fight, resultLine(fight, round.outcome, results, config));
     for (const { member } of results) {
-        await checkCollections({ client, config, discordUserId: member.userId, discordGuildId: fight.guildId, fallbackChannelId: fight.origin?.channelId ?? fight.channelId });
+        await checkProgress({ client, config, discordUserId: member.userId, discordGuildId: fight.guildId, fallbackChannelId: fight.origin?.channelId ?? fight.channelId });
     }
     for (const { member, summary } of results) {
         await announceRareFinds({

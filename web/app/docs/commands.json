@@ -617,6 +617,11 @@
           }
         ],
         "kind": "subcommand"
+      },
+      {
+        "name": "dismiss",
+        "description": "End the current world boss now, with no rewards",
+        "kind": "subcommand"
       }
     ]
   },
@@ -2788,5 +2793,11 @@
         "kind": "subcommand"
       }
     ]
+  },
+  {
+    "name": "setup",
+    "description": "Set havocish up for this server: leveling, pace and a starting world",
+    "managersOnly": true,
+    "options": []
   }
 ]

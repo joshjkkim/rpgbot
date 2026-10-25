@@ -6,6 +6,7 @@ import type { TextBasedChannel, Client, TextChannel, GuildMember, MessageMention
 import { bestEffort } from "../ui/bestEffort.js";
 import { mentionsFor } from "../ui/mentions.js";
 import { combatXp } from "./combatLevel.js";
+import { announcer, speak, speaker, type Speaker } from "../ui/characters.js";
 
 function questTarget(cond: any): number {
   return cond.target ?? cond.value ?? 0; // support your existing naming
@@ -219,10 +220,10 @@ export function questCompleteLines(names: string[]): string {
   return names.map((n) => `📜 Quest complete: **${n}**. Claim it in \`/quests\`.`).join("\n");
 }
 
-async function safeSend(channel: TextBasedChannel | null, content: string, allowedMentions: MessageMentionOptions) {
+async function safeSend(channel: TextBasedChannel | null, content: string, allowedMentions: MessageMentionOptions, who: Speaker | null) {
   if (!channel) return;
   if (!content?.trim()) return;
-  await bestEffort("quest announcement", (channel as TextChannel).send({ content, allowedMentions }));
+  await bestEffort("quest announcement", speak(channel as TextChannel, who, { content, allowedMentions }));
 }
 
 function formatTemplate(template: string, args: { userMention: string; quest?: QuestConfig }) {
@@ -274,7 +275,7 @@ export async function announceQuestCompletions(args: {
     const ch = await guild.channels.fetch(channelId).catch(() => null);
     const textCh = ch && ch.isTextBased() ? ch : null;
 
-    await safeSend(textCh, formatTemplate(globalTemplate, { userMention, quest: n.quest }), pings);
+    await safeSend(textCh, formatTemplate(globalTemplate, { userMention, quest: n.quest }), pings, speaker(config, n.quest.characterId) ?? announcer(config));
   }
 }
 
@@ -300,7 +301,7 @@ export async function applyQuestSideEffects(args: {
     for (const m of rewards.messages) {
       const ch = await guild.channels.fetch(m.channelId).catch(() => null);
       const textCh = ch && ch.isTextBased() ? ch : null;
-      await safeSend(textCh, formatTemplate(m.message, { userMention }), pings);
+      await safeSend(textCh, formatTemplate(m.message, { userMention }), pings, announcer(args.config));
     }
   }
 

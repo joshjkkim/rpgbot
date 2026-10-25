@@ -1,4 +1,4 @@
-import { checkCollections } from "../../player/collections.js";
+import { checkProgress } from "../../player/collections.js";
 import { nextCraftLine } from "../../player/nextSteps.js";
 import { questCompleteLines } from "../../player/quests.js";
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
@@ -88,7 +88,7 @@ function renderForge(ownerId: string, run: ForgeRun, config: GuildConfig) {
 /** A skill milestone's card, posted publicly under the (private) crafting window, and a rare item's announcement. */
 async function skillCard(source: ButtonInteraction, result: CraftResult, station: CraftingStation, config: GuildConfig) {
     if (!result.ok) return;
-    if (source.guildId) await checkCollections({ client: source.client, config, discordUserId: source.user.id, discordGuildId: source.guildId, fallbackChannelId: source.channelId });
+    if (source.guildId) await checkProgress({ client: source.client, config, discordUserId: source.user.id, discordGuildId: source.guildId, fallbackChannelId: source.channelId });
     if (!result.ruined) await announceRareFinds({
         client: source.client, config, discordUserId: source.user.id, verb: "made",
         items: [result.gave], where: `at ${station.emoji} ${station.name}`,

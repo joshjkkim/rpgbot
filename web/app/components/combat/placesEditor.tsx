@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { ColorField, Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
+import Link from "next/link";
 import { PlaceChannelsField } from "@/app/components/ui/pickers";
 import type { CombatConfig } from "./combatEditor";
 import type { PlaceConfig } from "./moveText";
@@ -12,7 +13,7 @@ const FIGHT_STYLES = [
   { value: "channel" as const, label: "Right in the channel" },
 ];
 
-/** Places: the server's channels as its map, each with the enemies met there. */
+/** Places: the server's channels as its map, each with the enemies met there, and the role that opens it. */
 export default function PlacesEditor({ value, onChange }: {
   value: CombatConfig;
   onChange: (next: CombatConfig) => void;
@@ -92,7 +93,7 @@ export default function PlacesEditor({ value, onChange }: {
                   label="Channels"
                   value={place.channelIds ?? []}
                   onChange={(v) => upsert({ ...place, channelIds: v })}
-                  hint="Pick channels, or a 📁 category for every channel in it. A channel picked on its own belongs to that place rather than its category's."
+                  hint={<>Pick channels, or a 📁 category for every channel in it. A channel picked on its own belongs to that place rather than its category&apos;s. To open this place at a Combat level, give a role at that level on <Link href="combat-rules" className="text-[var(--accent)] hover:underline">Combat rules</Link> and hide these channels behind it.</>}
                 />
 
                 <SelectField
@@ -176,3 +177,4 @@ export default function PlacesEditor({ value, onChange }: {
     </div>
   );
 }
+

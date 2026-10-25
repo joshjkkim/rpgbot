@@ -48,6 +48,8 @@ export interface QuestConfig {
     id: string;
     name: string;
     description: string;
+    /** Who gives the quest, and announces it done (config.characters). */
+    characterId?: string;
     conditions: QuestCondition;
     reward?: Record<number, QuestReward>;
     active: boolean;

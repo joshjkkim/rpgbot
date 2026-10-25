@@ -15,6 +15,7 @@ import {
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelField, EnemiesField, ItemField, ItemsField, RoleField } from "@/app/components/ui/pickers";
+import { AnnouncedOn } from "@/app/components/ui/announcedOn";
 
 export type QuestConditionType = "messages" | "vcMinutes" | "spendGold" | "earnXp" | "dailyClaim" | "defeatEnemies" | "winDuels" | "gatherItems" | "craftItems";
 
@@ -50,6 +51,8 @@ export interface QuestConfig {
   active: boolean;
   cooldown: number;
   overrideChannelId?: string | null;
+  /** Who gives it, and announces it done (mirrored from havocish/src/types/quest.ts). */
+  characterId?: string;
   overrideAnnouncement?: string | null;
   requirements?: Requirements;
 }
@@ -72,6 +75,8 @@ type Props = {
   onChange: (next: QuestsConfig) => void;
   /** Skills a requirement can name. */
   skills: SkillOption[];
+  /** The server's characters, so a quest can have a giver. */
+  characters?: Record<string, { name?: string }>;
 };
 
 const CONDITIONS = [
@@ -128,7 +133,7 @@ function normalizeQuests(raw: Record<string, any> | undefined): Record<string, Q
   return out;
 }
 
-export default function QuestsBasicEditor({ value, onChange, shopItems, enemies, skills }: Props) {
+export default function QuestsBasicEditor({ value, onChange, shopItems, enemies, skills, characters = {} }: Props) {
   const [local, setLocal] = useState<QuestsConfig>(() => ({
     ...(value ?? {}),
     quests: normalizeQuests(value?.quests),
@@ -216,6 +221,13 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies,
                     value={quest.description ?? ""}
                     onChange={(v) => upsertQuest({ ...quest, description: v })}
                     rows={2}
+                  />
+                  <SelectField
+                    label="Quest giver"
+                    value={quest.characterId ?? ""}
+                    options={[{ value: "", label: "Nobody: the announcer" }, ...Object.entries(characters).map(([id, c]) => ({ value: id, label: c.name || id }))]}
+                    onChange={(id) => upsertQuest({ ...quest, characterId: id || undefined })}
+                    hint="Announces the quest done, in their name. Make characters on the Characters page."
                   />
                 </FieldGrid>
 
@@ -430,21 +442,7 @@ export default function QuestsBasicEditor({ value, onChange, shopItems, enemies,
         </div>
 
         <div className="mt-4">
-          <FieldGrid>
-            <ChannelField
-              label="Announce channel"
-              value={local.announceAllId ?? ""}
-              onChange={(v) => updateRoot({ announceAllId: v.trim() || null })}
-              emptyLabel="Don't announce"
-            />
-            <TextField
-              label="Announce message"
-              value={local.announceMessage ?? ""}
-              onChange={(v) => updateRoot({ announceMessage: v || null })}
-              placeholder="{user} completed {questName}!"
-              hint="{user} {questName} {questDescription}"
-            />
-          </FieldGrid>
+          <AnnouncedOn what="completed quests" />
         </div>
       </Section>
 

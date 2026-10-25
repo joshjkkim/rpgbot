@@ -1,5 +1,5 @@
 import { dbQuery } from "@/app/lib/db";
-import { STARTER_PACKS, type StarterPack } from "@/app/lib/starterPacks";
+import { STARTER_PACKS, type StarterPack } from "@content/packs";
 
 type Config = Record<string, Record<string, Record<string, unknown>> | undefined>;
 

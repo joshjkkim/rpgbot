@@ -12,7 +12,7 @@ export default function GettingStarted() {
       <DocTitle
         path="getting-started"
         title="Getting started"
-        lead="Add havocish to your server, answer five questions, and your members can start levelling up. About five minutes."
+        lead="Add havocish to your server, run /setup, and your members can start playing. About a minute in Discord, or five on the dashboard."
       />
 
       <H2>Add the bot</H2>
@@ -26,7 +26,8 @@ export default function GettingStarted() {
           ["View Channels, Read Message History", "Seeing the channels it gives XP in and answers commands in."],
           ["Send Messages, Embed Links", "Level-ups, fight results, announcements."],
           ["Attach Files", "Profile cards, level-up banners and item cards are images."],
-          ["Manage Roles", "Roles you hand out at levels, from items and as quest rewards."],
+          ["Manage Roles", "Roles you hand out at levels, from items, as quest rewards, and roles that unlock places."],
+          ["Manage Webhooks", "Characters: villains, quest givers and the shopkeeper post under their own name and picture. Without it they still post, as the bot with their name on top."],
         ]}
       />
       <Note kind="warning">
@@ -34,33 +35,44 @@ export default function GettingStarted() {
         havocish role above every role you want it to hand out.
       </Note>
 
-      <H2>Run the setup wizard</H2>
+      <H2>Set it up</H2>
       <P>
-        When havocish joins, it posts a message with a button to the setup wizard. You can also open it any time from the
-        dashboard&apos;s Overview. It asks five questions and configures the bot from your answers:
+        Run <C>/setup</C> in your server, or press <b>Set up here</b> on the message havocish posts when it joins. Only you
+        see it, and it takes about a minute. The dashboard&apos;s Overview has the same setup if you prefer the website.
       </P>
       <Table
         head={["Question", "What it sets"]}
         rows={[
+          ["Who handles leveling?", "havocish levels members as they chat, or it works beside a leveling bot you already have and runs only the RPG."],
           ["How fast should people level up?", <>The XP per message, the message cooldown, daily rewards and the level curve. <b>Standard</b> (the default) is 5 XP per message, the first level-up after about 16 messages and level 10 after about 1,260.</>],
-          ["Which features do you want?", "Turns the shop, combat, quests and achievements on or off."],
-          ["Where should level-ups go?", "A channel for level-up banners, or the channel the member was chatting in."],
-          ["Which roles at which levels?", "Role rewards, handed out automatically as members level up."],
-          ["Start with a pack?", "Fills your server with ready-made content in one click (see below)."],
+          ["What world should it start with?", "A starter pack (below), or blank to build your own."],
+          ["What do you call money and XP?", "Keep gold and XP, or rename them: credits and rep, coins and stars."],
+          ["Where should level-ups go?", "A channel for level-up banners, or wherever the member was chatting."],
         ]}
       />
-      <P>The wizard never deletes anything you made yourself, so it&apos;s safe to run again later to change the pace.</P>
+      <P>Setup never deletes anything you made yourself, so it&apos;s safe to run again later.</P>
 
-      <H2>Add a starter pack</H2>
-      <P>
-        A starter pack fills your shop, enemies, quests, achievements and gathering activities in one go. <b>Classic
-        Fantasy</b> comes with 16 enemies from giant rats to a lich, gear for every slot, potions, hunting quests, and
-        Mining, Fishing and Foraging with their tools. Find it at <Where>Starter packs</Where>.
-      </P>
+      <H2>Pick a starting world</H2>
+      <Table
+        head={["Pack", "What's in it"]}
+        rows={[
+          [<b key="b">Classic Fantasy</b>, "A tavern-and-dungeon world: giant rats to a lich, the Hollow King as world boss, mining, fishing and foraging, smithing, alchemy and cooking."],
+          [<b key="b">Frontier Station</b>, "A station at the edge of known space: drones to a rogue AI, the Hive Mind as world boss, salvaging, hacking and scanning, a fabricator and a research lab."],
+        ]}
+      />
       <List>
-        <li>A pack <b>never overwrites</b> your own content. Anything with the same ID as yours is skipped.</li>
-        <li>When a pack gets new content, open the page again and click <b>Add to my server</b>. Only the new parts are added.</li>
-        <li>Everything a pack adds is yours to rename, reprice or delete afterwards.</li>
+        <li>Each pack comes with enemies and their moves, places, gear for every slot, gathering and crafting, quests, achievements, collections and a cast of characters.</li>
+        <li>In the <Where>Library</Where> you can add a whole pack, or <b>tick single pieces</b>: one enemy, a crafting station, a quest. Anything a piece needs (an enemy&apos;s moves and drops, a recipe&apos;s ingredients) comes along, and the Library shows the full list before adding.</li>
+        <li>A pack <b>never overwrites</b> your own content: anything with the same ID as yours stays yours. When a pack gets new content, add it again and only the new parts come in.</li>
+        <li>Places need their channels picked (Combat → Places), since a pack can&apos;t know your channels.</li>
+      </List>
+
+      <H2>Make your own</H2>
+      <List>
+        <li><b>Fair numbers in one click:</b> on any enemy, pick a level and a kind (weak, normal, tough, rare elite or world boss) and press <b>Fill in the numbers</b>. Gear does the same from its slot, level and rarity. The numbers follow Classic Fantasy&apos;s balance, and stay editable.</li>
+        <li><b>Make items where you need them:</b> any item list on Combat, Gathering, Crafting or Quests ends with <b>+ New item…</b>, so a drop or ingredient that doesn&apos;t exist yet is one name away.</li>
+        <li><b>Give it voices:</b> make <Link href="/docs/characters" className="text-[var(--accent)] underline">characters</Link> for your villains, quest givers and shopkeeper.</li>
+        <li><b>Open places as members grow:</b> give a role at a Combat or skill level, and hide a place&apos;s channels behind it: they appear when it&apos;s earned (see <Link href="/docs/combat#unlocking-places" className="text-[var(--accent)] underline">Unlocking places</Link>).</li>
       </List>
 
       <H2>Try it</H2>
@@ -89,7 +101,7 @@ export default function GettingStarted() {
       <H2>Who can configure havocish</H2>
       <P>
         The server owner and anyone with <b>Manage Server</b> (or Administrator) can use the dashboard and the manager
-        commands (<C>/config</C>, <C>/admin</C>, <C>/boss summon</C>). Everyone else only sees the player commands.
+        commands (<C>/setup</C>, <C>/config</C>, <C>/admin</C>, <C>/boss</C>). Everyone else only sees the player commands.
       </P>
     </>
   );
