@@ -44,7 +44,7 @@ export default function GettingStarted() {
         head={["Question", "What it sets"]}
         rows={[
           ["Who handles leveling?", "havocish levels members as they chat, or it works beside a leveling bot you already have and runs only the RPG."],
-          ["How fast should people level up?", <>The XP per message, the message cooldown, daily rewards and the level curve. <b>Standard</b> (the default) is 5 XP per message, the first level-up after about 16 messages and level 10 after about 1,260.</>],
+          ["How fast should people level up?", <>The XP per message, the message cooldown, daily rewards and the level curve, and the Combat level curve to match. <b>Standard</b> (the default) is 5 XP per message, the first level-up after about 16 messages and level 10 after about 1,260; in Combat, about 60 fights to Combat 10 and some 12 hours of fighting to Combat 40. Relaxed is about twice as fast, Hardcore about 1.4 times slower.</>],
           ["What world should it start with?", "A starter pack (below), or blank to build your own."],
           ["What do you call money and XP?", "Keep gold and XP, or rename them: credits and rep, coins and stars."],
           ["Where should level-ups go?", "A channel for level-up banners, or wherever the member was chatting."],

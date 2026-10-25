@@ -16,6 +16,8 @@ type PaceSettings = {
   dailyXp: number;
   dailyGold: number;
   curve: { curveType: "polynomial"; curveParams: Record<string, number> };
+  /** The Combat curve's factor at this pace (degree 2.2 like the default): Standard is the default, 15. */
+  combatFactor: number;
 };
 
 export const PACES: Record<Pace, PaceSettings> = {
@@ -24,6 +26,7 @@ export const PACES: Record<Pace, PaceSettings> = {
     blurb: "Levels come quickly. Good for small or casual servers.",
     basePerMessage: 20, xpMessageCooldown: 30, dailyXp: 100, dailyGold: 50,
     curve: { curveType: "polynomial", curveParams: { factor: 100, degree: 2 } },
+    combatFactor: 7.5,
   },
   standard: {
     label: "Standard",
@@ -32,12 +35,14 @@ export const PACES: Record<Pace, PaceSettings> = {
     // stays small so fights, quests and dailies count for something next to it.
     basePerMessage: 5, xpMessageCooldown: 60, dailyXp: 50, dailyGold: 20,
     curve: { curveType: "polynomial", curveParams: { factor: 78, degree: 2 } },
+    combatFactor: 15,
   },
   hardcore: {
     label: "Hardcore",
     blurb: "High levels are rare and mean something. Good for big, active servers.",
     basePerMessage: 10, xpMessageCooldown: 60, dailyXp: 30, dailyGold: 10,
     curve: { curveType: "polynomial", curveParams: { factor: 240, degree: 2.2 } },
+    combatFactor: 21,
   },
 };
 
@@ -92,6 +97,11 @@ export function buildSetup(current: GuildConfigJson | null, a: Answers, packs: S
   const levels = section("levels");
   Object.assign(levels, { curveType: pace.curve.curveType, curveParams: pace.curve.curveParams, xpOverrides: {} });
   levels.announceLevelUpInChannelId = a.levelUpChannelId || null;
+
+  // The pace is the RPG's too: Combat levels come at the same relative speed.
+  const combat = section("combat");
+  const curve = (combat.curve as Record<string, unknown> | undefined) ?? {};
+  combat.curve = { maxLevel: 99, ...curve, curveType: "polynomial", curveParams: { factor: pace.combatFactor, degree: 2.2 } };
 
   // Level roles are added beside existing level actions, never replacing them.
   const actions = { ...((levels.levelActions as Record<number, Array<{ type: string; roleId?: string }>>) ?? {}) };

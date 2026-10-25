@@ -2520,6 +2520,7 @@ async function main() {
         const blank = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
         check("blank adds nothing and leaves the RPG off", [Object.keys(blank.combat.enemies ?? {}).length, blank.combat.enabled], [Object.keys(before.combat.enemies ?? {}).length, false]);
         check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
+        check("and the pace sets Combat's curve too (Relaxed: twice as fast)", blank.combat.curve?.curveParams?.factor, 7.5);
         check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
 
         // Blank on a server that's already playing leaves its switches alone.
