@@ -60,6 +60,10 @@ export default function CombatPageClient({ guildId }: { guildId: string }) {
             <PlacesEditor
               value={combat ?? { enabled: false }}
               onChange={(next) => setConfig((prev) => ({ ...prev, combat: next }))}
+              unlocks={config.unlocks}
+              onUnlocks={(next) => setConfig((prev) => ({ ...prev, unlocks: next }))}
+              skills={skillOptions(config)}
+              items={config.shop?.items ?? {}}
             />
           ) : tab === "moves" ? (
             <MovesEditor
