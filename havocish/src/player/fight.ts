@@ -630,4 +630,10 @@ export async function postResultLine(client: Client, fight: ActiveFight, line: s
         const channel = await client.channels.fetch(channelId);
         if (channel?.isTextBased()) await channel.messages.edit(messageId, { content: line, embeds: [], components: [], allowedMentions: { parse: [] } });
     })());
+    // The fight's thread leaves the channel list once it's over, rather than
+    // after Discord's hour: the line above stays, and opens the thread.
+    await bestEffort("fight thread archive", (async () => {
+        const thread = await client.channels.fetch(fight.channelId);
+        if (thread?.isThread() && !thread.archived) await thread.setArchived(true, "Fight over");
+    })());
 }
