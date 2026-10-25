@@ -44,6 +44,7 @@ import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS } from "../src/content/packs.js";
 import { renderCharacterPane } from "../src/ui/canvas/characterPane.js";
+import { postResultLine } from "../src/player/fight.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
@@ -2582,6 +2583,16 @@ async function main() {
         } as any;
         await checkUnlocks({ client, config, discordUserId: TEST_DISCORD_USER, discordGuildId: TEST_DISCORD_GUILD, fallbackChannelId: "c1" });
         check("the role is given and the place announced", [added, said?.content], ["r-crypt", `🗺️ <@${TEST_DISCORD_USER}> unlocked **⚰️ The Crypt**!`]);
+    });
+
+    await test("a threaded fight's thread leaves the channel list when it ends", async () => {
+        let line: any = null;
+        let archived = false;
+        const client = { channels: { fetch: async (id: string) => id === "chat"
+            ? { isTextBased: () => true, messages: { edit: async (_: string, p: any) => { line = p; } } }
+            : { isThread: () => true, archived: false, setArchived: async (on: boolean) => { archived = on; } } } } as any;
+        await postResultLine(client, { channelId: "thread", origin: { channelId: "chat", messageId: "m" } } as any, "🏆 won");
+        check("the result line is posted and the thread archived", [line?.content, archived], ["🏆 won", true]);
     });
 
     await test("every starter pack is self-contained", async () => {
