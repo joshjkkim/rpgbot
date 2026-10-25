@@ -42,7 +42,8 @@ import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveli
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
-import { STARTER_PACKS } from "../src/content/packs.js";
+import { STARTER_PACKS, applyPack } from "../src/content/packs.js";
+import { packChanges, stableJson } from "../src/content/packHistory.js";
 import { renderCharacterPane } from "../src/ui/canvas/characterPane.js";
 import { postResultLine } from "../src/player/fight.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
@@ -2610,6 +2611,23 @@ async function main() {
             : { isThread: () => true, archived: false, setArchived: async (on: boolean) => { archived = on; } } } } as any;
         await postResultLine(client, { channelId: "thread", origin: { channelId: "chat", messageId: "m" } } as any, "🏆 won");
         check("the result line is posted and the thread archived", [line?.content, archived], ["🏆 won", true]);
+    });
+
+    await test("re-adding a pack updates what the owner never touched, and keeps what they changed", async () => {
+        const pack = STARTER_PACKS.find((p) => p.id === "classic-fantasy")!;
+        const cf = pack.content as any;
+        // A server that added Classic Fantasy before the retune: old prices, one renamed, one repriced by hand.
+        const server: any = { shop: { items: {
+            "knights-chainmail": { ...cf.shop.items["knights-chainmail"], price: 900, name: "Grandpa's Mail" },
+            "knights-helm": { ...cf.shop.items["knights-helm"], price: 1500 },
+        } } };
+        const { updates, kept } = packChanges(server, pack);
+        check("the untouched old price updates; the renamed name and the hand-set price don't", [updates.map((u) => `${u.id}.${u.field}`), kept], [["knights-chainmail.price"], 2]);
+        const { config } = applyPack(server, pack);
+        const items = (config.shop as any).items;
+        check("after adding: the new price, their own name, their own price", [items["knights-chainmail"].price, items["knights-chainmail"].name, items["knights-helm"].price], [cf.shop.items["knights-chainmail"].price, "Grandpa's Mail", 1500]);
+        check("adding again changes nothing more", packChanges(config, pack).updates.length, 0);
+        check("values compare whatever their key order", stableJson({ b: 1, a: [{ d: 2, c: 3 }] }), stableJson({ a: [{ c: 3, d: 2 }], b: 1 }));
     });
 
     await test("every starter pack is self-contained", async () => {

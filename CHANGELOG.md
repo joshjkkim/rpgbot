@@ -5,6 +5,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### Improved
+- **Starter packs update without undoing your work.** Adding a pack you already have now brings its latest numbers to everything you haven't changed, and keeps anything you edited exactly as you left it. The Library says how much will update and how much it keeps before you add. Add Classic Fantasy or Frontier Station again to get this update's new balance.
 - **Gold is worth chasing.** In both starter packs, late gear costs more (about double by Combat 40), crafting costs a little gold, and collections and quests pay more in items and XP than in gold. Fighting alone no longer buys everything; gathering, crafting and questing do their part.
 - **`/me` draws your character.** A character pane like the classic RPGs: your avatar with your gear in slots around it, each in its rarity's colour, and your Combat level, HP and XP. Wounded shows on your portrait. Server owners can turn it off on Style.
 - **`/me` catches up with Combat v2.** Your character sheet now shows your four fight moves, your title from gear next to your name, and when you're Wounded (and when it wears off). New **Moves** and **Collection** buttons sit beside Inventory and Change gear.

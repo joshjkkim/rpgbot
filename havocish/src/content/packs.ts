@@ -1,5 +1,8 @@
 import classicFantasy from "./packs/classic-fantasy.json" with { type: "json" };
 import frontierStation from "./packs/frontier-station.json" with { type: "json" };
+import classicFantasyHistory from "./packs/classic-fantasy.history.json" with { type: "json" };
+import frontierStationHistory from "./packs/frontier-station.history.json" with { type: "json" };
+import { packChanges, type PackHistory } from "./packHistory.ts";
 
 /** Guild config as the dashboard holds it: untyped JSON, section by section. */
 export type GuildConfigJson = Record<string, (Record<string, unknown> & { enabled?: boolean }) | undefined>;
@@ -17,6 +20,8 @@ export type StarterPack = {
   description: string;
   /** One short line (Discord menus cut at 100 characters). */
   tagline?: string;
+  /** Past values of every field, so re-adding updates what the owner never touched (packHistory.ts). */
+  history?: PackHistory;
   content: {
     shop: {
       categories: Record<string, Named & { icon?: string }>;
@@ -44,7 +49,10 @@ export type StarterPack = {
   };
 };
 
-export const STARTER_PACKS: StarterPack[] = [classicFantasy as StarterPack, frontierStation as StarterPack];
+export const STARTER_PACKS: StarterPack[] = [
+  { ...(classicFantasy as StarterPack), history: classicFantasyHistory as PackHistory },
+  { ...(frontierStation as StarterPack), history: frontierStationHistory as PackHistory },
+];
 
 /** Where pack content lands in the guild config: [section, map]. */
 const TARGETS = [
@@ -170,7 +178,7 @@ export function missingCount(config: GuildConfigJson | null, pack: StarterPack) 
     (n, [section, map]) =>
       n + Object.keys(packMap(pack, section, map)).filter((id) => !hasEntry(config, section, map, id)).length,
     0
-  ) + fillsFor(config, pack).length + listAddsFor(config, pack).length;
+  ) + fillsFor(config, pack).length + listAddsFor(config, pack).length + packChanges(config, pack).updates.length;
 }
 
 /**
@@ -191,6 +199,11 @@ export function applyPack(config: GuildConfigJson | null, pack: StarterPack) {
   }
   for (const fill of fillsFor(next, pack)) {
     setPath(fill.entry, fill.path, fill.value);
+    added++;
+  }
+  // Fields the owner never touched follow the pack's new values; edited ones stay theirs.
+  for (const u of packChanges(next, pack).updates) {
+    u.entry[u.field] = structuredClone(u.value);
     added++;
   }
   for (const add of listAddsFor(config, pack, next)) {
