@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
+import { logUsage } from "@/app/lib/aiUsage";
 import { buildPack, parseSkeleton, SKELETON_PROMPT } from "@content/aiPack";
 import type { StarterPack } from "@content/packs";
 
@@ -67,6 +68,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
       return null;
     });
 
+  if (message) await logUsage(guildId, "builder", message);
   const text = message?.content.find((b) => b.type === "text")?.text;
   if (!message || message.stop_reason === "refusal" || message.stop_reason === "max_tokens" || !text) {
     const why = message?.stop_reason === "refusal" ? "That description couldn't be used. Try describing it another way." : "Something went wrong making your world. Try again.";

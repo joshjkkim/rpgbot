@@ -231,6 +231,22 @@ CREATE TABLE IF NOT EXISTS public.ai_packs (
 
 CREATE INDEX IF NOT EXISTS ai_packs_guild_idx ON public.ai_packs (discord_guild_id);
 
+-- ─── ai_usage ────────────────────────────────────────────────────────────────
+-- One row per AI model call, with its tokens: cost per server, and the
+-- helper's daily cap. See migrations/007_ai_usage.sql.
+
+CREATE TABLE IF NOT EXISTS public.ai_usage (
+    id               BIGSERIAL   PRIMARY KEY,
+    discord_guild_id BIGINT      NOT NULL,
+    kind             TEXT        NOT NULL,
+    model            TEXT        NOT NULL,
+    input_tokens     INTEGER     NOT NULL,
+    output_tokens    INTEGER     NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ai_usage_guild_idx ON public.ai_usage (discord_guild_id, created_at);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed

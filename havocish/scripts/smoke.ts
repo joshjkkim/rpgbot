@@ -51,6 +51,7 @@ import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
+import { applyChanges, cleanChanges, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
 import { EmbedBuilder } from "discord.js";
@@ -2772,6 +2773,26 @@ async function main() {
         const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');
         check("a loose reply still builds", Object.keys(buildPack(loose!, "x").content.combat.enemies), ["ant"]);
         check("a reply with no JSON is refused", parseSkeleton("Sorry, I can't."), null);
+    });
+
+    await test("the helper's changes are checked, then applied on a copy", async () => {
+        const config: any = { combat: { enabled: true, places: { forest: { id: "forest", channelIds: ["1"] } } }, style: "odd" };
+        const changes = cleanChanges([
+            { path: ["combat", "places", "forest", "channelIds"], value: ["2"] },
+            { path: ["unlocks", "list", "vet"], value: { id: "vet", roleId: "9", requirements: { combatLevel: 20 } } },
+            { path: ["combat", "enabled"] },
+            { path: ["combat"], value: {} },
+            { path: ["__proto__", "x"], value: 1 },
+            { path: ["style", "x"], value: 1 },
+            "nonsense",
+        ], config);
+        check("bad paths are dropped", changes.map((c) => c.path.join(".")), ["combat.places.forest.channelIds", "unlocks.list.vet", "combat.enabled"]);
+        const next: any = applyChanges(config, changes);
+        check("a field is set", next.combat.places.forest.channelIds, ["2"]);
+        check("a new section is made as needed", next.unlocks.list.vet.requirements.combatLevel, 20);
+        check("a missing value deletes", "enabled" in next.combat, false);
+        check("the original is untouched", [config.combat.places.forest.channelIds, config.combat.enabled], [["1"], true]);
+        check("old values can be shown", valueAt(config, ["combat", "places", "forest", "channelIds"]), ["1"]);
     });
 
     await test("the content library adds one entry and what it needs", async () => {

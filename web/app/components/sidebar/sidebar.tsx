@@ -15,6 +15,7 @@ const sections: Array<{ label: string; tabs: Array<{ href: string; label: string
         tabs: [
             { href: "", label: "Overview", sprite: "map" },
             { href: "presets", label: "Library", sprite: "bag" },
+            { href: "helper", label: "Helper", sprite: "hood" },
         ],
     },
     {
