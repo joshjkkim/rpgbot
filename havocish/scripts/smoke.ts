@@ -50,6 +50,7 @@ import { postResultLine } from "../src/player/fight.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
+import { buildPack, type Skeleton } from "../src/content/aiPack.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
 import { EmbedBuilder } from "discord.js";
@@ -2687,6 +2688,55 @@ async function main() {
             check(`${pack.name}: every reference resolves`, broken, []);
         }
         check("pack ids are unique", new Set(STARTER_PACKS.map((p) => p.id)).size, STARTER_PACKS.length);
+    });
+
+    await test("an AI-written world becomes a balanced, self-contained pack", async () => {
+        const w = (name: string, emoji = "✨") => ({ name, emoji });
+        const skeleton: Skeleton = {
+            name: "Drowned City", tagline: "Salvage divers", description: "Under the lighthouse.",
+            shopkeeper: w("Old Hesk"), announcer: w("The Keeper"),
+            categories: { gear: w("Diving Kit"), potions: w("Tonics"), materials: w("Salvage") },
+            statuses: { poison: w("Brine-sick"), weaken: w("Waterlogged"), enrage: w("Frenzied") },
+            moves: [
+                { ...w("Snap"), key: "snap", telegraph: "opens its jaws.", kind: "strike" },
+                { ...w("Ink Cloud"), key: "ink", telegraph: "puffs up…", kind: "poison" },
+                { ...w("Bad Move"), key: "bad", telegraph: "", kind: "explode" as any },
+            ],
+            materials: [{ ...w("Pearl"), key: "pearl", description: "Shiny." }],
+            gear: [
+                { ...w("Rusty Harpoon"), description: "", slot: "weapon", level: 1, rarity: "common" },
+                { ...w("Deep Harpoon"), description: "", slot: "weapon", level: 99, rarity: "rare" },
+                { ...w("Rusty Harpoon"), description: "", slot: "head", level: 5, rarity: "common" },
+            ],
+            potions: [{ ...w("Kelp Tonic"), description: "", level: 1 }],
+            places: [{ ...w("The Shallows"), key: "shallows", arrival: "drifts closer" }, { ...w("Empty Reef"), key: "empty", arrival: "" }],
+            enemies: [
+                { ...w("Crab"), key: "crab", level: 2, role: "weak", place: "shallows", moves: ["snap", "nope", "bad"], drops: ["pearl", "nope"] },
+                { ...w("Eel"), key: "eel", level: 0, role: "elite", place: "nowhere", moves: ["ink"], drops: [] },
+                { ...w("The Leviathan"), key: "lev", level: 30, role: "boss", place: "shallows", moves: ["snap"], drops: ["pearl"] },
+            ],
+            quests: [{ name: "Crab Season", description: "", enemy: "crab", count: 500 }, { name: "Ghosts", description: "", enemy: "ghost", count: 3 }],
+        };
+        const pack = buildPack(skeleton, "ai-test");
+        const c = pack.content as any;
+        const broken: string[] = [];
+        for (const kind of Object.keys(KINDS) as Kind[]) {
+            const [section, map] = KINDS[kind];
+            for (const [id, entry] of Object.entries((c[section]?.[map] ?? {}) as Record<string, any>)) {
+                for (const ref of refsOf(kind, entry)) if (!entryOf(c, ref)) broken.push(`${kind}:${id} -> ${ref.kind}:${ref.id}`);
+            }
+        }
+        check("every reference resolves", broken, []);
+        check("a move of an unknown kind is dropped", Object.keys(c.combat.moves), ["snap", "ink-cloud"]);
+        check("unknown keys are dropped", c.combat.enemies.crab.moves, [{ moveId: "snap", weight: 3 }]);
+        check("numbers come from the balance tables", c.combat.enemies.crab.hp, enemyPreset(2, "weak").hp);
+        check("levels are clamped", [c.combat.enemies.eel.minLevel, c.shop.items["deep-harpoon"].minLevel], [1, 40]);
+        check("names that repeat get their own ids", Object.keys(c.shop.items).filter((k) => k.startsWith("rusty-harpoon")), ["rusty-harpoon", "rusty-harpoon-2"]);
+        check("an enemy in an unknown place goes to one by its level", c.combat.places["the-shallows"].enemies.map((e: any) => e.enemyId), ["crab", "eel"]);
+        check("the boss lives in no place, and empty places are dropped", Object.keys(c.combat.places), ["the-shallows"]);
+        check("a quest for an unknown enemy is dropped, counts clamped", Object.values(c.quests.quests).map((q: any) => q.conditions.target), [20]);
+        check("the shop has its characters", [c.characters.shopkeeperId, c.characters.announcerId], ["old-hesk", "the-keeper"]);
+        check("it adds like any pack", addEntries(null, c, [{ kind: "enemies", id: "crab" }]).added.length > 1, true);
     });
 
     await test("the content library adds one entry and what it needs", async () => {

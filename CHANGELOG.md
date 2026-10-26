@@ -11,6 +11,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **Combat levels take a few hours, not one.** Since Combat v2, the starter packs' enemies gave so much XP that Combat 10 came after about 30 fights. Enemies now give half the XP (and half the gold, so gold still matches gear): about 60 fights to Combat 10 and some 12 hours of fighting to Combat 40 at the Standard pace. Quest, collection and achievement XP follow. Add your starter pack again in the Library to get it.
 
 ### For server owners
+- **Make your own world with AI.** On the Library page, describe the world your server plays in (a drowned city, a haunted orchard, a space station) and get a pack written for it: enemies with their own moves, places, gear for every slot, potions, loot, a world boss and hunting quests. The AI writes the words; every number comes from the same balance tables as the starter packs. Add it whole or piece by piece, and edit anything after. Each server can make 3 worlds for now.
 - **Gear upgrades are yours to tune.** On the Shop page: turn them on or off, rename them (Enhance, Overclock…), set the chance of each step and how many there are, what each + adds, the gold cost, the strike bonus, and an optional material, so gathering has another use.
 - **The pace in `/setup` covers Combat too.** Relaxed, Standard and Hardcore now set how fast Combat levels come, not just chat levels: Relaxed about twice as fast, Hardcore about 1.4 times slower.
 

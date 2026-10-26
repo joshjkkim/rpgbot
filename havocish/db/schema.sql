@@ -217,6 +217,20 @@ CREATE TABLE IF NOT EXISTS public.character_images (
 
 CREATE INDEX IF NOT EXISTS character_images_guild_idx ON public.character_images (discord_guild_id);
 
+-- ─── ai_packs ────────────────────────────────────────────────────────────────
+-- Worlds made with the AI builder, one row per generation. See
+-- migrations/006_ai_packs.sql.
+
+CREATE TABLE IF NOT EXISTS public.ai_packs (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    discord_guild_id BIGINT      NOT NULL,
+    prompt           TEXT        NOT NULL,
+    pack             JSONB       NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ai_packs_guild_idx ON public.ai_packs (discord_guild_id);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed
