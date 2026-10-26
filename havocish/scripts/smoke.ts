@@ -2695,7 +2695,7 @@ async function main() {
         const skeleton: Skeleton = {
             name: "Drowned City", tagline: "Salvage divers", description: "Under the lighthouse.",
             shopkeeper: w("Old Hesk"), announcer: w("The Keeper"),
-            categories: { gear: w("Diving Kit"), potions: w("Tonics"), materials: w("Salvage") },
+            categories: { gear: w("Diving Kit"), potions: w("Tonics"), materials: w("Salvage"), tools: w("Tools") },
             statuses: { poison: w("Brine-sick"), weaken: w("Waterlogged"), enrage: w("Frenzied") },
             moves: [
                 { ...w("Snap"), key: "snap", telegraph: "opens its jaws.", kind: "strike" },
@@ -2704,11 +2704,11 @@ async function main() {
             ],
             materials: [{ ...w("Pearl"), key: "pearl", description: "Shiny." }],
             gear: [
-                { ...w("Rusty Harpoon"), description: "", slot: "weapon", level: 1, rarity: "common" },
-                { ...w("Deep Harpoon"), description: "", slot: "weapon", level: 99, rarity: "rare" },
-                { ...w("Rusty Harpoon"), description: "", slot: "head", level: 5, rarity: "common" },
+                { ...w("Rusty Harpoon"), key: "h1", description: "", slot: "weapon", level: 1, rarity: "common" },
+                { ...w("Deep Harpoon"), key: "h2", description: "", slot: "weapon", level: 99, rarity: "rare", crafted: true },
+                { ...w("Rusty Harpoon"), key: "h3", description: "", slot: "head", level: 5, rarity: "common" },
             ],
-            potions: [{ ...w("Kelp Tonic"), description: "", level: 1 }],
+            potions: [{ ...w("Kelp Tonic"), key: "tonic", description: "", level: 1 }],
             places: [{ ...w("The Shallows"), key: "shallows", arrival: "drifts closer" }, { ...w("Empty Reef"), key: "empty", arrival: "" }],
             enemies: [
                 { ...w("Crab"), key: "crab", level: 2, role: "weak", place: "shallows", moves: ["snap", "nope", "bad"], drops: ["pearl", "nope"] },
@@ -2716,6 +2716,22 @@ async function main() {
                 { ...w("The Leviathan"), key: "lev", level: 30, role: "boss", place: "shallows", moves: ["snap"], drops: ["pearl"] },
             ],
             quests: [{ name: "Crab Season", description: "", enemy: "crab", count: 500 }, { name: "Ghosts", description: "", enemy: "ghost", count: 3 }],
+            activities: [
+                {
+                    ...w("Diving"), skillName: "Diving", game: "grid", words: { tile: "🫧", leave: "Surface", hazard: "" },
+                    tools: [{ ...w("Lead Weights"), description: "" }],
+                    locations: [
+                        { ...w("Pier"), finds: [{ ...w("Shell"), key: "shell", description: "" }, { ...w("Rope"), key: "rope", description: "" }, { ...w("Black Pearl"), key: "bp", description: "" }] },
+                        { ...w("Wreck"), finds: [{ ...w("Brass"), key: "brass", description: "" }] },
+                        { ...w("Trench"), finds: [{ ...w("Ooze"), key: "ooze", description: "" }] },
+                    ],
+                },
+                { ...w("Dancing"), skillName: "", game: "dance", words: {}, tools: [], locations: [] },
+            ],
+            stations: [{
+                ...w("Workbench"), skillName: "Tinkering", style: "forge", words: { craft: "Tinker", forging: "" },
+                recipes: [{ makes: "h2", uses: ["brass", "bp", "pearl", "nope"] }, { makes: "h2", uses: ["shell"] }, { makes: "ghost", uses: ["shell"] }, { makes: "tonic", uses: [] }],
+            }],
         };
         const pack = buildPack(skeleton, "ai-test");
         const c = pack.content as any;
@@ -2737,6 +2753,20 @@ async function main() {
         check("a quest for an unknown enemy is dropped, counts clamped", Object.values(c.quests.quests).map((q: any) => q.conditions.target), [20]);
         check("the shop has its characters", [c.characters.shopkeeperId, c.characters.announcerId], ["old-hesk", "the-keeper"]);
         check("it adds like any pack", addEntries(null, c, [{ kind: "enemies", id: "crab" }]).added.length > 1, true);
+        const diving = c.gathering.activities.diving;
+        check("an unknown minigame is dropped", Object.keys(c.gathering.activities), ["diving"]);
+        check("minigame words fill in what the model left out", [diving.words.tile, diving.words.leave, diving.words.hazard, diving.words.verb], ["🫧", "Surface", "💥", "mined"]);
+        check("locations take Classic Fantasy's numbers by tier", [diving.locations.pier.minSkill, diving.locations.wreck.minSkill, diving.locations.trench.minSkill], [1, 15, 30]);
+        check("a location never needs a better tool than there is", [diving.locations.wreck.minToolTier, diving.locations.trench.minToolTier], [1, undefined]);
+        check("the third find is the rare one", diving.locations.pier.loot.map((l: any) => l.chance), [40, 50, 10]);
+        check("tools point at their activity", c.shop.items["lead-weights"].tool, { activityId: "diving", tier: 1, bonus: 1 });
+        const bench = c.crafting.stations.workbench;
+        check("one recipe per output, from known inputs only", Object.keys(bench.recipes), ["deep-harpoon"]);
+        check("a rare find is needed once", bench.recipes["deep-harpoon"].inputs, [{ itemId: "brass", quantity: 10 }, { itemId: "black-pearl", quantity: 1 }, { itemId: "pearl", quantity: 5 }]);
+        check("crafted-only gear leaves the shop", [c.shop.items["deep-harpoon"].price, c.shop.items["deep-harpoon"].hidden], [0, true]);
+        check("station words fill in what's left out", [bench.words.craft, bench.words.forging], ["Tinker", "Forging"]);
+        const find = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "find", words: { prompt: "Look for it!" } }] }, "x").content.gathering!.activities.diving as any;
+        check("words that drop a {placeholder} keep the default", find.words.prompt, "Search the undergrowth for the {target}!");
         check("apostrophes don't split ids", Object.keys(buildPack({ ...skeleton, materials: [{ ...w("Keeper's Relic"), key: "r", description: "" }] }, "x").content.shop.items).includes("keepers-relic"), true);
         // Replies aren't schema-checked: wrapped in prose, or missing whole parts, they still build.
         const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');
