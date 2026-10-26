@@ -50,7 +50,7 @@ import { postResultLine } from "../src/player/fight.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
-import { buildPack, type Skeleton } from "../src/content/aiPack.js";
+import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
 import { EmbedBuilder } from "discord.js";
@@ -2737,6 +2737,11 @@ async function main() {
         check("a quest for an unknown enemy is dropped, counts clamped", Object.values(c.quests.quests).map((q: any) => q.conditions.target), [20]);
         check("the shop has its characters", [c.characters.shopkeeperId, c.characters.announcerId], ["old-hesk", "the-keeper"]);
         check("it adds like any pack", addEntries(null, c, [{ kind: "enemies", id: "crab" }]).added.length > 1, true);
+        check("apostrophes don't split ids", Object.keys(buildPack({ ...skeleton, materials: [{ ...w("Keeper's Relic"), key: "r", description: "" }] }, "x").content.shop.items).includes("keepers-relic"), true);
+        // Replies aren't schema-checked: wrapped in prose, or missing whole parts, they still build.
+        const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');
+        check("a loose reply still builds", Object.keys(buildPack(loose!, "x").content.combat.enemies), ["ant"]);
+        check("a reply with no JSON is refused", parseSkeleton("Sorry, I can't."), null);
     });
 
     await test("the content library adds one entry and what it needs", async () => {

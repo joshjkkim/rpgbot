@@ -35,27 +35,6 @@ export type Skeleton = {
     quests: Array<{ name: string; description: string; enemy: string; count: number }>;
 };
 
-const words = { type: "object", additionalProperties: false, required: ["name", "emoji"], properties: { name: { type: "string" }, emoji: { type: "string" } } };
-const obj = (props: Record<string, unknown>) => ({ type: "object", additionalProperties: false, required: Object.keys(props), properties: props });
-const list = (props: Record<string, unknown>) => ({ type: "array", items: obj({ name: { type: "string" }, emoji: { type: "string" }, ...props }) });
-const str = { type: "string" };
-const int = { type: "integer" };
-
-/** Skeleton as a JSON schema, for structured outputs. Counts and ranges are in the prompt and clamped here. */
-export const SKELETON_SCHEMA = obj({
-    name: str, tagline: str, description: str,
-    shopkeeper: words, announcer: words,
-    categories: obj({ gear: words, potions: words, materials: words }),
-    statuses: obj({ poison: words, weaken: words, enrage: words }),
-    moves: list({ key: str, telegraph: str, kind: { type: "string", enum: MOVE_KINDS } }),
-    materials: list({ key: str, description: str }),
-    gear: list({ description: str, slot: { type: "string", enum: SLOTS }, level: int, rarity: { type: "string", enum: RARITIES } }),
-    potions: list({ description: str, level: int }),
-    places: list({ key: str, arrival: str }),
-    enemies: list({ key: str, level: int, role: { type: "string", enum: ROLES }, place: str, moves: { type: "array", items: str }, drops: { type: "array", items: str } }),
-    quests: { type: "array", items: obj({ name: str, description: str, enemy: str, count: int }) },
-});
-
 export const SKELETON_PROMPT = `You write the content for a Discord RPG server from the owner's description of their world.
 Players chat, fight enemies turn by turn (/fight), buy gear and potions (/shop), and do hunting quests. Combat levels run 1 to 40.
 
@@ -64,20 +43,54 @@ Write only words and choices; the game fills in every number from balanced table
 Make, roughly:
 - 8 to 12 moves. Kinds: strike (a plain hit), heavy (a big slow hit), quick (strikes first), poison (damage over time), weaken (lowers attack), enrage (raises its own attack), guard (blocks and counters), stun.
 - 6 to 10 materials enemies drop, sold for gold.
-- 14 to 20 pieces of gear across the slots, from level 1 to 40, rarer as levels rise, so each slot gets an upgrade every 10 or so levels.
+- 14 to 20 pieces of gear across the slots (weapon, head, body, legs, hands, feet, shield, accessory), rarity common, uncommon, rare, epic or legendary, from level 1 to 40, rarer as levels rise, so each slot gets an upgrade every 10 or so levels.
 - 3 potions that heal, at about levels 1, 15 and 30.
 - 3 to 5 places, from the first one beginners fight in to the most dangerous.
-- 12 to 16 enemies spread from level 1 to 40, each in a place, with 1 to 3 of the moves and 1 or 2 of the materials (by key). Mostly weak, normal and tough; a couple of elites (rare); exactly one world boss (role boss, level 30 or so) that the whole server fights together.
+- 12 to 16 enemies spread from level 1 to 40, each in a place, with 1 to 3 of the moves and 1 or 2 of the materials (by key). Roles: weak, normal, tough, elite, boss. Mostly weak, normal and tough; a couple of elites (rare); exactly one world boss (role boss, level 30 or so) that the whole server fights together.
 - 3 to 5 hunting quests: defeat some number (3 to 20) of one enemy (by key).
-Keys are short lowercase words you make up to link things together. Emoji are single standard emoji.`;
+Keys are short lowercase words you make up to link things together. Emoji are single standard emoji.
+
+Reply with only a JSON object, no other text, shaped like this (lists shortened):
+{"name":"","tagline":"one line","description":"two or three sentences",
+"shopkeeper":{"name":"","emoji":""},"announcer":{"name":"","emoji":""},
+"categories":{"gear":{"name":"","emoji":""},"potions":{"name":"","emoji":""},"materials":{"name":"","emoji":""}},
+"statuses":{"poison":{"name":"","emoji":""},"weaken":{"name":"","emoji":""},"enrage":{"name":"","emoji":""}},
+"moves":[{"key":"","name":"","emoji":"","telegraph":"","kind":"strike"}],
+"materials":[{"key":"","name":"","emoji":"","description":""}],
+"gear":[{"name":"","emoji":"","description":"","slot":"weapon","level":1,"rarity":"common"}],
+"potions":[{"name":"","emoji":"","description":"","level":1}],
+"places":[{"key":"","name":"","emoji":"","arrival":"what an enemy does as it appears, e.g. drifts out of the murk"}],
+"enemies":[{"key":"","name":"","emoji":"","level":1,"role":"weak","place":"","moves":[""],"drops":[""]}],
+"quests":[{"name":"","description":"","enemy":"","count":5}]}`;
+
+/** The model's reply as a Skeleton, whatever shape it came in: missing parts become empty, so buildPack never trips on them. */
+export function parseSkeleton(reply: string): Skeleton | null {
+    const json = reply.slice(reply.indexOf("{"), reply.lastIndexOf("}") + 1);
+    let raw: unknown;
+    try { raw = JSON.parse(json); } catch { return null; }
+    const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? v : {}) as Record<string, any>;
+    const arr = (v: unknown) => (Array.isArray(v) ? v : []).map(obj);
+    const strs = (v: unknown) => (Array.isArray(v) ? v : []).map(String);
+    const r = obj(raw);
+    const group = (v: unknown, keys: string[]) => Object.fromEntries(keys.map((k) => [k, obj(obj(v)[k])]));
+    return {
+        ...r,
+        shopkeeper: obj(r.shopkeeper), announcer: obj(r.announcer),
+        categories: group(r.categories, ["gear", "potions", "materials"]),
+        statuses: group(r.statuses, ["poison", "weaken", "enrage"]),
+        moves: arr(r.moves), materials: arr(r.materials), gear: arr(r.gear), potions: arr(r.potions), places: arr(r.places),
+        enemies: arr(r.enemies).map((e) => ({ ...e, moves: strs(e.moves), drops: strs(e.drops) })),
+        quests: arr(r.quests),
+    } as Skeleton;
+}
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(n) || lo)));
 
 /** A lowercase id from a name, unique within the pack. */
 function ids() {
     const used = new Set<string>();
-    return (name: string, fallback: string) => {
-        const base = name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || fallback;
+    return (name: unknown, fallback: string) => {
+        const base = String(name ?? "").toLowerCase().normalize("NFKD").replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || fallback;
         let id = base;
         for (let i = 2; used.has(id); i++) id = `${base}-${i}`;
         used.add(id);
@@ -106,14 +119,14 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
     const emoji = (v: unknown, fallback: string) => text(v, 16) || fallback;
 
     const cats = {
-        gear: { id: id(s.categories.gear.name, "gear"), name: text(s.categories.gear.name, 40), icon: emoji(s.categories.gear.emoji, "⚔️"), sortOrder: 0 },
-        potions: { id: id(s.categories.potions.name, "potions"), name: text(s.categories.potions.name, 40), icon: emoji(s.categories.potions.emoji, "🧪"), sortOrder: 1 },
-        materials: { id: id(s.categories.materials.name, "materials"), name: text(s.categories.materials.name, 40), icon: emoji(s.categories.materials.emoji, "🧺"), sortOrder: 2 },
+        gear: { id: id(s.categories.gear.name, "gear"), name: text(s.categories.gear.name, 40) || "Gear", icon: emoji(s.categories.gear.emoji, "⚔️"), sortOrder: 0 },
+        potions: { id: id(s.categories.potions.name, "potions"), name: text(s.categories.potions.name, 40) || "Potions", icon: emoji(s.categories.potions.emoji, "🧪"), sortOrder: 1 },
+        materials: { id: id(s.categories.materials.name, "materials"), name: text(s.categories.materials.name, 40) || "Materials", icon: emoji(s.categories.materials.emoji, "🧺"), sortOrder: 2 },
     };
 
     const statuses = Object.fromEntries((Object.keys(STATUS_IDS) as Array<keyof typeof STATUS_IDS>).map((k) => {
         const base = { poison: { hpPercentPerTurn: -4 }, weaken: { hpPercentPerTurn: 0, stats: { atk: -25 } }, enrage: { hpPercentPerTurn: 0, stats: { atk: 40, def: -20 } } }[k];
-        return [STATUS_IDS[k], { id: STATUS_IDS[k], name: text(s.statuses[k].name, 40), emoji: emoji(s.statuses[k].emoji, "✨"), ...base }];
+        return [STATUS_IDS[k], { id: STATUS_IDS[k], name: text(s.statuses[k].name, 40) || STATUS_IDS[k], emoji: emoji(s.statuses[k].emoji, "✨"), ...base }];
     }));
 
     const moveIds = new Map<string, string>();
@@ -125,7 +138,10 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
         moves[mid] = { id: mid, name: text(m.name, 40), emoji: emoji(m.emoji, "⚔️"), telegraph: text(m.telegraph, 80), ...structuredClone(MOVE_EFFECTS[m.kind]) };
     }
 
-    const enemies = s.enemies.slice(0, 24).map((e) => ({ ...e, level: e.role === "boss" ? clamp(e.level, 10, 40) : clamp(e.level, 1, 40) }));
+    const enemies = s.enemies.slice(0, 24).map((e) => {
+        const role: EnemyRole = ROLES.includes(e.role) ? e.role : "normal";
+        return { ...e, role, level: role === "boss" ? clamp(e.level, 10, 40) : clamp(e.level, 1, 40) };
+    });
     // Where each material first drops sets what it sells for.
     const dropLevel = new Map<string, number>();
     for (const e of enemies) for (const d of e.drops) if (e.role !== "boss") dropLevel.set(d, Math.min(dropLevel.get(d) ?? 99, e.level));
@@ -185,7 +201,7 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
     const enemyMap: Record<string, unknown> = {};
     for (const e of enemies) {
         const eid = id(e.name, "enemy");
-        const role = ROLES.includes(e.role) ? e.role : "normal";
+        const role = e.role;
         const n = enemyPreset(e.level, role);
         enemyIds.set(e.key, { id: eid, xp: n.xpReward, gold: n.goldReward });
         const own = e.moves.map((k) => moveIds.get(k)).filter((m): m is string => !!m);

@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
-import { buildPack, SKELETON_PROMPT, SKELETON_SCHEMA, type Skeleton } from "@content/aiPack";
+import { buildPack, parseSkeleton, SKELETON_PROMPT } from "@content/aiPack";
 import type { StarterPack } from "@content/packs";
 
 export const runtime = "nodejs";
@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       thinking: { type: "adaptive" },
-      output_config: { effort: "low", format: { type: "json_schema", schema: SKELETON_SCHEMA } },
+      output_config: { effort: "low" },
       system: SKELETON_PROMPT,
       messages: [{ role: "user", content: prompt }],
     })
@@ -73,12 +73,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     return NextResponse.json({ error: "generation_failed", message: why }, { status: 502 });
   }
 
-  let skeleton: Skeleton;
-  try {
-    skeleton = JSON.parse(text) as Skeleton;
-  } catch {
-    return NextResponse.json({ error: "generation_failed", message: "Something went wrong making your world. Try again." }, { status: 502 });
-  }
+  // The schema is too big for structured outputs, so the reply is read leniently and buildPack checks every part.
+  const skeleton = parseSkeleton(text);
+  if (!skeleton) return NextResponse.json({ error: "generation_failed", message: "Something went wrong making your world. Try again." }, { status: 502 });
   const id = randomUUID();
   const pack = buildPack(skeleton, `ai-${id}`);
   await dbQuery(`INSERT INTO ai_packs (id, discord_guild_id, prompt, pack) VALUES ($1, $2, $3, $4)`, [id, guildId, prompt, JSON.stringify(pack)]);
