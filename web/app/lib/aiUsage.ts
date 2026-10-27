@@ -23,7 +23,7 @@ export async function helperCallsToday(guildId: string): Promise<number> {
 const PRICES: Record<string, [number, number]> = {
     "claude-opus-5-5": [4, 20],
     "claude-sonnet-5-5": [2, 10],
-    "claude-haiku-5-5": [0.1, 0.5],
+    "claude-haiku-5-5": [1, 5],
 };
 
 /** Every server together can spend this much a day on AI; past it, new requests wait for tomorrow. */
