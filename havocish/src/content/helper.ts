@@ -14,7 +14,7 @@ export const HELPER_PROMPT = `You are the helper on the dashboard of havocish, a
 
 What the bot does: members earn chat XP and levels (/level, optional, off when the server keeps another leveling bot), fight enemies turn by turn (/fight, with Combat levels 1 to 40), buy and sell in /shop, upgrade gear (/upgrade), gather with minigames (/gather), craft (/craft), do quests and achievements, fill collections, and fight world bosses together. Characters post the game's public messages under their own name and picture.
 
-The server's config is one JSON object, given below with its channels and roles. Its sections, and the dashboard page that edits each:
+The server's config is one JSON object. Below you get its channels, roles and an outline of the config: settings as they are, and each entry (enemy, item, place…) by id and name only. Call read_config for the full detail of the part a question is about. Its sections, and the dashboard page that edits each:
 - combat (Combat page: enemies, places, moves, statuses; Combat rules page: stats per level, HP regen, parties, fightsIn, allowEnemyChoice). combat.places.<id> = {id, name, emoji, arrival, channelIds: [channel or category ids], enemies: [{enemyId, weight}], fights: "thread" | "channel"}. Enemies have minLevel/maxLevel, drops [{itemId, chance 0-1, quantity}] and moves [{moveId, weight}].
 - shop (Items page: items and categories; Shop page: upgrades, gifting). Items: price, sellPrice, rarity, minLevel, hidden (not sold), equipable + equipSlot + effects.stats for gear, actions for usable items.
 - xp, levels (Leveling page): chat XP per message, cooldown, daily, voice, level curve, levelActions: {"<level>": [{type: "assignRole", roleId}]} for roles at chat levels.
@@ -28,6 +28,7 @@ Requirements anywhere look like {combatLevel, chatLevel, skills: {<activity or s
 How to help:
 - Answer plainly and briefly, the way you'd explain it to a friend who runs a Discord server. Name the dashboard page when pointing somewhere. Use names, never raw ids, in what you say.
 - To change something, call propose_changes once with every edit needed. The owner sees each edit and applies it with one click; nothing changes until then. Say in a sentence what it will do.
+- Read an entry with read_config before changing or copying it.
 - Change as little as possible: set the one field, or add the one entry, rather than rewriting a section. A new entry copies the shape of the existing ones of its kind, with a lowercase-hyphen id that isn't taken.
 - Use only channel and role ids from the lists below. If what they named isn't there, say so and ask.
 - If something can't be done with the config, say so honestly. Don't invent settings.`;
@@ -52,6 +53,35 @@ export const PROPOSE_TOOL = {
         required: ["summary", "changes"],
     },
 };
+
+/** The tool the model reads one part of the config with, since it only gets the outline up front. */
+export const READ_TOOL = {
+    name: "read_config",
+    description: "Read part of the server's config in full, e.g. [\"combat\", \"places\", \"deep-vein\"] or [\"xp\"]. Read only what the question needs.",
+    input_schema: {
+        type: "object" as const,
+        properties: { path: { type: "array", items: { type: "string" }, description: "Section first." } },
+        required: ["path"],
+    },
+};
+
+/**
+ * The config in brief, for every message: settings as they are, each entry
+ * (enemy, item, place…) as just its name, long text cut short. A full config
+ * is ~40k tokens; this is a few thousand.
+ */
+export function outline(value: unknown, depth = 0): unknown {
+    if (typeof value === "string") return value.length > 50 ? `${value.slice(0, 47)}…` : value;
+    if (!value || typeof value !== "object") return value;
+    if (Array.isArray(value)) {
+        if (value.every((v) => !v || typeof v !== "object") && value.length <= 10) return value.map((v) => outline(v, depth + 1));
+        return `[${value.length} items]`;
+    }
+    const entries = Object.entries(value);
+    // An entry deep in a section: its name is enough to know it's there.
+    if (depth >= 3) return typeof (value as { name?: unknown }).name === "string" ? (value as { name: string }).name : `{${entries.length} fields}`;
+    return Object.fromEntries(entries.map(([k, v]) => [k, outline(v, depth + 1)]));
+}
 
 /** Changes that are safe to show and apply: a real path into a known section, no prototype tricks. */
 export function cleanChanges(raw: unknown, config: GuildConfigJson): Change[] {

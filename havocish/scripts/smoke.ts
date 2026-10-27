@@ -51,7 +51,7 @@ import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
-import { applyChanges, cleanChanges, valueAt } from "../src/content/helper.js";
+import { applyChanges, cleanChanges, outline, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
 import { EmbedBuilder } from "discord.js";
@@ -2793,6 +2793,9 @@ async function main() {
         check("a missing value deletes", "enabled" in next.combat, false);
         check("the original is untouched", [config.combat.places.forest.channelIds, config.combat.enabled], [["1"], true]);
         check("old values can be shown", valueAt(config, ["combat", "places", "forest", "channelIds"]), ["1"]);
+        const brief: any = outline({ combat: { enabled: true, places: { forest: { name: "Whispering Forest", enemies: [{ enemyId: "wolf" }] } } }, xp: { perMessage: 15, ignoredChannelIds: ["9"], blurb: "x".repeat(80) } });
+        check("the outline names entries and keeps settings", [brief.combat.places.forest, brief.combat.enabled, brief.xp.perMessage, brief.xp.ignoredChannelIds, brief.xp.blurb.length], ["Whispering Forest", true, 15, ["9"], 48]);
+        check("the outline is far smaller than the config", JSON.stringify(outline(STARTER_PACKS[0]!.content)).length < JSON.stringify(STARTER_PACKS[0]!.content).length / 5, true);
     });
 
     await test("the content library adds one entry and what it needs", async () => {
