@@ -38,7 +38,7 @@ export default function HelperPageClient({ guildId }: { guildId: string }) {
   const [error, setError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [entries, busy]);
+  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [entries, busy]);
 
   async function send(text: string) {
     const content = text.trim();
