@@ -18,3 +18,27 @@ export async function helperCallsToday(guildId: string): Promise<number> {
     ).catch(() => null);
     return Number(res?.rows[0]?.n ?? 0);
 }
+
+/** Dollars per million tokens, input and output, for the models the features use. */
+const PRICES: Record<string, [number, number]> = {
+    "claude-opus-5-5": [4, 20],
+    "claude-sonnet-5-5": [2, 10],
+    "claude-haiku-5-5": [0.1, 0.5],
+};
+
+/** Every server together can spend this much a day on AI; past it, new requests wait for tomorrow. */
+const DAILY_BUDGET = Number(process.env.AI_DAILY_BUDGET_USD ?? 5);
+
+/** False once today's spending across all servers reaches the budget. Cached input counts at full price, so it errs on the safe side. */
+export async function withinBudget(): Promise<boolean> {
+    const res = await dbQuery<{ model: string; input: string; output: string }>(
+        `SELECT model, sum(input_tokens) AS input, sum(output_tokens) AS output FROM ai_usage WHERE created_at > NOW() - INTERVAL '1 day' GROUP BY model`
+    ).catch(() => null);
+    // ponytail: no table yet (migration 007 not applied) means no record, so no budget check either.
+    if (!res) return true;
+    const spent = res.rows.reduce((sum, r) => {
+        const [i, o] = PRICES[r.model] ?? PRICES["claude-opus-5-5"]!;
+        return sum + (Number(r.input) * i + Number(r.output) * o) / 1e6;
+    }, 0);
+    return spent < DAILY_BUDGET;
+}

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { fetchGuildMeta, requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 import { fetchHealth } from "@/app/lib/health";
-import { helperCallsToday, logUsage } from "@/app/lib/aiUsage";
+import { helperCallsToday, logUsage, withinBudget } from "@/app/lib/aiUsage";
 import { cleanChanges, HELPER_PROMPT, PROPOSE_TOOL } from "@content/helper";
 import type { GuildConfigJson } from "@content/packs";
 
@@ -34,6 +34,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
   if ((await helperCallsToday(guildId)) >= DAILY) {
     return NextResponse.json({ error: "used_up", message: "The helper has answered a lot today. It'll be back tomorrow." }, { status: 429 });
   }
+
+  if (!(await withinBudget())) return NextResponse.json({ error: "busy", message: "The AI features are resting for today. Try again tomorrow." }, { status: 503 });
 
   const [row, meta, health] = await Promise.all([
     dbQuery<{ config: GuildConfigJson | null }>(`SELECT config FROM guilds WHERE discord_guild_id = $1`, [guildId]),

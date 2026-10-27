@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
-import { logUsage } from "@/app/lib/aiUsage";
+import { logUsage, withinBudget } from "@/app/lib/aiUsage";
 import { buildPack, parseSkeleton, SKELETON_PROMPT } from "@content/aiPack";
 import type { StarterPack } from "@content/packs";
 
@@ -51,12 +51,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     return NextResponse.json({ error: "used_up", message: `Each server can make ${FREE} worlds for now.` }, { status: 429 });
   }
 
-  const message = await new Anthropic().beta.messages
+  if (!(await withinBudget())) return NextResponse.json({ error: "busy", message: "The AI features are resting for today. Try again tomorrow." }, { status: 503 });
+
+  // Sonnet writes worlds about as well as Opus for half the cost (tried side by side); Haiku left the minigame words untouched.
+  const message = await new Anthropic().messages
     .stream({
-      model: "claude-opus-5-5",
+      model: "claude-sonnet-5-5",
       max_tokens: 32000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
       thinking: { type: "adaptive" },
       output_config: { effort: "low" },
       system: SKELETON_PROMPT,
