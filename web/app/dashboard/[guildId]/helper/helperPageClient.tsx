@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
+import { Markdown } from "@/app/components/ui/markdown";
 import { applyChanges, valueAt, type Change } from "@content/helper";
 import type { GuildConfigJson } from "@content/packs";
 import type { DashboardConfig } from "@/app/lib/dashboardConfig";
@@ -100,7 +101,7 @@ export default function HelperPageClient({ guildId }: { guildId: string }) {
             </p>
           ) : (
             <div key={i} className="frame space-y-3 p-4 text-sm">
-              {e.content && <p className="whitespace-pre-wrap leading-relaxed">{e.content}</p>}
+              {e.content && <div className="leading-relaxed"><Markdown text={e.content} /></div>}
               {e.proposal && (
                 <div className="space-y-2 border-t border-[var(--border)] pt-3">
                   <ul className="space-y-1.5 font-mono text-xs">
