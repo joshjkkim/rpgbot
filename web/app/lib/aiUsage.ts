@@ -28,21 +28,30 @@ const PRICES: Record<string, [number, number]> = {
 };
 
 /** Every server together can spend this much a day on AI; past it, new requests wait for tomorrow. */
-const DAILY_BUDGET = Number(process.env.AI_DAILY_BUDGET_USD ?? 5);
+export const DAILY_BUDGET = Number(process.env.AI_DAILY_BUDGET_USD ?? 5);
 
-/** False once today's spending across all servers reaches the budget. Cached input counts at full price, so it errs on the safe side. */
-export async function withinBudget(): Promise<boolean> {
+/** Dollars for some tokens of a model; unknown models are priced as Opus, to err high. */
+export function costOf(model: string, input: number, output: number): number {
+    const [i, o] = PRICES[model] ?? PRICES["claude-opus-5-5"]!;
+    return (input * i + output * o) / 1e6;
+}
+
+/** Dollars spent on AI in the last day, across every server. Null when there's no ai_usage table yet. */
+export async function spentToday(): Promise<number | null> {
     const res = await dbQuery<{ model: string; input: string; output: string }>(
         `SELECT model, sum(input_tokens) AS input, sum(output_tokens) AS output FROM ai_usage WHERE created_at > NOW() - INTERVAL '1 day' GROUP BY model`
     ).catch(() => null);
-    // ponytail: no table yet (migration 007 not applied) means no record, so no budget check either.
-    if (!res) return true;
-    const spent = res.rows.reduce((sum, r) => {
-        const [i, o] = PRICES[r.model] ?? PRICES["claude-opus-5-5"]!;
-        return sum + (Number(r.input) * i + Number(r.output) * o) / 1e6;
-    }, 0);
-    return spent < DAILY_BUDGET;
+    return res ? res.rows.reduce((sum, r) => sum + costOf(r.model, Number(r.input), Number(r.output)), 0) : null;
 }
+
+/** False once today's spending across all servers reaches the budget. */
+export async function withinBudget(): Promise<boolean> {
+    // ponytail: no table yet (migration 007 not applied) means no record, so no budget check either.
+    return ((await spentToday()) ?? 0) < DAILY_BUDGET;
+}
+
+/** Every server's AI allowance unless its ai_limits row says otherwise. */
+export const DEFAULT_LIMITS = { helperDaily: Number(process.env.AI_HELPER_DAILY ?? 20), packs: Number(process.env.AI_FREE_PACKS ?? 3) };
 
 /** One server's AI allowance: its ai_limits row where set, the defaults otherwise (or if the table isn't there yet). */
 export async function limitsFor(guildId: string): Promise<{ helperDaily: number; packs: number }> {
@@ -52,7 +61,7 @@ export async function limitsFor(guildId: string): Promise<{ helperDaily: number;
     ).catch(() => null);
     const row = res?.rows[0];
     return {
-        helperDaily: row?.helper_daily ?? Number(process.env.AI_HELPER_DAILY ?? 20),
-        packs: row?.packs ?? Number(process.env.AI_FREE_PACKS ?? 3),
+        helperDaily: row?.helper_daily ?? DEFAULT_LIMITS.helperDaily,
+        packs: row?.packs ?? DEFAULT_LIMITS.packs,
     };
 }

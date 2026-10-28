@@ -203,6 +203,14 @@ Worth knowing:
 
 ---
 
+## Admin page
+
+`havocish.com/admin` lists every server with its AI cost (30 days), helper use
+today and worlds made, and edits its AI limits (`ai_limits`; empty = the
+default). Only Discord user ids in `ADMIN_USER_IDS` (Vercel env, comma-separated)
+can open it; everyone else gets a 404. AI defaults: `AI_HELPER_DAILY` (20),
+`AI_FREE_PACKS` (3), `AI_DAILY_BUDGET_USD` (5, across all servers).
+
 ## When something is wrong
 
 **Bot is offline / crash-looping.** Check the alert channel first — a crash
