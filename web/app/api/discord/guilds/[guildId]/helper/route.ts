@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { fetchGuildMeta, requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 import { fetchHealth } from "@/app/lib/health";
-import { helperCallsToday, logUsage, withinBudget } from "@/app/lib/aiUsage";
+import { helperCallsToday, limitsFor, logUsage, withinBudget } from "@/app/lib/aiUsage";
 import { cleanChanges, HELPER_PROMPT, outline, PROPOSE_TOOL, READ_TOOL, valueAt } from "@content/helper";
 import type { GuildConfigJson } from "@content/packs";
 
@@ -13,8 +13,6 @@ export const maxDuration = 120;
 
 const AUTH_ERRORS = { 401: "unauthorized", 403: "forbidden", 503: "discord_unavailable" } as const;
 
-/** Messages each server can send the helper a day. */
-const DAILY = Number(process.env.AI_HELPER_DAILY ?? 20);
 /** Only the last few messages go to the model, so a long chat costs no more per message than a short one. */
 const KEEP = 7;
 
@@ -42,7 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     m && typeof m === "object" && (m as { role?: unknown }).role === (i % 2 ? "assistant" : "user")
     && typeof (m as { content?: unknown }).content === "string" && (m as { content: string }).content.length <= 4000);
   if (!valid || messages.length % 2 === 0) return NextResponse.json({ error: "bad_messages" }, { status: 400 });
-  if ((await helperCallsToday(guildId)) >= DAILY) {
+  if ((await helperCallsToday(guildId)) >= (await limitsFor(guildId)).helperDaily) {
     return NextResponse.json({ error: "used_up", message: "The helper has answered a lot today. It'll be back tomorrow." }, { status: 429 });
   }
 

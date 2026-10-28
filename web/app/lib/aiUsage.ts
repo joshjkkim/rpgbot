@@ -43,3 +43,16 @@ export async function withinBudget(): Promise<boolean> {
     }, 0);
     return spent < DAILY_BUDGET;
 }
+
+/** One server's AI allowance: its ai_limits row where set, the defaults otherwise (or if the table isn't there yet). */
+export async function limitsFor(guildId: string): Promise<{ helperDaily: number; packs: number }> {
+    const res = await dbQuery<{ helper_daily: number | null; packs: number | null }>(
+        `SELECT helper_daily, packs FROM ai_limits WHERE discord_guild_id = $1`,
+        [guildId]
+    ).catch(() => null);
+    const row = res?.rows[0];
+    return {
+        helperDaily: row?.helper_daily ?? Number(process.env.AI_HELPER_DAILY ?? 20),
+        packs: row?.packs ?? Number(process.env.AI_FREE_PACKS ?? 3),
+    };
+}

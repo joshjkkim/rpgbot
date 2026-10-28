@@ -247,6 +247,18 @@ CREATE TABLE IF NOT EXISTS public.ai_usage (
 
 CREATE INDEX IF NOT EXISTS ai_usage_guild_idx ON public.ai_usage (discord_guild_id, created_at);
 
+-- ─── ai_limits ───────────────────────────────────────────────────────────────
+-- One server's AI allowance, over the defaults (null = default). See
+-- migrations/008_ai_limits.sql.
+
+CREATE TABLE IF NOT EXISTS public.ai_limits (
+    discord_guild_id BIGINT      PRIMARY KEY,
+    helper_daily     INTEGER,
+    packs            INTEGER,
+    note             TEXT,
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed

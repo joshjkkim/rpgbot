@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
-import { logUsage, withinBudget } from "@/app/lib/aiUsage";
+import { limitsFor, logUsage, withinBudget } from "@/app/lib/aiUsage";
 import { buildPack, parseSkeleton, SKELETON_PROMPT } from "@content/aiPack";
 import type { StarterPack } from "@content/packs";
 
@@ -13,9 +13,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const AUTH_ERRORS = { 401: "unauthorized", 403: "forbidden", 503: "discord_unavailable" } as const;
-
-/** Worlds each server can make for free. */
-const FREE = Number(process.env.AI_FREE_PACKS ?? 3);
 
 async function made(guildId: string) {
   const res = await dbQuery<{ id: string; prompt: string; pack: StarterPack }>(
@@ -30,8 +27,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ gui
   const { guildId } = await params;
   const auth = await requireGuildManager(guildId);
   if (!auth.ok) return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
-  const rows = await made(guildId);
-  return NextResponse.json({ packs: rows, left: Math.max(0, FREE - rows.length), enabled: !!process.env.ANTHROPIC_API_KEY });
+  const [rows, { packs }] = await Promise.all([made(guildId), limitsFor(guildId)]);
+  return NextResponse.json({ packs: rows, left: Math.max(0, packs - rows.length), enabled: !!process.env.ANTHROPIC_API_KEY });
 }
 
 /** Makes a world from the owner's description. The model writes the words; buildPack sets every number. */
@@ -47,8 +44,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     return NextResponse.json({ error: "bad_prompt", message: "Describe your world in 10 to 1500 characters." }, { status: 400 });
   }
   // ponytail: count-then-insert, so two clicks at once can both get through; a reservation row if that's ever abused.
-  if ((await made(guildId)).length >= FREE) {
-    return NextResponse.json({ error: "used_up", message: `Each server can make ${FREE} worlds for now.` }, { status: 429 });
+  const { packs } = await limitsFor(guildId);
+  if ((await made(guildId)).length >= packs) {
+    return NextResponse.json({ error: "used_up", message: `This server has made all ${packs} of its worlds.` }, { status: 429 });
   }
 
   if (!(await withinBudget())) return NextResponse.json({ error: "busy", message: "The AI features are resting for today. Try again tomorrow." }, { status: 503 });
