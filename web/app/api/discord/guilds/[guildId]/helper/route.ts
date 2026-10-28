@@ -24,7 +24,9 @@ const CHANNEL_KINDS: Record<number, string> = { 0: "#", 2: "voice ", 4: "categor
 function read(config: GuildConfigJson, path: unknown): string {
   if (!Array.isArray(path) || !path.length || !path.every((p) => typeof p === "string")) return "Give a path, section first.";
   const value = valueAt(config, path);
-  return value === undefined ? "Nothing is there." : JSON.stringify(value).slice(0, 20000);
+  if (value === undefined) return "Nothing is there.";
+  const json = JSON.stringify(value);
+  return json.length <= 6000 ? json : `${json.slice(0, 6000)}… (cut off: read a narrower path, like one entry)`;
 }
 
 /** Answers one message, with the server's config, channels, roles and health check in view. Edits come back for the owner to apply. */
@@ -62,7 +64,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
   // The outline goes with every message; the model reads the parts it needs in full. Thinking is off: these are short lookups.
   const client = new Anthropic();
   const convo = (messages as Anthropic.MessageParam[]).slice(-KEEP);
-  const usage = { input_tokens: 0, output_tokens: 0 };
+  const usage = { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 0 };
   let message: Anthropic.Message | null = null;
   const blocks: Anthropic.ContentBlock[] = [];
   for (let turn = 0; turn < 4; turn++) {
@@ -85,7 +87,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     if (!message) break;
     blocks.push(...message.content);
     const u = message.usage;
-    usage.input_tokens += u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    usage.input_tokens += u.input_tokens;
+    usage.cache_read_input_tokens += u.cache_read_input_tokens ?? 0;
+    usage.cache_creation_input_tokens += u.cache_creation_input_tokens ?? 0;
     usage.output_tokens += u.output_tokens;
     const reads = message.content.filter((b) => b.type === "tool_use" && b.name === READ_TOOL.name) as Anthropic.ToolUseBlock[];
     if (message.stop_reason !== "tool_use" || !reads.length) break;

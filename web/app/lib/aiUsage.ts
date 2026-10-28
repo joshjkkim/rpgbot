@@ -1,9 +1,10 @@
 import { dbQuery } from "@/app/lib/db";
 
-/** Records a model call's tokens (ai_usage), for cost per server and the helper's daily cap. Never fails the request. */
+/** Records a model call's tokens (ai_usage), for cost per server and the helper's daily cap. Never fails the request.
+ *  Cached input is stored at what it's billed as (reads 0.1x, writes 1.25x), so input_tokens x price is the real cost. */
 export async function logUsage(guildId: string, kind: "builder" | "helper", message: { model: string; usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } }) {
     const u = message.usage;
-    const input = u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    const input = Math.round(u.input_tokens + (u.cache_read_input_tokens ?? 0) * 0.1 + (u.cache_creation_input_tokens ?? 0) * 1.25);
     await dbQuery(
         `INSERT INTO ai_usage (discord_guild_id, kind, model, input_tokens, output_tokens) VALUES ($1, $2, $3, $4, $5)`,
         [guildId, kind, message.model, input, u.output_tokens]

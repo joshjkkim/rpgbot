@@ -57,7 +57,7 @@ export const PROPOSE_TOOL = {
 /** The tool the model reads one part of the config with, since it only gets the outline up front. */
 export const READ_TOOL = {
     name: "read_config",
-    description: "Read part of the server's config in full, e.g. [\"combat\", \"places\", \"deep-vein\"] or [\"xp\"]. Read only what the question needs.",
+    description: "Read part of the server's config in full, e.g. [\"combat\", \"places\", \"deep-vein\"] or [\"xp\"]. Read only what the question needs: one entry, not a whole list.",
     input_schema: {
         type: "object" as const,
         properties: { path: { type: "array", items: { type: "string" }, description: "Section first." } },
