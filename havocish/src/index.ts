@@ -41,6 +41,9 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates,
   ],
+  // Names and text owners or AI wrote never ping roles or @everyone by accident.
+  // Announcements that mean to (owner-written level-up messages) pass their own allowedMentions.
+  allowedMentions: { parse: ["users"] },
 });
 
 client.once(Events.ClientReady, () => {
