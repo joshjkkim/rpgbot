@@ -2,7 +2,9 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.18 · October 28, 2026
+
+The AI update: describe the world your server plays in and get a whole game written for it, ask a Helper about your setup in plain words, and take your gear to +5.
 
 ### New
 - **Upgrade your gear.** `/upgrade` takes a piece of your gear from +1 to +5 for gold (and, on some servers, a material). Each step costs more and is less sure, and a good strike on the forge bar raises your chance. A failed step costs what it cost, never the item. Upgrades show on `/me` and your character pane.
