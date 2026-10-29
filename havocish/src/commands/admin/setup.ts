@@ -74,9 +74,10 @@ function view(s: State, guildId: string) {
             embed.setDescription(`${head}**How fast should members level up?**\n${(Object.keys(PACES) as Pace[]).map((p) => `**${PACES[p].label}:** ${PACES[p].blurb}`).join("\n")}`);
             return { embeds: [embed], components: [row(...(Object.keys(PACES) as Pace[]).map((p) => button(`pace:${p}`, PACES[p].label, p === "standard" ? ButtonStyle.Primary : ButtonStyle.Secondary)))] };
         case "world": {
-            embed.setDescription(`${head}**What world should it start with?**\nA starter pack fills in enemies, places, items, gathering, crafting and quests, ready to play. Change any of it later, or start blank and build your own on the dashboard.`);
+            embed.setDescription(`${head}**What world should it start with?**\nA starter pack fills in enemies, places, items, gathering, crafting and quests, ready to play. Or describe your own world on the dashboard and AI writes the whole thing for you. Change any of it later.`);
             const menu = new StringSelectMenuBuilder().setCustomId("setup:world").setPlaceholder("Pick a starting world").addOptions(
                 ...STARTER_PACKS.map((p) => ({ label: p.name, value: p.id, description: (p.tagline ?? p.description).slice(0, 100) })),
+                { label: "Describe my own world", value: "ai", description: "AI writes a whole world from your description, on the dashboard." },
                 { label: "Start blank", value: "blank", description: "Nothing added: build your own world on the dashboard." },
             );
             return { embeds: [embed], components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu)] };
@@ -95,7 +96,7 @@ function view(s: State, guildId: string) {
         case "done": {
             const blank = !s.answers.packId;
             embed.setTitle("✅ havocish is set up").setDescription(blank
-                ? `${head}Your world is empty for now: make enemies, items and activities on the dashboard, or take single pieces from the Library.`
+                ? `${head}Your world is empty for now. On the Library page, describe the world you want and AI writes it: enemies, places, gear, quests, gathering and crafting. Or make things yourself on the dashboard.`
                 : `${head}Members can play now: \`/fight\`, \`/gather\`, \`/craft\`, \`/shop\` and \`/quests\`. Tune anything on the dashboard, and map channels to places so enemies there fit.`);
             return { embeds: [embed], components: [row(dashboardButton(guildId, blank ? "presets" : undefined, blank ? "Open the Library" : "Open dashboard"))] };
         }
@@ -144,9 +145,11 @@ export async function handleSetupInteraction(
         case "pace": a.pace = value as Pace; break;
         case "world": {
             const pick = interaction.isStringSelectMenu() ? interaction.values[0]! : "blank";
-            a.packId = pick === "blank" ? null : pick;
+            // Their own world is written on the dashboard after this, so setup starts it blank; adding it turns its features on.
+            const blank = pick === "blank" || pick === "ai";
+            a.packId = blank ? null : pick;
             // Blank: the features stay off until there's something in them.
-            for (const f of Object.keys(a.features) as (keyof Answers["features"])[]) a.features[f] = pick !== "blank";
+            for (const f of Object.keys(a.features) as (keyof Answers["features"])[]) a.features[f] = !blank;
             break;
         }
         case "names":

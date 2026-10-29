@@ -48,7 +48,7 @@ async function sendWelcome(guild: Guild) {
       [
         `Adventurers of **${guild.name}** now earn XP and gold just by chatting. Try \`/profile\` to see your character, \`/daily\` to claim a reward, and \`/help\` for everything else.`,
         "",
-        "**Server owner:** press **Set up here** to choose how fast people level and what world to start in (a ready-made one, or blank to build your own). It takes a minute, right here in Discord. Prefer the website? The dashboard has the same setup, and everything after it.",
+        "**Server owner:** press **Set up here** to choose how fast people level and what world to start in (a ready-made one, one AI writes from your description, or blank to build your own). It takes a minute, right here in Discord. Prefer the website? The dashboard has the same setup, and everything after it.",
       ].join("\n")
     );
   const payload = {
