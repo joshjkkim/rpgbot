@@ -18,6 +18,8 @@ declare module "next-auth/jwt" {
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
+    /** The signed-in Discord user's id. */
+    userId?: string;
     error?: "RefreshAccessTokenError";
   }
 }

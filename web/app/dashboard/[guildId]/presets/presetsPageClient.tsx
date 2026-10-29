@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import { RARITIES } from "@/app/components/shop/itemTooltip";
@@ -211,11 +211,84 @@ function PackCard({ pack, config, saving, onAdd, onAddPicks }: {
   );
 }
 
+type AiPack = { id: string; prompt: string; pack: StarterPack };
+
+/** Describe a world, get a pack: the model writes the words, the game's balance tables set every number. */
+function AiBuilder({ guildId, onMade }: { guildId: string; onMade: (packs: AiPack[]) => void }) {
+  const [state, setState] = useState<{ left: number; enabled: boolean } | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/discord/guilds/${guildId}/ai-packs`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setState({ left: d.left, enabled: d.enabled });
+        onMade(d.packs);
+      })
+      .catch(() => {});
+  }, [guildId, onMade]);
+
+  if (!state?.enabled) return null;
+
+  async function make() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/discord/guilds/${guildId}/ai-packs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    }).catch(() => null);
+    const data = await res?.json().catch(() => null);
+    setBusy(false);
+    if (!res?.ok || !data?.pack) return setError(data?.message ?? "Something went wrong. Try again.");
+    setState((s) => s && { ...s, left: s.left - 1 });
+    setPrompt("");
+    onMade([data.pack]);
+  }
+
+  return (
+    <section className="frame space-y-3 p-5">
+      <div>
+        <h2 className="text-xl">Make your own world</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Describe the world your server plays in, and get a pack written for it: enemies and their moves, places, gear,
+          potions, loot and quests. The words are written for you; every number comes from the same balance tables as
+          the starter packs. It shows up below to add whole or piece by piece, and you can edit all of it after.
+        </p>
+      </div>
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        maxLength={1500}
+        rows={4}
+        disabled={busy || state.left === 0}
+        placeholder="A drowned city under a lighthouse that never goes out. Players are salvage divers; the deeper they go, the stranger the things that live in the wrecks…"
+        className="w-full rounded-sm border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+      />
+      {error && <p className="text-sm text-red-300">{error}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-[var(--muted)]">
+          {state.left === 0 ? "This server has made all its worlds for now." : `${state.left} ${state.left === 1 ? "world" : "worlds"} left for this server.`}
+          {busy && " Writing your world: this takes a minute or two."}
+        </p>
+        <button className="btn px-4 py-2 text-sm" disabled={busy || state.left === 0 || prompt.trim().length < 10} onClick={make}>
+          {busy ? "Writing…" : "Make my world"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function PresetsPageClient({ guildId, packs }: { guildId: string; packs: StarterPack[] }) {
   const { config: typed, loading, saving, error, save } = useGuildConfig(guildId);
   // Packs work section by section on plain JSON, without the editors' types.
   const config = typed as GuildConfigJson | null;
   const [notice, setNotice] = useState<string | null>(null);
+  const [made, setMade] = useState<AiPack[]>([]);
+  const addMade = useCallback((packs: AiPack[]) => setMade((m) => [...packs, ...m.filter((x) => !packs.some((p) => p.id === x.id))]), []);
 
   async function add(pack: StarterPack) {
     setNotice(null);
@@ -269,9 +342,11 @@ export default function PresetsPageClient({ guildId, packs }: { guildId: string;
         </div>
       )}
 
+      <AiBuilder guildId={guildId} onMade={addMade} />
+
       {!loading &&
         config &&
-        packs.map((pack) => (
+        [...made.map((m) => m.pack), ...packs].map((pack) => (
           <PackCard key={pack.id} pack={pack} config={config} saving={saving} onAdd={() => add(pack)} onAddPicks={(picks) => addPicks(pack, picks)} />
         ))}
     </main>

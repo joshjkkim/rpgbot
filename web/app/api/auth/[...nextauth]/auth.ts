@@ -96,6 +96,8 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken;
+      // Discord's user id (the OpenID subject), for the admin page's check.
+      session.userId = token.sub;
       // The client reads this to send the user back through sign-in instead of
       // showing a generic failure.
       session.error = token.error;

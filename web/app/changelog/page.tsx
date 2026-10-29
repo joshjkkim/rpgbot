@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
+import { Inline } from "@/app/components/ui/markdown";
 
 export const metadata: Metadata = {
   title: "Changelog",
@@ -11,19 +12,10 @@ export const metadata: Metadata = {
  * Renders the repo's CHANGELOG.md, read once at build time, so the page and the
  * support-server posts (havocish/scripts/changelog-post.ts) come from one file.
  * The file sticks to ##/### headings, "- " bullets and **bold**, *italic* and
- * `code`, so a few lines here cover it without a markdown dependency.
+ * `code`, which components/ui/markdown.tsx covers without a dependency.
  */
 
 const CHANGELOG = readFileSync(path.join(process.cwd(), "..", "CHANGELOG.md"), "utf8");
-
-function Inline({ text }: { text: string }) {
-  return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).map((part, i) =>
-    part.startsWith("**") ? <strong key={i}><Inline text={part.slice(2, -2)} /></strong>
-    : part.startsWith("`") ? <code key={i}>{part.slice(1, -1)}</code>
-    : part.startsWith("*") && part.length > 2 ? <em key={i}>{part.slice(1, -1)}</em>
-    : part,
-  );
-}
 
 export default function ChangelogPage() {
   const blocks: React.ReactNode[] = [];

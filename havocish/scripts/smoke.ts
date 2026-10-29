@@ -50,6 +50,8 @@ import { postResultLine } from "../src/player/fight.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
+import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
+import { applyChanges, cleanChanges, outline, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
 import { EmbedBuilder } from "discord.js";
@@ -2687,6 +2689,113 @@ async function main() {
             check(`${pack.name}: every reference resolves`, broken, []);
         }
         check("pack ids are unique", new Set(STARTER_PACKS.map((p) => p.id)).size, STARTER_PACKS.length);
+    });
+
+    await test("an AI-written world becomes a balanced, self-contained pack", async () => {
+        const w = (name: string, emoji = "✨") => ({ name, emoji });
+        const skeleton: Skeleton = {
+            name: "Drowned City", tagline: "Salvage divers", description: "Under the lighthouse.",
+            shopkeeper: w("Old Hesk"), announcer: w("The Keeper"),
+            categories: { gear: w("Diving Kit"), potions: w("Tonics"), materials: w("Salvage"), tools: w("Tools") },
+            statuses: { poison: w("Brine-sick"), weaken: w("Waterlogged"), enrage: w("Frenzied") },
+            moves: [
+                { ...w("Snap"), key: "snap", telegraph: "opens its jaws.", kind: "strike" },
+                { ...w("Ink Cloud"), key: "ink", telegraph: "puffs up…", kind: "poison" },
+                { ...w("Bad Move"), key: "bad", telegraph: "", kind: "explode" as any },
+            ],
+            materials: [{ ...w("Pearl"), key: "pearl", description: "Shiny." }],
+            gear: [
+                { ...w("Rusty Harpoon"), key: "h1", description: "", slot: "weapon", level: 1, rarity: "common" },
+                { ...w("Deep Harpoon"), key: "h2", description: "", slot: "weapon", level: 99, rarity: "rare", crafted: true },
+                { ...w("Rusty Harpoon"), key: "h3", description: "", slot: "head", level: 5, rarity: "common" },
+            ],
+            potions: [{ ...w("Kelp Tonic"), key: "tonic", description: "", level: 1 }],
+            places: [{ ...w("The Shallows"), key: "shallows", arrival: "drifts closer" }, { ...w("Empty Reef"), key: "empty", arrival: "" }],
+            enemies: [
+                { ...w("Crab"), key: "crab", level: 2, role: "weak", place: "shallows", moves: ["snap", "nope", "bad"], drops: ["pearl", "nope"] },
+                { ...w("Eel"), key: "eel", level: 0, role: "elite", place: "nowhere", moves: ["ink"], drops: [] },
+                { ...w("The Leviathan"), key: "lev", level: 30, role: "boss", place: "shallows", moves: ["snap"], drops: ["pearl"] },
+            ],
+            quests: [{ name: "Crab Season", description: "", enemy: "crab", count: 500 }, { name: "Ghosts", description: "", enemy: "ghost", count: 3 }],
+            activities: [
+                {
+                    ...w("Diving"), skillName: "Diving", game: "grid", words: { tile: "🫧", leave: "Surface", hazard: "" },
+                    tools: [{ ...w("Lead Weights"), description: "" }],
+                    locations: [
+                        { ...w("Pier"), finds: [{ ...w("Shell"), key: "shell", description: "" }, { ...w("Rope"), key: "rope", description: "" }, { ...w("Black Pearl"), key: "bp", description: "" }] },
+                        { ...w("Wreck"), finds: [{ ...w("Brass"), key: "brass", description: "" }] },
+                        { ...w("Trench"), finds: [{ ...w("Ooze"), key: "ooze", description: "" }] },
+                    ],
+                },
+                { ...w("Dancing"), skillName: "", game: "dance", words: {}, tools: [], locations: [] },
+            ],
+            stations: [{
+                ...w("Workbench"), skillName: "Tinkering", style: "forge", words: { craft: "Tinker", forging: "" },
+                recipes: [{ makes: "h2", uses: ["brass", "bp", "pearl", "nope"] }, { makes: "h2", uses: ["shell"] }, { makes: "ghost", uses: ["shell"] }, { makes: "tonic", uses: [] }],
+            }],
+        };
+        const pack = buildPack(skeleton, "ai-test");
+        const c = pack.content as any;
+        const broken: string[] = [];
+        for (const kind of Object.keys(KINDS) as Kind[]) {
+            const [section, map] = KINDS[kind];
+            for (const [id, entry] of Object.entries((c[section]?.[map] ?? {}) as Record<string, any>)) {
+                for (const ref of refsOf(kind, entry)) if (!entryOf(c, ref)) broken.push(`${kind}:${id} -> ${ref.kind}:${ref.id}`);
+            }
+        }
+        check("every reference resolves", broken, []);
+        check("a move of an unknown kind is dropped", Object.keys(c.combat.moves), ["snap", "ink-cloud"]);
+        check("unknown keys are dropped", c.combat.enemies.crab.moves, [{ moveId: "snap", weight: 3 }]);
+        check("numbers come from the balance tables", c.combat.enemies.crab.hp, enemyPreset(2, "weak").hp);
+        check("levels are clamped", [c.combat.enemies.eel.minLevel, c.shop.items["deep-harpoon"].minLevel], [1, 40]);
+        check("names that repeat get their own ids", Object.keys(c.shop.items).filter((k) => k.startsWith("rusty-harpoon")), ["rusty-harpoon", "rusty-harpoon-2"]);
+        check("an enemy in an unknown place goes to one by its level", c.combat.places["the-shallows"].enemies.map((e: any) => e.enemyId), ["crab", "eel"]);
+        check("the boss lives in no place, and empty places are dropped", Object.keys(c.combat.places), ["the-shallows"]);
+        check("a quest for an unknown enemy is dropped, counts clamped", Object.values(c.quests.quests).map((q: any) => q.conditions.target), [20]);
+        check("the shop has its characters", [c.characters.shopkeeperId, c.characters.announcerId], ["old-hesk", "the-keeper"]);
+        check("it adds like any pack", addEntries(null, c, [{ kind: "enemies", id: "crab" }]).added.length > 1, true);
+        const diving = c.gathering.activities.diving;
+        check("an unknown minigame is dropped", Object.keys(c.gathering.activities), ["diving"]);
+        check("minigame words fill in what the model left out", [diving.words.tile, diving.words.leave, diving.words.hazard, diving.words.verb], ["🫧", "Surface", "💥", "mined"]);
+        check("locations take Classic Fantasy's numbers by tier", [diving.locations.pier.minSkill, diving.locations.wreck.minSkill, diving.locations.trench.minSkill], [1, 15, 30]);
+        check("a location never needs a better tool than there is", [diving.locations.wreck.minToolTier, diving.locations.trench.minToolTier], [1, undefined]);
+        check("the third find is the rare one", diving.locations.pier.loot.map((l: any) => l.chance), [40, 50, 10]);
+        check("tools point at their activity", c.shop.items["lead-weights"].tool, { activityId: "diving", tier: 1, bonus: 1 });
+        const bench = c.crafting.stations.workbench;
+        check("one recipe per output, from known inputs only", Object.keys(bench.recipes), ["deep-harpoon"]);
+        check("a rare find is needed once", bench.recipes["deep-harpoon"].inputs, [{ itemId: "brass", quantity: 10 }, { itemId: "black-pearl", quantity: 1 }, { itemId: "pearl", quantity: 5 }]);
+        check("crafted-only gear leaves the shop", [c.shop.items["deep-harpoon"].price, c.shop.items["deep-harpoon"].hidden], [0, true]);
+        check("station words fill in what's left out", [bench.words.craft, bench.words.forging], ["Tinker", "Forging"]);
+        const find = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "find", words: { prompt: "Look for it!" } }] }, "x").content.gathering!.activities.diving as any;
+        check("words that drop a {placeholder} keep the default", find.words.prompt, "Search the undergrowth for the {target}!");
+        check("apostrophes don't split ids", Object.keys(buildPack({ ...skeleton, materials: [{ ...w("Keeper's Relic"), key: "r", description: "" }] }, "x").content.shop.items).includes("keepers-relic"), true);
+        // Replies aren't schema-checked: wrapped in prose, or missing whole parts, they still build.
+        const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');
+        check("a loose reply still builds", Object.keys(buildPack(loose!, "x").content.combat.enemies), ["ant"]);
+        check("a reply with no JSON is refused", parseSkeleton("Sorry, I can't."), null);
+    });
+
+    await test("the helper's changes are checked, then applied on a copy", async () => {
+        const config: any = { combat: { enabled: true, places: { forest: { id: "forest", channelIds: ["1"] } } }, style: "odd" };
+        const changes = cleanChanges([
+            { path: ["combat", "places", "forest", "channelIds"], value: ["2"] },
+            { path: ["unlocks", "list", "vet"], value: { id: "vet", roleId: "9", requirements: { combatLevel: 20 } } },
+            { path: ["combat", "enabled"] },
+            { path: ["combat"], value: {} },
+            { path: ["__proto__", "x"], value: 1 },
+            { path: ["style", "x"], value: 1 },
+            "nonsense",
+        ], config);
+        check("bad paths are dropped", changes.map((c) => c.path.join(".")), ["combat.places.forest.channelIds", "unlocks.list.vet", "combat.enabled"]);
+        const next: any = applyChanges(config, changes);
+        check("a field is set", next.combat.places.forest.channelIds, ["2"]);
+        check("a new section is made as needed", next.unlocks.list.vet.requirements.combatLevel, 20);
+        check("a missing value deletes", "enabled" in next.combat, false);
+        check("the original is untouched", [config.combat.places.forest.channelIds, config.combat.enabled], [["1"], true]);
+        check("old values can be shown", valueAt(config, ["combat", "places", "forest", "channelIds"]), ["1"]);
+        const brief: any = outline({ combat: { enabled: true, places: { forest: { name: "Whispering Forest", enemies: [{ enemyId: "wolf" }] } } }, xp: { perMessage: 15, ignoredChannelIds: ["9"], blurb: "x".repeat(80) } });
+        check("the outline names entries and keeps settings", [brief.combat.places.forest, brief.combat.enabled, brief.xp.perMessage, brief.xp.ignoredChannelIds, brief.xp.blurb.length], ["Whispering Forest", true, 15, ["9"], 48]);
+        check("the outline is far smaller than the config", JSON.stringify(outline(STARTER_PACKS[0]!.content)).length < JSON.stringify(STARTER_PACKS[0]!.content).length / 5, true);
     });
 
     await test("the content library adds one entry and what it needs", async () => {
