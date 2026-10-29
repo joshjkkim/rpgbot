@@ -211,6 +211,17 @@ default). Only Discord user ids in `ADMIN_USER_IDS` (Vercel env, comma-separated
 can open it; everyone else gets a 404. AI defaults: `AI_HELPER_DAILY` (20),
 `AI_FREE_PACKS` (3), `AI_DAILY_BUDGET_USD` (5, across all servers).
 
+## Bot lists
+
+The bot posts its server count to discord.bots.gg and discordbotlist.com at
+start and every 6 hours, for each list whose key is set on Fly
+(`DBOTSGG_TOKEN`, `DBL_TOKEN`); unset lists are skipped. A failed post logs
+`Posting the server count to … failed` and changes nothing else.
+
+```bash
+fly secrets set -a rpgbot-eilynw DBOTSGG_TOKEN=... DBL_TOKEN=...
+```
+
 ## When something is wrong
 
 **Bot is offline / crash-looping.** Check the alert channel first — a crash

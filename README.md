@@ -103,6 +103,7 @@ cp web/.env.example  web/.env.local
 | `SERVER_ID` | Test server ID — where `deploy-test-commands` registers commands |
 | `DATABASE_URL` | Postgres connection string |
 | `ALERT_WEBHOOK_URL` | Optional — Discord webhook that receives crash alerts (`npm run alert:test`) |
+| `DBOTSGG_TOKEN`, `DBL_TOKEN` | Optional, production only — bot-list API keys; the bot posts its server count every 6 hours |
 
 `web/.env.local`:
 
