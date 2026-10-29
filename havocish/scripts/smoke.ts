@@ -2710,7 +2710,8 @@ async function main() {
                 { ...w("Rusty Harpoon"), key: "h3", description: "", slot: "head", level: 5, rarity: "common" },
             ],
             potions: [{ ...w("Kelp Tonic"), key: "tonic", description: "", level: 1 }],
-            places: [{ ...w("The Shallows"), key: "shallows", arrival: "drifts closer" }, { ...w("Empty Reef"), key: "empty", arrival: "" }],
+            places: [{ ...w("The Shallows"), key: "shallows", arrival: "drifts closer", bestiary: { ...w("Shallows Logbook", "📓"), description: "Everything in the shallows." } }, { ...w("Empty Reef"), key: "empty", arrival: "" }],
+            achievements: { "first-blood": "First Catch", "veteran-of-the-realm": "Old Salt", nope: "Ghost" },
             enemies: [
                 { ...w("Crab"), key: "crab", level: 2, role: "weak", place: "shallows", moves: ["snap", "nope", "bad"], drops: ["pearl", "nope"] },
                 { ...w("Eel"), key: "eel", level: 0, role: "elite", place: "nowhere", moves: ["ink"], drops: [] },
@@ -2773,6 +2774,18 @@ async function main() {
         const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');
         check("a loose reply still builds", Object.keys(buildPack(loose!, "x").content.combat.enemies), ["ant"]);
         check("a reply with no JSON is refused", parseSkeleton("Sorry, I can't."), null);
+        const sets = c.collections.sets;
+        check("a collection per place (boss in the last) and per activity; one crafted piece is too few", Object.keys(sets), ["shallows-logbook", "diving-2"]);
+        check("a bestiary lists its place's enemies", sets["shallows-logbook"].entries.map((e: any) => e.id), ["crab", "eel", "the-leviathan"]);
+        check("collection words are the model's", [sets["shallows-logbook"].emoji, sets["diving-2"].emoji], ["📓", "🎒"]);
+        check("milestones at half and all", sets["diving-2"].milestones.map((m: any) => m.at), [3, 5]);
+        const ach = c.achievements.achievements;
+        check("achievements take the world's names, Classic Fantasy's goals", [ach["first-catch"]?.conditions.value, ach["old-salt"]?.conditions.value], [1, 25]);
+        check("an item reward becomes the world's gear", ach["old-salt"].reward, { itemId: "rusty-harpoon-2", quantity: 1 });
+        check("'every collection' counts this world's", ach.archivist.conditions.value, 2);
+        const bare = buildPack({ ...skeleton, activities: [], stations: [], places: [] }, "x").content as any;
+        check("no gathering, crafting or collections, no achievements for them", ["seasoned-gatherer", "master-craftsman", "collector", "archivist"].filter((k) => bare.achievements.achievements[k]), []);
+        check("and no empty collections section", bare.collections, undefined);
     });
 
     await test("the helper's changes are checked, then applied on a copy", async () => {
