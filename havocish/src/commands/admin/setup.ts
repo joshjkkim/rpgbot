@@ -6,8 +6,8 @@ import {
 } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { setGuildConfig } from "../../db/guilds.js";
-import { canManage, dashboardButton } from "../../ui/dashboardLinks.js";
-import { STARTER_PACKS, type GuildConfigJson } from "../../content/packs.js";
+import { canManage, DASHBOARD_URL, dashboardButton } from "../../ui/dashboardLinks.js";
+import { STARTER_PACKS, type GuildConfigJson, type StarterPack } from "../../content/packs.js";
 import { buildSetup, PACES, type Answers, type Pace } from "../../content/setup.js";
 import type { GuildConfig } from "../../types/guild.js";
 
@@ -22,12 +22,16 @@ export const data = new SlashCommandBuilder()
     .setDescription("Set havocish up for this server: leveling, pace and a starting world")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
-type Step = "leveling" | "pace" | "world" | "names" | "channel" | "confirm" | "done";
+type Step = "leveling" | "pace" | "world" | "names" | "channel" | "confirm" | "writing" | "done";
 type State = {
     step: Step;
     answers: Answers;
     /** Gold and XP renamed, or null to keep the server's own. */
     names: { gold: string; xp: string } | null;
+    /** Their own world's description, written into a world when they press Set it up. */
+    describe: string | null;
+    /** What came of it: the world's name, or why it couldn't be made. */
+    made: { name: string } | { failed: string } | null;
 };
 
 // ponytail: in memory, so a restart mid-setup means running /setup again.
@@ -38,6 +42,8 @@ function fresh(): State {
     return {
         step: "leveling",
         names: null,
+        describe: null,
+        made: null,
         answers: {
             ownLeveling: true, pace: "standard",
             features: { shop: true, combat: true, duels: true, encounters: true, quests: true, achievements: true },
@@ -52,6 +58,8 @@ const button = (id: string, label: string, style = ButtonStyle.Secondary) =>
 const row = (...parts: ButtonBuilder[]) => new ActionRowBuilder<ButtonBuilder>().addComponents(...parts);
 
 function worldName(s: State) {
+    if (s.made && "name" in s.made) return s.made.name;
+    if (s.describe) return "your own, from your description";
     return s.answers.packId ? STARTER_PACKS.find((p) => p.id === s.answers.packId)?.name ?? s.answers.packId : "a blank world";
 }
 
@@ -93,14 +101,36 @@ function view(s: State, guildId: string) {
         case "confirm":
             embed.setDescription(`${head}Nothing you've already made is changed or removed.`);
             return { embeds: [embed], components: [row(button("apply", "Set it up", ButtonStyle.Success), button("restart", "Start over"))] };
+        case "writing":
+            embed.setDescription(`${head}✍️ **Writing your world…** Enemies, places, gear, quests, gathering and crafting, from your description. This takes about a minute.`);
+            return { embeds: [embed], components: [] };
         case "done": {
             const blank = !s.answers.packId;
+            const failed = s.made && "failed" in s.made ? `Your world couldn't be made: ${s.made.failed} Everything else is set up; try again from the Library.\n\n` : "";
             embed.setTitle("✅ havocish is set up").setDescription(blank
-                ? `${head}Your world is empty for now. On the Library page, describe the world you want and AI writes it: enemies, places, gear, quests, gathering and crafting. Or make things yourself on the dashboard.`
+                ? `${head}${failed}Your world is empty for now. On the Library page, describe the world you want and AI writes it: enemies, places, gear, quests, gathering and crafting. Or make things yourself on the dashboard.`
                 : `${head}Members can play now: \`/fight\`, \`/gather\`, \`/craft\`, \`/shop\` and \`/quests\`. Tune anything on the dashboard, and map channels to places so enemies there fit.`);
             return { embeds: [embed], components: [row(dashboardButton(guildId, blank ? "presets" : undefined, blank ? "Open the Library" : "Open dashboard"))] };
         }
     }
+}
+
+/**
+ * Has the dashboard write a world from the description (the API key and each
+ * server's allowance live there), over the same secret the dashboard uses to
+ * reach the bot.
+ */
+async function writeWorld(guildId: string, prompt: string): Promise<{ pack: StarterPack } | { message: string }> {
+    const secret = process.env.PREVIEW_SECRET?.trim();
+    if (!secret) return { message: "the AI builder isn't switched on here." };
+    const res = await fetch(`${DASHBOARD_URL}/api/internal/ai-world`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-preview-secret": secret },
+        body: JSON.stringify({ guildId, prompt }),
+        signal: AbortSignal.timeout(280_000),
+    }).catch(() => null);
+    const body = (await res?.json().catch(() => null)) as { pack?: StarterPack; message?: string } | null;
+    return body?.pack ? { pack: body.pack } : { message: body?.message ?? "the dashboard couldn't be reached." };
 }
 
 /** The next question after `step`; pace and level-ups only matter with havocish leveling. */
@@ -138,6 +168,7 @@ export async function handleSetupInteraction(
         return;
     }
     const [, action, value] = interaction.customId.split(":");
+    let answered = false;
     const a = s.answers;
 
     switch (action) {
@@ -145,6 +176,16 @@ export async function handleSetupInteraction(
         case "pace": a.pace = value as Pace; break;
         case "world": {
             const pick = interaction.isStringSelectMenu() ? interaction.values[0]! : "blank";
+            if (pick === "ai" && interaction.isStringSelectMenu()) {
+                await interaction.showModal(new ModalBuilder().setCustomId("setup:describe:save").setTitle("Describe your world").addComponents(
+                    new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder()
+                        .setCustomId("describe").setLabel("What's your world like?").setStyle(TextInputStyle.Paragraph)
+                        .setMinLength(10).setMaxLength(1500).setPlaceholder("A drowned city under a lighthouse that never goes out. Players are salvage divers…")
+                        .setValue(s.describe ?? "")),
+                ));
+                return;
+            }
+            s.describe = null;
             // Their own world is written on the dashboard after this, so setup starts it blank; adding it turns its features on.
             const blank = pick === "blank" || pick === "ai";
             a.packId = blank ? null : pick;
@@ -152,6 +193,14 @@ export async function handleSetupInteraction(
             for (const f of Object.keys(a.features) as (keyof Answers["features"])[]) a.features[f] = !blank;
             break;
         }
+        case "describe":
+            if (!interaction.isModalSubmit()) return;
+            s.describe = interaction.fields.getTextInputValue("describe").trim();
+            // Set up blank until the world is written; it arrives with its own features on.
+            a.packId = null;
+            for (const f of Object.keys(a.features) as (keyof Answers["features"])[]) a.features[f] = true;
+            s.step = "world";
+            break;
         case "names":
             if (value === "edit" && interaction.isButton()) {
                 const input = (id: string, label: string, now: string) =>
@@ -169,6 +218,20 @@ export async function handleSetupInteraction(
         case "channel": a.levelUpChannelId = interaction.isChannelSelectMenu() ? interaction.values[0] ?? "" : ""; break;
         case "restart": sessions.set(sessionKey(interaction), Object.assign(s, fresh())); break;
         case "apply": {
+            let packs = STARTER_PACKS;
+            if (s.describe && interaction.isButton()) {
+                s.step = "writing";
+                await interaction.update(view(s, interaction.guildId));
+                answered = true;
+                const made = await writeWorld(interaction.guildId, s.describe);
+                if ("pack" in made) {
+                    packs = [...STARTER_PACKS, made.pack];
+                    a.packId = made.pack.id;
+                    s.made = { name: made.pack.name };
+                } else {
+                    s.made = { failed: made.message };
+                }
+            }
             const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
             // Blank adds nothing, so it changes no switches either: a server already
             // playing keeps combat, the shop and the rest exactly as they are.
@@ -177,7 +240,7 @@ export async function handleSetupInteraction(
                 duels: !!config.combat?.pvp?.enabled, encounters: !!config.combat?.encounters?.enabled,
                 quests: !!config.quests?.enabled, achievements: !!config.achievements?.enabled,
             };
-            const built = buildSetup(config as unknown as GuildConfigJson, a, STARTER_PACKS) as unknown as GuildConfig;
+            const built = buildSetup(config as unknown as GuildConfigJson, a, packs) as unknown as GuildConfig;
             if (s.names) built.style = { ...built.style, gold: { ...built.style?.gold, name: s.names.gold }, xp: { ...built.style?.xp, name: s.names.xp } };
             await setGuildConfig(interaction.guildId, built);
             sessions.delete(sessionKey(interaction));
@@ -187,6 +250,10 @@ export async function handleSetupInteraction(
     if (action !== "restart") s.step = action === "apply" ? "done" : next(s);
 
     const payload = view(s, interaction.guildId);
+    if (answered) {
+        await interaction.editReply(payload);
+        return;
+    }
     // A modal submit came from the setup message; everything else is a component on it.
     if (interaction.isModalSubmit() && interaction.isFromMessage()) await interaction.update(payload);
     else if (!interaction.isModalSubmit()) await interaction.update(payload);

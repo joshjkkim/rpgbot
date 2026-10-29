@@ -43,15 +43,37 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
     roleGold: [],
     packId: packs[0]?.id ?? null,
   });
-  // Their own world is written in the Library after setup, which starts it empty.
+  // Their own world: written from this description when they finish, then set up like a starter pack.
   const [ownWorld, setOwnWorld] = useState(false);
+  const [describe, setDescribe] = useState("");
+  const [writing, setWriting] = useState(false);
+  const [worldError, setWorldError] = useState<string | null>(null);
   const set = (patch: Partial<Answers>) => setAnswers((a) => ({ ...a, ...patch }));
   const STEPS: readonly Step[] = answers.ownLeveling ? OWN_STEPS : OTHER_BOT_STEPS;
   const current = STEPS[step];
 
   async function finish() {
-    const next = buildSetup(config as GuildConfigJson | null, answers, packs);
-    if (await save(next)) router.push(ownWorld ? `/dashboard/${guildId}/presets` : `/dashboard/${guildId}?setup=done`);
+    let chosen = answers;
+    let all = packs;
+    if (ownWorld) {
+      setWriting(true);
+      setWorldError(null);
+      const res = await fetch(`/api/discord/guilds/${guildId}/ai-packs`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: describe }),
+      }).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      setWriting(false);
+      if (!data?.pack) {
+        setWorldError(data?.message ?? "Your world couldn't be made. Try again.");
+        return;
+      }
+      all = [...packs, data.pack.pack as StarterPack];
+      chosen = { ...answers, packId: data.pack.pack.id };
+    }
+    const next = buildSetup(config as GuildConfigJson | null, chosen, all);
+    if (await save(next)) router.push(`/dashboard/${guildId}?setup=done`);
   }
 
   if (loading) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
@@ -276,6 +298,21 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
                 </button>
                 );
               })}
+              {ownWorld && (
+                <label className="block">
+                  <span className="text-sm">What&apos;s your world like?</span>
+                  <textarea
+                    value={describe}
+                    onChange={(e) => setDescribe(e.target.value)}
+                    maxLength={1500}
+                    rows={4}
+                    placeholder="A drowned city under a lighthouse that never goes out. Players are salvage divers…"
+                    className="mt-1 w-full rounded-sm border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                  />
+                  <span className="text-xs text-[var(--muted)]">It&apos;s written when you finish setup, in about a minute.</span>
+                </label>
+              )}
+              {worldError && <p className="text-sm text-red-300">{worldError}</p>}
             </div>
           </>
         )}
@@ -297,8 +334,8 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
             Next
           </button>
         ) : (
-          <button type="button" onClick={finish} disabled={saving} className="btn px-4 py-2 text-sm">
-            {saving ? "Setting up…" : "Create my setup"}
+          <button type="button" onClick={finish} disabled={saving || writing || (ownWorld && describe.trim().length < 10)} className="btn px-4 py-2 text-sm">
+            {writing ? "Writing your world…" : saving ? "Setting up…" : "Create my setup"}
           </button>
         )}
       </div>

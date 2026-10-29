@@ -4,7 +4,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, type
  * Where the dashboard lives. Optional: it defaults to production, so links work
  * with no setup. Point it at http://localhost:3000 when testing the web app.
  */
-const DASHBOARD_URL = (process.env.DASHBOARD_URL?.trim() || "https://havocish.com").replace(/\/+$/, "");
+export const DASHBOARD_URL = (process.env.DASHBOARD_URL?.trim() || "https://havocish.com").replace(/\/+$/, "");
 
 /** Pages under /dashboard/<guildId>/ in the web app. */
 export type DashboardPage = "setup" | "presets" | "xp" | "levels" | "leveling" | "shop" | "combat" | "combat-rules" | "quests" | "achievements" | "styles" | "logging" | "gathering" | "items" | "crafting" | "collections" | "characters" | "announcements";
