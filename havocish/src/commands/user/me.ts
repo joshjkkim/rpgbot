@@ -18,6 +18,7 @@ import { collectionSets } from "../../player/collections.js";
 import { execute as openMoves } from "./moves.js";
 import { execute as openCollection } from "./collection.js";
 import { renderCharacterPane, type PaneSlot } from "../../ui/canvas/characterPane.js";
+import { upgradeBonus, upgradeLevel, upgradeRules } from "../../player/upgrades.js";
 import type { EquipSlot } from "../../types/economy.js";
 
 /**
@@ -41,11 +42,15 @@ export function bar(fraction: number, length = 12) {
 }
 
 /** "+8 ATK, +2 DEF" for one equipped item. */
-function itemBonus(config: GuildConfig, itemId: string) {
-    const stats = config.shop?.items?.[itemId]?.effects?.stats ?? {};
+/** What an equipped item gives, its upgrade included: Iron Sword +1 shows "+9 ATK", not its base 8. */
+function itemBonus(config: GuildConfig, itemId: string, level = 0) {
+    const base = config.shop?.items?.[itemId]?.effects?.stats ?? {};
+    const up = upgradeBonus(base, level, upgradeRules(config).statPercent) as Record<string, number | undefined>;
+    const stats = Object.fromEntries((Object.keys(STAT_LABELS) as Array<keyof typeof STAT_LABELS>)
+        .map((k) => [k, Math.round(((base[k] ?? 0) + (up[k] ?? 0)) * 10) / 10])) as Record<keyof typeof STAT_LABELS, number>;
     return (Object.keys(STAT_LABELS) as Array<keyof typeof STAT_LABELS>)
         .filter((k) => stats[k])
-        .map((k) => `${stats[k]! > 0 ? "+" : ""}${stats[k]}${k === "crit" ? STAT_LABELS[k] : ` ${STAT_LABELS[k]}`}`)
+        .map((k) => `${stats[k] > 0 ? "+" : ""}${stats[k]}${k === "crit" ? STAT_LABELS[k] : ` ${STAT_LABELS[k]}`}`)
         .join(", ");
 }
 
@@ -84,7 +89,7 @@ async function paneFile(profile: DbUserGuildProfile, config: GuildConfig, name: 
             const meta = SLOT_META.find((m) => m.key === key)!;
             const item = equips[key] ? items[equips[key]!] : undefined;
             const held = equips[key] ? profile.inventory?.[equips[key]!] : undefined;
-            return { label: meta.label, emoji: item?.emoji ?? held?.emoji ?? null, rarity: (item?.rarity as PaneSlot["rarity"]) ?? null };
+            return { label: meta.label, emoji: item?.emoji ?? held?.emoji ?? null, rarity: (item?.rarity as PaneSlot["rarity"]) ?? null, plus: equips[key] ? upgradeLevel(profile, equips[key]!) : 0 };
         };
         const stats = calculateStats(profile, config, items);
         const cp = combatProgress(profile, config);
@@ -157,8 +162,9 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
         const itemId = equips[key];
         if (!itemId) return `${emoji} ${label} · _empty_`;
         const item = config.shop?.items?.[itemId];
-        const itemName = `${item?.emoji ?? inventory[itemId]?.emoji ?? ""} ${item?.name ?? inventory[itemId]?.name ?? itemId}`.trim();
-        const bonus = itemBonus(config, itemId);
+        const plus = upgradeLevel(profile, itemId);
+        const itemName = `${item?.emoji ?? inventory[itemId]?.emoji ?? ""} ${item?.name ?? inventory[itemId]?.name ?? itemId}${plus ? ` +${plus}` : ""}`.trim();
+        const bonus = itemBonus(config, itemId, plus);
         return `${emoji} ${label} · **${itemName}**${bonus ? ` (${bonus})` : ""}`;
     });
     c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(`**Equipped**\n${gear.join("\n")}`));

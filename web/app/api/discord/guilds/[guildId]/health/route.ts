@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireGuildManager } from "@/app/lib/discord";
+import { fetchHealth } from "@/app/lib/health";
 
 const AUTH_ERRORS = { 401: "unauthorized", 403: "forbidden", 503: "discord_unavailable" } as const;
 
@@ -19,18 +20,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ gui
         return NextResponse.json({ error: AUTH_ERRORS[auth.status] }, { status: auth.status });
     }
 
-    const url = process.env.BOT_PREVIEW_URL?.trim();
-    const secret = process.env.PREVIEW_SECRET?.trim();
-    if (!url || !secret) return NextResponse.json({ error: "unavailable" }, { status: 503 });
-
-    const res = await fetch(`${url.replace(/\/+$/, "")}/health`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-preview-secret": secret },
-        body: JSON.stringify({ guildId }),
-        signal: AbortSignal.timeout(10_000),
-        cache: "no-store",
-    }).catch(() => null);
-
-    if (!res?.ok) return NextResponse.json({ error: "unavailable" }, { status: 502 });
-    return NextResponse.json(await res.json(), { headers: { "cache-control": "no-store" } });
+    if (!process.env.BOT_PREVIEW_URL?.trim() || !process.env.PREVIEW_SECRET?.trim()) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+    const report = await fetchHealth(guildId);
+    if (!report) return NextResponse.json({ error: "unavailable" }, { status: 502 });
+    return NextResponse.json(report, { headers: { "cache-control": "no-store" } });
 }

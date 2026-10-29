@@ -319,6 +319,12 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         for (const r of Object.values(st.recipes ?? {})) reqs(r.requirements, `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "an item"}`, "crafting");
     }
 
+    // ── Gear upgrades ── (a deleted material would block every upgrade)
+    const mat = config.shop?.upgrades?.material?.itemId;
+    if (config.shop?.upgrades?.enabled !== false && mat && !items[mat]) {
+        issues.push({ severity: "warning", message: "Gear upgrades need a material that no longer exists, so nobody can upgrade. Pick another on the Shop page.", page: "shop" });
+    }
+
     // ── Unlocks ── (a role nobody can be given opens nothing)
     channel(config.unlocks?.channelId, "unlock announcements", "announcements", POST);
     for (const u of Object.values(config.unlocks?.list ?? {})) {

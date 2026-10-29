@@ -13,19 +13,20 @@ export const ROLE_LABELS: Record<EnemyRole, string> = {
     weak: "Weak", normal: "Normal", tough: "Tough", elite: "Elite (rare)", boss: "World boss",
 };
 
-/** A normal enemy at each anchor level: [level, hp, atk, def, spd, crit %, xp, gold]. In between is interpolated. */
+/** A normal enemy at each anchor level: [level, hp, atk, def, spd, crit %, xp, gold]. In between is interpolated.
+ * XP and gold suit the Standard pace: about 60 fights to Combat 10, 12 hours to 40. */
 const NORMAL: Array<[number, number, number, number, number, number, number, number]> = [
     // Level 1-3 enemies take a few hits even from a Heavy Strike: a first fight has turns to read.
-    [1, 48, 7, 2, 5, 1, 42, 7],
-    [3, 65, 14, 4, 10, 4, 50, 14],
-    [5, 85, 25, 7, 15, 5, 100, 21],
-    [9, 120, 30, 12, 12, 5, 135, 30],
-    [13, 215, 44, 17, 16, 6, 150, 58],
-    [17, 260, 50, 16, 16, 6, 185, 70],
-    [23, 450, 66, 30, 12, 6, 245, 155],
-    [28, 470, 75, 28, 18, 8, 275, 175],
-    [35, 1000, 90, 52, 19, 8, 340, 410],
-    [40, 1050, 110, 50, 25, 12, 390, 500],
+    [1, 48, 7, 2, 5, 1, 20, 4],
+    [3, 65, 14, 4, 10, 4, 25, 7],
+    [5, 85, 25, 7, 15, 5, 50, 10],
+    [9, 120, 30, 12, 12, 5, 70, 15],
+    [13, 215, 44, 17, 16, 6, 75, 29],
+    [17, 260, 50, 16, 16, 6, 90, 35],
+    [23, 450, 66, 30, 12, 6, 120, 78],
+    [28, 470, 75, 28, 18, 8, 140, 88],
+    [35, 1000, 90, 52, 19, 8, 170, 205],
+    [40, 1050, 110, 50, 25, 12, 195, 250],
 ];
 
 function normalAt(level: number) {

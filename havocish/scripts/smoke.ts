@@ -43,12 +43,15 @@ import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
 import { newestEntry, shortEntry } from "./changelog-post.js";
 import { STARTER_PACKS, applyPack } from "../src/content/packs.js";
+import { attemptUpgrade, chanceAfterStrike, nextStep, upgradeBonus, upgradeLevel } from "../src/player/upgrades.js";
 import { packChanges, stableJson } from "../src/content/packHistory.js";
 import { renderCharacterPane } from "../src/ui/canvas/characterPane.js";
 import { postResultLine } from "../src/player/fight.js";
 import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
+import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
+import { applyChanges, cleanChanges, outline, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
 import { EmbedBuilder } from "discord.js";
@@ -2520,6 +2523,7 @@ async function main() {
         const blank = (await getOrCreateGuildConfig({ discordGuildId: TEST_DISCORD_GUILD })).config;
         check("blank adds nothing and leaves the RPG off", [Object.keys(blank.combat.enemies ?? {}).length, blank.combat.enabled], [Object.keys(before.combat.enemies ?? {}).length, false]);
         check("the pace, names and channel are set", [blank.xp.basePerMessage, blank.style.gold.name, blank.style.xp.name, blank.levels.announceLevelUpInChannelId], [20, "credits", "rep", "123"]);
+        check("and the pace sets Combat's curve too (Relaxed: twice as fast)", blank.combat.curve?.curveParams?.factor, 7.5);
         check("and it says where to build", shown.components[0].components[0].data.label, "Open the Library");
 
         // Blank on a server that's already playing leaves its switches alone.
@@ -2630,6 +2634,42 @@ async function main() {
         check("values compare whatever their key order", stableJson({ b: 1, a: [{ d: 2, c: 3 }] }), stableJson({ a: [{ c: 3, d: 2 }], b: 1 }));
     });
 
+    await test("gear upgrades: costs, chances, the strike, and a failure never takes the item", async () => {
+        const { userId, guildId, config } = await reset();
+        config.shop.items = { ...config.shop.items,
+            sword: { id: "sword", name: "Iron Sword", emoji: "🗡️", categoryId: "gear", price: 250, equipable: true, equipSlot: "weapon", effects: { stats: { atk: 8 } } },
+            ore: { id: "ore", name: "Ore", categoryId: "gear", price: 0 },
+        } as any;
+        const items = config.shop.items!;
+        const sword = items.sword!;
+        check("+1 costs a quarter of its value, always works, adds +1 ATK", nextStep(sword, 0, config), { to: 1, chance: 100, gold: 60, material: null, gain: { atk: 1 } });
+        check("+4 and +5 are riskier, and +5 is the top", [nextStep(sword, 3, config)?.chance, nextStep(sword, 4, config)?.chance, nextStep(sword, 5, config)], [75, 50, null]);
+        check("+5 on 8 ATK adds 5 (at least +1 a level)", upgradeBonus({ atk: 8 }, 5, 10), { atk: 5 });
+        check("a perfect strike adds 15%, a miss takes 15% off", [chanceAfterStrike(50, "perfect", config), chanceAfterStrike(50, "ruin", config), chanceAfterStrike(100, "perfect", config)], [65, 35, 100]);
+
+        const p = (await getOrCreateProfile({ userId, guildId })).profile;
+        p.gold = "1000"; p.equips = { weapon: "sword" }; p.inventory = { sword: { id: "sword", name: "Iron Sword", quantity: 1 } } as any;
+        const before = calculateStats(p, config, items).atk;
+        const up = await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made", roll: () => 0 });
+        // A commit can hand back a fresh profile object: always read the cached one.
+        const now = async () => (await getOrCreateProfile({ userId, guildId })).profile;
+        const after = await now();
+        check("a success raises the level and spends the gold", [up.ok && up.success, upgradeLevel(after, "sword"), after.gold], [true, 1, "940"]);
+        check("and fights see it", calculateStats(after, config, items).atk, before + 1);
+        check("and /me says +9 ATK for an 8 ATK sword at +1", JSON.stringify(renderSheet(after, config, "T", TEST_DISCORD_USER, true).map((x: any) => x.toJSON())).includes("Iron Sword +1** (+9 ATK)"), true);
+
+        after.user_stats = { ...after.user_stats, upgrades: { sword: 3 } } as any;
+        const fail = await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made", roll: () => 0.99 });
+        const failed = await now();
+        check("a failure spends the cost but keeps the item and its level", [fail.ok && fail.success, upgradeLevel(failed, "sword"), failed.inventory?.sword?.quantity, failed.equips?.weapon], [false, 3, 1, "sword"]);
+
+        config.shop.upgrades = { material: { itemId: "ore", perStep: 2 } };
+        check("with a material, each step needs more of it", nextStep(sword, 3, config)?.material, { itemId: "ore", quantity: 8 });
+        check("and without it, nothing happens", (await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made", roll: () => 0 })).ok, false);
+        config.shop.upgrades = { enabled: false };
+        check("an owner can turn upgrades off", (await attemptUpgrade({ userId, guildId, config, itemId: "sword", outcome: "made" })).ok, false);
+    });
+
     await test("every starter pack is self-contained", async () => {
         for (const pack of STARTER_PACKS) {
             const broken: string[] = [];
@@ -2649,6 +2689,126 @@ async function main() {
             check(`${pack.name}: every reference resolves`, broken, []);
         }
         check("pack ids are unique", new Set(STARTER_PACKS.map((p) => p.id)).size, STARTER_PACKS.length);
+    });
+
+    await test("an AI-written world becomes a balanced, self-contained pack", async () => {
+        const w = (name: string, emoji = "✨") => ({ name, emoji });
+        const skeleton: Skeleton = {
+            name: "Drowned City", tagline: "Salvage divers", description: "Under the lighthouse.",
+            shopkeeper: w("Old Hesk"), announcer: w("The Keeper"),
+            categories: { gear: w("Diving Kit"), potions: w("Tonics"), materials: w("Salvage"), tools: w("Tools") },
+            statuses: { poison: w("Brine-sick"), weaken: w("Waterlogged"), enrage: w("Frenzied") },
+            moves: [
+                { ...w("Snap"), key: "snap", telegraph: "opens its jaws.", kind: "strike" },
+                { ...w("Ink Cloud"), key: "ink", telegraph: "puffs up…", kind: "poison" },
+                { ...w("Bad Move"), key: "bad", telegraph: "", kind: "explode" as any },
+            ],
+            materials: [{ ...w("Pearl"), key: "pearl", description: "Shiny." }],
+            gear: [
+                { ...w("Rusty Harpoon"), key: "h1", description: "", slot: "weapon", level: 1, rarity: "common" },
+                { ...w("Deep Harpoon"), key: "h2", description: "", slot: "weapon", level: 99, rarity: "rare", crafted: true },
+                { ...w("Rusty Harpoon"), key: "h3", description: "", slot: "head", level: 5, rarity: "common" },
+            ],
+            potions: [{ ...w("Kelp Tonic"), key: "tonic", description: "", level: 1 }],
+            places: [{ ...w("The Shallows"), key: "shallows", arrival: "drifts closer", bestiary: { ...w("Shallows Logbook", "📓"), description: "Everything in the shallows." } }, { ...w("Empty Reef"), key: "empty", arrival: "" }],
+            achievements: { "first-blood": "First Catch", "veteran-of-the-realm": "Old Salt", nope: "Ghost" },
+            enemies: [
+                { ...w("Crab"), key: "crab", level: 2, role: "weak", place: "shallows", moves: ["snap", "nope", "bad"], drops: ["pearl", "nope"] },
+                { ...w("Eel"), key: "eel", level: 0, role: "elite", place: "nowhere", moves: ["ink"], drops: [] },
+                { ...w("The Leviathan"), key: "lev", level: 30, role: "boss", place: "shallows", moves: ["snap"], drops: ["pearl"] },
+            ],
+            quests: [{ name: "Crab Season", description: "", enemy: "crab", count: 500 }, { name: "Ghosts", description: "", enemy: "ghost", count: 3 }],
+            activities: [
+                {
+                    ...w("Diving"), skillName: "Diving", game: "grid", words: { tile: "🫧", leave: "Surface", hazard: "" },
+                    tools: [{ ...w("Lead Weights"), description: "" }],
+                    locations: [
+                        { ...w("Pier"), finds: [{ ...w("Shell"), key: "shell", description: "" }, { ...w("Rope"), key: "rope", description: "" }, { ...w("Black Pearl"), key: "bp", description: "" }] },
+                        { ...w("Wreck"), finds: [{ ...w("Brass"), key: "brass", description: "" }] },
+                        { ...w("Trench"), finds: [{ ...w("Ooze"), key: "ooze", description: "" }] },
+                    ],
+                },
+                { ...w("Dancing"), skillName: "", game: "dance", words: {}, tools: [], locations: [] },
+            ],
+            stations: [{
+                ...w("Workbench"), skillName: "Tinkering", style: "forge", words: { craft: "Tinker", forging: "" },
+                recipes: [{ makes: "h2", uses: ["brass", "bp", "pearl", "nope"] }, { makes: "h2", uses: ["shell"] }, { makes: "ghost", uses: ["shell"] }, { makes: "tonic", uses: [] }],
+            }],
+        };
+        const pack = buildPack(skeleton, "ai-test");
+        const c = pack.content as any;
+        const broken: string[] = [];
+        for (const kind of Object.keys(KINDS) as Kind[]) {
+            const [section, map] = KINDS[kind];
+            for (const [id, entry] of Object.entries((c[section]?.[map] ?? {}) as Record<string, any>)) {
+                for (const ref of refsOf(kind, entry)) if (!entryOf(c, ref)) broken.push(`${kind}:${id} -> ${ref.kind}:${ref.id}`);
+            }
+        }
+        check("every reference resolves", broken, []);
+        check("a move of an unknown kind is dropped", Object.keys(c.combat.moves), ["snap", "ink-cloud"]);
+        check("unknown keys are dropped", c.combat.enemies.crab.moves, [{ moveId: "snap", weight: 3 }]);
+        check("numbers come from the balance tables", c.combat.enemies.crab.hp, enemyPreset(2, "weak").hp);
+        check("levels are clamped", [c.combat.enemies.eel.minLevel, c.shop.items["deep-harpoon"].minLevel], [1, 40]);
+        check("names that repeat get their own ids", Object.keys(c.shop.items).filter((k) => k.startsWith("rusty-harpoon")), ["rusty-harpoon", "rusty-harpoon-2"]);
+        check("an enemy in an unknown place goes to one by its level", c.combat.places["the-shallows"].enemies.map((e: any) => e.enemyId), ["crab", "eel"]);
+        check("the boss lives in no place, and empty places are dropped", Object.keys(c.combat.places), ["the-shallows"]);
+        check("a quest for an unknown enemy is dropped, counts clamped", Object.values(c.quests.quests).map((q: any) => q.conditions.target), [20]);
+        check("the shop has its characters", [c.characters.shopkeeperId, c.characters.announcerId], ["old-hesk", "the-keeper"]);
+        check("it adds like any pack", addEntries(null, c, [{ kind: "enemies", id: "crab" }]).added.length > 1, true);
+        const diving = c.gathering.activities.diving;
+        check("an unknown minigame is dropped", Object.keys(c.gathering.activities), ["diving"]);
+        check("minigame words fill in what the model left out", [diving.words.tile, diving.words.leave, diving.words.hazard, diving.words.verb], ["🫧", "Surface", "💥", "mined"]);
+        check("locations take Classic Fantasy's numbers by tier", [diving.locations.pier.minSkill, diving.locations.wreck.minSkill, diving.locations.trench.minSkill], [1, 15, 30]);
+        check("a location never needs a better tool than there is", [diving.locations.wreck.minToolTier, diving.locations.trench.minToolTier], [1, undefined]);
+        check("the third find is the rare one", diving.locations.pier.loot.map((l: any) => l.chance), [40, 50, 10]);
+        check("tools point at their activity", c.shop.items["lead-weights"].tool, { activityId: "diving", tier: 1, bonus: 1 });
+        const bench = c.crafting.stations.workbench;
+        check("one recipe per output, from known inputs only", Object.keys(bench.recipes), ["deep-harpoon"]);
+        check("a rare find is needed once", bench.recipes["deep-harpoon"].inputs, [{ itemId: "brass", quantity: 10 }, { itemId: "black-pearl", quantity: 1 }, { itemId: "pearl", quantity: 5 }]);
+        check("crafted-only gear leaves the shop", [c.shop.items["deep-harpoon"].price, c.shop.items["deep-harpoon"].hidden], [0, true]);
+        check("station words fill in what's left out", [bench.words.craft, bench.words.forging], ["Tinker", "Forging"]);
+        const find = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "find", words: { prompt: "Look for it!" } }] }, "x").content.gathering!.activities.diving as any;
+        check("words that drop a {placeholder} keep the default", find.words.prompt, "Search the undergrowth for the {target}!");
+        check("apostrophes don't split ids", Object.keys(buildPack({ ...skeleton, materials: [{ ...w("Keeper's Relic"), key: "r", description: "" }] }, "x").content.shop.items).includes("keepers-relic"), true);
+        // Replies aren't schema-checked: wrapped in prose, or missing whole parts, they still build.
+        const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');
+        check("a loose reply still builds", Object.keys(buildPack(loose!, "x").content.combat.enemies), ["ant"]);
+        check("a reply with no JSON is refused", parseSkeleton("Sorry, I can't."), null);
+        const sets = c.collections.sets;
+        check("a collection per place (boss in the last) and per activity; one crafted piece is too few", Object.keys(sets), ["shallows-logbook", "diving-2"]);
+        check("a bestiary lists its place's enemies", sets["shallows-logbook"].entries.map((e: any) => e.id), ["crab", "eel", "the-leviathan"]);
+        check("collection words are the model's", [sets["shallows-logbook"].emoji, sets["diving-2"].emoji], ["📓", "🎒"]);
+        check("milestones at half and all", sets["diving-2"].milestones.map((m: any) => m.at), [3, 5]);
+        const ach = c.achievements.achievements;
+        check("achievements take the world's names, Classic Fantasy's goals", [ach["first-catch"]?.conditions.value, ach["old-salt"]?.conditions.value], [1, 25]);
+        check("an item reward becomes the world's gear", ach["old-salt"].reward, { itemId: "rusty-harpoon-2", quantity: 1 });
+        check("'every collection' counts this world's", ach.archivist.conditions.value, 2);
+        const bare = buildPack({ ...skeleton, activities: [], stations: [], places: [] }, "x").content as any;
+        check("no gathering, crafting or collections, no achievements for them", ["seasoned-gatherer", "master-craftsman", "collector", "archivist"].filter((k) => bare.achievements.achievements[k]), []);
+        check("and no empty collections section", bare.collections, undefined);
+    });
+
+    await test("the helper's changes are checked, then applied on a copy", async () => {
+        const config: any = { combat: { enabled: true, places: { forest: { id: "forest", channelIds: ["1"] } } }, style: "odd" };
+        const changes = cleanChanges([
+            { path: ["combat", "places", "forest", "channelIds"], value: ["2"] },
+            { path: ["unlocks", "list", "vet"], value: { id: "vet", roleId: "9", requirements: { combatLevel: 20 } } },
+            { path: ["combat", "enabled"] },
+            { path: ["combat"], value: {} },
+            { path: ["__proto__", "x"], value: 1 },
+            { path: ["style", "x"], value: 1 },
+            "nonsense",
+        ], config);
+        check("bad paths are dropped", changes.map((c) => c.path.join(".")), ["combat.places.forest.channelIds", "unlocks.list.vet", "combat.enabled"]);
+        const next: any = applyChanges(config, changes);
+        check("a field is set", next.combat.places.forest.channelIds, ["2"]);
+        check("a new section is made as needed", next.unlocks.list.vet.requirements.combatLevel, 20);
+        check("a missing value deletes", "enabled" in next.combat, false);
+        check("the original is untouched", [config.combat.places.forest.channelIds, config.combat.enabled], [["1"], true]);
+        check("old values can be shown", valueAt(config, ["combat", "places", "forest", "channelIds"]), ["1"]);
+        const brief: any = outline({ combat: { enabled: true, places: { forest: { name: "Whispering Forest", enemies: [{ enemyId: "wolf" }] } } }, xp: { perMessage: 15, ignoredChannelIds: ["9"], blurb: "x".repeat(80) } });
+        check("the outline names entries and keeps settings", [brief.combat.places.forest, brief.combat.enabled, brief.xp.perMessage, brief.xp.ignoredChannelIds, brief.xp.blurb.length], ["Whispering Forest", true, 15, ["9"], 48]);
+        check("the outline is far smaller than the config", JSON.stringify(outline(STARTER_PACKS[0]!.content)).length < JSON.stringify(STARTER_PACKS[0]!.content).length / 5, true);
     });
 
     await test("the content library adds one entry and what it needs", async () => {

@@ -43,12 +43,36 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
     roleGold: [],
     packId: packs[0]?.id ?? null,
   });
+  // Their own world: written from this description when they finish, then set up like a starter pack.
+  const [ownWorld, setOwnWorld] = useState(false);
+  const [describe, setDescribe] = useState("");
+  const [writing, setWriting] = useState(false);
+  const [worldError, setWorldError] = useState<string | null>(null);
   const set = (patch: Partial<Answers>) => setAnswers((a) => ({ ...a, ...patch }));
   const STEPS: readonly Step[] = answers.ownLeveling ? OWN_STEPS : OTHER_BOT_STEPS;
   const current = STEPS[step];
 
   async function finish() {
-    const next = buildSetup(config as GuildConfigJson | null, answers, packs);
+    let chosen = answers;
+    let all = packs;
+    if (ownWorld) {
+      setWriting(true);
+      setWorldError(null);
+      const res = await fetch(`/api/discord/guilds/${guildId}/ai-packs`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: describe }),
+      }).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      setWriting(false);
+      if (!data?.pack) {
+        setWorldError(data?.message ?? "Your world couldn't be made. Try again.");
+        return;
+      }
+      all = [...packs, data.pack.pack as StarterPack];
+      chosen = { ...answers, packId: data.pack.pack.id };
+    }
+    const next = buildSetup(config as GuildConfigJson | null, chosen, all);
     if (await save(next)) router.push(`/dashboard/${guildId}?setup=done`);
   }
 
@@ -255,21 +279,40 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
             <h2 className="text-lg">Start with ready-made content?</h2>
             <p className="text-sm text-[var(--muted)]">A pack fills the shop, enemies and quests so there&apos;s something to do right away.</p>
             <div className="space-y-3">
-              {[...packs.map((p) => ({ id: p.id as string | null, name: p.name, description: p.description })),
-                { id: null, name: "Start empty", description: "I'll make my own items, enemies and quests." }].map((p) => (
+              {[...packs.map((p) => ({ id: p.id as string | null, own: false, name: p.name, description: p.description })),
+                { id: null, own: true, name: "Describe my own world", description: "Tell the AI about your world after setup, and it writes enemies, places, gear, quests, gathering and crafting for it." },
+                { id: null, own: false, name: "Start empty", description: "I'll make my own items, enemies and quests." }].map((p) => {
+                const picked = answers.packId === p.id && ownWorld === p.own;
+                return (
                 <button
-                  key={p.id ?? "none"}
+                  key={p.id ?? (p.own ? "own" : "none")}
                   type="button"
-                  onClick={() => set({ packId: p.id })}
-                  aria-pressed={answers.packId === p.id}
+                  onClick={() => { set({ packId: p.id }); setOwnWorld(p.own); }}
+                  aria-pressed={picked}
                   className={`block w-full rounded-sm border p-4 text-left transition-colors ${
-                    answers.packId === p.id ? "border-[var(--accent)] bg-[var(--accent)]/10" : "border-[var(--border)] hover:border-[var(--border-bright)]"
+                    picked ? "border-[var(--accent)] bg-[var(--accent)]/10" : "border-[var(--border)] hover:border-[var(--border-bright)]"
                   }`}
                 >
                   <p className="font-display text-base">{p.name}</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">{p.description}</p>
                 </button>
-              ))}
+                );
+              })}
+              {ownWorld && (
+                <label className="block">
+                  <span className="text-sm">What&apos;s your world like?</span>
+                  <textarea
+                    value={describe}
+                    onChange={(e) => setDescribe(e.target.value)}
+                    maxLength={1500}
+                    rows={4}
+                    placeholder="A drowned city under a lighthouse that never goes out. Players are salvage divers…"
+                    className="mt-1 w-full rounded-sm border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                  />
+                  <span className="text-xs text-[var(--muted)]">It&apos;s written when you finish setup, in about a minute.</span>
+                </label>
+              )}
+              {worldError && <p className="text-sm text-red-300">{worldError}</p>}
             </div>
           </>
         )}
@@ -291,8 +334,8 @@ export default function SetupWizard({ guildId, packs }: { guildId: string; packs
             Next
           </button>
         ) : (
-          <button type="button" onClick={finish} disabled={saving} className="btn px-4 py-2 text-sm">
-            {saving ? "Setting up…" : "Create my setup"}
+          <button type="button" onClick={finish} disabled={saving || writing || (ownWorld && describe.trim().length < 10)} className="btn px-4 py-2 text-sm">
+            {writing ? "Writing your world…" : saving ? "Setting up…" : "Create my setup"}
           </button>
         )}
       </div>
