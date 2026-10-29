@@ -18,6 +18,8 @@ const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
 
 type MoveKind = (typeof MOVE_KINDS)[number];
 type Words = { name: string; emoji: string };
+/** A collection's words; what's in it comes from the world itself. */
+type SetWords = Partial<Words & { description: string }>;
 
 /** What the model fills in. Keys are its own short names, used to link entries; ids are made from names here. */
 export type Skeleton = {
@@ -32,15 +34,20 @@ export type Skeleton = {
     materials: Array<Words & { key: string; description: string }>;
     gear: Array<Words & { key: string; description: string; slot: GearSlot; level: number; rarity: Rarity; crafted?: boolean }>;
     potions: Array<Words & { key: string; description: string; level: number }>;
-    places: Array<Words & { key: string; arrival: string }>;
+    places: Array<Words & { key: string; arrival: string; bestiary?: SetWords }>;
     enemies: Array<Words & { key: string; level: number; role: EnemyRole; place: string; moves: string[]; drops: string[] }>;
     quests: Array<{ name: string; description: string; enemy: string; count: number }>;
     activities: Array<Words & {
         skillName: string; game: string; words: Record<string, unknown>;
         tools: Array<Words & { description: string }>;
         locations: Array<Words & { finds: Array<Words & { key: string; description: string }> }>;
+        collection?: SetWords;
     }>;
     stations: Array<Words & { skillName: string; style: string; words: Record<string, unknown>; recipes: Array<{ makes: string; uses: string[] }> }>;
+    /** The collection of crafting-only gear. */
+    crafted?: SetWords;
+    /** New names for Classic Fantasy's achievements, by id; their goals and rewards stay. */
+    achievements?: Record<string, string>;
 };
 
 type Json = Record<string, any>;
@@ -82,6 +89,8 @@ Make, roughly:
 - 3 to 5 hunting quests: defeat some number (3 to 20) of one enemy (by key).
 - 2 gathering activities that suit the world (what players dig, catch, scavenge or hack), each played as a minigame: grid (uncover tiles, avoiding hazards), timing (wait for the signal, then react) or find (spot the target among decoys). Each has 3 locations from easy to hard, each location 3 finds (two everyday ones, then a rare one), and 3 tools that get better.
 - 1 or 2 crafting stations, style forge (strike at the right moment) or simple (one click), with 4 to 8 recipes that make the world's gear or potions (by key) from materials and finds (by key). Mark a few good pieces of gear "crafted": true to make them crafting-only, never sold.
+- A collection for each place's enemies ("bestiary" on the place), each activity's finds ("collection" on the activity) and the crafting-only gear ("crafted"): a name, emoji and one-line description each.
+- A name in the world's style for each of these achievements, by id (the goal stays as written): ${JSON.stringify(Object.fromEntries((Object.values(CF.achievements.achievements) as Json[]).map((a) => [a.id, a.description])))}
 Minigame and station words replace these examples (keep anything in {braces}): ${JSON.stringify({ ...Object.fromEntries(Object.entries(GAMES).map(([g, v]) => [g, v.words])), forge: STYLES.forge!.words, simple: STYLES.simple!.words })}
 Keys are short lowercase words you make up to link things together. Emoji are single standard emoji.
 
@@ -94,11 +103,13 @@ Reply with only a JSON object, no other text, shaped like this (lists shortened)
 "materials":[{"key":"","name":"","emoji":"","description":""}],
 "gear":[{"key":"","name":"","emoji":"","description":"","slot":"weapon","level":1,"rarity":"common","crafted":false}],
 "potions":[{"key":"","name":"","emoji":"","description":"","level":1}],
-"places":[{"key":"","name":"","emoji":"","arrival":"what an enemy does as it appears, e.g. drifts out of the murk"}],
+"places":[{"key":"","name":"","emoji":"","arrival":"what an enemy does as it appears, e.g. drifts out of the murk","bestiary":{"name":"","emoji":"","description":""}}],
 "enemies":[{"key":"","name":"","emoji":"","level":1,"role":"weak","place":"","moves":[""],"drops":[""]}],
 "quests":[{"name":"","description":"","enemy":"","count":5}],
-"activities":[{"name":"","emoji":"","skillName":"","game":"grid","words":{},"tools":[{"name":"","emoji":"","description":""}],"locations":[{"name":"","emoji":"","finds":[{"key":"","name":"","emoji":"","description":""}]}]}],
-"stations":[{"name":"","emoji":"","skillName":"","style":"forge","words":{},"recipes":[{"makes":"","uses":[""]}]}]}`;
+"activities":[{"name":"","emoji":"","skillName":"","game":"grid","words":{},"tools":[{"name":"","emoji":"","description":""}],"locations":[{"name":"","emoji":"","finds":[{"key":"","name":"","emoji":"","description":""}]}],"collection":{"name":"","emoji":"","description":""}}],
+"stations":[{"name":"","emoji":"","skillName":"","style":"forge","words":{},"recipes":[{"makes":"","uses":[""]}]}],
+"crafted":{"name":"","emoji":"","description":""},
+"achievements":{"first-blood":""}}`;
 
 /** The model's reply as a Skeleton, whatever shape it came in: missing parts become empty, so buildPack never trips on them. */
 export function parseSkeleton(reply: string): Skeleton | null {
@@ -118,6 +129,7 @@ export function parseSkeleton(reply: string): Skeleton | null {
         moves: arr(r.moves), materials: arr(r.materials), gear: arr(r.gear), potions: arr(r.potions), places: arr(r.places),
         enemies: arr(r.enemies).map((e) => ({ ...e, moves: strs(e.moves), drops: strs(e.drops) })),
         quests: arr(r.quests),
+        achievements: Object.fromEntries(Object.entries(obj(r.achievements)).map(([k, v]) => [k, String(v)])),
         activities: arr(r.activities).map((a) => ({ ...a, words: obj(a.words), tools: arr(a.tools), locations: arr(a.locations).map((l) => ({ ...l, finds: arr(l.finds) })) })),
         stations: arr(r.stations).map((st) => ({ ...st, words: obj(st.words), recipes: arr(st.recipes).map((x) => ({ ...x, uses: strs(x.uses) })) })),
     } as Skeleton;
@@ -233,6 +245,7 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
     const findIds = new Map<string, string>();
     const rareFinds = new Set<string>();
     const activities: Record<string, Json> = {};
+    const activityFinds: Array<{ words: SetWords | undefined; name: string; finds: string[] }> = [];
     let tools = 0;
     for (const a of s.activities.slice(0, 3)) {
         const game = GAMES[a.game];
@@ -262,6 +275,7 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
         if (!Object.keys(locations).length) continue;
         const name = text(a.name, 40) || "Gathering";
         activities[aid] = { ...structuredClone(game.fields), id: aid, name, emoji: emoji(a.emoji, "🧺"), skillName: text(a.skillName, 30) || name, words: wordsOver(game.words, a.words), locations };
+        activityFinds.push({ words: a.collection, name, finds: Object.values(locations).flatMap((l) => l.loot.map((x: Json) => x.itemId)) });
         for (const [i, t] of own.entries()) {
             const tid = id(t.name, "tool");
             items[tid] = {
@@ -276,6 +290,7 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
     // Crafting: recipes for the world's own gear and potions, from what enemies drop and gathering finds.
     const makes = new Map([...gear, ...potions].map((x) => [x.key, x]));
     const stations: Record<string, Json> = {};
+    const craftedOnly: Array<{ iid: string; level: number }> = [];
     for (const st of s.stations.slice(0, 3)) {
         const style = st.style === "simple" ? "simple" : "forge";
         const recipes: Record<string, Json> = {};
@@ -291,7 +306,10 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
                 // Classic Fantasy's: the skill about matches the level, the XP about ten per level, the gold about a third of the shop price.
                 minSkill: clamp(out.level * 0.9, 1, 40), skillXp: Math.max(15, out.level * 10), gold: Math.round(out.price * 0.3),
             };
-            if (out.crafted) Object.assign(items[out.iid]!, { price: 0, hidden: true });
+            if (out.crafted) {
+                Object.assign(items[out.iid]!, { price: 0, hidden: true });
+                craftedOnly.push(out);
+            }
         }
         if (!Object.keys(recipes).length) continue;
         const sid = id(st.name, "station");
@@ -305,15 +323,19 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
     };
 
     const placeIds = new Map<string, string>();
+    const bestiaries = new Map<string, SetWords | undefined>();
     const places: Record<string, { id: string; enemies: Array<{ enemyId: string; weight: number }> } & Record<string, unknown>> = {};
     for (const p of s.places.slice(0, 8)) {
         const pid = id(p.name, "place");
         placeIds.set(p.key, pid);
+        bestiaries.set(pid, p.bestiary);
         places[pid] = { id: pid, name: text(p.name, 60), emoji: emoji(p.emoji, "🗺️"), arrival: text(p.arrival, 80), channelIds: [], enemies: [], fights: "thread" };
     }
 
     const enemyIds = new Map<string, { id: string; xp: number; gold: number }>();
     const enemyMap: Record<string, unknown> = {};
+    const enemyLevels = new Map<string, number>();
+    const bosses: string[] = [];
     for (const e of enemies) {
         const eid = id(e.name, "enemy");
         const role = e.role;
@@ -330,8 +352,12 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
             id: eid, name: text(e.name, 60), emoji: emoji(e.emoji, "👾"), ...n, drops,
             ...(own.length && { moves: own.map((moveId, i) => ({ moveId, weight: i === 0 ? 3 : 1 })) }),
         };
+        enemyLevels.set(eid, e.level);
         // A world boss turns up on its own; everything else lives in a place (the model's, or the nearest by order).
-        if (role === "boss") continue;
+        if (role === "boss") {
+            bosses.push(eid);
+            continue;
+        }
         const place = places[placeIds.get(e.place) ?? ""] ?? Object.values(places)[Math.min(Object.keys(places).length - 1, Math.floor(e.level / 10))];
         place?.enemies.push({ enemyId: eid, weight: role === "elite" ? 1 : 3 });
     }
@@ -351,6 +377,50 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
         };
     }
 
+    // Collections: each place's enemies (the boss in the last), each activity's finds, the crafting-only gear. Rewards at half and all, by level.
+    const sets: Record<string, Json> = {};
+    const avg = (ns: number[]) => ns.reduce((a, b) => a + b, 0) / ns.length;
+    const addSet = (words: SetWords | undefined, fallback: Words, entries: Array<{ kind: "item" | "enemy"; id: string }>, half: number, all: number, xp: number) => {
+        if (entries.length < 3) return;
+        const w = words && typeof words === "object" ? words : {};
+        const cid = id(w.name || fallback.name, "collection");
+        sets[cid] = {
+            id: cid, name: text(w.name, 60) || fallback.name, emoji: emoji(w.emoji, fallback.emoji), description: text(w.description), entries,
+            milestones: [
+                { at: Math.ceil(entries.length / 2), actions: [{ type: "giveGold", amount: Math.round(half) }] },
+                { at: entries.length, actions: [{ type: "giveGold", amount: Math.round(all) }, ...(xp ? [{ type: "giveCombatXp", amount: Math.round(xp) }] : [])] },
+            ],
+        };
+    };
+    const livePlaces = Object.values(places).filter((p) => p.enemies.length);
+    for (const [i, p] of livePlaces.entries()) {
+        const eids = [...p.enemies.map((e) => e.enemyId), ...(i === livePlaces.length - 1 ? bosses : [])];
+        const n = enemyPreset(Math.round(avg(eids.map((e) => enemyLevels.get(e)!))), "normal");
+        addSet(bestiaries.get(p.id), { name: String(p.name), emoji: "📖" }, eids.map((e) => ({ kind: "enemy", id: e })), n.goldReward * 2.5, n.goldReward * 8, n.xpReward * 3);
+    }
+    for (const a of activityFinds) {
+        const sell = a.finds.reduce((sum, f) => sum + Number(items[f]!.sellPrice), 0);
+        addSet(a.words, { name: a.name, emoji: "🎒" }, a.finds.map((f) => ({ kind: "item", id: f })), Math.max(25, sell * 0.07), sell * 0.25, 150);
+    }
+    const L = craftedOnly.length ? avg(craftedOnly.map((c) => c.level)) : 0;
+    addSet(s.crafted, { name: "Crafted", emoji: "⚒️" }, craftedOnly.map((c) => ({ kind: "item", id: c.iid })), L * 6, L * 18, L * 10);
+
+    // Achievements: Classic Fantasy's goals and rewards under the world's names, leaving out any for a feature this world doesn't have.
+    const setCount = Object.keys(sets).length;
+    const achievements: Record<string, Json> = {};
+    for (const a of Object.values(CF.achievements.achievements) as Json[]) {
+        const stat = a.conditions.statKey;
+        if ((stat === "gatherRuns" && !Object.keys(activities).length) || (stat === "craftsMade" && !Object.keys(stations).length)) continue;
+        if (stat === "collectionsCompleted" && (a.conditions.value > 1 ? setCount < 2 : !setCount)) continue;
+        const name = text(s.achievements?.[a.id], 60) || a.name;
+        const aid = id(name, a.id);
+        const copy: Json = { ...structuredClone(a), id: aid, name };
+        if (stat === "collectionsCompleted" && a.conditions.value > 1) copy.conditions.value = setCount;
+        // Its item reward is Classic Fantasy's own; the world's best gear at that level stands in.
+        if (copy.reward.itemId) copy.reward = gear.length ? { itemId: best(gear, a.conditions.value)!.iid, quantity: 1 } : { gold: 400 };
+        achievements[aid] = copy;
+    }
+
     return {
         id: packId,
         name: text(s.name, 60) || "Your world",
@@ -360,7 +430,8 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
             shop: { categories: { [cats.gear.id]: cats.gear, [cats.potions.id]: cats.potions, [cats.materials.id]: cats.materials, ...(tools && { [cats.tools.id]: cats.tools }) }, items: items as never },
             combat: { enemies: enemyMap as never, places: Object.fromEntries(Object.entries(places).filter(([, p]) => p.enemies.length)) as never, moves: moves as never, statuses: statuses as never },
             quests: { quests: quests as never },
-            achievements: { achievements: {} },
+            achievements: { achievements: achievements as never },
+            ...(setCount && { collections: { sets: sets as never } }),
             ...(Object.keys(activities).length && { gathering: { activities: activities as never } }),
             ...(Object.keys(stations).length && { crafting: { stations: stations as never } }),
             characters: { list: { [characters.shopkeeper.id]: characters.shopkeeper, [characters.announcer.id]: characters.announcer }, shopkeeperId: characters.shopkeeper.id, announcerId: characters.announcer.id },
