@@ -1,0 +1,147 @@
+{
+ "prompt": "A cozy town where farming, cooking, and good vibes reign supreme, cottage core. The only enemies are the occasional critters that try to steal crops!",
+ "name": "Hollyhock Hollow",
+ "description": "Hollyhock Hollow is a cozy cottagecore town of thatched roofs, bubbling kettles and sun-warmed gardens. Neighbors trade pie and gossip, but sneaky critters keep trying to swipe the harvest. Grab your trowel and your best apron and defend the veggie patch.",
+ "enemies": [
+  {
+   "name": "Sly Fox",
+   "emoji": "🦊"
+  },
+  {
+   "name": "Barn Rat",
+   "emoji": "🐀"
+  },
+  {
+   "name": "Field Mouse",
+   "emoji": "🐭"
+  },
+  {
+   "name": "Tunnel Mole",
+   "emoji": "🦫"
+  },
+  {
+   "name": "Carrot Bunny",
+   "emoji": "🐰"
+  },
+  {
+   "name": "Seed Sparrow",
+   "emoji": "🐦"
+  },
+  {
+   "name": "Truffle Boar",
+   "emoji": "🐗"
+  },
+  {
+   "name": "Grumpy Badger",
+   "emoji": "🦡"
+  },
+  {
+   "name": "Acorn Squirrel",
+   "emoji": "🐿️"
+  },
+  {
+   "name": "Apple Hedgehog",
+   "emoji": "🦔"
+  },
+  {
+   "name": "Bandit Raccoon",
+   "emoji": "🦝"
+  },
+  {
+   "name": "Scarecrow Crow",
+   "emoji": "🐦‍⬛"
+  },
+  {
+   "name": "Honey Bee Swarm",
+   "emoji": "🐝"
+  },
+  {
+   "name": "The Great Pumpkin Bandit",
+   "emoji": "🎃",
+   "boss": true
+  }
+ ],
+ "places": [
+  {
+   "name": "Old Red Barn",
+   "emoji": "🏚️"
+  },
+  {
+   "name": "Apple Orchard",
+   "emoji": "🍎"
+  },
+  {
+   "name": "The Veggie Patch",
+   "emoji": "🥕"
+  },
+  {
+   "name": "Wildflower Meadow",
+   "emoji": "🌸"
+  }
+ ],
+ "activities": [
+  {
+   "name": "Foraging",
+   "emoji": "🧺"
+  },
+  {
+   "name": "Gardening",
+   "emoji": "🌱"
+  }
+ ],
+ "stations": [
+  {
+   "name": "Cottage Kitchen",
+   "emoji": "🍳"
+  },
+  {
+   "name": "Seamstress Loom",
+   "emoji": "🧵"
+  }
+ ],
+ "items": {
+  "golden-scythe": {
+   "id": "golden-scythe",
+   "name": "Golden Scythe",
+   "emoji": "🌙",
+   "price": 0,
+   "hidden": true,
+   "rarity": "legendary",
+   "effects": {
+    "stats": {
+     "atk": 39
+    }
+   },
+   "minLevel": 38,
+   "equipSlot": "weapon",
+   "equipable": true,
+   "permanent": true,
+   "sellPrice": 4778,
+   "tradeable": true,
+   "categoryId": "cottage-wear",
+   "description": "Gleams like wheat at sunset."
+  },
+  "honeyed-mittens": {
+   "id": "honeyed-mittens",
+   "name": "Honeyed Mittens",
+   "emoji": "🍯",
+   "price": 0,
+   "hidden": true,
+   "rarity": "epic",
+   "effects": {
+    "stats": {
+     "atk": 8,
+     "def": 9
+    }
+   },
+   "minLevel": 28,
+   "equipSlot": "hands",
+   "equipable": true,
+   "permanent": true,
+   "sellPrice": 1173,
+   "tradeable": true,
+   "categoryId": "cottage-wear",
+   "description": "Sticky-sweet and surprisingly grippy."
+  }
+ }
+}

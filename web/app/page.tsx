@@ -33,6 +33,7 @@ const SHOWCASE = [
 ];
 
 const ALSO: Array<[SpriteName, string]> = [
+  ["star", "A whole world written by AI from a few sentences you type"],
   ["pickaxe", "Gathering skills you invent, each played as a minigame"],
   ["hourglass", "Places with their own character, and weather that changes through the day"],
   ["anvil", "Crafting, with recipes you unlock by finding rare materials"],
