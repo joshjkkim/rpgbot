@@ -21,6 +21,7 @@ import { alertsEnabled, crashMessage, postAlert } from "./alert.js";
 import { startPreviewServer } from "./http/previewServer.js";
 import { restoreBosses, saveLiveBosses } from "./player/bosses.js";
 import { convertLegacyCombat } from "./player/combatLevel.js";
+import { startBotListStats } from "./botLists.js";
 
 // Refuse to start on missing configuration, before a single event handler is
 // registered. An unset DATABASE_URL does not throw -- pg falls back to
@@ -43,8 +44,9 @@ const client = new Client({
   ],
 });
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, (ready) => {
     console.log(`Logged in as ${client.user?.tag}!`);
+    startBotListStats(ready);
     void restoreBosses(client)
         .then((n) => n && console.log(`Restored ${n} live world boss${n === 1 ? "" : "es"}.`))
         .catch((err) => console.error("Restoring world bosses failed:", err));
