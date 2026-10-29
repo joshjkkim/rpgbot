@@ -177,11 +177,13 @@ export async function handleSetupInteraction(
         case "world": {
             const pick = interaction.isStringSelectMenu() ? interaction.values[0]! : "blank";
             if (pick === "ai" && interaction.isStringSelectMenu()) {
+                const input = new TextInputBuilder()
+                    .setCustomId("describe").setLabel("What's your world like?").setStyle(TextInputStyle.Paragraph)
+                    .setMinLength(10).setMaxLength(1500).setPlaceholder("A drowned city under a lighthouse that never goes out. Players are salvage divers…");
+                // Discord refuses an empty prefilled value, so only a second try carries the first one over.
+                if (s.describe) input.setValue(s.describe);
                 await interaction.showModal(new ModalBuilder().setCustomId("setup:describe:save").setTitle("Describe your world").addComponents(
-                    new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder()
-                        .setCustomId("describe").setLabel("What's your world like?").setStyle(TextInputStyle.Paragraph)
-                        .setMinLength(10).setMaxLength(1500).setPlaceholder("A drowned city under a lighthouse that never goes out. Players are salvage divers…")
-                        .setValue(s.describe ?? "")),
+                    new ActionRowBuilder<TextInputBuilder>().addComponents(input),
                 ));
                 return;
             }
