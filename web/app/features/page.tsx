@@ -5,19 +5,15 @@ import type { shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
 import { SiteFooter, SiteHeader } from "@/app/components/siteChrome";
 import { inviteUrl } from "@/app/lib/invite";
 import { FightMock, GatherDemo, QuestMock } from "./demos";
-// Real output: a world the AI builder wrote from the description in it.
-import aiWorld from "./aiWorld.json";
+import { AiWorldCard, EnemyGrid, type Enemy } from "./aiWorldCard";
 
 export const metadata: Metadata = {
   title: "Features",
   description: "Levels, fights you read and unlock moves for, parties, worlds written by AI from your description, gathering minigames with changing conditions, crafting, a collection log, quests and a dashboard to design it all. Everything havocish adds to a Discord server.",
 };
 
-type Enemy = { name: string; emoji: string; boss?: boolean };
-
 const items = pack.content.shop.items as unknown as Record<string, shopItemConfig>;
 const enemies = pack.content.combat.enemies as Record<string, Enemy>;
-const aiItems = aiWorld.items as unknown as Record<string, shopItemConfig>;
 
 function Feature({ title, children, visual, flip }: { title: string; children: React.ReactNode; visual: React.ReactNode; flip?: boolean }) {
   return (
@@ -30,17 +26,6 @@ function Feature({ title, children, visual, flip }: { title: string; children: R
     </section>
   );
 }
-
-const EnemyGrid = ({ list }: { list: Enemy[] }) => (
-  <ul className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2">
-    {list.map((e) => (
-      <li key={e.name} className="flex flex-col items-center gap-1 rounded-sm border border-[var(--border)] bg-black/30 p-1.5">
-        <span className="slot h-11 w-11 text-2xl" style={e.boss ? { borderColor: "#d0894a" } : undefined}>{e.emoji}</span>
-        <span className="w-full truncate text-center text-[11px] leading-tight" style={e.boss ? { color: "#d0894a" } : undefined}>{e.name}</span>
-      </li>
-    ))}
-  </ul>
-);
 
 const Points = ({ items: lines }: { items: React.ReactNode[] }) => (
   <ul className="space-y-1.5">
@@ -147,23 +132,7 @@ export default function FeaturesPage() {
           <Feature
             flip
             title="Describe a world, get one"
-            visual={
-              <div className="w-full max-w-[460px] space-y-3">
-                <div className="frame p-4">
-                  <p className="text-sm italic text-[var(--muted)]">&ldquo;{aiWorld.prompt}&rdquo;</p>
-                  <p className="mt-4 font-display text-[var(--gold)]">{aiWorld.name}</p>
-                  <p className="mt-1 mb-3 text-sm leading-relaxed text-[var(--muted)]">{aiWorld.description}</p>
-                  <EnemyGrid list={aiWorld.enemies.slice(-8)} />
-                  <p className="mt-3 text-sm text-[var(--muted)]">
-                    {[...aiWorld.places, ...aiWorld.activities, ...aiWorld.stations].map((x) => `${x.emoji} ${x.name}`).join(" · ")}
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ItemTooltip item={aiItems["golden-scythe"]!} />
-                  <ItemTooltip item={aiItems["honeyed-mittens"]!} />
-                </div>
-              </div>
-            }
+            visual={<AiWorldCard />}
           >
             <p>Tell havocish what your server is about in a few sentences, and it writes the whole game for it. The world on the left came from the line at its top.</p>
             <Points items={[
