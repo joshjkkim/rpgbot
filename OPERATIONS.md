@@ -215,7 +215,8 @@ can open it; everyone else gets a 404. AI defaults: `AI_HELPER_DAILY` (20),
 
 The bot posts its server count to discord.bots.gg and discordbotlist.com at
 start and every 6 hours, for each list whose key is set on Fly
-(`DBOTSGG_TOKEN`, `DBL_TOKEN`); unset lists are skipped. A failed post logs
+(`DBOTSGG_TOKEN`, `DBL_TOKEN`); unset lists are skipped. With `DBL_TOKEN` it also sends discordbotlist.com the slash
+command list at start, which that site shows on the bot's page. A failed post logs
 `Posting the server count to … failed` and changes nothing else.
 
 ```bash
