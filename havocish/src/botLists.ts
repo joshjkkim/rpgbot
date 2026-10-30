@@ -1,4 +1,5 @@
 import type { Client } from "discord.js";
+import { commandList } from "./commands/index.js";
 
 /**
  * Posts the server count to the bot lists havocish is on, so their pages show
@@ -24,9 +25,23 @@ async function postCounts(client: Client<true>) {
     }
 }
 
+/** discordbotlist.com lists the slash commands on the bot's page; they only change with a deploy, so once at start is enough. */
+async function postCommands(client: Client<true>) {
+    const key = process.env.DBL_TOKEN?.trim();
+    if (!key) return;
+    const res = await fetch(`https://discordbotlist.com/api/v1/bots/${client.user.id}/commands`, {
+        method: "POST",
+        headers: { Authorization: key, "content-type": "application/json" },
+        body: JSON.stringify(commandList.map((c) => c.toJSON())),
+        signal: AbortSignal.timeout(15_000),
+    }).catch((err: Error) => err);
+    if (res instanceof Error || !res.ok) console.error("Posting the command list to discordbotlist.com failed:", res instanceof Error ? res.message : res.status);
+}
+
 /** Posts now and every 6 hours. The timer doesn't hold the process open on shutdown. */
 export function startBotListStats(client: Client<true>) {
     if (!LISTS.some((l) => process.env[l.key]?.trim())) return;
     void postCounts(client);
+    void postCommands(client);
     setInterval(() => void postCounts(client), 6 * 60 * 60 * 1000).unref();
 }
