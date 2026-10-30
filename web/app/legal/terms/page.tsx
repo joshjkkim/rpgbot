@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "The terms for using the havocish Discord bot and dashboard.",
 };
 
-const UPDATED = "3 October 2026";
+const UPDATED = "30 October 2026";
 
 export default function TermsPage() {
   return (
@@ -74,6 +74,12 @@ export default function TermsPage() {
         Dashboard access is limited to a server&rsquo;s owner and members with Manage Server
         permission. Granting someone Manage Server in Discord lets them change the bot&rsquo;s
         configuration there, so grant it deliberately.
+      </p>
+      <p>
+        Worlds from the AI builder and changes the Helper suggests are written by an AI model. They
+        can be wrong or unsuitable, so read them before you add or apply them; once added, they
+        are part of your server&rsquo;s configuration like anything you wrote yourself. Each
+        server has a limit on AI use, which we may change.
       </p>
 
       <h2>5. Acceptable use</h2>
