@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "What the havocish Discord bot and dashboard store, and what they do not.",
 };
 
-const UPDATED = "3 October 2026";
+const UPDATED = "30 October 2026";
 
 export default function PrivacyPage() {
   return (
@@ -67,6 +67,10 @@ export default function PrivacyPage() {
           the configuration its owner set: XP rates, level curve, role rewards, shop items,
           quests, achievements, enemies, logging and style settings.
         </li>
+        <li>
+          pictures uploaded for its characters. These are public at their link, because Discord
+          loads them to show the character, and are deleted once no character uses them.
+        </li>
       </ul>
       <p>
         The bot also keeps an <strong>event log</strong> so a server&rsquo;s owner can audit what
@@ -86,6 +90,30 @@ export default function PrivacyPage() {
       <p>
         One strictly necessary cookie carries that session. There are no advertising or analytics
         cookies, so there is nothing to opt into.
+      </p>
+
+      <h2>The AI features</h2>
+      <p>
+        Two dashboard features use <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noreferrer">Anthropic</a>&rsquo;s
+        Claude models, and only when a server&rsquo;s owner or manager uses them:
+      </p>
+      <ul>
+        <li>
+          <strong>The world builder</strong> (the Library, and &ldquo;Describe my own world&rdquo; in
+          setup) sends the description you type. We keep that description and the world made from
+          it, so you can add it to your server again.
+        </li>
+        <li>
+          <strong>The Helper</strong> sends your message, the last few messages of the
+          conversation, the server&rsquo;s configuration, the names and IDs of its channels and
+          roles, and its health check. We do not keep the conversation.
+        </li>
+      </ul>
+      <p>
+        No player data, member lists or message content are sent. For each use we record the
+        server ID, which feature, and how many tokens it used, to keep within each server&rsquo;s
+        allowance. Anthropic processes what is sent on our behalf and, under its commercial
+        terms, does not train its models on it.
       </p>
 
       <h2>Where it is stored</h2>
