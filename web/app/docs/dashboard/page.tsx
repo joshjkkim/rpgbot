@@ -28,7 +28,8 @@ export default function Dashboard() {
         head={["Page", "What's there"]}
         rows={[
           ["Overview", "Each feature in a sentence, a setup checklist, and the health check."],
-          ["Library", "Ready-made content: a whole starter pack in one click, or single pieces with what they need."],
+          ["Library", "Ready-made content: a whole starter pack in one click, or single pieces with what they need. Also where the AI writes a world from your description."],
+          ["Helper", "Ask about your setup in plain words, or ask for a change. Every change is shown to you first."],
           ["Combat", "Enemies, the places they're met, and fight moves and statuses. New enemies fill in fair numbers from a level and a kind."],
           ["Items", "Every item: where it comes from, what it's for, and all its settings. Gear fills in fair stats from its slot, level and rarity."],
           ["Gathering, Crafting", "Activities with their minigames, locations and loot; stations with their recipes."],
@@ -46,6 +47,26 @@ export default function Dashboard() {
         <li><b>Simple and Advanced:</b> pages open in Simple mode with the settings most servers need. Switch to Advanced at the top of a page for everything else. Your choice is remembered.</li>
         <li><b>Saving:</b> changes are kept until you save, from the bar at the bottom or with <C>Ctrl+S</C> / <C>⌘S</C>. If someone else saved in the meantime, you&apos;re asked to reload rather than overwrite them.</li>
       </List>
+
+      <H2>Worlds written by AI</H2>
+      <P>
+        On the Library page, or with <b>Describe my own world</b> in <C>/setup</C>, describe the world your server plays in
+        and the AI writes a pack for it: enemies with their moves, places, a world boss, gear for every slot, potions and
+        loot, hunting quests, two gathering activities with their tools, crafting stations, collections and achievements.
+      </P>
+      <List>
+        <li><b>The words are the AI&apos;s, the numbers aren&apos;t.</b> Stats, prices, drop rates and rewards come from the same balance tables as the starter packs.</li>
+        <li><b>Nothing changes until you add it.</b> Add the whole world or single pieces, like a starter pack; it never overwrites what you have.</li>
+        <li><b>Writing one takes about a minute.</b> Each server can make <b>3 worlds</b>; made ones stay in the Library to add again.</li>
+      </List>
+
+      <H2>The Helper</H2>
+      <P>
+        The Helper page answers questions about your server&apos;s setup (&ldquo;why can&apos;t anyone reach the Deep
+        Vein?&rdquo;) and makes changes you ask for (&ldquo;put fights in #arena&rdquo;). It sees your settings, channel and
+        role names and the health check, never your members or their messages. Changes come back as a list you check and
+        apply with one click. Each server gets <b>20 messages a day</b>.
+      </P>
 
       <H2>Requirements</H2>
       <P>

@@ -7,6 +7,7 @@ import { inviteUrl } from "./lib/invite";
 import { FIREFLIES, SCENE, STARS, WINDOWS } from "./scene";
 import { FLAME_FRAMES, type SpriteName } from "./sprites";
 import { Pixels, Sprite } from "./components/ui/sprite";
+import { AiWorldCard } from "./features/aiWorldCard";
 
 // Real output from the bot's renderers, shown at the size Discord shows them (`show`, in px).
 const SHOWCASE = [
@@ -33,7 +34,6 @@ const SHOWCASE = [
 ];
 
 const ALSO: Array<[SpriteName, string]> = [
-  ["star", "A whole world written by AI from a few sentences you type"],
   ["pickaxe", "Gathering skills you invent, each played as a minigame"],
   ["hourglass", "Places with their own character, and weather that changes through the day"],
   ["anvil", "Crafting, with recipes you unlock by finding rare materials"],
@@ -91,8 +91,9 @@ export default function Home() {
               Turn your Discord server into an RPG
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-[var(--foreground)]/80 [text-shadow:0_1px_2px_#000]">
-              Your members level up by chatting, fight enemies that fight back, gather, craft and
-              collect gear. You design it all from a dashboard.
+              Describe your server&apos;s world in a sentence and havocish writes the game for it:
+              enemies, places, gear and quests. Your members level up, fight, gather and craft,
+              and you can change every word from the dashboard.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -115,6 +116,18 @@ export default function Home() {
                 install link.
               </p>
             )}
+          </div>
+        </section>
+
+        <section className="mx-auto grid max-w-5xl items-center gap-6 px-6 pt-8 pb-16 md:grid-cols-2 md:gap-10">
+          <div className="flex justify-center"><AiWorldCard /></div>
+          <div>
+            <h2 className="text-2xl">One sentence, a whole world</h2>
+            <p className="mt-2 leading-relaxed text-[var(--muted)]">
+              An owner typed the line at the top. havocish wrote the rest: critters to fight and a boss, places,
+              gathering and crafting, and gear for every slot. The words come from AI; every stat and price comes
+              from the same balance tables as our starter packs. Pick &ldquo;Describe my own world&rdquo; in /setup.
+            </p>
           </div>
         </section>
 
