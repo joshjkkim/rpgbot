@@ -831,7 +831,7 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part,
       <Section title="World bosses" description="Big enemies the whole server fights together." defaultOpen={false}>
         <p className="mb-4 text-sm text-[var(--muted)]">
           Make a boss by turning on <span className="text-[var(--foreground)]">World boss</span> for an enemy below.
-          Owners can summon one any time with <span className="font-mono">/boss summon</span>.
+          Owners can summon one any time by picking it in <span className="font-mono">/fight</span>.
         </p>
         <Toggle
           label="Spawn bosses on their own"
@@ -885,7 +885,7 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part,
               value={local.bosses?.channelIds ?? []}
               onChange={(v) => updateBosses({ channelIds: v })}
               hint={(local.bosses?.channelIds ?? []).length === 0
-                ? "None picked, so any channel that gives XP. Summoned bosses appear wherever /boss summon is run."
+                ? "None picked, so any channel that gives XP. Summoned bosses appear wherever /fight is run."
                 : undefined}
             />
           </FieldGrid>

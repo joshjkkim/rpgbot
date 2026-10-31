@@ -2,6 +2,18 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## v0.18.2 · October 30, 2026
+
+A quick follow-up: fights now point you at your quest, managers pick any enemy (or a world boss) right in `/fight`, and the Helper talks in plain words.
+
+### Improved
+- **Fights point you at your quest.** The line under a fight's result now says what your quest is hunting and where it roams ("Clear the Cellar: defeat 🐀 Rat King (0/1). It roams 🕳️ Cellar."), reminds you to claim a quest you finished, and tells players who've never opened `/quests` that quests are waiting.
+
+### For server owners
+- **Pick any enemy in `/fight`.** `/fight` now lists enemies as you type. Managers can pick any of them, at any level and past any requirement, to try one out, and picking a world boss summons it for the whole server, so `/boss summon` is gone (`/boss dismiss` stays). Members can pick from the list too when the server allows choosing.
+- **The Helper speaks plainly.** Changes it suggests are listed in words ("Deep Vein fights move to #arena") instead of settings code, with the exact edits folded underneath to check.
+- **See the Helper's messages left.** The Helper page shows how many of today's messages are left, and when they come back.
+
 ## v0.18 · October 28, 2026
 
 The AI update: describe the world your server plays in and get a whole game written for it, ask a Helper about your setup in plain words, and take your gear to +5.

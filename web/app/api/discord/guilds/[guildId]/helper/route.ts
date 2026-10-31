@@ -40,8 +40,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     m && typeof m === "object" && (m as { role?: unknown }).role === (i % 2 ? "assistant" : "user")
     && typeof (m as { content?: unknown }).content === "string" && (m as { content: string }).content.length <= 4000);
   if (!valid || messages.length % 2 === 0) return NextResponse.json({ error: "bad_messages" }, { status: 400 });
-  if ((await helperCallsToday(guildId)) >= (await limitsFor(guildId)).helperDaily) {
-    return NextResponse.json({ error: "used_up", message: "The helper has answered a lot today. It'll be back tomorrow." }, { status: 429 });
+  const [used, { helperDaily }] = await Promise.all([helperCallsToday(guildId), limitsFor(guildId)]);
+  if (used >= helperDaily) {
+    return NextResponse.json({ error: "used_up", message: "That's all the helper's messages for today. Each one comes back a day after it was sent.", left: 0 }, { status: 429 });
   }
 
   if (!(await withinBudget())) return NextResponse.json({ error: "busy", message: "The AI features are resting for today. Try again tomorrow." }, { status: 503 });
@@ -111,5 +112,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
   return NextResponse.json({
     reply: reply || (message.stop_reason === "refusal" ? "I can't help with that one." : ""),
     proposal: changes.length ? { summary: typeof input?.summary === "string" ? input.summary : "", changes } : null,
+    left: Math.max(0, helperDaily - used - 1),
   });
 }

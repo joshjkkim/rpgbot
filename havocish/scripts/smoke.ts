@@ -71,7 +71,7 @@ import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/pl
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
-import { newMoveLines, nextFightLine, nextGatherLine } from "../src/player/nextSteps.js";
+import { newMoveLines, nextFightLine, nextGatherLine, questLine } from "../src/player/nextSteps.js";
 import { leftToday } from "../src/db/shop.js";
 import { payCollectionMilestones, setProgress } from "../src/player/collections.js";
 import { pruneOldEvents } from "../src/db/events.js";
@@ -1935,6 +1935,14 @@ async function main() {
         cfg.combat.enemies = { wolf: { id: "wolf", name: "Wolf", minLevel: 8, maxLevel: 20 } as EnemyConfig };
         cfg.combat.places = { woods: { id: "woods", name: "Darkwood", emoji: "🌲", channelIds: ["c"], enemies: [{ enemyId: "wolf" }] } };
         check("too easy: where the fair fights are", nextFightLine(cfg, 12, true), "-# Next: 🌲 **Darkwood** has enemies more your level.");
+        cfg.combat.enemies.rat = { id: "rat", name: "Rat King", emoji: "🐀", minLevel: 1, maxLevel: null } as EnemyConfig;
+        cfg.combat.places.cellar = { id: "cellar", name: "Cellar", emoji: "🕳️", channelIds: ["d"], enemies: [{ enemyId: "rat", weight: 1 }] };
+        cfg.quests = { enabled: true, quests: { clear: { id: "clear", name: "Clear the Cellar", active: true, conditions: { type: "defeatEnemies", target: 1, enemyIds: ["rat"] } } } } as any;
+        const st = (s: object) => ({ acceptedAt: null, progress: 0, completedAt: null, claimedAt: null, ...s });
+        check("quests waiting for someone who never took one", questLine(cfg, {}), "-# 📜 There are quests to take in `/quests`.");
+        check("a hunt: who, how far, where", questLine(cfg, { clear: st({ acceptedAt: "x" }) }), "-# 📜 **Clear the Cellar**: defeat 🐀 **Rat King** (0/1). It roams 🕳️ **Cellar**.");
+        check("done but unclaimed comes first", questLine(cfg, { clear: st({ acceptedAt: "x", completedAt: "y" }) }), "-# 📜 **Clear the Cellar** is done: claim it in `/quests`.");
+        check("claimed and nothing else: no line", questLine(cfg, { clear: st({ claimedAt: "z" }) }), null);
         const act = { skillName: "Mining", locations: { a: { name: "Shallows", emoji: "⛏️", minSkill: 1 }, b: { name: "Deep Vein", emoji: "🌑", minSkill: 30 } } } as any;
         check("the next location", nextGatherLine(act, 27), "-# Next: 🌑 **Deep Vein** opens at Mining 30 (3 levels to go).");
         check("nothing left: nothing said", nextGatherLine(act, 40), null);
@@ -2791,7 +2799,7 @@ async function main() {
     await test("the helper's changes are checked, then applied on a copy", async () => {
         const config: any = { combat: { enabled: true, places: { forest: { id: "forest", channelIds: ["1"] } } }, style: "odd" };
         const changes = cleanChanges([
-            { path: ["combat", "places", "forest", "channelIds"], value: ["2"] },
+            { path: ["combat", "places", "forest", "channelIds"], value: ["2"], label: "  Forest fights move to #arena " },
             { path: ["unlocks", "list", "vet"], value: { id: "vet", roleId: "9", requirements: { combatLevel: 20 } } },
             { path: ["combat", "enabled"] },
             { path: ["combat"], value: {} },
@@ -2800,6 +2808,7 @@ async function main() {
             "nonsense",
         ], config);
         check("bad paths are dropped", changes.map((c) => c.path.join(".")), ["combat.places.forest.channelIds", "unlocks.list.vet", "combat.enabled"]);
+        check("a label is kept, trimmed", changes.map((c) => c.label ?? null), ["Forest fights move to #arena", null, null]);
         const next: any = applyChanges(config, changes);
         check("a field is set", next.combat.places.forest.channelIds, ["2"]);
         check("a new section is made as needed", next.unlocks.list.vet.requirements.combatLevel, 20);
