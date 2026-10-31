@@ -26,6 +26,7 @@ import { bestEffort } from "../../ui/bestEffort.js";
 import type { ActiveFight, EnemyConfig, FightEndSummary, FightMember, FighterState } from "../../types/combat.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
+import type { UserQuestState } from "../../types/quest.js";
 import type { shopItemConfig } from "../../types/economy.js";
 import { renderItemCard } from "../../ui/canvas/itemCard.js";
 import { renderBattleScene } from "../../ui/canvas/battleScene.js";
@@ -34,7 +35,7 @@ import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
 import { tipOnce, type Tip } from "../../player/tips.js";
 import { checkProgress } from "../../player/collections.js";
-import { newMoveLines, nextFightLine } from "../../player/nextSteps.js";
+import { newMoveLines, nextFightLine, questLine } from "../../player/nextSteps.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
 
@@ -691,7 +692,7 @@ async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ membe
         const after = await applyFightRewards(summary, fight, member, profile, config);
         results.push({ member, summary });
         const level = combatLevel(after, config);
-        const goal = summary.outcome === "flee" ? null : nextFightLine(config, level, !!summary.easyShare);
+        const goal = summary.outcome === "flee" ? null : questLine(config, after.quests as Record<string, UserQuestState> | null) ?? nextFightLine(config, level, !!summary.easyShare);
         next.set(member.userId, [...newMoveLines(config, member.level ?? level, level), ...(goal ? [goal] : [])]);
     }
 

@@ -2,6 +2,7 @@ import type { GuildConfig } from "../types/guild.js";
 import type { GatheringActivity } from "../types/gathering.js";
 import type { CraftingStation } from "../types/crafting.js";
 import type { MoveConfig } from "../types/combat.js";
+import type { UserQuestState } from "../types/quest.js";
 import { movesOf } from "./moves.js";
 import { placeEnemies } from "./places.js";
 
@@ -47,6 +48,34 @@ export function nextFightLine(config: GuildConfig, level: number, tooEasy: boole
     }
     const move = levelMoves(config).filter((m) => m.at > level).sort((a, b) => a.at - b.at)[0];
     return move ? `-# Next: ${move.emoji} **${move.name}** unlocks at Combat ${move.at} (${levels(move.at - level)}).` : null;
+}
+
+/**
+ * After a fight, ahead of nextFightLine: the quest a player is in the middle of.
+ * A finished one they haven't claimed (its reward, often the role that opens
+ * the next area, waits on that), else the enemy a hunting quest wants and where
+ * it roams, else, for someone who has never taken a quest, that there are some.
+ */
+export function questLine(config: GuildConfig, playerQuests: Record<string, UserQuestState> | null | undefined): string | null {
+    if (!config.quests?.enabled) return null;
+    const quests = config.quests.quests ?? {};
+    const mine = Object.entries(playerQuests ?? {}).flatMap(([id, state]) => (quests[id] && quests[id]!.active !== false ? [{ q: quests[id]!, state }] : []));
+
+    const unclaimed = mine.find(({ state }) => state?.completedAt && !state.claimedAt);
+    if (unclaimed) return `-# 📜 **${unclaimed.q.name}** is done: claim it in \`/quests\`.`;
+
+    for (const { q, state } of mine) {
+        const cond = q.conditions;
+        if (!state?.acceptedAt || state.completedAt || cond.type !== "defeatEnemies" || !cond.enemyIds?.length) continue;
+        const enemy = cond.enemyIds.map((id) => config.combat?.enemies?.[id]).find(Boolean);
+        if (!enemy) continue;
+        const where = Object.values(config.combat?.places ?? {}).filter((p) => p.channelIds?.length && p.enemies?.some((e) => cond.enemyIds!.includes(e.enemyId)));
+        const roams = where.length ? ` It roams ${where.map((p) => `${p.emoji} **${p.name}**`).join(", ")}.` : "";
+        return `-# 📜 **${q.name}**: defeat ${enemy.emoji} **${enemy.name}** (${state.progress ?? 0}/${cond.target}).${roams}`;
+    }
+
+    const anyActive = Object.values(quests).some((q) => q.active !== false);
+    return !mine.length && anyActive ? "-# 📜 There are quests to take in `/quests`." : null;
 }
 
 /** After a gathering run: the next location this skill opens. */

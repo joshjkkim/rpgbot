@@ -71,7 +71,7 @@ import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/pl
 import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
-import { newMoveLines, nextFightLine, nextGatherLine } from "../src/player/nextSteps.js";
+import { newMoveLines, nextFightLine, nextGatherLine, questLine } from "../src/player/nextSteps.js";
 import { leftToday } from "../src/db/shop.js";
 import { payCollectionMilestones, setProgress } from "../src/player/collections.js";
 import { pruneOldEvents } from "../src/db/events.js";
@@ -1935,6 +1935,14 @@ async function main() {
         cfg.combat.enemies = { wolf: { id: "wolf", name: "Wolf", minLevel: 8, maxLevel: 20 } as EnemyConfig };
         cfg.combat.places = { woods: { id: "woods", name: "Darkwood", emoji: "🌲", channelIds: ["c"], enemies: [{ enemyId: "wolf" }] } };
         check("too easy: where the fair fights are", nextFightLine(cfg, 12, true), "-# Next: 🌲 **Darkwood** has enemies more your level.");
+        cfg.combat.enemies.rat = { id: "rat", name: "Rat King", emoji: "🐀", minLevel: 1, maxLevel: null } as EnemyConfig;
+        cfg.combat.places.cellar = { id: "cellar", name: "Cellar", emoji: "🕳️", channelIds: ["d"], enemies: [{ enemyId: "rat", weight: 1 }] };
+        cfg.quests = { enabled: true, quests: { clear: { id: "clear", name: "Clear the Cellar", active: true, conditions: { type: "defeatEnemies", target: 1, enemyIds: ["rat"] } } } } as any;
+        const st = (s: object) => ({ acceptedAt: null, progress: 0, completedAt: null, claimedAt: null, ...s });
+        check("quests waiting for someone who never took one", questLine(cfg, {}), "-# 📜 There are quests to take in `/quests`.");
+        check("a hunt: who, how far, where", questLine(cfg, { clear: st({ acceptedAt: "x" }) }), "-# 📜 **Clear the Cellar**: defeat 🐀 **Rat King** (0/1). It roams 🕳️ **Cellar**.");
+        check("done but unclaimed comes first", questLine(cfg, { clear: st({ acceptedAt: "x", completedAt: "y" }) }), "-# 📜 **Clear the Cellar** is done: claim it in `/quests`.");
+        check("claimed and nothing else: no line", questLine(cfg, { clear: st({ claimedAt: "z" }) }), null);
         const act = { skillName: "Mining", locations: { a: { name: "Shallows", emoji: "⛏️", minSkill: 1 }, b: { name: "Deep Vein", emoji: "🌑", minSkill: 30 } } } as any;
         check("the next location", nextGatherLine(act, 27), "-# Next: 🌑 **Deep Vein** opens at Mining 30 (3 levels to go).");
         check("nothing left: nothing said", nextGatherLine(act, 40), null);
