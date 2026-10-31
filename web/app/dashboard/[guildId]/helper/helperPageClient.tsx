@@ -40,12 +40,13 @@ function asMessage(e: Entry) {
   return { role: e.role, content: [e.content, note].filter(Boolean).join("\n\n") || "…" };
 }
 
-export default function HelperPageClient({ guildId }: { guildId: string }) {
+export default function HelperPageClient({ guildId, limit, initialLeft }: { guildId: string; limit: number; initialLeft: number }) {
   const { config, saving, error: saveError, save } = useGuildConfig(guildId);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [left, setLeft] = useState(initialLeft);
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [entries, busy]);
@@ -65,6 +66,7 @@ export default function HelperPageClient({ guildId }: { guildId: string }) {
     }).catch(() => null);
     const data = await res?.json().catch(() => null);
     setBusy(false);
+    if (typeof data?.left === "number") setLeft(data.left);
     if (!res?.ok || !data) {
       setError(data?.message ?? "The helper couldn't answer just now. Try again.");
       setEntries(entries);
@@ -89,6 +91,9 @@ export default function HelperPageClient({ guildId }: { guildId: string }) {
           Ask about your setup in plain words, or ask for a change: &ldquo;put fights in #arena&rdquo;, &ldquo;why can&apos;t
           anyone reach the Deep Vein?&rdquo;. It sees your settings, channels and roles. Changes are shown to you first and
           only saved when you press Apply.
+        </p>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          {left} of {limit} messages left today. Each comes back a day after it was sent.
         </p>
       </header>
 
@@ -176,7 +181,7 @@ export default function HelperPageClient({ guildId }: { guildId: string }) {
           placeholder="Ask the helper…"
           className="min-w-0 flex-1 rounded-sm border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
         />
-        <button className="btn shrink-0 px-4 text-sm" disabled={busy || !input.trim()}>
+        <button className="btn shrink-0 px-4 text-sm" disabled={busy || !input.trim() || left <= 0}>
           Send
         </button>
       </form>
