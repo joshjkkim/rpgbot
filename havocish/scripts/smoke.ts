@@ -2791,7 +2791,7 @@ async function main() {
     await test("the helper's changes are checked, then applied on a copy", async () => {
         const config: any = { combat: { enabled: true, places: { forest: { id: "forest", channelIds: ["1"] } } }, style: "odd" };
         const changes = cleanChanges([
-            { path: ["combat", "places", "forest", "channelIds"], value: ["2"] },
+            { path: ["combat", "places", "forest", "channelIds"], value: ["2"], label: "  Forest fights move to #arena " },
             { path: ["unlocks", "list", "vet"], value: { id: "vet", roleId: "9", requirements: { combatLevel: 20 } } },
             { path: ["combat", "enabled"] },
             { path: ["combat"], value: {} },
@@ -2800,6 +2800,7 @@ async function main() {
             "nonsense",
         ], config);
         check("bad paths are dropped", changes.map((c) => c.path.join(".")), ["combat.places.forest.channelIds", "unlocks.list.vet", "combat.enabled"]);
+        check("a label is kept, trimmed", changes.map((c) => c.label ?? null), ["Forest fights move to #arena", null, null]);
         const next: any = applyChanges(config, changes);
         check("a field is set", next.combat.places.forest.channelIds, ["2"]);
         check("a new section is made as needed", next.unlocks.list.vet.requirements.combatLevel, 20);

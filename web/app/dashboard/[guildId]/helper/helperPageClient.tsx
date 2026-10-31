@@ -25,6 +25,15 @@ function short(v: unknown) {
   return s.length > 160 ? `${s.slice(0, 160)}…` : s;
 }
 
+/** Where an edit lands, in words: entries by their name ("Combat › Deep Vein › channel ids"), keys spaced out. */
+function where(config: GuildConfigJson | null, path: string[]) {
+  return path.map((key, i) => {
+    const at = valueAt(config, path.slice(0, i + 1)) as { name?: unknown } | undefined;
+    if (typeof at?.name === "string") return at.name;
+    return key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[-_]/g, " ").replace(/^./, (ch) => ch.toUpperCase());
+  }).join(" › ");
+}
+
 /** What gets sent back as history: the reply, plus what happened to its proposal. */
 function asMessage(e: Entry) {
   const note = e.proposal ? `[Proposed: ${e.proposal.summary || "changes"}. ${e.applied ? "The owner applied them." : "Not applied yet."}]` : "";
@@ -104,17 +113,29 @@ export default function HelperPageClient({ guildId }: { guildId: string }) {
               {e.content && <div className="leading-relaxed"><Markdown text={e.content} /></div>}
               {e.proposal && (
                 <div className="space-y-2 border-t border-[var(--border)] pt-3">
-                  <ul className="space-y-1.5 font-mono text-xs">
+                  <ul className="space-y-1.5">
                     {e.proposal.changes.map((c, j) => (
-                      <li key={j}>
-                        <span className="text-[var(--accent)]">{c.path.join(" › ")}</span>
-                        <br />
-                        <span className="text-[var(--muted)] line-through">{short(valueAt(config as GuildConfigJson, c.path))}</span>
-                        {" → "}
-                        <span>{short(c.value)}</span>
+                      <li key={j} className="flex gap-2.5">
+                        <span className="text-[var(--accent)]">◆</span>
+                        <span>{c.label ?? where(config as GuildConfigJson, c.path)}</span>
                       </li>
                     ))}
                   </ul>
+                  {/* The exact edits, for anyone who wants to check the words against them. */}
+                  <details className="text-xs text-[var(--muted)]">
+                    <summary className="cursor-pointer select-none">Exact changes</summary>
+                    <ul className="mt-2 space-y-1.5 font-mono">
+                      {e.proposal.changes.map((c, j) => (
+                        <li key={j}>
+                          <span className="text-[var(--accent)]">{where(config as GuildConfigJson, c.path)}</span>
+                          <br />
+                          <span className="line-through">{short(valueAt(config as GuildConfigJson, c.path))}</span>
+                          {" → "}
+                          <span className="text-[var(--foreground)]">{short(c.value)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                   <div className="flex items-center justify-end gap-3">
                     {e.applied ? (
                       <span className="text-xs text-[var(--muted)]">Applied</span>

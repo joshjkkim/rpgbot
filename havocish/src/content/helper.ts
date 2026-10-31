@@ -7,8 +7,8 @@ import type { GuildConfigJson } from "./packs.ts";
  * applies; the helper never saves anything itself.
  */
 
-/** One edit: a path into the config (section first), and its new value. null deletes. */
-export type Change = { path: string[]; value: unknown };
+/** One edit: a path into the config (section first), and its new value. null deletes. `label` is the edit in plain words, for the owner. */
+export type Change = { path: string[]; value: unknown; label?: string };
 
 export const HELPER_PROMPT = `You are the helper on the dashboard of havocish, a Discord RPG and leveling bot. You talk to a server owner (or a member with Manage Server) about their own server's setup.
 
@@ -45,7 +45,11 @@ export const PROPOSE_TOOL = {
                 type: "array",
                 items: {
                     type: "object",
-                    properties: { path: { type: "array", items: { type: "string" } }, value: { description: "The new value, any JSON. null deletes." } },
+                    properties: {
+                        label: { type: "string", description: "This edit in plain words for the owner, with names not ids, e.g. \"Deep Vein fights move to #arena\" or \"New role at Combat 20: @Veteran\"." },
+                        path: { type: "array", items: { type: "string" } },
+                        value: { description: "The new value, any JSON. null deletes." },
+                    },
                     required: ["path", "value"],
                 },
             },
@@ -91,7 +95,8 @@ export function cleanChanges(raw: unknown, config: GuildConfigJson): Change[] {
         if (!Array.isArray(path) || path.length < 2 || path.length > 8 || !path.every((p) => typeof p === "string" && p && !["__proto__", "prototype", "constructor"].includes(p))) return [];
         // A new section of its own is fine (unlocks, roleRewards…), as long as it's an object.
         if (config[path[0]!] !== undefined && (typeof config[path[0]!] !== "object" || config[path[0]!] === null)) return [];
-        return [{ path, value: (c as Change).value === undefined ? null : (c as Change).value }];
+        const label = (c as Change).label;
+        return [{ path, value: (c as Change).value === undefined ? null : (c as Change).value, ...(typeof label === "string" && label.trim() && { label: label.trim().slice(0, 200) }) }];
     });
 }
 
