@@ -1,4 +1,4 @@
-import type { ButtonInteraction, ChatInputCommandInteraction, Client, ColorResolvable, Message, User } from "discord.js";
+import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, Client, ColorResolvable, Message, User } from "discord.js";
 import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import {
@@ -9,6 +9,8 @@ import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { commitProfileChanges, getOrCreateProfile } from "../../cache/profileService.js";
 import { canManage, managerSetupRows } from "../../ui/dashboardLinks.js";
+import { respondFiltered } from "../../ui/autocomplete.js";
+import { summonBoss } from "./boss.js";
 import { channelChain, fightsInThread, pickFromPlace, placeFor } from "../../player/places.js";
 import { calculateStats, minutesToFull, resolveCurrentHp, woundedUntil, woundLine, woundRule, type CombatStats } from "../../player/combat.js";
 import {
@@ -41,9 +43,25 @@ export const data = new SlashCommandBuilder()
     .setDescription("Hunt for an enemy where you are, for Combat XP and loot")
     .addStringOption(opt =>
         opt.setName("enemy")
-            .setDescription("A specific enemy's ID (managers, or when the server allows it)")
+            .setDescription("Pick an enemy (managers can pick any, or a world boss to summon it)")
             .setRequired(false)
+            .setAutocomplete(true)
     );
+
+/** Enemies to pick from: any for managers (bosses too), else none unless the server allows choosing, and never bosses. */
+export async function autocomplete(interaction: AutocompleteInteraction) {
+    if (!interaction.guildId) return;
+    const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+    const manager = canManage(interaction);
+    if (!manager && !config.combat.allowEnemyChoice) return interaction.respond([]);
+    const enemies = Object.values(config.combat.enemies ?? {})
+        .filter((e) => manager || !e.boss)
+        .sort((a, b) => Number(!!a.boss) - Number(!!b.boss) || a.minLevel - b.minLevel);
+    return respondFiltered(interaction, enemies.map((e) => ({
+        name: `${e.emoji} ${e.name} · ${e.boss ? "world boss" : `Combat ${e.minLevel}${e.maxLevel !== null ? `–${e.maxLevel}` : "+"}`}`,
+        value: e.id,
+    })));
+}
 
 /**
  * Puts a fight in a thread off `line`, the short message left in chat. Null
@@ -449,6 +467,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
 
+    // A manager picking a world boss calls it for the whole server, wounded or not.
+    const enemyIdOpt = interaction.options.getString("enemy");
+    const manager = canManage(interaction);
+    if (enemyIdOpt && manager) {
+        const { config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+        const picked = config.combat.enemies?.[enemyIdOpt];
+        if (picked?.boss) return void await summonBoss(interaction, config, picked);
+    }
+
     const ready = await readyToFight(interaction.user, interaction.guildId);
     if (!ready.ok) {
         await interaction.reply({ content: ready.message, flags: MessageFlags.Ephemeral });
@@ -457,12 +484,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const { profile, config } = ready;
 
     // Pick enemy
-    const enemyIdOpt = interaction.options.getString("enemy");
     let enemy: EnemyConfig | null;
 
     // The server's channels are its map: /fight rolls from where you are.
     const place = placeFor(config, channelChain(interaction.channel as any));
-    if (enemyIdOpt && !config.combat.allowEnemyChoice && !canManage(interaction)) {
+    if (enemyIdOpt && !config.combat.allowEnemyChoice && !manager) {
         await interaction.reply({ content: "Enemies here find you: use `/fight` without picking one.", flags: MessageFlags.Ephemeral });
         return;
     }
@@ -478,12 +504,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         }
         if (!enemy) {
             await interaction.reply({
-                content: `No enemy found with ID \`${enemyIdOpt}\`. Use \`/config-enemy show\` to see available enemies.`,
+                content: `No enemy found with ID \`${enemyIdOpt}\`. Pick one from the list as you type.`,
                 flags: MessageFlags.Ephemeral,
             });
             return;
         }
-        const level = combatLevel(profile, config);
+        // Managers can test any enemy; everyone else needs the level and requirements.
+        const level = manager ? enemy.minLevel : combatLevel(profile, config);
         if (level < enemy.minLevel || (enemy.maxLevel !== null && level > enemy.maxLevel)) {
             await interaction.reply({
                 content: `You need Combat **${enemy.minLevel}**${enemy.maxLevel !== null ? `–${enemy.maxLevel}` : "+"}  to fight **${enemy.emoji} ${enemy.name}**.`,
@@ -491,7 +518,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             });
             return;
         }
-        const gate = checkRequirements(enemy.requirements, { profile, config, facts: memberFacts(interaction.member) });
+        const gate = manager ? { ok: true as const } : checkRequirements(enemy.requirements, { profile, config, facts: memberFacts(interaction.member) });
         if (!gate.ok) {
             await interaction.reply({ content: `**${enemy.emoji} ${enemy.name}**: ${gate.message}`, flags: MessageFlags.Ephemeral });
             return;

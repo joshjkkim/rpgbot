@@ -63,7 +63,7 @@
     "options": [
       {
         "name": "enemy",
-        "description": "A specific enemy's ID (managers, or when the server allows it)",
+        "description": "Pick an enemy (managers can pick any, or a world boss to summon it)",
         "type": "text",
         "required": false
       }
@@ -611,19 +611,6 @@
     "description": "World bosses the whole server fights together",
     "managersOnly": true,
     "options": [
-      {
-        "name": "summon",
-        "description": "Summon a world boss in this channel",
-        "options": [
-          {
-            "name": "boss",
-            "description": "Boss ID (leave blank for a random boss)",
-            "type": "text",
-            "required": false
-          }
-        ],
-        "kind": "subcommand"
-      },
       {
         "name": "dismiss",
         "description": "End the current world boss now, with no rewards",
