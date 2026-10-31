@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### For server owners
+- **Pick any enemy in `/fight`.** `/fight` now lists enemies as you type. Managers can pick any of them, at any level and past any requirement, to try one out, and picking a world boss summons it for the whole server, so `/boss summon` is gone (`/boss dismiss` stays). Members can pick from the list too when the server allows choosing.
+
 ## v0.18 · October 28, 2026
 
 The AI update: describe the world your server plays in and get a whole game written for it, ask a Helper about your setup in plain words, and take your gear to +5.

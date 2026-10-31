@@ -23,7 +23,7 @@ import { editSpoken, lineOf, speak, speaker } from "../ui/characters.js";
  * dealt, and the top damage dealer rolls its drops.
  *
  * Bosses spawn by chance on XP-earning messages (like encounters, but rarer) or
- * when an owner runs /boss summon. One per server at a time.
+ * when a manager picks one in /fight. One per server at a time.
  *
  * Live bosses are kept in memory and mirrored to the live_bosses table, so a
  * restart picks them back up (restoreBosses) instead of losing the fight.

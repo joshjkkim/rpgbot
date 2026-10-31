@@ -220,7 +220,7 @@ export interface GuildConfig {
         };
         /** World bosses; see player/bosses.ts. Bosses themselves are enemies with `boss: true`. */
         bosses?: {
-            /** Lets bosses spawn on their own. /boss summon works either way. */
+            /** Lets bosses spawn on their own. Managers can summon one from /fight either way. */
             enabled?: boolean;
             /** Chance per XP-earning message, in percent. */
             chancePercent?: number;

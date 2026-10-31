@@ -154,7 +154,7 @@ export default function Combat() {
       <H2>World bosses</H2>
       <P>
         Mark an enemy as a <b>world boss</b> and the whole server fights it together. Rewards are split by damage dealt, and
-        the top damage dealer rolls its drops. Managers can summon one any time with <C>/boss summon</C>.
+        the top damage dealer rolls its drops. Managers can summon one any time by picking it in <C>/fight</C>, and send it away with <C>/boss dismiss</C>.
       </P>
       <P>
         The boss acts in <b>waves</b>. Its next move is shown on the message with a countdown, and it lands on everyone who
