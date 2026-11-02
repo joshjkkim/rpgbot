@@ -1,6 +1,8 @@
 import type { Client, Interaction } from "discord.js";
 import { Events } from "discord.js";
 import { commands } from "../commands/index.js";
+import { countCommandUse } from "../db/events.js";
+import { bestEffort } from "../ui/bestEffort.js";
 import { MessageFlags } from "discord.js";
 import { handleConfigPanelSelect } from "../ui/panel/panelSelection.js";
 import { handleConfigPanelButton } from "../ui/panel/panelButton.js";
@@ -65,6 +67,10 @@ export function registerInteractionCreate(client: Client) {
 
                 const command = commands.get(interaction.commandName);
                 if (!command) return;
+                if (interaction.guildId) {
+                    const sub = interaction.options.getSubcommand(false);
+                    void bestEffort("counting a command use", countCommandUse(interaction.guildId, sub ? `${interaction.commandName} ${sub}` : interaction.commandName));
+                }
                 await command.execute(interaction);
 
                 return;
