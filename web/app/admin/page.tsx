@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/app/lib/admin";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
  * gets a 404.
  */
 
-type Row = { id: string; name: string | null; removed: boolean; helper_daily: number | null; packs: number | null; note: string | null; worlds: string; today: string };
+type Row = { id: string; name: string | null; removed: boolean; helper_daily: number | null; packs: number | null; note: string | null; worlds: string; today: string; players: string; last: string | null };
 
 /** Saves one server's limits; empty fields go back to the default, and a row with nothing left is removed. */
 async function saveLimits(form: FormData) {
@@ -49,7 +50,9 @@ export default async function AdminPage() {
       SELECT g.discord_guild_id::text AS id, g.name, g.removed_at IS NOT NULL AS removed,
              l.helper_daily, l.packs, l.note,
              (SELECT count(*) FROM ai_packs p WHERE p.discord_guild_id = g.discord_guild_id) AS worlds,
-             (SELECT count(*) FROM ai_usage u WHERE u.discord_guild_id = g.discord_guild_id AND u.kind = 'helper' AND u.created_at > NOW() - INTERVAL '1 day') AS today
+             (SELECT count(*) FROM ai_usage u WHERE u.discord_guild_id = g.discord_guild_id AND u.kind = 'helper' AND u.created_at > NOW() - INTERVAL '1 day') AS today,
+             (SELECT count(*) FROM user_guild_profiles p WHERE p.guild_id = g.id) AS players,
+             (SELECT max(p.updated_at)::date::text FROM user_guild_profiles p WHERE p.guild_id = g.id) AS last
       FROM guilds g LEFT JOIN ai_limits l ON l.discord_guild_id = g.discord_guild_id`),
     dbQuery<{ id: string; model: string; input: string; output: string }>(`
       SELECT discord_guild_id::text AS id, model, sum(input_tokens) AS input, sum(output_tokens) AS output
@@ -76,6 +79,7 @@ export default async function AdminPage() {
           <thead className="text-left text-[var(--muted)]">
             <tr>
               <th className="px-3 py-2 font-normal">Server</th>
+              <th className="px-3 py-2 font-normal">Players · last active</th>
               <th className="px-3 py-2 font-normal">AI, 30 days</th>
               <th className="px-3 py-2 font-normal">Helper today</th>
               <th className="px-3 py-2 font-normal">Worlds made</th>
@@ -86,9 +90,10 @@ export default async function AdminPage() {
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-[var(--border)]">
                 <td className="px-3 py-2">
-                  <div className={r.removed ? "text-[var(--muted)] line-through" : ""}>{r.name ?? "Unnamed server"}</div>
+                  <Link href={`/admin/server/${r.id}`} className={`underline-offset-2 hover:underline ${r.removed ? "text-[var(--muted)] line-through" : ""}`}>{r.name ?? "Unnamed server"}</Link>
                   <div className="font-mono text-xs text-[var(--muted)]">{r.id}</div>
                 </td>
+                <td className="px-3 py-2 tabular-nums">{r.players} · {r.last ?? "–"}</td>
                 <td className="px-3 py-2 tabular-nums">{cost.has(r.id) ? dollars(cost.get(r.id)!) : "–"}</td>
                 <td className="px-3 py-2 tabular-nums">{r.today} / {r.helper_daily ?? DEFAULT_LIMITS.helperDaily}</td>
                 <td className="px-3 py-2 tabular-nums">{r.worlds} / {r.packs ?? DEFAULT_LIMITS.packs}</td>
