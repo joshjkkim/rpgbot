@@ -259,6 +259,18 @@ CREATE TABLE IF NOT EXISTS public.ai_limits (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── command_uses ────────────────────────────────────────────────────────────
+-- Slash command use counts per server and day, for /admin. See
+-- migrations/010_command_uses.sql.
+
+CREATE TABLE IF NOT EXISTS public.command_uses (
+    discord_guild_id BIGINT  NOT NULL,
+    command          TEXT    NOT NULL,
+    day              DATE    NOT NULL DEFAULT CURRENT_DATE,
+    uses             INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (discord_guild_id, command, day)
+);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed

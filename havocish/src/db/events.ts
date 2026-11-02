@@ -257,3 +257,12 @@ export async function pruneOldEvents(days = EVENT_RETENTION_DAYS): Promise<numbe
         if ((res.rowCount ?? 0) < PRUNE_BATCH) return total;
     }
 }
+
+/** Counts one use of a slash command ("admin give" for a subcommand) in a server today, for /admin's server page. */
+export async function countCommandUse(discordGuildId: string, command: string): Promise<void> {
+    await query(
+        `INSERT INTO command_uses (discord_guild_id, command, uses) VALUES ($1, $2, 1)
+         ON CONFLICT (discord_guild_id, command, day) DO UPDATE SET uses = command_uses.uses + 1`,
+        [discordGuildId, command]
+    );
+}
