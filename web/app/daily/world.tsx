@@ -507,7 +507,7 @@ export function Minimap({ daily, theme, s, selected, onSelect }: { daily: Daily;
   const pct = (px: number) => `${(px / MINI.w) * 100}%`;
   const box = (id: number) => ({ left: pct(MINI.pad + (id % SIDE) * MINI.cell), top: pct(MINI.pad + Math.floor(id / SIDE) * MINI.cell), width: pct(MINI.cell), height: pct(MINI.cell) });
   return (
-    <div className="px-frame px-shadow relative aspect-square w-36 sm:w-48">
+    <div className="px-frame px-shadow relative aspect-square w-24 sm:w-48">
       {src && (
           // eslint-disable-next-line @next/next/no-img-element -- painted in the browser (terrain.ts)
           <img src={src} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full [image-rendering:pixelated]" />

@@ -291,7 +291,7 @@ export default function DailyRun({ daily }: { daily: Daily }) {
       {wipe && <PixelWipe out={wipe === "out"} />}
       <Hud daily={daily} s={s} kitMax={kit.stats.maxHp} />
 
-      <main className={`mx-auto px-4 pt-4 pb-36 ${view === "map" || view === "town" ? "max-w-6xl lg:pb-12" : view === "fight" ? "max-w-3xl" : "max-w-xl"}`}>
+      <main className={`mx-auto px-4 pt-4 pb-36 ${view === "map" || view === "town" ? "max-w-6xl lg:pb-12" : view === "forge" ? "max-w-4xl" : view === "fight" ? "max-w-3xl" : "max-w-xl"}`}>
         <AnimatePresence mode="wait">
           <motion.div key={view} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {view === "gather" && here.gather && <GatherView spec={here.gather} theme={theme} dug={gather(here.gather, opened, left)!} opened={opened} onDig={(i) => { const dug = gather(here.gather!, opened, left)!; if (!dug.end && !opened.includes(i) && gather(here.gather!, [...opened, i])) setOpened([...opened, i]); }} />}
@@ -333,17 +333,17 @@ export default function DailyRun({ daily }: { daily: Daily }) {
       {view === "map" && !result && (
         <>
           {/* The HUD's buttons, top left. */}
-          <div className="fixed top-24 left-3 z-20 flex flex-col gap-2 sm:left-5">
+          <div className="fixed top-[5.5rem] left-2 z-20 flex flex-col gap-1.5 sm:top-24 sm:left-5 sm:gap-2">
             {([["🗺️", "Map", "M", mapOpen, () => toggle("map")], ["📜", "Journal", "J", journalOpen, () => toggle("journal")], ["🧍", "Hero", "I", characterOpen, () => toggle("character")], ["❔", "Tour", "", false, () => { setOverlay(null); setTourAsked((n) => n + 1); }]] as const).map(([e, label, key, on, toggle]) => (
-              <button key={label} type="button" onClick={toggle} title={`${label} (${key})`} className={`${on ? "px-frame-gold" : "px-frame"} px-shadow flex flex-col items-center px-1.5 py-1`}>
-                <Emoji e={e} size={30} />
-                <span className="font-display text-[10px] text-[var(--gold)]">{label} <span className="hidden text-[var(--muted)] sm:inline">{key}</span></span>
+              <button key={label} type="button" onClick={toggle} title={`${label}${key ? ` (${key})` : ""}`} aria-label={label} className={`${on ? "px-frame-gold" : "px-frame"} px-shadow flex flex-col items-center px-1 py-0.5 sm:px-1.5 sm:py-1`}>
+                <Emoji e={e} size={24} />
+                <span className="hidden font-display text-[10px] text-[var(--gold)] sm:block">{label} <span className="text-[var(--muted)]">{key}</span></span>
               </button>
             ))}
           </div>
 
           {/* The corner map: choose where to go without opening the big one. */}
-          {!mapOpen && <div className="fixed top-24 right-3 z-20 sm:right-5"><Minimap daily={daily} theme={theme} s={s} selected={selected} onSelect={setSelected} /></div>}
+          {!mapOpen && <div className="fixed top-[5.5rem] right-2 z-20 sm:top-24 sm:right-5"><Minimap daily={daily} theme={theme} s={s} selected={selected} onSelect={setSelected} /></div>}
 
           {/* The chosen spot's note, bottom middle. */}
           {!overlay && <div className="fixed inset-x-0 bottom-3 z-20 mx-auto w-[min(94vw,30rem)]">{mapBar().panel}</div>}
@@ -891,13 +891,13 @@ function Hud({ daily, s, kitMax }: { daily: Daily; s: MapState; kitMax: number }
       <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-3">
         {/* You. */}
         <div className="flex min-w-0 items-center gap-2">
-          <span className="px-well flex h-12 w-12 shrink-0 items-end justify-center">
+          <span className="px-well flex h-10 w-10 shrink-0 items-end justify-center sm:h-12 sm:w-12">
             <svg viewBox="0 0 12 16" width={27} height={36} shapeRendering="crispEdges" aria-hidden><Pixels grid={SPRITES.hero} /></svg>
           </span>
-          <div className="w-28 min-w-0 space-y-0.5 sm:w-44">
+          <div className="w-20 min-w-0 space-y-0.5 sm:w-44">
             <p className="flex items-baseline justify-between text-xs">
-              <span className="font-display text-sm text-[var(--gold)]">You</span>
-              <span title={`Each level: +${Math.round(LEVEL_BONUS * 100)}% ATK and max HP. Enemies give ${XP.enemy} XP, elites ${XP.elite}.`} className="text-[var(--muted)]">Level {lv}</span>
+              <span className="hidden font-display text-sm text-[var(--gold)] sm:inline">You</span>
+              <span title={`Each level: +${Math.round(LEVEL_BONUS * 100)}% ATK and max HP. Enemies give ${XP.enemy} XP, elites ${XP.elite}.`} className="text-[var(--muted)]"><span className="hidden sm:inline">Level</span><span className="sm:hidden">Lv</span> {lv}</span>
             </p>
             <div className="relative h-3 border-2 border-black bg-[#0a0806]">
               <motion.span className="absolute inset-y-0 left-0 bg-[#5f9a4a]" animate={{ width: `${Math.min(100, (s.hp / kitMax) * 100)}%` }} transition={{ duration: 0.4 }} />
@@ -911,17 +911,17 @@ function Hud({ daily, s, kitMax }: { daily: Daily; s: MapState; kitMax: number }
 
         {/* The clock: the sun crossing the day, the moon after 18h. */}
         <div className="flex flex-col items-center">
-          <svg viewBox="0 0 220 52" width={180} height={42} aria-hidden className="overflow-visible">
+          <svg viewBox="0 0 220 52" aria-hidden className="h-7 w-28 overflow-visible sm:h-[42px] sm:w-[180px]">
             <path d={arc} fill="none" stroke="#3b3226" strokeWidth={4} strokeDasharray="6 4" />
             <path d={arc} fill="none" stroke="#1a1a3a" strokeWidth={4} pathLength={1} strokeDasharray={`0 ${18 / HOURS} 1`} />
             <path d={arc} fill="none" stroke={s.hour >= 18 ? "#6a6ab0" : "#c99a4a"} strokeWidth={4} pathLength={1} strokeDasharray={`${t} 1`} />
             <circle cx={night.x} cy={night.y} r={3} fill="#6a6ab0" />
           </svg>
-          <motion.span className="absolute" style={{ marginTop: -6 }} animate={{ x: (sun.x - 110) * (180 / 220), y: (sun.y - 26) * (42 / 52) }} transition={{ type: "spring", stiffness: 160, damping: 22 }}>
+          <motion.span className="absolute hidden sm:block" style={{ marginTop: -6 }} animate={{ x: (sun.x - 110) * (180 / 220), y: (sun.y - 26) * (42 / 52) }} transition={{ type: "spring", stiffness: 160, damping: 22 }}>
             <Emoji e={s.hour >= 18 ? "🌙" : "☀️"} size={22} />
           </motion.span>
           <p className="-mt-1 font-display text-sm leading-none tabular-nums text-[var(--gold)]">
-            {hrs(s.hour)} <span className="text-xs text-[var(--muted)]">· {partOfDay(s.hour)} · {hrs(HOURS - s.hour)} left</span>
+            {hrs(s.hour)} <span className="text-xs text-[var(--muted)]"><span className="hidden sm:inline">· {partOfDay(s.hour)} </span>· {hrs(HOURS - s.hour)} left</span>
           </p>
         </div>
 
@@ -932,7 +932,7 @@ function Hud({ daily, s, kitMax }: { daily: Daily; s: MapState; kitMax: number }
             {mats > 0 && <span title="Materials carried" className="text-xs">🎒 {mats}</span>}
             <span className="px-well flex items-center gap-1 px-2 py-0.5 font-display text-base text-[var(--gold)]"><Sprite name="coin" size={16} />{s.gold}</span>
           </div>
-          <Link href="/" className="flex items-center gap-1.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]">
+          <Link href="/" className="hidden items-center gap-1.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] sm:flex">
             {/* eslint-disable-next-line @next/next/no-img-element -- the 64px pixel logo */}
             <img src="/logo.png" alt="" width={14} height={14} className="[image-rendering:pixelated]" />
             <span className="hidden sm:inline">havocish daily ·</span> #{daily.day} · {daily.world}
