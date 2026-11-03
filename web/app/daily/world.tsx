@@ -8,7 +8,7 @@ import { SPRITES } from "@/app/sprites";
 import { Emoji } from "./emoji";
 import { rnd } from "./landscape";
 import { hrs } from "./overworld";
-import type { Theme } from "./scene";
+import { Weather, type Theme } from "./scene";
 import { BUILT, buildingAt, centreOf, forestDark, grid, useTerrainImage } from "./terrain";
 
 /*
@@ -84,7 +84,7 @@ const GLOWS: Partial<Record<MapNode["kind"], { colour: string; r: number }>> = {
 
 const NAME_COLOUR: Partial<Record<MapNode["kind"], string>> = { enemy: "#f0a090", elite: "#ffc070", lair: "#ff7060" };
 
-export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wanted, rewards, onRewardsShown, engaging = false, poof = null, tourAsked = 0 }: {
+export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wanted, rewards, onRewardsShown, engaging = false, poof = null, tourAsked = 0, moment = null, finale = null, ready = true }: {
   daily: Daily; theme: Theme; s: MapState; selected: number; walking: boolean;
   onSelect: (id: number) => void;
   onWalk: (id: number) => void;
@@ -99,6 +99,12 @@ export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wa
   poof?: number | null;
   /** Goes up each time the player asks for the tour again (the HUD's ❔). */
   tourAsked?: number;
+  /** Something just done where the hero stands: resting at the camp, or praying at the shrine. `at` keys it. */
+  moment?: { kind: "rest" | "pray"; at: number } | null;
+  /** The day is over: the camera pulls back over the whole map and draws the route walked (`path`, tile by tile). */
+  finale?: { path: number[]; outcome: string } | null;
+  /** Wait for this (the title screen's Play) before the opening flyover or the tour. */
+  ready?: boolean;
 }) {
   const [screen, setScreen] = useState({ w: 1280, h: 800 });
   const src = useTerrainImage(daily, theme, G, true);
@@ -147,6 +153,7 @@ export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wa
     setTour(0);
   }
   useEffect(() => {
+    if (!ready) return;
     const key = `daily-intro-${daily.day}`;
     let seen = startHour.current > 0, toured = false;
     try { seen ||= sessionStorage.getItem(key) === "1"; toured = localStorage.getItem(TOUR_KEY) === "1"; } catch { /* no storage: play it */ }
@@ -161,12 +168,19 @@ export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wa
       setTimeout(() => { setIntro(null); try { sessionStorage.setItem(key, "1"); } catch { /* fine */ } }, 3900),
     ];
     return () => timers.forEach(clearTimeout);
-  }, [daily.day]);
+  }, [daily.day, ready]);
   useEffect(() => {
     if (!rewards.length) return;
     const t = setTimeout(onRewardsShown, 1900 + rewards.length * 300);
     return () => clearTimeout(t);
   }, [rewards, onRewardsShown]);
+
+  // The finale: pull right back over the whole day.
+  const [ending, setEnding] = useState(false);
+  if (!!finale !== ending) {
+    setEnding(!!finale);
+    if (finale) { setView(ZOOM_OUT); setPan({ x: 0, y: 0 }); setSnap(false); }
+  }
 
   const [walkedTo, setWalkedTo] = useState(s.at);
   if (walkedTo !== s.at) {
@@ -200,11 +214,11 @@ export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wa
   const looking = pan.x !== 0 || pan.y !== 0;
   const lair = daily.map.nodes.findIndex((n) => n.kind === "lair");
   const focus = tour != null ? steps[tour]?.node : intro === "lair" ? lair : null;
-  const [fx, fy] = focus != null && focus !== s.at ? [centreOf(G, focus % SIDE), centreOf(G, Math.floor(focus / SIDE))] : [hx, hy];
+  const [fx, fy] = finale ? [G.w / 2, G.w / 2] : focus != null && focus !== s.at ? [centreOf(G, focus % SIDE), centreOf(G, Math.floor(focus / SIDE))] : [hx, hy];
   const camera = {
     initial: false as const,
     animate: { x: screen.w / 2 - at(fx) + pan.x, y: screen.h / 2 + 30 - at(fy) + pan.y },
-    transition: intro === "fly" || tour != null ? { duration: tour != null ? 1.1 : 2, ease: "easeInOut" as const } : snap || intro === "lair" ? { duration: 0 } : { duration: STEP_SECONDS, ease: "linear" as const },
+    transition: intro === "fly" || tour != null || finale ? { duration: tour != null ? 1.1 : 2, ease: "easeInOut" as const } : snap || intro === "lair" ? { duration: 0 } : { duration: STEP_SECONDS, ease: "linear" as const },
   };
   const { shade, night } = lightAt(s.hour);
   // Where the hero stands, for what follows them (their lantern, what they win).
@@ -243,7 +257,7 @@ export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wa
     <div
       ref={box}
       className="fixed inset-0 z-0 cursor-grab touch-none overflow-hidden select-none active:cursor-grabbing"
-      style={{ background: forestDark(theme) }}
+      style={{ background: forestDark(theme), ...(finale && finale.outcome !== "won" && finale.outcome !== "timeout" && { filter: "grayscale(0.7) brightness(0.8)" }) }}
       onPointerDown={(e) => { if (intro) setIntro(null); if (tour == null) down(e); }} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
       // A drag isn't a click: don't choose the tile it ended on.
       onClickCapture={(e) => { if (drag.current?.moved) { e.stopPropagation(); e.preventDefault(); } }}
@@ -433,6 +447,45 @@ export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wa
           );
         })}
 
+        {/* Resting by the fire (a warm glow and sleep drifting up) or praying (a pillar of the shrine's light, and sparkles). */}
+        {moment && (
+          <motion.div key={moment.at} className="absolute" initial={false} animate={heroAt} transition={camera.transition}>
+            {moment.kind === "rest" ? (
+              <>
+                <span className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ width: tile * 0.9, height: tile * 0.9, top: tile * 0.15, background: "radial-gradient(closest-side, rgb(255 170 80 / 0.45), transparent)", animation: "daily-pillar 1.8s ease-out both" }} />
+                {[0, 1, 2].map((k) => (
+                  <span key={k} className="absolute font-display font-bold text-[#e9dcb4] [text-shadow:2px_2px_0_#000]" style={{ left: tile * 0.05 + k * 6, fontSize: 14 + k * 4, animation: `daily-zzz 1.6s ease-out ${k * 0.35}s both` }}>z</span>
+                ))}
+              </>
+            ) : (
+              <>
+                <span className="absolute bottom-0 -translate-x-1/2 origin-bottom" style={{ width: tile * 0.3, height: tile * 1.8, background: `linear-gradient(to top, ${theme.tint}cc, ${theme.tint}44 60%, transparent)`, animation: "daily-pillar 1.8s ease-out both" }} />
+                {Array.from({ length: 10 }, (_, k) => {
+                  const a = -Math.PI * (0.1 + 0.8 * (k / 9)), r = tile * (0.2 + rnd(k, 9) * 0.2);
+                  return <span key={k} className="absolute block h-1.5 w-1.5" style={{ background: theme.tint, boxShadow: `0 0 4px ${theme.tint}`, ["--dx" as string]: `${Math.cos(a) * r}px`, ["--dy" as string]: `${Math.sin(a) * r}px`, animation: `daily-poof 1s ease-out ${rnd(k, 8) * 0.3}s both` }} />;
+                })}
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* The finale: the day's route drawn over the map, and a stamp at each place you did something. */}
+        {finale && (
+          <>
+            <svg aria-hidden className="absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${G.w} ${G.w}`}>
+              <polyline
+                points={finale.path.map((id) => `${centreOf(G, id % SIDE)},${centreOf(G, Math.floor(id / SIDE))}`).join(" ")}
+                fill="none" stroke="#ffd27a" strokeWidth={5} strokeLinejoin="round" strokeLinecap="round" pathLength={1} strokeDasharray={1}
+                style={{ filter: "drop-shadow(0 0 4px #ff8a30)", animation: `daily-draw ${Math.min(4, 0.8 + finale.path.length * 0.08)}s linear 0.9s both` }}
+              />
+            </svg>
+            {s.done.map((id, k) => (
+              <span key={id} className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-[#ffd27a] shadow-[0_0_10px_#ff8a30]"
+                style={{ left: at(centreOf(G, id % SIDE)), top: at(centreOf(G, Math.floor(id / SIDE))), width: tile * 0.5, height: tile * 0.5, animation: `daily-pop 0.4s ease-out ${(1 + (finale.path.indexOf(id) / Math.max(1, finale.path.length)) * Math.min(4, finale.path.length * 0.08) + k * 0.02).toFixed(2)}s both` }} />
+            ))}
+          </>
+        )}
+
         {/* What you won: floating up over you, and a pillar of light for a level. */}
         <motion.div className="absolute" initial={false} animate={heroAt} transition={camera.transition}>
           {rewards.some((r) => r.level) && (
@@ -447,6 +500,9 @@ export function World({ daily, theme, s, selected, onSelect, onWalk, walking, wa
           ))}
         </motion.div>
       </motion.div>
+
+      {/* The world's weather, falling over the land (stars stay in the sky behind the fights). */}
+      <Weather theme={theme} />
 
       {/* What the hero can't see yet: the edges of the screen fall into dark (less so zoomed out, planning). */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(ellipse at 50% 55%, transparent ${view > 4 ? 60 : 38}%, rgb(0 0 0 / ${view > 4 ? 0.4 : 0.6}) 95%)` }} />

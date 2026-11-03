@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  act, canDig, choiceFor, gridCounts, hintsAt, reelZone, shaftHint, SIDE, SNAP, distance, DRINK, itemsLeft, occupant, RELICS, TRAITS, USE, WALK_HOURS, fightMoves, gather, GRID, HOURS, kitOf, LEVEL_BONUS, LEVELS, levelOf, LOADOUT_SIZE, LOOT, mapScore, neighbours, PULLS, XP,
+  act, canDig, choiceFor, gridCounts, perkText, WAIT, hintsAt, reelZone, shaftHint, SIDE, SNAP, distance, DRINK, itemsLeft, occupant, RELICS, TRAITS, USE, WALK_HOURS, fightMoves, gather, GRID, HOURS, kitOf, LEVEL_BONUS, LEVELS, levelOf, LOADOUT_SIZE, LOOT, mapScore, neighbours, PULLS, XP,
   LEVEL, REST_HEAL, START_NODE, startFight, startState, statsAt, TUNNEL,
   type Daily, type GatherSpec, type GatherState, type MapAction, type MapNode, type MapState, type ShopItem, type Slot,
 } from "@content/daily";
@@ -18,6 +18,7 @@ import { FightStage } from "./fightStage";
 import { hrs, Overworld } from "./overworld";
 import { greeting, Shelf, Smithy, Stall } from "./places";
 import { lightAt, Minimap, PixelWipe, STEP_SECONDS, World, type Reward } from "./world";
+import { ambience, isMuted, setMuted as muteSound, sfx, unlock } from "./sound";
 import { PANEL } from "./panel";
 import { Scene, themeFor, type Theme } from "./scene";
 
@@ -46,6 +47,7 @@ function itemText(daily: Daily, item: ShopItem) {
   const labels = { atk: "ATK", def: "DEF", hp: "max HP", spd: "SPD", crit: "% crit chance" } as const;
   const parts = (Object.entries(item.stats ?? {}) as Array<[keyof typeof labels, number]>)
     .map(([k, v]) => `${v > 0 ? "+" : "−"}${Math.abs(v)}${k === "crit" ? "" : " "}${labels[k]}`);
+  if (item.perk) parts.push(perkText(item.perk));
   if (item.heal) parts.push(`Heals ${item.heal} HP in a fight, using your turn`);
   if (item.teaches) { const m = moveById(daily.config, item.teaches); parts.push(`Teaches ${m.emoji} ${m.name}, a fifth move`); }
   if (item.opener) {
@@ -78,6 +80,8 @@ function Heading({ emoji, title, sub }: { emoji: string; title: string; sub?: st
 }
 
 const SLOT_NAME: Record<Slot, string> = { weapon: "Weapon", armour: "Armour", trinket: "Trinket" };
+/** Each gear slot's mark, on goods and in your gear: you wear one of each. */
+const SLOT_ICON: Record<Slot, string> = { weapon: "⚔️", armour: "🛡️", trinket: "💍" };
 
 /** A boss's traits, from its lair. */
 function traitsOf(node: MapNode) {
@@ -95,7 +99,7 @@ function xpText(xp: number, gain: number): string {
 function tileText(daily: Daily, node: MapNode, xp: number): string {
   switch (node.kind) {
     case "start": return "Where the day starts. Pick your four moves here or in town.";
-    case "town": return "Sell what you gathered, buy gear and potions, change your moves. Shopping takes no time.";
+    case "town": return `Sells ${daily.shop.map((it) => it.emoji).join(" ")} · buys your finds · change your moves. Shopping takes no time. (Full list in the journal.)`;
     case "forge": return daily.map.recipes.map((r) => `${r.needs.map((n) => `${n.count}× ${n.emoji} ${n.name}`).join(" + ")} → ${r.gives.emoji} ${r.gives.name}`).join(" · ");
     case "shrine": {
       const sh = daily.shrine;
@@ -122,6 +126,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export default function DailyRun({ daily }: { daily: Daily }) {
   const [s, setS] = useState<MapState>(() => startState(daily));
   const [trail, setTrail] = useState<string[]>([]);
+  // Every tile walked through, in order, for the finale to draw the day's route over the map.
+  const [path, setPath] = useState<number[]>([START_NODE]);
   const [view, setView] = useState<View>("map");
   const [selected, setSelected] = useState(START_NODE);
   const [walking, setWalking] = useState(false);
@@ -151,6 +157,12 @@ export default function DailyRun({ daily }: { daily: Daily }) {
   const [poof, setPoof] = useState<number | null>(null);
   // When the smith last struck the anvil (each forge), for the sparks.
   const [struck, setStruck] = useState(0);
+  // The title screen's Play: the day starts (and the sound with it) once it's pressed.
+  const [started, setStarted] = useState(false);
+  const [muted, setMutedState] = useState(false);
+  const toggleMute = () => { const m = !isMuted(); muteSound(m); setMutedState(m); };
+  // Resting or praying just now, for its moment on the map.
+  const [moment, setMoment] = useState<{ kind: "rest" | "pray"; at: number } | null>(null);
   // Each ask replays the tour.
   const [tourAsked, setTourAsked] = useState(0);
 
@@ -179,6 +191,9 @@ export default function DailyRun({ daily }: { daily: Daily }) {
   });
 
   const theme = themeFor(daily.worldId);
+  // The world's ambience, which changes at night.
+  const night = s.hour >= 18;
+  useEffect(() => { if (started) ambience(theme.weather, night); }, [started, theme.weather, night]);
   const here = daily.map.nodes[s.at]!;
   const kit = kitOf(daily, s);
 
@@ -188,6 +203,13 @@ export default function DailyRun({ daily }: { daily: Daily }) {
     if (!next) return null;
     const won = gainsOf(daily, s, next);
     if (won.length) setRewards((r) => [...r, ...won.map((w) => ({ ...w, id: rewardId.current++ }))]);
+    // What it sounds like.
+    if (a.type === "craft") sfx.anvil();
+    else if (a.type === "pray") sfx.bless();
+    else if (a.type === "rest") sfx.rest();
+    else if (next.gold > s.gold) sfx.coin();
+    if (levelOf(next.xp) > levelOf(s.xp)) setTimeout(sfx.level, 400);
+    if (next.over === "timeout" && !s.over) setTimeout(sfx.lose, 300);
     setS(next);
     if (mark) setTrail((t) => [...t, mark]);
     return next;
@@ -204,6 +226,8 @@ export default function DailyRun({ daily }: { daily: Daily }) {
       if (!next) break;
       cur = next;
       setS(cur);
+      setPath((p) => [...p, step]);
+      sfx.step();
       await sleep(STEP_SECONDS * 1000);
     }
     setWalking(false);
@@ -218,6 +242,8 @@ export default function DailyRun({ daily }: { daily: Daily }) {
     if (engaging) return;
     const fight = startFight(daily, 100 + here.id, here.enemy!, kit, s.hp);
     setEngaging(true);
+    sfx.wipe();
+    if (here.kind === "lair") setTimeout(sfx.roar, 1300);
     setTimeout(() => setWipe("in"), 380);
     setTimeout(() => {
       setFight(fight);
@@ -249,6 +275,14 @@ export default function DailyRun({ daily }: { daily: Daily }) {
     next.round += 1;
     setFight(next);
     setFightLog(turn.log);
+    // The turn's sound: the killing blow, a parry, a crit or a plain hit; and a grunt if you were hurt.
+    const said = (bit: string) => turn.log.some((l) => l.includes(bit));
+    const guarded = id !== DRINK && id !== WAIT && !id.startsWith(USE) && moveById(daily.config, id).effects.some((e) => e.type === "guard");
+    if (next.enemyCurrentHp <= 0) sfx.kill();
+    else if (guarded && said("**0** damage (blocked")) sfx.parry();
+    else if (turn.log.some((l) => l.includes("critical") && l.includes("**You**"))) sfx.crit();
+    else if ((next.lastHits?.enemy ?? 0) > 0) sfx.hit();
+    if ((next.lastHits?.members.you ?? 0) > 0) setTimeout(sfx.hurt, 250);
     if (turn.outcome !== "continue") apply({ type: "fight", picks: all }, here.emoji);
   }
 
@@ -272,6 +306,7 @@ export default function DailyRun({ daily }: { daily: Daily }) {
     setTries((t) => t + 1);
     setS(startState(daily));
     setTrail([]);
+    setPath([START_NODE]);
     setView("map");
     setSelected(START_NODE);
     setDraft(null);
@@ -285,16 +320,23 @@ export default function DailyRun({ daily }: { daily: Daily }) {
   return (
     <div className="relative min-h-dvh">
       <Scene theme={theme} silhouettes={[...new Set(daily.map.nodes.filter((n) => n.enemy).map((n) => n.emoji))]} />
-      {view === "map" && <World daily={daily} theme={theme} s={s} selected={selected} onSelect={setSelected} onWalk={(id) => void walkTo(id)} walking={walking} wanted={wantedOn(daily, s)} rewards={rewards} onRewardsShown={clearRewards} engaging={engaging} poof={poof} tourAsked={tourAsked} />}
+      {view === "map" && <World daily={daily} theme={theme} s={s} selected={selected} onSelect={setSelected} onWalk={(id) => void walkTo(id)} walking={walking} wanted={wantedOn(daily, s)} rewards={rewards} onRewardsShown={clearRewards} engaging={engaging} poof={poof} tourAsked={tourAsked} moment={moment}
+        finale={view === "map" && s.over ? { path, outcome: s.over } : null} ready={started} />}
       {/* Away from the map, the scene takes the hour's light too: a fight at night is fought at night. */}
       {view !== "map" && <div aria-hidden className="pointer-events-none fixed inset-0 -z-[5] transition-[background-color] duration-1000" style={{ backgroundColor: lightAt(s.hour).shade, mixBlendMode: "multiply" }} />}
       {wipe && <PixelWipe out={wipe === "out"} />}
-      <Hud daily={daily} s={s} kitMax={kit.stats.maxHp} />
+      <Hud daily={daily} s={s} kitMax={kit.stats.maxHp} muted={muted} onMute={toggleMute} />
 
       <main className={`mx-auto px-4 pt-4 pb-36 ${view === "map" || view === "town" ? "max-w-6xl lg:pb-12" : view === "forge" ? "max-w-4xl" : view === "fight" ? "max-w-3xl" : "max-w-xl"}`}>
         <AnimatePresence mode="wait">
           <motion.div key={view} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-            {view === "gather" && here.gather && <GatherView spec={here.gather} theme={theme} dug={gather(here.gather, opened, left)!} opened={opened} onDig={(i) => { const dug = gather(here.gather!, opened, left)!; if (!dug.end && !opened.includes(i) && gather(here.gather!, [...opened, i])) setOpened([...opened, i]); }} />}
+            {view === "gather" && here.gather && <GatherView spec={here.gather} theme={theme} dug={gather(here.gather, opened, left)!} opened={opened} onDig={(i) => {
+              const dug = gather(here.gather!, opened, left)!;
+              if (dug.end || opened.includes(i) || !gather(here.gather!, [...opened, i])) return;
+              setOpened([...opened, i]);
+              const tile = i === SNAP ? "hazard" : here.gather!.tiles[i];
+              if (here.gather!.game === "pulls") { if (tile === "hazard") sfx.snap(); else sfx.reel(); } else if (tile === "hazard") sfx.boom(); else { sfx.dig(); if (tile) setTimeout(sfx.find, 120); }
+            }} />}
             {view === "town" && <MarketStall daily={daily} s={s} theme={theme} onBuy={(id, add) => apply(add ? { type: "buy", id } : { type: "unbuy", id })} onSell={(name, count) => apply({ type: "sell", name, count })} />}
             {(view === "town" || view === "moves") && <MovesView daily={daily} loadout={draft ?? s.loadout} onMove={setMoves} />}
             {view === "forge" && <ForgeScene daily={daily} s={s} struck={struck} onCraft={(id) => { const r = daily.map.recipes.find((x) => x.id === id)!; if (apply({ type: "craft", recipe: id }, "⚒️")) { setStruck(Date.now()); flash(`Forged ${r.gives.emoji} ${r.gives.name}`); } }} />}
@@ -312,13 +354,25 @@ export default function DailyRun({ daily }: { daily: Daily }) {
         </AnimatePresence>
 
         {result && (
-          <div className="fixed inset-x-0 top-[22vh] z-30 flex justify-center px-4">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="px-frame px-shadow w-full max-w-md space-y-3 p-4">
+          <div className="fixed inset-x-0 bottom-4 z-30 flex justify-center px-4 sm:bottom-8">
+            {/* After the map has drawn the day's route (World's finale). */}
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(5, 1.4 + path.length * 0.08), duration: 0.5 }} className="px-parchment px-shadow w-full max-w-md space-y-3 p-4">
               <p className="font-display text-2xl text-[var(--gold)]">
-                {result === "won" ? `🏆 Quest done in ${hrs(s.hour, true)}` : result === "timeout" ? "🌙 The day ran out" : "💀 You fell on the road"}
+                {result === "won" ? `🏆 ${daily.map.nodes.find((n) => n.kind === "lair")!.enemy!.name} is beaten` : result === "timeout" ? "🌙 The day ran out" : "💀 You fell on the road"}
               </p>
-              {result === "won" && <p className="text-sm">With {s.hp} HP left, on try {tries}. Score {mapScore(daily, s).toLocaleString()}.</p>}
-              <pre className="px-well whitespace-pre-wrap p-2 font-sans text-sm">{share}</pre>
+              {result === "won" && (
+                // The day's numbers, stamped.
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[["⏱️", hrs(s.hour), "taken"], ["❤️", String(s.hp), "HP left"], ["🔁", String(tries), tries === 1 ? "first try" : "tries"]].map(([e, v, l], k) => (
+                    <div key={l} className="border-2 border-dashed border-[var(--muted)]/50 py-1" style={{ animation: `daily-slam 0.4s ease-out ${(Math.min(5, 1.4 + path.length * 0.08) + 0.5 + k * 0.25).toFixed(2)}s both` }}>
+                      <p className="font-display text-2xl">{e} {v}</p>
+                      <p className="text-[11px] text-[var(--muted)]">{l}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {result === "won" && <p className="text-center text-sm">Score <b>{mapScore(daily, s).toLocaleString()}</b></p>}
+              <pre className="whitespace-pre-wrap border-2 border-[var(--muted)]/40 bg-[#00000010] p-2 font-sans text-sm">{share}</pre>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className="btn px-4 py-2" onClick={() => navigator.clipboard.writeText(share).then(() => setCopied(true))}>{copied ? "Copied" : "📋 Copy result"}</button>
                 {/* As many tries as you like; the result and the share say which try it was. */}
@@ -330,7 +384,20 @@ export default function DailyRun({ daily }: { daily: Daily }) {
         )}
       </main>
 
-      {view === "map" && !result && (
+      {/* The title screen: the day's world behind, its quest, and Play (which starts the sound too). */}
+      {view === "map" && !started && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/70 px-4 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element -- the 64px pixel logo */}
+          <img src="/logo.png" alt="" width={72} height={72} className="[image-rendering:pixelated]" style={{ animation: "daily-slam 0.6s ease-out both" }} />
+          <p className="font-display text-4xl text-[var(--gold)] [text-shadow:3px_3px_0_#000] sm:text-5xl">havocish daily</p>
+          <p className="font-display text-lg text-[#f2e4bf]">#{daily.day} · {daily.world}</p>
+          <p className="max-w-sm text-sm text-[#e2dacb]">Today&apos;s quest: beat <b className="text-[#ff7060]">{daily.map.nodes.find((n) => n.kind === "lair")!.enemy!.name}</b> before the day runs out.</p>
+          <button type="button" autoFocus className="btn mt-2 px-10 py-3 text-xl" onClick={() => { unlock(); setMutedState(isMuted()); sfx.click(); setStarted(true); }}>▶ Play</button>
+          <p className="text-[11px] text-[var(--muted)]">Sound on · 🔊 in the corner to mute</p>
+        </div>
+      )}
+
+      {view === "map" && !result && started && (
         <>
           {/* The HUD's buttons, top left. */}
           <div className="fixed top-[5.5rem] left-2 z-20 flex flex-col gap-1.5 sm:top-24 sm:left-5 sm:gap-2">
@@ -418,8 +485,8 @@ export default function DailyRun({ daily }: { daily: Daily }) {
       } else if (node.kind === "town") action = <button type="button" className="btn px-4 py-2" onClick={() => setView("town")}>🏘️ Enter town</button>;
       else if (node.kind === "start") action = <button type="button" className="btn px-4 py-2" onClick={() => setView("moves")}>📖 Your moves</button>;
       else if (node.kind === "forge") action = <button type="button" className="btn px-4 py-2" onClick={() => setView("forge")}>⚒️ Use the forge</button>;
-      else if (node.kind === "shrine") action = <button type="button" className="btn px-4 py-2" disabled={s.blessed} onClick={() => { if (apply({ type: "pray" }, node.emoji)) flash(`${node.emoji} ${node.name}: blessed`); }}>{s.blessed ? "Already blessed" : "🙏 Pray (1h)"}</button>;
-      else if (node.kind === "camp") action = <button type="button" className="btn px-4 py-2" disabled={s.hp >= kit.stats.maxHp} onClick={() => { const next = apply({ type: "rest" }, "🏕️"); if (next) flash(`Rested: ❤️ ${s.hp} → ${next.hp}`); }}>🔥 Rest (1h)</button>;
+      else if (node.kind === "shrine") action = <button type="button" className="btn px-4 py-2" disabled={s.blessed} onClick={() => { if (apply({ type: "pray" }, node.emoji)) { setMoment({ kind: "pray", at: Date.now() }); flash(`${node.emoji} ${node.name}: blessed`); } }}>{s.blessed ? "Already blessed" : "🙏 Pray (1h)"}</button>;
+      else if (node.kind === "camp") action = <button type="button" className="btn px-4 py-2" disabled={s.hp >= kit.stats.maxHp} onClick={() => { const next = apply({ type: "rest" }, "🏕️"); if (next) { setMoment({ kind: "rest", at: Date.now() }); flash(`Rested: ❤️ ${s.hp} → ${next.hp}`); } }}>🔥 Rest (1h)</button>;
     } else if (node.kind !== "blocked" && Number.isFinite(away)) {
       action = <button type="button" className="btn px-4 py-2" disabled={walking || s.hour + away * WALK_HOURS > HOURS} onClick={() => { setOverlay(null); void walkTo(selected); }}>🥾 Walk here ({hrs(away * WALK_HOURS)})</button>;
     }
@@ -502,7 +569,7 @@ export default function DailyRun({ daily }: { daily: Daily }) {
         ) : ended ? (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-display text-xl text-[var(--gold)]">{won ? "🏆 The quest is done!" : "💀 You fall."}</p>
-            <button type="button" className="btn px-4 py-2" onClick={() => setView("map")}>See how you did</button>
+            <button type="button" className="btn px-4 py-2" onClick={() => { setView("map"); if (s.over === "won") setTimeout(sfx.win, 900); else sfx.lose(); }}>See how you did</button>
           </motion.div>
         ) : undefined}
       </FightStage>
@@ -521,6 +588,7 @@ function gainsOf(daily: Daily, before: MapState, after: MapState): Array<Omit<Re
     if (more > 0) out.push({ text: `+${more} ${findEmoji(daily, name)} ${name}`, colour: "#f2e4bf" });
   }
   if (after.hp > before.hp && after.at === before.at) out.push({ text: `+${after.hp - before.hp} HP`, colour: "#9fe08a" });
+  if (after.blessed && !before.blessed) out.push({ text: `${daily.shrine.emoji} Blessed`, colour: "#ffd27a" });
   for (const id of after.relics.filter((r) => !before.relics.includes(r))) {
     const r = RELICS.find((x) => x.id === id);
     if (r) out.push({ text: `${r.emoji} ${r.name}`, colour: "#ffc070" });
@@ -557,6 +625,18 @@ function Journal({ daily, s }: { daily: Daily; s: MapState }) {
           {traitsOf(lair).map((t) => <li key={t.id}><b>{t.emoji} {t.name}:</b> {t.text}</li>)}
         </ul>
         <p className="mt-1 text-[11px] text-[var(--muted)]">Walking a tile takes half an hour; everything else you do, an hour.</p>
+      </div>
+      <hr className="border-dashed border-[var(--muted)]/40" />
+      {/* Today's shop, so the town needn't be visited to see it. */}
+      <div className="space-y-1">
+        <p className="font-display text-sm text-[var(--gold)]">🏘️ Today&apos;s shop</p>
+        <p className="text-[var(--muted)]">You wear one {SLOT_ICON.weapon} weapon, one {SLOT_ICON.armour} armour and one {SLOT_ICON.trinket} trinket: new gear replaces the old.</p>
+        {daily.shop.map((it) => (
+          <p key={it.id} className="flex gap-1.5">
+            <Emoji e={it.emoji} size={16} />
+            <span><b style={{ color: inkColour(it.rarity) }}>{it.name}</b>{it.slot ? ` ${SLOT_ICON[it.slot]}` : ""} <span className="text-[var(--gold)]">{it.price}g</span> <span className="text-[var(--muted)]">{itemText(daily, it)}</span></span>
+          </p>
+        ))}
       </div>
       <hr className="border-dashed border-[var(--muted)]/40" />
       <div className="space-y-1.5">
@@ -726,6 +806,8 @@ function Ware({ daily, it, owned, afford, on, onPick }: { daily: Daily; it: Shop
       <span className="slot relative h-14 w-14 group-hover:brightness-125" style={{ borderColor: on ? "var(--accent)" : rarityColour(it.rarity), boxShadow: on ? "0 0 0 2px #000, 0 0 0 4px var(--accent)" : undefined }}>
         <span className={afford ? "" : "opacity-40 grayscale"}><Emoji e={it.emoji} size={36} /></span>
         {owned > 0 && <span className="absolute -right-1.5 -bottom-1.5 border-2 border-black bg-[var(--accent)] px-1 text-[10px] font-bold text-black">{it.stock > 1 ? `×${owned}` : "✓"}</span>}
+        {/* Which slot it takes: you wear one weapon, one armour, one trinket. */}
+        {it.slot && <span title={`${SLOT_NAME[it.slot]} slot`} className="absolute -top-2 -left-2 border-2 border-black bg-[#2a2219] px-0.5 text-[10px] leading-tight">{SLOT_ICON[it.slot]}</span>}
       </span>
       {/* The price tag. */}
       <span className="flex items-center gap-0.5 border border-black bg-[#e9dcb4] px-1 text-[10px] font-bold tabular-nums text-[#3a2814]"><Sprite name="coin" size={10} />{it.price}</span>
@@ -761,7 +843,11 @@ function MarketStall({ daily, s, theme, onBuy, onSell }: { daily: Daily; s: MapS
       <div className="space-y-1">
         <p className="font-display text-base" style={{ color: inkColour(item.rarity) }}>{item.emoji} {item.name}</p>
         <p>{itemText(daily, item)}</p>
-        {item.slot && <p className={replaces ? "text-[#9a2a1a]" : "text-[var(--muted)]"}>{SLOT_NAME[item.slot]} slot{n ? ": you have it on." : replaces ? `: replaces your ${replaces} (no refund).` : ""}</p>}
+        {item.slot && <p className={replaces ? "text-[#9a2a1a]" : "text-[var(--muted)]"}>{SLOT_ICON[item.slot]} {SLOT_NAME[item.slot]} slot{n ? ": you have it on." : replaces ? `: replaces your ${replaces} (no refund).` : ": empty now."}</p>}
+        {/* The forge's answer for the same slot, to weigh it against. */}
+        {item.slot && daily.map.recipes.filter((r) => r.gives.slot === item.slot && !s.crafted.includes(r.id)).map((r) => (
+          <p key={r.id} className="border-t border-dashed border-[var(--muted)]/40 pt-1 text-[var(--muted)]">Or forge {r.gives.emoji} <b className="text-[var(--foreground)]">{r.gives.name}</b>: {itemText(daily, r.gives)}. Needs {r.needs.map((x) => `${x.count}× ${x.emoji} ${x.name}`).join(", ")}.</p>
+        ))}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <span className="flex items-center gap-1 font-bold"><Sprite name="coin" size={12} />{item.price}{item.stock > 1 ? ` · up to ${item.stock}` : ""}</span>
           {(item.stock > 1 || n === 0) && <button type="button" className="btn px-3 py-1 text-xs" disabled={n >= item.stock || s.gold < item.price} onClick={() => onBuy(item.id, true)}>{replaces ? "Swap in" : "Buy"}</button>}
@@ -793,7 +879,21 @@ function MarketStall({ daily, s, theme, onBuy, onSell }: { daily: Daily; s: MapS
       theme={theme}
       shelves={[<Shelf key="a">{daily.shop.slice(0, half).map(ware)}</Shelf>, <Shelf key="b">{daily.shop.slice(half).map(ware)}</Shelf>]}
       says={says}
-      counter={carried.length ? (
+      counter={<div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+        {/* What you wear now: one of each slot, so new gear replaces what's there. */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-[#f2e4bf]/80">Wearing</span>
+          {(["weapon", "armour", "trinket"] as const).map((slot) => {
+            const on = occupant(daily, s, slot);
+            const it = !on ? null : "bought" in on ? daily.shop.find((x) => x.id === on.bought)! : daily.map.recipes.find((r) => r.id === on.forged)!.gives;
+            return (
+              <span key={slot} title={`${SLOT_NAME[slot]}: ${it ? it.name : "empty"}`} className="slot relative h-10 w-10">
+                {it ? <Emoji e={it.emoji} size={24} /> : <span className="text-base opacity-40">{SLOT_ICON[slot]}</span>}
+              </span>
+            );
+          })}
+        </div>
+        {carried.length ? (
         // Your finds, laid on the counter: tap one to sell it.
         <div className="flex flex-wrap justify-center gap-2">
           {carried.map(([name, n]) => {
@@ -809,6 +909,7 @@ function MarketStall({ daily, s, theme, onBuy, onSell }: { daily: Daily; s: MapS
           })}
         </div>
       ) : <p className="text-center text-xs text-[#f2e4bf]/70">Nothing of yours to sell. Gather some finds first.</p>}
+      </div>}
     />
   );
 }
@@ -879,7 +980,7 @@ function partOfDay(h: number): string {
  * and XP), the day's clock in the middle as the sun (then the moon) crossing a
  * sky arc, and what you carry on the right.
  */
-function Hud({ daily, s, kitMax }: { daily: Daily; s: MapState; kitMax: number }) {
+function Hud({ daily, s, kitMax, muted, onMute }: { daily: Daily; s: MapState; kitMax: number; muted: boolean; onMute: () => void }) {
   const mats = Object.values(s.mats).reduce((a, b) => a + b, 0);
   const lv = levelOf(s.xp), next = LEVELS[lv];
   const t = Math.min(1, s.hour / HOURS);
@@ -931,6 +1032,7 @@ function Hud({ daily, s, kitMax }: { daily: Daily; s: MapState; kitMax: number }
             {s.relics.map((id) => { const r = RELICS.find((x) => x.id === id)!; return <span key={id} title={`${r.name}: ${r.text}`}><Emoji e={r.emoji} size={18} /></span>; })}
             {mats > 0 && <span title="Materials carried" className="text-xs">🎒 {mats}</span>}
             <span className="px-well flex items-center gap-1 px-2 py-0.5 font-display text-base text-[var(--gold)]"><Sprite name="coin" size={16} />{s.gold}</span>
+            <button type="button" onClick={onMute} title={muted ? "Sound off" : "Sound on"} aria-label={muted ? "Turn sound on" : "Turn sound off"} className="px-well px-1.5 py-0.5 text-sm">{muted ? "🔇" : "🔊"}</button>
           </div>
           <Link href="/" className="hidden items-center gap-1.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] sm:flex">
             {/* eslint-disable-next-line @next/next/no-img-element -- the 64px pixel logo */}
@@ -966,8 +1068,11 @@ function GatherView({ spec, theme, dug, opened, onDig }: { spec: GatherSpec; the
         </div>
       </div>
 
-      {g.game === "pulls" ? <Pulls spec={g} theme={theme} dug={dug} opened={opened} onPull={(landed) => onDig(landed ? opened.length : SNAP)} /> : g.game === "tunnel" ? <Shaft spec={g} dug={dug} opened={opened} onDig={onDig} /> : (
-        <div className="mx-auto grid w-fit gap-2" style={{ perspective: 600, gridTemplateColumns: g.game === "grid" ? "repeat(4, auto) auto" : "repeat(4, auto)" }}>
+      {g.game === "pulls" ? <Pond><Pulls spec={g} theme={theme} dug={dug} opened={opened} onPull={(landed) => onDig(landed ? opened.length : SNAP)} /></Pond> : g.game === "tunnel" ? <Shaft spec={g} dug={dug} opened={opened} onDig={onDig} /> : (
+        // The dig: a field of soil with a grass edge, the tiles clods in it.
+        <div className="mx-auto w-fit border-[3px] border-black px-shadow" style={{ backgroundColor: "#4a3422", backgroundImage: "radial-gradient(#5e432c 1.5px, transparent 1.5px), radial-gradient(#3a2818 1px, transparent 1px)", backgroundSize: "10px 10px, 14px 14px", backgroundPosition: "0 0, 5px 7px" }}>
+        <div className="h-3 border-b-[3px] border-black bg-[#5f9a4a] shadow-[inset_0_3px_0_#9fe08a]" />
+        <div className="grid w-fit gap-2 p-3" style={{ perspective: 600, gridTemplateColumns: "repeat(4, auto) auto" }}>
           {g.tiles.flatMap((tile, i) => {
             const shown = opened.includes(i);
             const open = !shown && !dug.end;
@@ -1020,6 +1125,7 @@ function GatherView({ spec, theme, dug, opened, onDig }: { spec: GatherSpec; the
               ...colClues,
             ];
           })}
+        </div>
         </div>
       )}
       {g.game === "grid" && (
@@ -1114,6 +1220,23 @@ function Clue({ n }: { n: number }) {
     <span title={`${n} hazard${n === 1 ? "" : "s"} in this line`} className={`flex min-w-8 items-center justify-center self-center font-display text-base ${n ? "text-[#ff8a6a]" : "text-[var(--muted)]"}`}>
       {n || "·"}
     </span>
+  );
+}
+
+/** The fishing scene: a dock along the top, water below with ripples, and the game on it. */
+function Pond({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative mx-auto max-w-md overflow-hidden border-[3px] border-black px-shadow" style={{ background: "linear-gradient(#2e6a8a, #1a3e58 60%, #102a3e)" }}>
+      {/* The dock: planks you fish from. */}
+      <div className="flex h-5 border-b-[3px] border-black">
+        {Array.from({ length: 8 }, (_, k) => <span key={k} className="flex-1 border-r-2 border-[#4a2c14] bg-[#7a4a24] shadow-[inset_0_2px_0_#9a6a3a]" />)}
+      </div>
+      {/* Ripples drifting on the water. */}
+      {[0, 1, 2, 3, 4].map((k) => (
+        <span key={k} aria-hidden className="pointer-events-none absolute h-[3px] w-16 bg-[#8ac0d8]" style={{ top: `${22 + k * 16}%`, left: `${(k * 37) % 80}%`, animation: `daily-ripple ${3 + k * 0.7}s ease-in-out ${-k}s infinite` }} />
+      ))}
+      <div className="relative min-h-[18rem] px-4 pt-2 pb-6">{children}</div>
+    </div>
   );
 }
 

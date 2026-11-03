@@ -3,7 +3,7 @@ import { DEFAULT_MOVES, DEFAULT_STATUSES, enemyMoveList, moveById, type EnemyMov
 import {
     hash, LEVEL, POOL_SIZE, shuffled, statsAt, GRID, PULLS, TUNNEL,
     EFFECT_KINDS, ENRAGE_STATUS, ITEM_KINDS, REGEN_STATUS, RELICS, TRAITS, act, mapScore, startState, SIDE, START_NODE,
-    type Daily, type DailyEnemy, type DailyOverride, type DayMap, type Find, type GatherSpec, type MapAction, type MapNode, type MapState, type Recipe, type Slot, type ItemKind, type Shrine, type ShopItem, type Stats,
+    type Daily, type DailyEnemy, type DailyOverride, type DayMap, type Find, type GatherSpec, type MapAction, type MapNode, type MapState, type Perk, type Recipe, type Slot, type ItemKind, type Shrine, type ShopItem, type Stats,
 } from "./daily.ts";
 import classicFantasy from "./packs/classic-fantasy.json" with { type: "json" };
 import dustwater from "./worlds/dustwater.json" with { type: "json" };
@@ -192,6 +192,53 @@ const CRAFTED: Array<{ from: GearSlot[]; stats: Stats; slot: Slot }> = [
     { from: ["body", "shield", "legs"], stats: { def: 10, hp: 140 }, slot: "armour" },
 ];
 
+/** What a point of each stat is worth, for gear's budgets: the shop's prices were set on these. */
+const WORTH = { atk: 1, def: 2.5, hp: 0.1, spd: 0.4, crit: 1 } as const;
+type StatKey = keyof typeof WORTH;
+/** A piece of gear's value: the sum of its stats' worth. */
+function worthOf(stats: Stats): number {
+    return (Object.entries(stats) as Array<[StatKey, number]>).reduce((sum, [k, v]) => sum + v * WORTH[k], 0);
+}
+/** A drawback's smallest and biggest size, per stat. */
+const DRAWBACK_MIN: Record<StatKey, number> = { atk: 4, def: 3, hp: 40, spd: 8, crit: 5 };
+const DRAWBACK_CAP: Record<StatKey, number> = { atk: 15, def: 6, hp: 90, spd: 25, crit: 10 };
+/** The perk each slot can roll: a weapon drinks, armour bites back, a trinket starts you charged. */
+const PERKS: Record<Slot, Perk> = { weapon: { lifesteal: 6 }, armour: { thorns: 12 }, trinket: { energy: 1 } };
+
+/**
+ * A piece of gear rolled for the day: the same value as `like` (so prices still fit), spent its own way.
+ * Its `lead` stat always gets most of it; sometimes a second stat shares it, sometimes a drawback pays
+ * for more (`drawback` forces one), and now and then a perk takes a quarter of it. Seeded, so it's the
+ * same for everyone that day.
+ */
+function rollGear(slot: Slot, like: Stats, seed: number, drawback = false): { stats: Stats; perk?: Perk } {
+    const r = (k: number) => (hash(seed * 7919 + k * 104729) % 1000) / 1000;
+    const lead = (Object.entries(like) as Array<[StatKey, number]>).sort((a, b) => b[1] * WORTH[b[0]] - a[1] * WORTH[a[0]])[0]![0];
+    let budget = worthOf(like);
+    const out: Partial<Record<StatKey, number>> = {};
+    let perk: Perk | undefined;
+    if (r(0) < 0.3) { perk = PERKS[slot]; budget *= 0.75; }
+    // A drawback, paid back at four-fifths of what it costs: never so small it's a rounding error, never crippling.
+    const downs: StatKey[] = slot === "armour" ? ["spd"] : slot === "weapon" ? ["spd", "def"] : ["hp", "def"];
+    if (drawback || (budget >= 20 && r(1) < 0.35)) {
+        const k = downs.filter((d) => d !== lead)[Math.floor(r(2) * downs.length) % downs.length] ?? "spd";
+        const n = Math.min(DRAWBACK_CAP[k], Math.max(DRAWBACK_MIN[k], Math.round(((0.25 + r(3) * 0.25) * budget) / WORTH[k])));
+        out[k] = -n;
+        budget += n * WORTH[k] * 0.8;
+    }
+    // Armour always has both DEF and HP, split its own way; the rest sometimes take a second stat.
+    // (A weapon that pays with a drawback is heavy: it never rolls speed.)
+    const seconds: StatKey[] = slot === "armour" ? [lead === "def" ? "hp" : "def"] : slot === "weapon" ? (drawback ? ["crit"] : ["crit", "spd"]) : ["atk", "hp", "def"].filter((k) => k !== lead) as StatKey[];
+    const second = seconds.filter((k) => out[k] == null)[Math.floor(r(4) * seconds.length) % seconds.length];
+    if (second && (slot === "armour" || r(5) < 0.6)) {
+        const share = (slot === "armour" ? 0.3 : 0.15) + r(6) * 0.3;
+        out[second] = Math.round((budget * share) / WORTH[second]);
+        budget -= budget * share;
+    }
+    out[lead] = Math.round(budget / WORTH[lead]);
+    return { stats: out as Stats, ...(perk && { perk }) };
+}
+
 /**
  * The day's map: cliffs that roads go around, the boss's lair far from the
  * start, the town near it, and the rest (forge, shrine, campfire, four
@@ -253,7 +300,7 @@ function buildMap(day: number, world: World, normals: WorldEnemy[], elites: Worl
             id: `craft-${k}`,
             // Two of the spot's commonest find and one more thing: reachable in a single good visit.
             needs: [{ name: common.name, emoji: common.emoji, count: 2 }, { name: rare.name, emoji: rare.emoji, count: 1 }].filter((n, i, all) => all.findIndex((m) => m.name === n.name) === i),
-            gives: { id: "featured", name: item.name, emoji: item.emoji, rarity: "epic", price: 0, stock: 1, stats: c.stats, slot: c.slot },
+            gives: { id: "featured", name: item.name, emoji: item.emoji, rarity: "epic", price: 0, stock: 1, slot: c.slot, ...rollGear(c.slot, c.stats, day * 97 + 50 + k) },
         };
     });
     return { nodes, recipes };
@@ -390,6 +437,8 @@ export function dailyFor(day: number, override: DailyOverride = {}): Daily {
             id: kind, name: item?.name ?? kind, emoji: item?.emoji ?? "📦", rarity: k.rarity, price: k.price, stock: k.stock ?? 1,
             ...(k.stats && { stats: k.stats }),
             ...(k.slot && { slot: k.slot }),
+            // Gear's stats are rolled for the day: the same value, spent its own way (a heavy weapon always pays with a drawback).
+            ...(k.stats && k.slot && rollGear(k.slot, k.stats, day * 97 + i, kind === "heavy")),
         };
         if (kind === "potion") base.heal = Math.round(statsAt(LEVEL).maxHp * POTION_HEAL_SHARE);
         if ((EFFECT_KINDS as readonly string[]).includes(kind)) base.use = EFFECT_MOVES[kind as (typeof EFFECT_KINDS)[number]].id;

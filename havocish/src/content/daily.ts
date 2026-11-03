@@ -112,7 +112,21 @@ export type ShopItem = {
     use?: string;
     /** Gear's slot: one weapon, one armour, one trinket at a time. */
     slot?: Slot;
+    /** Gear's perk: what it does in every fight (the same effects relics have). */
+    perk?: Perk;
 };
+
+/** A perk on a piece of gear: lifesteal or thorns in %, or energy to start each fight with. */
+export type Perk = { lifesteal?: number; thorns?: number; energy?: number };
+
+/** What a perk does, in words. */
+export function perkText(perk: Perk): string {
+    return [
+        perk.lifesteal && `Heals ${perk.lifesteal}% of the damage you deal`,
+        perk.thorns && `Sends ${perk.thorns}% of the damage you take back`,
+        perk.energy && `Starts every fight with ${perk.energy} energy`,
+    ].filter(Boolean).join(" · ");
+}
 
 export type Slot = "weapon" | "armour" | "trinket";
 
@@ -290,7 +304,17 @@ export type Prepared = {
     /** Moves from gear, usable alongside the loadout. */
     taught: string[];
     opener: { statusId: string; turns: number } | null;
+    /** Gear's perks, added up: set up in every fight by startFight, like relics. */
+    perks?: Perk;
 };
+
+/** Two perks together: their numbers added. */
+export function addPerks(a: Perk | undefined, b: Perk | undefined): Perk | undefined {
+    if (!a && !b) return a ?? b;
+    const out: Perk = {};
+    for (const k of ["lifesteal", "thorns", "energy"] as const) { const v = (a?.[k] ?? 0) + (b?.[k] ?? 0); if (v) out[k] = v; }
+    return out;
+}
 
 /**
  * What a player goes in with after buying `buys` (item ids; the potion as
@@ -304,6 +328,7 @@ export function prepare(daily: Daily, gold: number, buys: string[]): Prepared | 
     let potions = 0;
     const taught: string[] = [];
     let opener: Prepared["opener"] = null;
+    let perks: Perk | undefined;
     for (const item of daily.shop) {
         const n = buys.filter((id) => id === item.id).length;
         if (n > item.stock) return null;
@@ -312,6 +337,7 @@ export function prepare(daily: Daily, gold: number, buys: string[]): Prepared | 
         if (item.heal) potions += n;
         if (item.teaches) taught.push(item.teaches);
         if (item.opener) opener = item.opener;
+        perks = addPerks(perks, item.perk);
         stats.atk += item.stats?.atk ?? 0;
         stats.def += item.stats?.def ?? 0;
         stats.spd = Math.max(1, stats.spd + (item.stats?.spd ?? 0));
@@ -319,7 +345,7 @@ export function prepare(daily: Daily, gold: number, buys: string[]): Prepared | 
         stats.critChance += item.stats?.crit ?? 0;
     }
     if (buys.some((id) => !daily.shop.some((it) => it.id === id)) || spent > gold) return null;
-    return { stats, potions, heal: daily.shop.find((it) => it.heal)?.heal ?? 0, spent, taught, opener };
+    return { stats, potions, heal: daily.shop.find((it) => it.heal)?.heal ?? 0, spent, taught, opener, ...(perks && { perks }) };
 }
 
 /** Every move the player can use in a fight: their four, and any their gear teaches. */
@@ -373,6 +399,10 @@ export function startFight(daily: Daily, slot: number, enemy: DailyEnemy, kit: P
         if (r.fight?.mark) state.mark = (state.mark ?? 0) + r.fight.mark;
         if (r.fight?.thorns) state.thorns = (state.thorns ?? 0) + r.fight.thorns;
     }
+    // Gear's perks work like relics.
+    if (kit.perks?.energy) state.energy += kit.perks.energy;
+    if (kit.perks?.lifesteal) state.lifesteal = (state.lifesteal ?? 0) + kit.perks.lifesteal;
+    if (kit.perks?.thorns) state.thorns = (state.thorns ?? 0) + kit.perks.thorns;
     if (kit.opener) state.statuses[kit.opener.statusId] = kit.opener.turns;
     const fight: Fight = {
         members: [{ userId: "you", name: "You", stats: kit.stats, hp, state, dealt: 0, taken: 0 }],
@@ -513,7 +543,9 @@ export function startState(daily: Daily): MapState {
 export function kitOf(daily: Daily, s: MapState): Prepared {
     let kit = prepare(daily, Infinity, s.buys)!;
     for (const id of s.crafted.filter((c) => !s.unequipped.includes(c))) {
-        const g = daily.map.recipes.find((r) => r.id === id)?.gives.stats ?? {};
+        const gives = daily.map.recipes.find((r) => r.id === id)?.gives;
+        const g = gives?.stats ?? {};
+        if (gives?.perk) kit = { ...kit, perks: addPerks(kit.perks, gives.perk)! };
         kit = { ...kit, stats: { ...kit.stats, atk: kit.stats.atk + (g.atk ?? 0), def: kit.stats.def + (g.def ?? 0), maxHp: kit.stats.maxHp + (g.hp ?? 0), spd: Math.max(1, kit.stats.spd + (g.spd ?? 0)), critChance: kit.stats.critChance + (g.crit ?? 0) } };
     }
     const lv = 1 + LEVEL_BONUS * (levelOf(s.xp) - 1);

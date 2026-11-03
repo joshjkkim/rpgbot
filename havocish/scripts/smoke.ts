@@ -2003,6 +2003,14 @@ async function main() {
         const potionDay = dailyFor(3, { kinds: ["potion", "boots"] });
         check("no more than the stock", prepare(potionDay, 10_000, ["potion", "potion", "potion", "potion"]), null);
 
+        // Gear is rolled each day: the same value, spent its own way, and sometimes a perk.
+        const gearOf = (n: number) => dailyFor(n).map.recipes.map((r) => JSON.stringify([r.gives.stats, r.gives.perk]));
+        check("forged gear changes from day to day", new Set([1, 2, 3, 4, 5, 6].flatMap(gearOf)).size > 6, true);
+        const perked = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => dailyFor(n)).flatMap((x) => x.shop.filter((it) => it.perk).map((it) => ({ x, it })))[0]!;
+        const withPerk = prepare(perked.x, 10_000, [perked.it.id])!;
+        const st = startDailyFight(perked.x, 0, perked.x.boss, withPerk, 400).members[0]!.state;
+        check("a perk works in fights, like a relic", [st.lifesteal ?? 0, st.thorns ?? 0, st.energy ?? 0], [perked.it.perk!.lifesteal ?? 0, perked.it.perk!.thorns ?? 0, perked.it.perk!.energy ?? 0]);
+
         // Admin overrides.
         const o = dailyFor(3, { world: "classic-fantasy", boss: "lich", mobs: ["giant-rat", "grey-wolf"] });
         const mobs = o.map.nodes.filter((x) => x.kind === "enemy").map((x) => x.name);

@@ -71,6 +71,16 @@ function particle(w: Weather, i: number, tint: string): React.CSSProperties {
   }
 }
 
+/** The world's weather alone, over the whole screen: rain, snow, petals, fireflies… The map shows it over the land. */
+export function Weather({ theme, className = "" }: { theme: Theme; className?: string }) {
+  const count = theme.weather === "rain" ? 60 : theme.weather === "stars" ? 0 : 40;
+  return (
+    <div aria-hidden className={`pointer-events-none fixed inset-0 overflow-hidden ${className}`}>
+      {Array.from({ length: count }, (_, i) => <span key={i} style={particle(theme.weather, i, theme.tint)} />)}
+    </div>
+  );
+}
+
 export function Scene({ theme, silhouettes }: { theme: Theme; silhouettes: string[] }) {
   const count = theme.weather === "rain" ? 60 : theme.weather === "stars" ? 90 : 40;
   return (

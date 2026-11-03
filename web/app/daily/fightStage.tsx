@@ -159,6 +159,25 @@ export function FightStage({ daily, fight, log, moves, potion, potions, items = 
   const drank = lastPick === DRINK && turn > 0;
   const winding = fight.foe.charging && !over;
   const size = boss ? 168 : 136;
+  // The turn's big moments, read from what happened: each gets a banner, and the hard ones shake the screen.
+  const said = (bit: string) => log.some((l) => l.includes(bit));
+  const killed = fight.enemyCurrentHp <= 0 && dealt > 0;
+  const bigHit = taken >= me.stats.maxHp * 0.2;
+  const moment = killed ? null
+    : guarded && said("**0** damage (blocked") ? { text: "PARRY!", colour: "#8ac0ff" }
+    : said("interrupted 💫") ? { text: "INTERRUPTED!", colour: "#ffd27a" }
+    : crit ? { text: "CRITICAL!", colour: "#ff9a4a" }
+    : said("is enraged") ? { text: "ENRAGED!", colour: "#ff5a4a" }
+    : null;
+  const lowHp = me.hp > 0 && me.hp < me.stats.maxHp * 0.25;
+  // A boss's entrance: the screen goes dark, its name slams in with its traits, and it rises into view.
+  const [entering, setEntering] = useState(boss && fight.round === 0);
+  useEffect(() => {
+    if (!entering) return;
+    const t = setTimeout(() => setEntering(false), 2600);
+    return () => clearTimeout(t);
+  }, [entering]);
+  const traits = ((fight.enemy as { traits?: string[] }).traits ?? []).flatMap((id) => TRAITS.filter((t) => t.id === id));
 
   return (
     <div className="pb-40">
@@ -179,8 +198,30 @@ export function FightStage({ daily, fight, log, moves, potion, potions, items = 
         </UnitFrame>
       </div>
 
-      {/* The fighters, standing on the world's ground line: you on the left, it on the right. */}
-      <div className="pointer-events-none fixed inset-x-0 z-10" style={{ top: `${HORIZON * 100}vh` }}>
+      {entering && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/85 px-4 text-center" style={{ animation: "daily-curtain 2.6s ease both" }}>
+          <span className="font-display text-sm tracking-[0.4em] text-[#ff7060]">« QUEST »</span>
+          <span className="font-display text-5xl uppercase text-[#f2e4bf] [text-shadow:4px_4px_0_#5a0e0a] sm:text-7xl" style={{ animation: "daily-slam 0.7s ease-out 0.2s both" }}>{enemy.name}</span>
+          <span className="flex flex-wrap justify-center gap-2" style={{ animation: "daily-emerge 0.5s ease-out 0.9s both" }}>
+            {traits.map((t) => <span key={t.id} className="border-2 border-black bg-[#3c140e] px-2 py-0.5 text-sm text-[#f6d2c2]">{t.emoji} {t.name}</span>)}
+          </span>
+        </div>
+      )}
+
+      {/* A big hit taken: the screen flashes red. The killing blow: it flashes white. */}
+      {bigHit && <div key={`red${turn}`} aria-hidden className="pointer-events-none fixed inset-0 z-20 bg-[#ff2a1a]/25" style={{ animation: "daily-flash 0.45s ease-out both" }} />}
+      {killed && <div key={`white${turn}`} aria-hidden className="pointer-events-none fixed inset-0 z-20 bg-white/60" style={{ animation: "daily-flash 0.5s ease-out 0.15s both" }} />}
+      {/* Low on health: the edges of the screen pulse like a heartbeat. */}
+      {lowHp && !over && <div aria-hidden className="pointer-events-none fixed inset-0 z-[5]" style={{ background: "radial-gradient(ellipse at center, transparent 55%, rgb(180 20 10 / 0.55))", animation: "daily-heartbeat 1.1s ease-in-out infinite" }} />}
+      {/* The turn's moment, as a banner. */}
+      {moment && (
+        <div key={`m${turn}`} aria-hidden className="pointer-events-none fixed inset-x-0 top-[30vh] z-30 flex justify-center">
+          <span className="font-display text-5xl sm:text-6xl [text-shadow:3px_3px_0_#000,-2px_-2px_0_#000]" style={{ color: moment.colour, animation: "daily-banner 1.2s ease-out both" }}>{moment.text}</span>
+        </div>
+      )}
+
+      {/* The fighters, standing on the world's ground line: you on the left, it on the right. Big hits shake them. */}
+      <div key={`stage${turn}`} className="pointer-events-none fixed inset-x-0 z-10" style={{ top: `${HORIZON * 100}vh`, ...((bigHit || crit || killed) && { animation: "daily-shake 0.4s ease-out" }) }}>
         <div className="relative mx-auto flex max-w-3xl -translate-y-full items-end justify-between px-[8%]">
           {/* You: step in to strike, flinch when hit, a shield or a sparkle when that's what you did. */}
           <div className="relative flex flex-col items-center">
@@ -227,7 +268,7 @@ export function FightStage({ daily, fight, log, moves, potion, potions, items = 
               )}
             </AnimatePresence>
             {boss && <span className="mb-1 font-display text-sm tracking-[0.3em] text-[#d0894a] [text-shadow:2px_2px_0_#000]">BOSS</span>}
-            <div className="relative">
+            <div className="relative" style={boss && turn === 0 ? { animation: "daily-emerge 0.9s ease-out 2s both" } : undefined}>
               <Hit n={dealt} turn={turn} crit={crit} colour="#f4ead2" className="left-1/2 top-0" delay={0.2} />
               {dealt > 0 && <Slash turn={turn} />}
               <motion.div
@@ -238,7 +279,8 @@ export function FightStage({ daily, fight, log, moves, potion, potions, items = 
                       x: [0, ...(dealt > 0 ? [10, -6, 0] : [0, 0, 0]), ...(taken > 0 ? [-64, 0] : [0, 0])],
                       filter: dealt > 0 ? ["brightness(1)", "brightness(2.6)", "brightness(1)", "brightness(1)", "brightness(1)", "brightness(1)"] : "brightness(1)",
                     }}
-                transition={{ duration: fight.enemyCurrentHp <= 0 ? 0.8 : 1.0, delay: fight.enemyCurrentHp <= 0 ? 0.25 : 0 }}
+                // A boss falls slowly.
+                transition={{ duration: fight.enemyCurrentHp <= 0 ? (boss ? 1.8 : 0.8) : 1.0, delay: fight.enemyCurrentHp <= 0 ? 0.25 : 0 }}
               >
                 {/* Winding up: it glows red until it lets go. */}
                 <motion.div
@@ -275,7 +317,7 @@ export function FightStage({ daily, fight, log, moves, potion, potions, items = 
         )}
       </AnimatePresence>
 
-      {!children && <ActionBar daily={daily} fight={fight} moves={moves} potion={potion} potions={potions} items={items} onPick={onPick} />}
+      {!children && !entering && <ActionBar daily={daily} fight={fight} moves={moves} potion={potion} potions={potions} items={items} onPick={onPick} />}
     </div>
   );
 }
