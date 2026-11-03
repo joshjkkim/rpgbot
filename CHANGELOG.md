@@ -2,7 +2,9 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.19 · November 2, 2026
+
+The Daily: a free browser game at havocish.com/daily, with a new world to beat every day.
 
 ### New
 - **The havocish Daily: a new world to beat every day, at havocish.com/daily.** Play it in your browser, no server needed. You get 24 hours on a map of one of havocish's worlds to gather, shop, forge, level up on its creatures and beat its boss, and everything you do takes time. Everyone gets the same day, so the challenge is how fast you can do it. Gathering is played on skill (timed fishing, a logic dig, a risky descent down a mine shaft), gear rolls new stats and perks every day, and bosses come with traits that change how you have to fight them. Try it as often as you like and share your time.
