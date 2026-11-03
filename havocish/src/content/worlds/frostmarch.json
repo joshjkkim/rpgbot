@@ -1,0 +1,881 @@
+{
+  "id": "frostmarch",
+  "name": "Rimeheart",
+  "prompt": "A frozen tundra of mammoth hunters and ice spirits, with a frost giant asleep under the glacier.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "snow-hare": {
+          "id": "snow-hare",
+          "name": "Snow Hare",
+          "emoji": "🐇",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "quick-nip",
+              "weight": 3
+            }
+          ]
+        },
+        "snow-wolf": {
+          "id": "snow-wolf",
+          "name": "Snow Wolf",
+          "emoji": "🐺",
+          "minLevel": 4,
+          "moves": [
+            {
+              "moveId": "wolf-lunge",
+              "weight": 3
+            },
+            {
+              "moveId": "claw-swipe",
+              "weight": 1
+            }
+          ]
+        },
+        "tusked-boar": {
+          "id": "tusked-boar",
+          "name": "Tusked Boar",
+          "emoji": "🐗",
+          "minLevel": 7,
+          "moves": [
+            {
+              "moveId": "tusk-gore",
+              "weight": 3
+            }
+          ]
+        },
+        "frost-wisp": {
+          "id": "frost-wisp",
+          "name": "Frost Wisp",
+          "emoji": "✨",
+          "minLevel": 9,
+          "moves": [
+            {
+              "moveId": "whispering-chill",
+              "weight": 3
+            }
+          ]
+        },
+        "pine-stalker": {
+          "id": "pine-stalker",
+          "name": "Pine Stalker",
+          "emoji": "🐆",
+          "minLevel": 12,
+          "moves": [
+            {
+              "moveId": "claw-swipe",
+              "weight": 3
+            },
+            {
+              "moveId": "wolf-lunge",
+              "weight": 1
+            }
+          ]
+        },
+        "woolly-mammoth": {
+          "id": "woolly-mammoth",
+          "name": "Woolly Mammoth",
+          "emoji": "🦣",
+          "minLevel": 15,
+          "moves": [
+            {
+              "moveId": "tusk-gore",
+              "weight": 3
+            },
+            {
+              "moveId": "bellow-of-the-storm",
+              "weight": 1
+            }
+          ]
+        },
+        "rime-witch": {
+          "id": "rime-witch",
+          "name": "Rime Witch",
+          "emoji": "🧙",
+          "minLevel": 18,
+          "moves": [
+            {
+              "moveId": "frostbite-touch",
+              "weight": 3
+            },
+            {
+              "moveId": "whispering-chill",
+              "weight": 1
+            }
+          ]
+        },
+        "ice-wraith": {
+          "id": "ice-wraith",
+          "name": "Ice Wraith",
+          "emoji": "👻",
+          "minLevel": 20,
+          "moves": [
+            {
+              "moveId": "whispering-chill",
+              "weight": 3
+            },
+            {
+              "moveId": "flash-freeze",
+              "weight": 1
+            }
+          ]
+        },
+        "sabertooth-cat": {
+          "id": "sabertooth-cat",
+          "name": "Sabertooth Cat",
+          "emoji": "🐅",
+          "minLevel": 23,
+          "moves": [
+            {
+              "moveId": "wolf-lunge",
+              "weight": 3
+            },
+            {
+              "moveId": "tusk-gore",
+              "weight": 1
+            }
+          ]
+        },
+        "crystal-golem": {
+          "id": "crystal-golem",
+          "name": "Crystal Golem",
+          "emoji": "🗿",
+          "minLevel": 26,
+          "moves": [
+            {
+              "moveId": "ice-shell",
+              "weight": 3
+            },
+            {
+              "moveId": "avalanche-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "ancient-bull-mammoth": {
+          "id": "ancient-bull-mammoth",
+          "name": "Ancient Bull Mammoth",
+          "emoji": "🦣",
+          "minLevel": 28,
+          "moves": [
+            {
+              "moveId": "tusk-gore",
+              "weight": 3
+            },
+            {
+              "moveId": "bellow-of-the-storm",
+              "weight": 1
+            },
+            {
+              "moveId": "avalanche-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "skarn-the-sleeping-giant": {
+          "id": "skarn-the-sleeping-giant",
+          "name": "Skarn the Sleeping Giant",
+          "emoji": "🧌",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "avalanche-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "flash-freeze",
+              "weight": 1
+            },
+            {
+              "moveId": "bellow-of-the-storm",
+              "weight": 1
+            }
+          ]
+        },
+        "glacier-wyrm": {
+          "id": "glacier-wyrm",
+          "name": "Glacier Wyrm",
+          "emoji": "🐉",
+          "minLevel": 33,
+          "moves": [
+            {
+              "moveId": "frostbite-touch",
+              "weight": 3
+            },
+            {
+              "moveId": "icicle-volley",
+              "weight": 1
+            }
+          ]
+        },
+        "blizzard-queen": {
+          "id": "blizzard-queen",
+          "name": "Blizzard Queen",
+          "emoji": "👸",
+          "minLevel": 36,
+          "moves": [
+            {
+              "moveId": "flash-freeze",
+              "weight": 3
+            },
+            {
+              "moveId": "whispering-chill",
+              "weight": 1
+            },
+            {
+              "moveId": "icicle-volley",
+              "weight": 1
+            }
+          ]
+        },
+        "ice-revenant": {
+          "id": "ice-revenant",
+          "name": "Ice Revenant",
+          "emoji": "💀",
+          "minLevel": 38,
+          "moves": [
+            {
+              "moveId": "ice-shell",
+              "weight": 3
+            },
+            {
+              "moveId": "avalanche-slam",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "quick-nip": {
+          "id": "quick-nip",
+          "name": "Quick Nip",
+          "emoji": "🐇",
+          "telegraph": "darts forward on light feet…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "claw-swipe": {
+          "id": "claw-swipe",
+          "name": "Claw Swipe",
+          "emoji": "🐾",
+          "telegraph": "lifts a clawed paw…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "tusk-gore": {
+          "id": "tusk-gore",
+          "name": "Tusk Gore",
+          "emoji": "🦣",
+          "telegraph": "lowers its tusks and paws the snow…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "frostbite-touch": {
+          "id": "frostbite-touch",
+          "name": "Frostbite Touch",
+          "emoji": "🥶",
+          "telegraph": "reaches out with a pale, glittering hand…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "whispering-chill": {
+          "id": "whispering-chill",
+          "name": "Whispering Chill",
+          "emoji": "❄️",
+          "telegraph": "murmurs as the air goes still and cold…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "bellow-of-the-storm": {
+          "id": "bellow-of-the-storm",
+          "name": "Bellow of the Storm",
+          "emoji": "🌨️",
+          "telegraph": "draws a huge breath as the wind rises…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "ice-shell": {
+          "id": "ice-shell",
+          "name": "Ice Shell",
+          "emoji": "🧊",
+          "telegraph": "hunches as frost crawls over its body…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "flash-freeze": {
+          "id": "flash-freeze",
+          "name": "Flash Freeze",
+          "emoji": "💠",
+          "telegraph": "glows a bitter blue as the ground crackles…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        },
+        "avalanche-slam": {
+          "id": "avalanche-slam",
+          "name": "Avalanche Slam",
+          "emoji": "🏔️",
+          "telegraph": "rears back with both fists raised high…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "icicle-volley": {
+          "id": "icicle-volley",
+          "name": "Icicle Volley",
+          "emoji": "🗡️",
+          "telegraph": "sprouts jagged spears of ice…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "wolf-lunge": {
+          "id": "wolf-lunge",
+          "name": "Wolf Lunge",
+          "emoji": "🐺",
+          "telegraph": "crouches low, eyes locked on you…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Frostbite",
+          "emoji": "🥶",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Numbing Chill",
+          "emoji": "❄️",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Blizzard Fury",
+          "emoji": "🌨️",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "bone-club": {
+          "id": "bone-club",
+          "name": "Bone Club",
+          "emoji": "🦴",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "hunters-spear": {
+          "id": "hunters-spear",
+          "name": "Hunter's Spear",
+          "emoji": "🔱",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "tusk-lance": {
+          "id": "tusk-lance",
+          "name": "Tusk Lance",
+          "emoji": "🦣",
+          "rarity": "rare",
+          "equipSlot": "weapon"
+        },
+        "frostbrand": {
+          "id": "frostbrand",
+          "name": "Frostbrand",
+          "emoji": "🗡️",
+          "rarity": "epic",
+          "equipSlot": "weapon"
+        },
+        "giantsbane-axe": {
+          "id": "giantsbane-axe",
+          "name": "Giantsbane Axe",
+          "emoji": "🪓",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "fur-hood": {
+          "id": "fur-hood",
+          "name": "Fur Hood",
+          "emoji": "🧢",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "tusk-helm": {
+          "id": "tusk-helm",
+          "name": "Tusk Helm",
+          "emoji": "⛑️",
+          "rarity": "uncommon",
+          "equipSlot": "head"
+        },
+        "crown-of-rime": {
+          "id": "crown-of-rime",
+          "name": "Crown of Rime",
+          "emoji": "👑",
+          "rarity": "epic",
+          "equipSlot": "head"
+        },
+        "hide-tunic": {
+          "id": "hide-tunic",
+          "name": "Hide Tunic",
+          "emoji": "🥋",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "mammoth-hide-coat": {
+          "id": "mammoth-hide-coat",
+          "name": "Mammoth Hide Coat",
+          "emoji": "🧥",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "sinew-leggings": {
+          "id": "sinew-leggings",
+          "name": "Sinew Leggings",
+          "emoji": "👖",
+          "rarity": "uncommon",
+          "equipSlot": "legs"
+        },
+        "fur-mitts": {
+          "id": "fur-mitts",
+          "name": "Fur Mitts",
+          "emoji": "🧤",
+          "rarity": "common",
+          "equipSlot": "hands"
+        },
+        "snow-boots": {
+          "id": "snow-boots",
+          "name": "Snow Boots",
+          "emoji": "🥾",
+          "rarity": "uncommon",
+          "equipSlot": "feet"
+        },
+        "bone-plank-shield": {
+          "id": "bone-plank-shield",
+          "name": "Bone-Plank Shield",
+          "emoji": "🛡️",
+          "rarity": "uncommon",
+          "equipSlot": "shield"
+        },
+        "glacier-shield": {
+          "id": "glacier-shield",
+          "name": "Glacier Shield",
+          "emoji": "🧊",
+          "rarity": "epic",
+          "equipSlot": "shield"
+        },
+        "wolf-tooth-charm": {
+          "id": "wolf-tooth-charm",
+          "name": "Wolf-Tooth Charm",
+          "emoji": "📿",
+          "rarity": "uncommon",
+          "equipSlot": "accessory"
+        },
+        "spirit-lantern": {
+          "id": "spirit-lantern",
+          "name": "Spirit Lantern",
+          "emoji": "🏮",
+          "rarity": "legendary",
+          "equipSlot": "accessory"
+        },
+        "hot-broth": {
+          "id": "hot-broth",
+          "name": "Hot Broth",
+          "emoji": "🍲",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "cloudberry-tonic": {
+          "id": "cloudberry-tonic",
+          "name": "Cloudberry Tonic",
+          "emoji": "🫐",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "ember-elixir": {
+          "id": "ember-elixir",
+          "name": "Ember Elixir",
+          "emoji": "🔥",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "frost-minnow": {
+          "id": "frost-minnow",
+          "name": "Frost Minnow",
+          "emoji": "🐟",
+          "rarity": "poor"
+        },
+        "whitefish": {
+          "id": "whitefish",
+          "name": "Whitefish",
+          "emoji": "🐠",
+          "rarity": "common"
+        },
+        "ice-pearl": {
+          "id": "ice-pearl",
+          "name": "Ice Pearl",
+          "emoji": "🦪",
+          "rarity": "rare"
+        },
+        "glass-trout": {
+          "id": "glass-trout",
+          "name": "Glass Trout",
+          "emoji": "🐟",
+          "rarity": "common"
+        },
+        "rime-eel": {
+          "id": "rime-eel",
+          "name": "Rime Eel",
+          "emoji": "🐍",
+          "rarity": "uncommon"
+        },
+        "golden-roe": {
+          "id": "golden-roe",
+          "name": "Golden Roe",
+          "emoji": "🟡",
+          "rarity": "rare"
+        },
+        "blind-cavefish": {
+          "id": "blind-cavefish",
+          "name": "Blind Cavefish",
+          "emoji": "🐡",
+          "rarity": "uncommon"
+        },
+        "ghost-lamprey": {
+          "id": "ghost-lamprey",
+          "name": "Ghost Lamprey",
+          "emoji": "🪱",
+          "rarity": "uncommon"
+        },
+        "cloudberry": {
+          "id": "cloudberry",
+          "name": "Cloudberry",
+          "emoji": "🫐",
+          "rarity": "epic"
+        },
+        "flint": {
+          "id": "flint",
+          "name": "Flint",
+          "emoji": "🪨",
+          "rarity": "poor"
+        },
+        "old-bone": {
+          "id": "old-bone",
+          "name": "Old Bone",
+          "emoji": "🦴",
+          "rarity": "common"
+        },
+        "frozen-amber": {
+          "id": "frozen-amber",
+          "name": "Frozen Amber",
+          "emoji": "🟠",
+          "rarity": "rare"
+        },
+        "buried-ivory": {
+          "id": "buried-ivory",
+          "name": "Buried Ivory",
+          "emoji": "🦷",
+          "rarity": "common"
+        },
+        "rune-stone": {
+          "id": "rune-stone",
+          "name": "Rune Stone",
+          "emoji": "🪧",
+          "rarity": "uncommon"
+        },
+        "giants-tooth": {
+          "id": "giants-tooth",
+          "name": "Giant's Tooth",
+          "emoji": "☠️",
+          "rarity": "rare"
+        },
+        "ancient-ice": {
+          "id": "ancient-ice",
+          "name": "Ancient Ice",
+          "emoji": "🧊",
+          "rarity": "uncommon"
+        },
+        "frost-geode": {
+          "id": "frost-geode",
+          "name": "Frost Geode",
+          "emoji": "🔮",
+          "rarity": "uncommon"
+        },
+        "heartstone": {
+          "id": "heartstone",
+          "name": "Heartstone",
+          "emoji": "💙",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "ice-fishing": {
+          "id": "ice-fishing",
+          "name": "Ice Fishing",
+          "emoji": "🎣",
+          "locations": {
+            "shallow-hole": {
+              "id": "shallow-hole",
+              "name": "Shallow Hole",
+              "emoji": "🕳️",
+              "loot": [
+                {
+                  "itemId": "frost-minnow",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "whitefish",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "ice-pearl",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "frozen-lake": {
+              "id": "frozen-lake",
+              "name": "Frozen Lake",
+              "emoji": "🧊",
+              "loot": [
+                {
+                  "itemId": "glass-trout",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "rime-eel",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "golden-roe",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "glacier-crevasse": {
+              "id": "glacier-crevasse",
+              "name": "Glacier Crevasse",
+              "emoji": "🏔️",
+              "loot": [
+                {
+                  "itemId": "blind-cavefish",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "ghost-lamprey",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "cloudberry",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "fossil-digging": {
+          "id": "fossil-digging",
+          "name": "Fossil Digging",
+          "emoji": "⛏️",
+          "locations": {
+            "bonefield": {
+              "id": "bonefield",
+              "name": "Bonefield",
+              "emoji": "🦴",
+              "loot": [
+                {
+                  "itemId": "flint",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "old-bone",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "frozen-amber",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "drift-barrow": {
+              "id": "drift-barrow",
+              "name": "Drift Barrow",
+              "emoji": "⛰️",
+              "loot": [
+                {
+                  "itemId": "buried-ivory",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "rune-stone",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "giants-tooth",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "glacier-seam": {
+              "id": "glacier-seam",
+              "name": "Glacier Seam",
+              "emoji": "🏔️",
+              "loot": [
+                {
+                  "itemId": "ancient-ice",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "frost-geode",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "heartstone",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

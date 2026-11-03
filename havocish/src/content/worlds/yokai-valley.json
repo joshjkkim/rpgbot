@@ -1,0 +1,889 @@
+{
+  "id": "yokai-valley",
+  "name": "Mistpeak Valley",
+  "prompt": "A misty mountain valley of bamboo forests and shrines, haunted by mischievous yokai, wandering ronin and a mountain oni.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "karakasa-obake": {
+          "id": "karakasa-obake",
+          "name": "Karakasa-obake",
+          "emoji": "☂️",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "blade-slash",
+              "weight": 3
+            }
+          ]
+        },
+        "kitsune-kit": {
+          "id": "kitsune-kit",
+          "name": "Kitsune Kit",
+          "emoji": "🦊",
+          "minLevel": 3,
+          "moves": [
+            {
+              "moveId": "foxfire-dart",
+              "weight": 3
+            },
+            {
+              "moveId": "claw-swipe",
+              "weight": 1
+            }
+          ]
+        },
+        "trickster-tanuki": {
+          "id": "trickster-tanuki",
+          "name": "Trickster Tanuki",
+          "emoji": "🦝",
+          "minLevel": 6,
+          "moves": [
+            {
+              "moveId": "claw-swipe",
+              "weight": 3
+            },
+            {
+              "moveId": "withering-curse",
+              "weight": 1
+            }
+          ]
+        },
+        "wandering-ronin": {
+          "id": "wandering-ronin",
+          "name": "Wandering Ronin",
+          "emoji": "🥷",
+          "minLevel": 10,
+          "moves": [
+            {
+              "moveId": "blade-slash",
+              "weight": 3
+            },
+            {
+              "moveId": "iaido-draw",
+              "weight": 1
+            }
+          ]
+        },
+        "jorogumo": {
+          "id": "jorogumo",
+          "name": "Jorogumo",
+          "emoji": "🕷️",
+          "minLevel": 14,
+          "moves": [
+            {
+              "moveId": "venom-mist",
+              "weight": 3
+            },
+            {
+              "moveId": "claw-swipe",
+              "weight": 1
+            },
+            {
+              "moveId": "withering-curse",
+              "weight": 1
+            }
+          ]
+        },
+        "nukekubi": {
+          "id": "nukekubi",
+          "name": "Nukekubi",
+          "emoji": "👻",
+          "minLevel": 17,
+          "moves": [
+            {
+              "moveId": "foxfire-dart",
+              "weight": 3
+            },
+            {
+              "moveId": "withering-curse",
+              "weight": 1
+            }
+          ]
+        },
+        "kappa": {
+          "id": "kappa",
+          "name": "Kappa",
+          "emoji": "🐢",
+          "minLevel": 20,
+          "moves": [
+            {
+              "moveId": "claw-swipe",
+              "weight": 3
+            },
+            {
+              "moveId": "paper-screen-guard",
+              "weight": 1
+            }
+          ]
+        },
+        "yuki-onna": {
+          "id": "yuki-onna",
+          "name": "Yuki-onna",
+          "emoji": "❄️",
+          "minLevel": 23,
+          "moves": [
+            {
+              "moveId": "withering-curse",
+              "weight": 3
+            },
+            {
+              "moveId": "iaido-draw",
+              "weight": 1
+            },
+            {
+              "moveId": "thunder-gong",
+              "weight": 1
+            }
+          ]
+        },
+        "karasu-tengu": {
+          "id": "karasu-tengu",
+          "name": "Karasu Tengu",
+          "emoji": "🐦‍⬛",
+          "minLevel": 26,
+          "moves": [
+            {
+              "moveId": "iaido-draw",
+              "weight": 3
+            },
+            {
+              "moveId": "mountain-cleave",
+              "weight": 1
+            },
+            {
+              "moveId": "paper-screen-guard",
+              "weight": 1
+            }
+          ]
+        },
+        "blademaster-ronin": {
+          "id": "blademaster-ronin",
+          "name": "Blademaster Ronin",
+          "emoji": "⚔️",
+          "minLevel": 28,
+          "moves": [
+            {
+              "moveId": "iaido-draw",
+              "weight": 3
+            },
+            {
+              "moveId": "paper-screen-guard",
+              "weight": 1
+            },
+            {
+              "moveId": "mountain-cleave",
+              "weight": 1
+            }
+          ]
+        },
+        "gashadokuro": {
+          "id": "gashadokuro",
+          "name": "Gashadokuro",
+          "emoji": "💀",
+          "minLevel": 32,
+          "moves": [
+            {
+              "moveId": "iron-club-smash",
+              "weight": 3
+            },
+            {
+              "moveId": "thunder-gong",
+              "weight": 1
+            }
+          ]
+        },
+        "nue": {
+          "id": "nue",
+          "name": "Nue",
+          "emoji": "🐍",
+          "minLevel": 35,
+          "moves": [
+            {
+              "moveId": "venom-mist",
+              "weight": 3
+            },
+            {
+              "moveId": "foxfire-dart",
+              "weight": 1
+            },
+            {
+              "moveId": "claw-swipe",
+              "weight": 1
+            }
+          ]
+        },
+        "oni-warden": {
+          "id": "oni-warden",
+          "name": "Oni Warden",
+          "emoji": "👺",
+          "minLevel": 37,
+          "moves": [
+            {
+              "moveId": "iron-club-smash",
+              "weight": 3
+            },
+            {
+              "moveId": "oni-roar",
+              "weight": 1
+            },
+            {
+              "moveId": "paper-screen-guard",
+              "weight": 1
+            }
+          ]
+        },
+        "shuten-the-mountain-oni": {
+          "id": "shuten-the-mountain-oni",
+          "name": "Shuten, the Mountain Oni",
+          "emoji": "👹",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "iron-club-smash",
+              "weight": 3
+            },
+            {
+              "moveId": "oni-roar",
+              "weight": 1
+            },
+            {
+              "moveId": "thunder-gong",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "blade-slash": {
+          "id": "blade-slash",
+          "name": "Blade Slash",
+          "emoji": "🗡️",
+          "telegraph": "lowers a hand to its hilt…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "claw-swipe": {
+          "id": "claw-swipe",
+          "name": "Claw Swipe",
+          "emoji": "🐾",
+          "telegraph": "flexes sharp claws…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "mountain-cleave": {
+          "id": "mountain-cleave",
+          "name": "Mountain Cleave",
+          "emoji": "🪓",
+          "telegraph": "hoists its weapon high overhead…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "iron-club-smash": {
+          "id": "iron-club-smash",
+          "name": "Iron Club Smash",
+          "emoji": "🔨",
+          "telegraph": "rears back with a huge club…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "iaido-draw": {
+          "id": "iaido-draw",
+          "name": "Iaido Draw",
+          "emoji": "⚡",
+          "telegraph": "stands utterly still, hand on the sheath…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "foxfire-dart": {
+          "id": "foxfire-dart",
+          "name": "Foxfire Dart",
+          "emoji": "🔥",
+          "telegraph": "a pale flame flickers to life beside it…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "venom-mist": {
+          "id": "venom-mist",
+          "name": "Venom Mist",
+          "emoji": "☁️",
+          "telegraph": "exhales a sickly violet fog…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "withering-curse": {
+          "id": "withering-curse",
+          "name": "Withering Curse",
+          "emoji": "📿",
+          "telegraph": "murmurs a low, chilling chant…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "oni-roar": {
+          "id": "oni-roar",
+          "name": "Oni Roar",
+          "emoji": "👹",
+          "telegraph": "throws back its head, veins glowing red…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "paper-screen-guard": {
+          "id": "paper-screen-guard",
+          "name": "Paper Screen Guard",
+          "emoji": "🛡️",
+          "telegraph": "drops into a patient, watchful stance…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "thunder-gong": {
+          "id": "thunder-gong",
+          "name": "Thunder Gong",
+          "emoji": "🔔",
+          "telegraph": "swings a bronze striker at a bell…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Yokai Venom",
+          "emoji": "🟣",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Withered Spirit",
+          "emoji": "🥀",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Crimson Fury",
+          "emoji": "👹",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "worn-bokken": {
+          "id": "worn-bokken",
+          "name": "Worn Bokken",
+          "emoji": "🪵",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "straw-sedge-hat": {
+          "id": "straw-sedge-hat",
+          "name": "Straw Sedge Hat",
+          "emoji": "👒",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "hemp-kimono": {
+          "id": "hemp-kimono",
+          "name": "Hemp Kimono",
+          "emoji": "👘",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "straw-sandals": {
+          "id": "straw-sandals",
+          "name": "Straw Sandals",
+          "emoji": "🩴",
+          "rarity": "common",
+          "equipSlot": "feet"
+        },
+        "ronins-katana": {
+          "id": "ronins-katana",
+          "name": "Ronin's Katana",
+          "emoji": "🗡️",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "indigo-hakama": {
+          "id": "indigo-hakama",
+          "name": "Indigo Hakama",
+          "emoji": "👖",
+          "rarity": "uncommon",
+          "equipSlot": "legs"
+        },
+        "bamboo-bracers": {
+          "id": "bamboo-bracers",
+          "name": "Bamboo Bracers",
+          "emoji": "🎋",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "lacquered-wood-shield": {
+          "id": "lacquered-wood-shield",
+          "name": "Lacquered Wood Shield",
+          "emoji": "🛡️",
+          "rarity": "uncommon",
+          "equipSlot": "shield"
+        },
+        "shrine-omamori": {
+          "id": "shrine-omamori",
+          "name": "Shrine Omamori",
+          "emoji": "🧧",
+          "rarity": "rare",
+          "equipSlot": "accessory"
+        },
+        "samurai-kabuto": {
+          "id": "samurai-kabuto",
+          "name": "Samurai Kabuto",
+          "emoji": "🪖",
+          "rarity": "rare",
+          "equipSlot": "head"
+        },
+        "lamellar-armor": {
+          "id": "lamellar-armor",
+          "name": "Lamellar Armor",
+          "emoji": "🥋",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "heron-naginata": {
+          "id": "heron-naginata",
+          "name": "Heron Naginata",
+          "emoji": "🔱",
+          "rarity": "epic",
+          "equipSlot": "weapon"
+        },
+        "oni-hide-gauntlets": {
+          "id": "oni-hide-gauntlets",
+          "name": "Oni-Hide Gauntlets",
+          "emoji": "🧤",
+          "rarity": "epic",
+          "equipSlot": "hands"
+        },
+        "tengu-geta": {
+          "id": "tengu-geta",
+          "name": "Tengu Geta",
+          "emoji": "🪽",
+          "rarity": "epic",
+          "equipSlot": "feet"
+        },
+        "yata-mirror-shield": {
+          "id": "yata-mirror-shield",
+          "name": "Yata Mirror Shield",
+          "emoji": "🪞",
+          "rarity": "epic",
+          "equipSlot": "shield"
+        },
+        "onikiri-masamune": {
+          "id": "onikiri-masamune",
+          "name": "Onikiri Masamune",
+          "emoji": "⚔️",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "dragon-magatama": {
+          "id": "dragon-magatama",
+          "name": "Dragon Magatama",
+          "emoji": "📿",
+          "rarity": "legendary",
+          "equipSlot": "accessory"
+        },
+        "sencha-tea": {
+          "id": "sencha-tea",
+          "name": "Sencha Tea",
+          "emoji": "🍵",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "shrine-sake": {
+          "id": "shrine-sake",
+          "name": "Shrine Sake",
+          "emoji": "🍶",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "dragon-pearl-elixir": {
+          "id": "dragon-pearl-elixir",
+          "name": "Dragon Pearl Elixir",
+          "emoji": "🧪",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "bamboo-shoots": {
+          "id": "bamboo-shoots",
+          "name": "Bamboo Shoots",
+          "emoji": "🌱",
+          "rarity": "poor"
+        },
+        "raw-lacquer": {
+          "id": "raw-lacquer",
+          "name": "Raw Lacquer",
+          "emoji": "🪵",
+          "rarity": "common"
+        },
+        "moonlit-bamboo": {
+          "id": "moonlit-bamboo",
+          "name": "Moonlit Bamboo",
+          "emoji": "🌙",
+          "rarity": "rare"
+        },
+        "hemp-cord": {
+          "id": "hemp-cord",
+          "name": "Hemp Cord",
+          "emoji": "🪢",
+          "rarity": "common"
+        },
+        "amber-resin": {
+          "id": "amber-resin",
+          "name": "Amber Resin",
+          "emoji": "🟠",
+          "rarity": "uncommon"
+        },
+        "heartwood-core": {
+          "id": "heartwood-core",
+          "name": "Heartwood Core",
+          "emoji": "🪵",
+          "rarity": "rare"
+        },
+        "wind-chime": {
+          "id": "wind-chime",
+          "name": "Wind Chime",
+          "emoji": "🎐",
+          "rarity": "uncommon"
+        },
+        "pale-ghostwood": {
+          "id": "pale-ghostwood",
+          "name": "Pale Ghostwood",
+          "emoji": "🦴",
+          "rarity": "uncommon"
+        },
+        "dragonscale-bamboo": {
+          "id": "dragonscale-bamboo",
+          "name": "Dragonscale Bamboo",
+          "emoji": "🐉",
+          "rarity": "epic"
+        },
+        "sweetfish": {
+          "id": "sweetfish",
+          "name": "Sweetfish",
+          "emoji": "🐟",
+          "rarity": "poor"
+        },
+        "river-crayfish": {
+          "id": "river-crayfish",
+          "name": "River Crayfish",
+          "emoji": "🦞",
+          "rarity": "common"
+        },
+        "golden-koi": {
+          "id": "golden-koi",
+          "name": "Golden Koi",
+          "emoji": "🐠",
+          "rarity": "rare"
+        },
+        "mist-trout": {
+          "id": "mist-trout",
+          "name": "Mist Trout",
+          "emoji": "🐟",
+          "rarity": "common"
+        },
+        "slick-eel": {
+          "id": "slick-eel",
+          "name": "Slick Eel",
+          "emoji": "🐍",
+          "rarity": "uncommon"
+        },
+        "moonscale-fish": {
+          "id": "moonscale-fish",
+          "name": "Moonscale Fish",
+          "emoji": "🌕",
+          "rarity": "rare"
+        },
+        "falls-salmon": {
+          "id": "falls-salmon",
+          "name": "Falls Salmon",
+          "emoji": "🍣",
+          "rarity": "uncommon"
+        },
+        "pearl-clam": {
+          "id": "pearl-clam",
+          "name": "Pearl Clam",
+          "emoji": "🐚",
+          "rarity": "uncommon"
+        },
+        "dragon-koi": {
+          "id": "dragon-koi",
+          "name": "Dragon Koi",
+          "emoji": "🐉",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "bamboo-felling": {
+          "id": "bamboo-felling",
+          "name": "Bamboo Felling",
+          "emoji": "🪓",
+          "locations": {
+            "grove-edge": {
+              "id": "grove-edge",
+              "name": "Grove Edge",
+              "emoji": "🌱",
+              "loot": [
+                {
+                  "itemId": "bamboo-shoots",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "raw-lacquer",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "moonlit-bamboo",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "deep-thicket": {
+              "id": "deep-thicket",
+              "name": "Deep Thicket",
+              "emoji": "🎍",
+              "loot": [
+                {
+                  "itemId": "hemp-cord",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "amber-resin",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "heartwood-core",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "haunted-hollow": {
+              "id": "haunted-hollow",
+              "name": "Haunted Hollow",
+              "emoji": "🌫️",
+              "loot": [
+                {
+                  "itemId": "wind-chime",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "pale-ghostwood",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "dragonscale-bamboo",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "river-fishing": {
+          "id": "river-fishing",
+          "name": "River Fishing",
+          "emoji": "🎣",
+          "locations": {
+            "shallow-brook": {
+              "id": "shallow-brook",
+              "name": "Shallow Brook",
+              "emoji": "💧",
+              "loot": [
+                {
+                  "itemId": "sweetfish",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "river-crayfish",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "golden-koi",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "mistveil-pool": {
+              "id": "mistveil-pool",
+              "name": "Mistveil Pool",
+              "emoji": "🌫️",
+              "loot": [
+                {
+                  "itemId": "mist-trout",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "slick-eel",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "moonscale-fish",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "spirit-falls": {
+              "id": "spirit-falls",
+              "name": "Spirit Falls",
+              "emoji": "🌊",
+              "loot": [
+                {
+                  "itemId": "falls-salmon",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "pearl-clam",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "dragon-koi",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

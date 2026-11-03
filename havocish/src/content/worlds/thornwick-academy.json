@@ -1,0 +1,869 @@
+{
+  "id": "thornwick-academy",
+  "name": "Thistlewick Academy",
+  "prompt": "A cozy academy for young wizards, where students forage potion herbs and duel unruly enchanted furniture in the halls.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "wobbly-stool": {
+          "id": "wobbly-stool",
+          "name": "Wobbly Stool",
+          "emoji": "🪑",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "clumsy-bump",
+              "weight": 3
+            },
+            {
+              "moveId": "sudden-scoot",
+              "weight": 1
+            }
+          ]
+        },
+        "grumpy-desk": {
+          "id": "grumpy-desk",
+          "name": "Grumpy Desk",
+          "emoji": "🗄️",
+          "minLevel": 4,
+          "moves": [
+            {
+              "moveId": "clumsy-bump",
+              "weight": 3
+            },
+            {
+              "moveId": "drawer-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "sleepy-cushion": {
+          "id": "sleepy-cushion",
+          "name": "Sleepy Cushion",
+          "emoji": "🛋️",
+          "minLevel": 7,
+          "moves": [
+            {
+              "moveId": "sleepy-yawn",
+              "weight": 3
+            },
+            {
+              "moveId": "clumsy-bump",
+              "weight": 1
+            }
+          ]
+        },
+        "rowdy-inkwell": {
+          "id": "rowdy-inkwell",
+          "name": "Rowdy Inkwell",
+          "emoji": "🖋️",
+          "minLevel": 10,
+          "moves": [
+            {
+              "moveId": "choking-dust",
+              "weight": 3
+            },
+            {
+              "moveId": "sudden-scoot",
+              "weight": 1
+            }
+          ]
+        },
+        "hurling-bookcase": {
+          "id": "hurling-bookcase",
+          "name": "Hurling Bookcase",
+          "emoji": "📚",
+          "minLevel": 14,
+          "moves": [
+            {
+              "moveId": "book-hurl",
+              "weight": 3
+            },
+            {
+              "moveId": "drawer-slam",
+              "weight": 1
+            },
+            {
+              "moveId": "lid-clamp",
+              "weight": 1
+            }
+          ]
+        },
+        "rolling-ladder": {
+          "id": "rolling-ladder",
+          "name": "Rolling Ladder",
+          "emoji": "🪜",
+          "minLevel": 17,
+          "moves": [
+            {
+              "moveId": "sudden-scoot",
+              "weight": 3
+            },
+            {
+              "moveId": "static-zap",
+              "weight": 1
+            }
+          ]
+        },
+        "snappish-tome": {
+          "id": "snappish-tome",
+          "name": "Snappish Tome",
+          "emoji": "📖",
+          "minLevel": 20,
+          "moves": [
+            {
+              "moveId": "book-hurl",
+              "weight": 3
+            },
+            {
+              "moveId": "tantrum",
+              "weight": 1
+            }
+          ]
+        },
+        "hungry-wardrobe": {
+          "id": "hungry-wardrobe",
+          "name": "Hungry Wardrobe",
+          "emoji": "🚪",
+          "minLevel": 23,
+          "moves": [
+            {
+              "moveId": "lid-clamp",
+              "weight": 3
+            },
+            {
+              "moveId": "drawer-slam",
+              "weight": 1
+            },
+            {
+              "moveId": "tantrum",
+              "weight": 1
+            }
+          ]
+        },
+        "creaking-pew": {
+          "id": "creaking-pew",
+          "name": "Creaking Pew",
+          "emoji": "🪵",
+          "minLevel": 25,
+          "moves": [
+            {
+              "moveId": "clumsy-bump",
+              "weight": 3
+            },
+            {
+              "moveId": "sleepy-yawn",
+              "weight": 1
+            }
+          ]
+        },
+        "glasswing-gargoyle": {
+          "id": "glasswing-gargoyle",
+          "name": "Glasswing Gargoyle",
+          "emoji": "🗿",
+          "minLevel": 28,
+          "moves": [
+            {
+              "moveId": "static-zap",
+              "weight": 3
+            },
+            {
+              "moveId": "drawer-slam",
+              "weight": 1
+            },
+            {
+              "moveId": "lid-clamp",
+              "weight": 1
+            }
+          ]
+        },
+        "cranky-candelabra": {
+          "id": "cranky-candelabra",
+          "name": "Cranky Candelabra",
+          "emoji": "🕯️",
+          "minLevel": 31,
+          "moves": [
+            {
+              "moveId": "choking-dust",
+              "weight": 3
+            },
+            {
+              "moveId": "chandelier-crash",
+              "weight": 1
+            },
+            {
+              "moveId": "tantrum",
+              "weight": 1
+            }
+          ]
+        },
+        "dueling-armchair": {
+          "id": "dueling-armchair",
+          "name": "Dueling Armchair",
+          "emoji": "💺",
+          "minLevel": 34,
+          "moves": [
+            {
+              "moveId": "drawer-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "tantrum",
+              "weight": 1
+            },
+            {
+              "moveId": "sudden-scoot",
+              "weight": 1
+            }
+          ]
+        },
+        "chiming-grandfather-clock": {
+          "id": "chiming-grandfather-clock",
+          "name": "Chiming Grandfather Clock",
+          "emoji": "🕰️",
+          "minLevel": 37,
+          "moves": [
+            {
+              "moveId": "static-zap",
+              "weight": 3
+            },
+            {
+              "moveId": "drawer-slam",
+              "weight": 1
+            },
+            {
+              "moveId": "lid-clamp",
+              "weight": 1
+            }
+          ]
+        },
+        "chandeliera-the-unruly": {
+          "id": "chandeliera-the-unruly",
+          "name": "Chandeliera the Unruly",
+          "emoji": "💡",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "chandelier-crash",
+              "weight": 3
+            },
+            {
+              "moveId": "static-zap",
+              "weight": 1
+            },
+            {
+              "moveId": "tantrum",
+              "weight": 1
+            },
+            {
+              "moveId": "choking-dust",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "clumsy-bump": {
+          "id": "clumsy-bump",
+          "name": "Clumsy Bump",
+          "emoji": "🪑",
+          "telegraph": "wobbles and lurches toward you…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "drawer-slam": {
+          "id": "drawer-slam",
+          "name": "Drawer Slam",
+          "emoji": "🗄️",
+          "telegraph": "rears back, drawers rattling open…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "sudden-scoot": {
+          "id": "sudden-scoot",
+          "name": "Sudden Scoot",
+          "emoji": "💨",
+          "telegraph": "twitches its legs…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "choking-dust": {
+          "id": "choking-dust",
+          "name": "Choking Dust",
+          "emoji": "🌫️",
+          "telegraph": "gurgles and puffs up a gray cloud…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "sleepy-yawn": {
+          "id": "sleepy-yawn",
+          "name": "Sleepy Yawn",
+          "emoji": "😴",
+          "telegraph": "creaks open in a wide, slow yawn…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "tantrum": {
+          "id": "tantrum",
+          "name": "Tantrum",
+          "emoji": "💢",
+          "telegraph": "stamps and shakes with fury…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "lid-clamp": {
+          "id": "lid-clamp",
+          "name": "Lid Clamp",
+          "emoji": "📦",
+          "telegraph": "snaps shut and braces itself…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "static-zap": {
+          "id": "static-zap",
+          "name": "Static Zap",
+          "emoji": "⚡",
+          "telegraph": "crackles with blue sparks…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        },
+        "book-hurl": {
+          "id": "book-hurl",
+          "name": "Book Hurl",
+          "emoji": "📚",
+          "telegraph": "flips its pages wildly…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "chandelier-crash": {
+          "id": "chandelier-crash",
+          "name": "Chandelier Crash",
+          "emoji": "🕯️",
+          "telegraph": "sways and the chains begin to groan…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Hexed Fizz",
+          "emoji": "🫧",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Droopy Charm",
+          "emoji": "💤",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Fit of Pique",
+          "emoji": "💢",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "practice-twig": {
+          "id": "practice-twig",
+          "name": "Practice Twig",
+          "emoji": "🪄",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "pointy-novice-hat": {
+          "id": "pointy-novice-hat",
+          "name": "Pointy Novice Hat",
+          "emoji": "🎩",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "wool-student-robe": {
+          "id": "wool-student-robe",
+          "name": "Wool Student Robe",
+          "emoji": "🧥",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "quiet-slippers": {
+          "id": "quiet-slippers",
+          "name": "Quiet Slippers",
+          "emoji": "🥿",
+          "rarity": "uncommon",
+          "equipSlot": "feet"
+        },
+        "inkstained-gloves": {
+          "id": "inkstained-gloves",
+          "name": "Inkstained Gloves",
+          "emoji": "🧤",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "oakheart-wand": {
+          "id": "oakheart-wand",
+          "name": "Oakheart Wand",
+          "emoji": "🪄",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "hefty-textbook-shield": {
+          "id": "hefty-textbook-shield",
+          "name": "Hefty Textbook Shield",
+          "emoji": "📕",
+          "rarity": "uncommon",
+          "equipSlot": "shield"
+        },
+        "patchwork-breeches": {
+          "id": "patchwork-breeches",
+          "name": "Patchwork Breeches",
+          "emoji": "👖",
+          "rarity": "rare",
+          "equipSlot": "legs"
+        },
+        "prefects-robe": {
+          "id": "prefects-robe",
+          "name": "Prefect's Robe",
+          "emoji": "🥼",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "everburn-lantern-charm": {
+          "id": "everburn-lantern-charm",
+          "name": "Everburn Lantern Charm",
+          "emoji": "🏮",
+          "rarity": "rare",
+          "equipSlot": "accessory"
+        },
+        "stained-glass-aegis": {
+          "id": "stained-glass-aegis",
+          "name": "Stained Glass Aegis",
+          "emoji": "🛡️",
+          "rarity": "epic",
+          "equipSlot": "shield"
+        },
+        "archmages-cap": {
+          "id": "archmages-cap",
+          "name": "Archmage's Cap",
+          "emoji": "👒",
+          "rarity": "epic",
+          "equipSlot": "head"
+        },
+        "boots-of-brisk-stairs": {
+          "id": "boots-of-brisk-stairs",
+          "name": "Boots of Brisk Stairs",
+          "emoji": "👢",
+          "rarity": "epic",
+          "equipSlot": "feet"
+        },
+        "staff-of-the-grand-library": {
+          "id": "staff-of-the-grand-library",
+          "name": "Staff of the Grand Library",
+          "emoji": "🔮",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "headmasters-starry-mantle": {
+          "id": "headmasters-starry-mantle",
+          "name": "Headmaster's Starry Mantle",
+          "emoji": "🌌",
+          "rarity": "legendary",
+          "equipSlot": "body"
+        },
+        "cocoa-tonic": {
+          "id": "cocoa-tonic",
+          "name": "Cocoa Tonic",
+          "emoji": "☕",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "honeyglow-cordial": {
+          "id": "honeyglow-cordial",
+          "name": "Honeyglow Cordial",
+          "emoji": "🍯",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "starlit-elixir": {
+          "id": "starlit-elixir",
+          "name": "Starlit Elixir",
+          "emoji": "🌟",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "fizzmint": {
+          "id": "fizzmint",
+          "name": "Fizzmint",
+          "emoji": "🌿",
+          "rarity": "poor"
+        },
+        "lucky-clover": {
+          "id": "lucky-clover",
+          "name": "Lucky Clover",
+          "emoji": "🍀",
+          "rarity": "common"
+        },
+        "starbloom": {
+          "id": "starbloom",
+          "name": "Starbloom",
+          "emoji": "🌼",
+          "rarity": "rare"
+        },
+        "giggle-cap": {
+          "id": "giggle-cap",
+          "name": "Giggle Cap",
+          "emoji": "🍄",
+          "rarity": "common"
+        },
+        "glow-moss": {
+          "id": "glow-moss",
+          "name": "Glow Moss",
+          "emoji": "🟢",
+          "rarity": "uncommon"
+        },
+        "dream-truffle": {
+          "id": "dream-truffle",
+          "name": "Dream Truffle",
+          "emoji": "🌰",
+          "rarity": "rare"
+        },
+        "snapvine": {
+          "id": "snapvine",
+          "name": "Snapvine",
+          "emoji": "🌱",
+          "rarity": "uncommon"
+        },
+        "moonpetal": {
+          "id": "moonpetal",
+          "name": "Moonpetal",
+          "emoji": "🌸",
+          "rarity": "uncommon"
+        },
+        "dragonroot": {
+          "id": "dragonroot",
+          "name": "Dragonroot",
+          "emoji": "🐉",
+          "rarity": "epic"
+        },
+        "stardust": {
+          "id": "stardust",
+          "name": "Stardust",
+          "emoji": "✨",
+          "rarity": "poor"
+        },
+        "moondew": {
+          "id": "moondew",
+          "name": "Moondew",
+          "emoji": "💧",
+          "rarity": "common"
+        },
+        "comet-fragment": {
+          "id": "comet-fragment",
+          "name": "Comet Fragment",
+          "emoji": "☄️",
+          "rarity": "rare"
+        },
+        "owl-feather": {
+          "id": "owl-feather",
+          "name": "Owl Feather",
+          "emoji": "🪶",
+          "rarity": "common"
+        },
+        "glimmer-wisp": {
+          "id": "glimmer-wisp",
+          "name": "Glimmer Wisp",
+          "emoji": "🌟",
+          "rarity": "uncommon"
+        },
+        "nebula-heart": {
+          "id": "nebula-heart",
+          "name": "Nebula Heart",
+          "emoji": "🔮",
+          "rarity": "rare"
+        },
+        "silver-chime": {
+          "id": "silver-chime",
+          "name": "Silver Chime",
+          "emoji": "🔔",
+          "rarity": "uncommon"
+        },
+        "moonbeam": {
+          "id": "moonbeam",
+          "name": "Moonbeam",
+          "emoji": "🌕",
+          "rarity": "uncommon"
+        },
+        "constellation-orb": {
+          "id": "constellation-orb",
+          "name": "Constellation Orb",
+          "emoji": "🪐",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "herb-foraging": {
+          "id": "herb-foraging",
+          "name": "Herb Foraging",
+          "emoji": "🌿",
+          "locations": {
+            "greenhouse-beds": {
+              "id": "greenhouse-beds",
+              "name": "Greenhouse Beds",
+              "emoji": "🪴",
+              "loot": [
+                {
+                  "itemId": "fizzmint",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "lucky-clover",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "starbloom",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "mushroom-cellar": {
+              "id": "mushroom-cellar",
+              "name": "Mushroom Cellar",
+              "emoji": "🍄",
+              "loot": [
+                {
+                  "itemId": "giggle-cap",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "glow-moss",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "dream-truffle",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "forbidden-garden": {
+              "id": "forbidden-garden",
+              "name": "Forbidden Garden",
+              "emoji": "🌳",
+              "loot": [
+                {
+                  "itemId": "snapvine",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "moonpetal",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "dragonroot",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "stargazing": {
+          "id": "stargazing",
+          "name": "Stargazing",
+          "emoji": "🔭",
+          "locations": {
+            "courtyard": {
+              "id": "courtyard",
+              "name": "Courtyard",
+              "emoji": "⛲",
+              "loot": [
+                {
+                  "itemId": "stardust",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "moondew",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "comet-fragment",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "rooftop-terrace": {
+              "id": "rooftop-terrace",
+              "name": "Rooftop Terrace",
+              "emoji": "🏠",
+              "loot": [
+                {
+                  "itemId": "owl-feather",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "glimmer-wisp",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "nebula-heart",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "clock-tower-peak": {
+              "id": "clock-tower-peak",
+              "name": "Clock Tower Peak",
+              "emoji": "🌙",
+              "loot": [
+                {
+                  "itemId": "silver-chime",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "moonbeam",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "constellation-orb",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

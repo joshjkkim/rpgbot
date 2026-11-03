@@ -109,6 +109,10 @@ export default function Home() {
                 {session ? "Open dashboard" : "Sign in with Discord"}
               </button>
             </div>
+            {/* The Daily: something to play right now, no server needed. */}
+            <Link href="/daily" className="mt-5 inline-block font-display text-[var(--gold)] hover:text-[var(--accent)] [text-shadow:0_1px_2px_#000]">
+              ⚔️ Play today&apos;s Daily, right here in your browser →
+            </Link>
 
             {!invite && (
               <p className="mt-4 text-xs text-[var(--muted)]">

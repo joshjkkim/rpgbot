@@ -259,6 +259,16 @@ CREATE TABLE IF NOT EXISTS public.ai_limits (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── daily_overrides ─────────────────────────────────────────────────────────
+-- An admin's changes to one day of the website's Daily. See
+-- migrations/009_daily_overrides.sql.
+
+CREATE TABLE IF NOT EXISTS public.daily_overrides (
+    day        INTEGER     PRIMARY KEY,
+    override   JSONB       NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── command_uses ────────────────────────────────────────────────────────────
 -- Slash command use counts per server and day, for /admin. See
 -- migrations/010_command_uses.sql.
@@ -269,6 +279,19 @@ CREATE TABLE IF NOT EXISTS public.command_uses (
     day              DATE    NOT NULL DEFAULT CURRENT_DATE,
     uses             INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (discord_guild_id, command, day)
+);
+
+-- ─── daily_plays ─────────────────────────────────────────────────────────────
+-- How many played each day of the website's Daily and how their runs ended:
+-- anonymous counts, no players stored. See migrations/011_daily_plays.sql.
+
+CREATE TABLE IF NOT EXISTS public.daily_plays (
+    day        INTEGER     PRIMARY KEY,
+    players    INTEGER     NOT NULL DEFAULT 0,
+    wins       INTEGER     NOT NULL DEFAULT 0,
+    timeouts   INTEGER     NOT NULL DEFAULT 0,
+    falls      INTEGER     NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ─── schema_migrations ───────────────────────────────────────────────────────

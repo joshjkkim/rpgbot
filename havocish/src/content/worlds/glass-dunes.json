@@ -1,0 +1,881 @@
+{
+  "id": "glass-dunes",
+  "name": "Sunscar Road",
+  "prompt": "A desert caravan road between oasis cities, with sand serpents, masked bandit riders and half-buried sun temples.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "dune-scorpion": {
+          "id": "dune-scorpion",
+          "name": "Dune Scorpion",
+          "emoji": "🦂",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "fang-strike",
+              "weight": 3
+            }
+          ]
+        },
+        "sand-adder": {
+          "id": "sand-adder",
+          "name": "Sand Adder",
+          "emoji": "🐍",
+          "minLevel": 4,
+          "moves": [
+            {
+              "moveId": "fang-strike",
+              "weight": 3
+            },
+            {
+              "moveId": "dune-lunge",
+              "weight": 1
+            }
+          ]
+        },
+        "dune-jackal": {
+          "id": "dune-jackal",
+          "name": "Dune Jackal",
+          "emoji": "🐺",
+          "minLevel": 7,
+          "moves": [
+            {
+              "moveId": "dune-lunge",
+              "weight": 3
+            },
+            {
+              "moveId": "fang-strike",
+              "weight": 1
+            }
+          ]
+        },
+        "spitting-viper": {
+          "id": "spitting-viper",
+          "name": "Spitting Viper",
+          "emoji": "🐍",
+          "minLevel": 10,
+          "moves": [
+            {
+              "moveId": "venom-spit",
+              "weight": 3
+            },
+            {
+              "moveId": "fang-strike",
+              "weight": 1
+            }
+          ]
+        },
+        "giant-sand-cobra": {
+          "id": "giant-sand-cobra",
+          "name": "Giant Sand Cobra",
+          "emoji": "🐍",
+          "minLevel": 15,
+          "moves": [
+            {
+              "moveId": "venom-spit",
+              "weight": 3
+            },
+            {
+              "moveId": "tail-slam",
+              "weight": 1
+            },
+            {
+              "moveId": "sunblind-glare",
+              "weight": 1
+            }
+          ]
+        },
+        "masked-cutpurse": {
+          "id": "masked-cutpurse",
+          "name": "Masked Cutpurse",
+          "emoji": "🥷",
+          "minLevel": 13,
+          "moves": [
+            {
+              "moveId": "crescent-slash",
+              "weight": 3
+            },
+            {
+              "moveId": "dune-lunge",
+              "weight": 1
+            }
+          ]
+        },
+        "bandit-rider": {
+          "id": "bandit-rider",
+          "name": "Bandit Rider",
+          "emoji": "🏇",
+          "minLevel": 18,
+          "moves": [
+            {
+              "moveId": "raider-charge",
+              "weight": 3
+            },
+            {
+              "moveId": "crescent-slash",
+              "weight": 1
+            }
+          ]
+        },
+        "canyon-netter": {
+          "id": "canyon-netter",
+          "name": "Canyon Netter",
+          "emoji": "🕸️",
+          "minLevel": 21,
+          "moves": [
+            {
+              "moveId": "weighted-net",
+              "weight": 3
+            },
+            {
+              "moveId": "scimitar-guard",
+              "weight": 1
+            }
+          ]
+        },
+        "bandit-captain-zarek": {
+          "id": "bandit-captain-zarek",
+          "name": "Bandit Captain Zarek",
+          "emoji": "🦹",
+          "minLevel": 24,
+          "moves": [
+            {
+              "moveId": "sandstorm-rage",
+              "weight": 3
+            },
+            {
+              "moveId": "raider-charge",
+              "weight": 1
+            },
+            {
+              "moveId": "scimitar-guard",
+              "weight": 1
+            }
+          ]
+        },
+        "linen-mummy": {
+          "id": "linen-mummy",
+          "name": "Linen Mummy",
+          "emoji": "🧟",
+          "minLevel": 26,
+          "moves": [
+            {
+              "moveId": "tail-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "sunblind-glare",
+              "weight": 1
+            }
+          ]
+        },
+        "scarab-swarm": {
+          "id": "scarab-swarm",
+          "name": "Scarab Swarm",
+          "emoji": "🪲",
+          "minLevel": 29,
+          "moves": [
+            {
+              "moveId": "venom-spit",
+              "weight": 3
+            },
+            {
+              "moveId": "dune-lunge",
+              "weight": 1
+            }
+          ]
+        },
+        "sunstone-sentinel": {
+          "id": "sunstone-sentinel",
+          "name": "Sunstone Sentinel",
+          "emoji": "🗿",
+          "minLevel": 33,
+          "moves": [
+            {
+              "moveId": "tail-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "scimitar-guard",
+              "weight": 1
+            }
+          ]
+        },
+        "undying-sun-priest": {
+          "id": "undying-sun-priest",
+          "name": "Undying Sun Priest",
+          "emoji": "🧙",
+          "minLevel": 36,
+          "moves": [
+            {
+              "moveId": "sunblind-glare",
+              "weight": 3
+            },
+            {
+              "moveId": "sandstorm-rage",
+              "weight": 1
+            },
+            {
+              "moveId": "venom-spit",
+              "weight": 1
+            }
+          ]
+        },
+        "azhar-the-sun-wyrm": {
+          "id": "azhar-the-sun-wyrm",
+          "name": "Azhar, the Sun Wyrm",
+          "emoji": "🐉",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "tail-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "venom-spit",
+              "weight": 1
+            },
+            {
+              "moveId": "sandstorm-rage",
+              "weight": 1
+            },
+            {
+              "moveId": "sunblind-glare",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "fang-strike": {
+          "id": "fang-strike",
+          "name": "Fang Strike",
+          "emoji": "🐍",
+          "telegraph": "coils and flicks its tongue…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "tail-slam": {
+          "id": "tail-slam",
+          "name": "Tail Slam",
+          "emoji": "💥",
+          "telegraph": "rears back, tail raised high…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "dune-lunge": {
+          "id": "dune-lunge",
+          "name": "Dune Lunge",
+          "emoji": "💨",
+          "telegraph": "vanishes beneath the sand…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "venom-spit": {
+          "id": "venom-spit",
+          "name": "Venom Spit",
+          "emoji": "☠️",
+          "telegraph": "hisses, jaws dripping green…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "sunblind-glare": {
+          "id": "sunblind-glare",
+          "name": "Sunblind Glare",
+          "emoji": "🌞",
+          "telegraph": "turns so the sun flares off its mask…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "sandstorm-rage": {
+          "id": "sandstorm-rage",
+          "name": "Sandstorm Rage",
+          "emoji": "🌪️",
+          "telegraph": "roars as sand whirls around it…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "scimitar-guard": {
+          "id": "scimitar-guard",
+          "name": "Scimitar Guard",
+          "emoji": "🗡️",
+          "telegraph": "sets its blade in a tight guard…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "weighted-net": {
+          "id": "weighted-net",
+          "name": "Weighted Net",
+          "emoji": "🕸️",
+          "telegraph": "swings a weighted net overhead…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        },
+        "raider-charge": {
+          "id": "raider-charge",
+          "name": "Raider Charge",
+          "emoji": "🐎",
+          "telegraph": "spurs its mount into a gallop…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "crescent-slash": {
+          "id": "crescent-slash",
+          "name": "Crescent Slash",
+          "emoji": "🌙",
+          "telegraph": "draws a curved blade…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Venom",
+          "emoji": "🐍",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Sunsapped",
+          "emoji": "🥵",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Sandfury",
+          "emoji": "🌪️",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "caravan-dagger": {
+          "id": "caravan-dagger",
+          "name": "Caravan Dagger",
+          "emoji": "🗡️",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "dune-scimitar": {
+          "id": "dune-scimitar",
+          "name": "Dune Scimitar",
+          "emoji": "⚔️",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "sunforged-khopesh": {
+          "id": "sunforged-khopesh",
+          "name": "Sunforged Khopesh",
+          "emoji": "🌞",
+          "rarity": "epic",
+          "equipSlot": "weapon"
+        },
+        "pharaohs-wrath": {
+          "id": "pharaohs-wrath",
+          "name": "Pharaoh's Wrath",
+          "emoji": "👑",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "linen-turban": {
+          "id": "linen-turban",
+          "name": "Linen Turban",
+          "emoji": "🧕",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "scale-helm": {
+          "id": "scale-helm",
+          "name": "Scale Helm",
+          "emoji": "⛑️",
+          "rarity": "uncommon",
+          "equipSlot": "head"
+        },
+        "wanderers-robe": {
+          "id": "wanderers-robe",
+          "name": "Wanderer's Robe",
+          "emoji": "🥋",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "serpentscale-mail": {
+          "id": "serpentscale-mail",
+          "name": "Serpentscale Mail",
+          "emoji": "🦎",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "sunpriest-plate": {
+          "id": "sunpriest-plate",
+          "name": "Sunpriest Plate",
+          "emoji": "🔆",
+          "rarity": "legendary",
+          "equipSlot": "body"
+        },
+        "sandwalker-wraps": {
+          "id": "sandwalker-wraps",
+          "name": "Sandwalker Wraps",
+          "emoji": "🦵",
+          "rarity": "common",
+          "equipSlot": "legs"
+        },
+        "raider-greaves": {
+          "id": "raider-greaves",
+          "name": "Raider Greaves",
+          "emoji": "🛡️",
+          "rarity": "rare",
+          "equipSlot": "legs"
+        },
+        "rope-gloves": {
+          "id": "rope-gloves",
+          "name": "Rope Gloves",
+          "emoji": "🧤",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "glassguard-gauntlets": {
+          "id": "glassguard-gauntlets",
+          "name": "Glassguard Gauntlets",
+          "emoji": "🥊",
+          "rarity": "epic",
+          "equipSlot": "hands"
+        },
+        "dune-sandals": {
+          "id": "dune-sandals",
+          "name": "Dune Sandals",
+          "emoji": "🩴",
+          "rarity": "common",
+          "equipSlot": "feet"
+        },
+        "camelhide-boots": {
+          "id": "camelhide-boots",
+          "name": "Camelhide Boots",
+          "emoji": "🥾",
+          "rarity": "rare",
+          "equipSlot": "feet"
+        },
+        "brass-buckler": {
+          "id": "brass-buckler",
+          "name": "Brass Buckler",
+          "emoji": "🔰",
+          "rarity": "uncommon",
+          "equipSlot": "shield"
+        },
+        "aegis-of-the-sun": {
+          "id": "aegis-of-the-sun",
+          "name": "Aegis of the Sun",
+          "emoji": "☀️",
+          "rarity": "epic",
+          "equipSlot": "shield"
+        },
+        "scarab-charm": {
+          "id": "scarab-charm",
+          "name": "Scarab Charm",
+          "emoji": "🪲",
+          "rarity": "rare",
+          "equipSlot": "accessory"
+        },
+        "eye-of-the-oasis": {
+          "id": "eye-of-the-oasis",
+          "name": "Eye of the Oasis",
+          "emoji": "🧿",
+          "rarity": "legendary",
+          "equipSlot": "accessory"
+        },
+        "waterskin": {
+          "id": "waterskin",
+          "name": "Waterskin",
+          "emoji": "💧",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "cactus-tonic": {
+          "id": "cactus-tonic",
+          "name": "Cactus Tonic",
+          "emoji": "🌵",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "oasis-nectar": {
+          "id": "oasis-nectar",
+          "name": "Oasis Nectar",
+          "emoji": "🌴",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "pottery-shard": {
+          "id": "pottery-shard",
+          "name": "Pottery Shard",
+          "emoji": "🏺",
+          "rarity": "poor"
+        },
+        "glass-bead": {
+          "id": "glass-bead",
+          "name": "Glass Bead",
+          "emoji": "📿",
+          "rarity": "common"
+        },
+        "golden-idol": {
+          "id": "golden-idol",
+          "name": "Golden Idol",
+          "emoji": "🗿",
+          "rarity": "rare"
+        },
+        "rock-salt": {
+          "id": "rock-salt",
+          "name": "Rock Salt",
+          "emoji": "🧂",
+          "rarity": "common"
+        },
+        "rough-opal": {
+          "id": "rough-opal",
+          "name": "Rough Opal",
+          "emoji": "💎",
+          "rarity": "uncommon"
+        },
+        "lost-circlet": {
+          "id": "lost-circlet",
+          "name": "Lost Circlet",
+          "emoji": "👑",
+          "rarity": "rare"
+        },
+        "clay-tablet": {
+          "id": "clay-tablet",
+          "name": "Clay Tablet",
+          "emoji": "📜",
+          "rarity": "uncommon"
+        },
+        "bronze-ankh": {
+          "id": "bronze-ankh",
+          "name": "Bronze Ankh",
+          "emoji": "☥",
+          "rarity": "uncommon"
+        },
+        "heart-of-the-sun": {
+          "id": "heart-of-the-sun",
+          "name": "Heart of the Sun",
+          "emoji": "❤️‍🔥",
+          "rarity": "epic"
+        },
+        "sand-carp": {
+          "id": "sand-carp",
+          "name": "Sand Carp",
+          "emoji": "🐟",
+          "rarity": "poor"
+        },
+        "oasis-shrimp": {
+          "id": "oasis-shrimp",
+          "name": "Oasis Shrimp",
+          "emoji": "🦐",
+          "rarity": "common"
+        },
+        "golden-koi": {
+          "id": "golden-koi",
+          "name": "Golden Koi",
+          "emoji": "🐠",
+          "rarity": "rare"
+        },
+        "cave-eel": {
+          "id": "cave-eel",
+          "name": "Cave Eel",
+          "emoji": "🐍",
+          "rarity": "common"
+        },
+        "blue-crab": {
+          "id": "blue-crab",
+          "name": "Blue Crab",
+          "emoji": "🦀",
+          "rarity": "uncommon"
+        },
+        "spring-pearl": {
+          "id": "spring-pearl",
+          "name": "Spring Pearl",
+          "emoji": "🦪",
+          "rarity": "rare"
+        },
+        "blind-gar": {
+          "id": "blind-gar",
+          "name": "Blind Gar",
+          "emoji": "🐟",
+          "rarity": "uncommon"
+        },
+        "glow-newt": {
+          "id": "glow-newt",
+          "name": "Glow Newt",
+          "emoji": "🦎",
+          "rarity": "uncommon"
+        },
+        "pharaoh-sturgeon": {
+          "id": "pharaoh-sturgeon",
+          "name": "Pharaoh Sturgeon",
+          "emoji": "🐋",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "dune-digging": {
+          "id": "dune-digging",
+          "name": "Dune Digging",
+          "emoji": "⛏️",
+          "locations": {
+            "shifting-dunes": {
+              "id": "shifting-dunes",
+              "name": "Shifting Dunes",
+              "emoji": "🏜️",
+              "loot": [
+                {
+                  "itemId": "pottery-shard",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "glass-bead",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "golden-idol",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "dry-riverbed": {
+              "id": "dry-riverbed",
+              "name": "Dry Riverbed",
+              "emoji": "🪨",
+              "loot": [
+                {
+                  "itemId": "rock-salt",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "rough-opal",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "lost-circlet",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "temple-ruins": {
+              "id": "temple-ruins",
+              "name": "Temple Ruins",
+              "emoji": "🏛️",
+              "loot": [
+                {
+                  "itemId": "clay-tablet",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "bronze-ankh",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "heart-of-the-sun",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "oasis-fishing": {
+          "id": "oasis-fishing",
+          "name": "Oasis Fishing",
+          "emoji": "🎣",
+          "locations": {
+            "palm-pool": {
+              "id": "palm-pool",
+              "name": "Palm Pool",
+              "emoji": "🌴",
+              "loot": [
+                {
+                  "itemId": "sand-carp",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "oasis-shrimp",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "golden-koi",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "hidden-spring": {
+              "id": "hidden-spring",
+              "name": "Hidden Spring",
+              "emoji": "💧",
+              "loot": [
+                {
+                  "itemId": "cave-eel",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "blue-crab",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "spring-pearl",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "temple-cistern": {
+              "id": "temple-cistern",
+              "name": "Temple Cistern",
+              "emoji": "🏛️",
+              "loot": [
+                {
+                  "itemId": "blind-gar",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "glow-newt",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "pharaoh-sturgeon",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

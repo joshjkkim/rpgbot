@@ -1,0 +1,917 @@
+{
+  "id": "dustwater",
+  "name": "Dustwater Gulch",
+  "prompt": "A dusty frontier town with outlaws, coyotes, a played-out gold mine and a ghost train that runs at midnight.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "rabid-jackrabbit": {
+          "id": "rabid-jackrabbit",
+          "name": "Rabid Jackrabbit",
+          "emoji": "🐇",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "snapping-bite",
+              "weight": 3
+            }
+          ]
+        },
+        "scrawny-coyote": {
+          "id": "scrawny-coyote",
+          "name": "Scrawny Coyote",
+          "emoji": "🐺",
+          "minLevel": 4,
+          "moves": [
+            {
+              "moveId": "snapping-bite",
+              "weight": 3
+            },
+            {
+              "moveId": "moonlit-howl",
+              "weight": 1
+            }
+          ]
+        },
+        "diamondback-rattler": {
+          "id": "diamondback-rattler",
+          "name": "Diamondback Rattler",
+          "emoji": "🐍",
+          "minLevel": 8,
+          "moves": [
+            {
+              "moveId": "rattler-venom",
+              "weight": 3
+            },
+            {
+              "moveId": "quick-draw",
+              "weight": 1
+            }
+          ]
+        },
+        "two-bit-bandit": {
+          "id": "two-bit-bandit",
+          "name": "Two-Bit Bandit",
+          "emoji": "🤠",
+          "minLevel": 6,
+          "moves": [
+            {
+              "moveId": "saloon-punch",
+              "weight": 3
+            },
+            {
+              "moveId": "dust-cloud",
+              "weight": 1
+            }
+          ]
+        },
+        "hired-gunslinger": {
+          "id": "hired-gunslinger",
+          "name": "Hired Gunslinger",
+          "emoji": "🔫",
+          "minLevel": 14,
+          "moves": [
+            {
+              "moveId": "quick-draw",
+              "weight": 3
+            },
+            {
+              "moveId": "shotgun-blast",
+              "weight": 1
+            }
+          ]
+        },
+        "saloon-brawler": {
+          "id": "saloon-brawler",
+          "name": "Saloon Brawler",
+          "emoji": "🥊",
+          "minLevel": 11,
+          "moves": [
+            {
+              "moveId": "saloon-punch",
+              "weight": 3
+            },
+            {
+              "moveId": "barricade",
+              "weight": 1
+            }
+          ]
+        },
+        "crooked-deputy": {
+          "id": "crooked-deputy",
+          "name": "Crooked Deputy",
+          "emoji": "⭐",
+          "minLevel": 19,
+          "moves": [
+            {
+              "moveId": "lasso-snare",
+              "weight": 3
+            },
+            {
+              "moveId": "shotgun-blast",
+              "weight": 1
+            },
+            {
+              "moveId": "barricade",
+              "weight": 1
+            }
+          ]
+        },
+        "cave-bat": {
+          "id": "cave-bat",
+          "name": "Cave Bat",
+          "emoji": "🦇",
+          "minLevel": 13,
+          "moves": [
+            {
+              "moveId": "snapping-bite",
+              "weight": 3
+            },
+            {
+              "moveId": "dust-cloud",
+              "weight": 1
+            }
+          ]
+        },
+        "claim-jumper": {
+          "id": "claim-jumper",
+          "name": "Claim Jumper",
+          "emoji": "⛏️",
+          "minLevel": 18,
+          "moves": [
+            {
+              "moveId": "dynamite-toss",
+              "weight": 3
+            },
+            {
+              "moveId": "saloon-punch",
+              "weight": 1
+            }
+          ]
+        },
+        "slag-golem": {
+          "id": "slag-golem",
+          "name": "Slag Golem",
+          "emoji": "🪨",
+          "minLevel": 24,
+          "moves": [
+            {
+              "moveId": "saloon-punch",
+              "weight": 3
+            },
+            {
+              "moveId": "barricade",
+              "weight": 1
+            },
+            {
+              "moveId": "moonlit-howl",
+              "weight": 1
+            }
+          ]
+        },
+        "ghost-of-the-forty-niner": {
+          "id": "ghost-of-the-forty-niner",
+          "name": "Ghost of the Forty-Niner",
+          "emoji": "👻",
+          "minLevel": 27,
+          "moves": [
+            {
+              "moveId": "dust-cloud",
+              "weight": 3
+            },
+            {
+              "moveId": "rattler-venom",
+              "weight": 1
+            },
+            {
+              "moveId": "lasso-snare",
+              "weight": 1
+            }
+          ]
+        },
+        "phantom-conductor": {
+          "id": "phantom-conductor",
+          "name": "Phantom Conductor",
+          "emoji": "🎩",
+          "minLevel": 29,
+          "moves": [
+            {
+              "moveId": "phantom-whistle",
+              "weight": 3
+            },
+            {
+              "moveId": "quick-draw",
+              "weight": 1
+            }
+          ]
+        },
+        "skeletal-stoker": {
+          "id": "skeletal-stoker",
+          "name": "Skeletal Stoker",
+          "emoji": "💀",
+          "minLevel": 33,
+          "moves": [
+            {
+              "moveId": "spectral-steam",
+              "weight": 3
+            },
+            {
+              "moveId": "saloon-punch",
+              "weight": 1
+            },
+            {
+              "moveId": "dynamite-toss",
+              "weight": 1
+            }
+          ]
+        },
+        "wailing-passenger": {
+          "id": "wailing-passenger",
+          "name": "Wailing Passenger",
+          "emoji": "👤",
+          "minLevel": 36,
+          "moves": [
+            {
+              "moveId": "phantom-whistle",
+              "weight": 3
+            },
+            {
+              "moveId": "dust-cloud",
+              "weight": 1
+            }
+          ]
+        },
+        "the-midnight-locomotive": {
+          "id": "the-midnight-locomotive",
+          "name": "The Midnight Locomotive",
+          "emoji": "🚂",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "phantom-whistle",
+              "weight": 3
+            },
+            {
+              "moveId": "spectral-steam",
+              "weight": 1
+            },
+            {
+              "moveId": "dynamite-toss",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "saloon-punch": {
+          "id": "saloon-punch",
+          "name": "Saloon Punch",
+          "emoji": "👊",
+          "telegraph": "cracks its knuckles and swings…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "snapping-bite": {
+          "id": "snapping-bite",
+          "name": "Snapping Bite",
+          "emoji": "🦷",
+          "telegraph": "snarls and lunges…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "shotgun-blast": {
+          "id": "shotgun-blast",
+          "name": "Shotgun Blast",
+          "emoji": "💥",
+          "telegraph": "levels a double barrel at you…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "quick-draw": {
+          "id": "quick-draw",
+          "name": "Quick Draw",
+          "emoji": "🔫",
+          "telegraph": "hand twitches over the holster…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "rattler-venom": {
+          "id": "rattler-venom",
+          "name": "Rattler Venom",
+          "emoji": "🐍",
+          "telegraph": "hisses, fangs dripping…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "dust-cloud": {
+          "id": "dust-cloud",
+          "name": "Dust Cloud",
+          "emoji": "🌫️",
+          "telegraph": "kicks up a choking cloud…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "moonlit-howl": {
+          "id": "moonlit-howl",
+          "name": "Moonlit Howl",
+          "emoji": "🌕",
+          "telegraph": "throws back its head and howls…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "barricade": {
+          "id": "barricade",
+          "name": "Barricade",
+          "emoji": "🛢️",
+          "telegraph": "ducks behind a barrel, waiting…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "lasso-snare": {
+          "id": "lasso-snare",
+          "name": "Lasso Snare",
+          "emoji": "🪢",
+          "telegraph": "whirls a rope overhead…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        },
+        "dynamite-toss": {
+          "id": "dynamite-toss",
+          "name": "Dynamite Toss",
+          "emoji": "🧨",
+          "telegraph": "lights a fuse with a grin…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "phantom-whistle": {
+          "id": "phantom-whistle",
+          "name": "Phantom Whistle",
+          "emoji": "🚂",
+          "telegraph": "a ghostly whistle wails through the dark…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        },
+        "spectral-steam": {
+          "id": "spectral-steam",
+          "name": "Spectral Steam",
+          "emoji": "♨️",
+          "telegraph": "pale steam hisses from the shadows…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Snakebite",
+          "emoji": "🐍",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Rattled",
+          "emoji": "😰",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Riled Up",
+          "emoji": "😡",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "rusty-revolver": {
+          "id": "rusty-revolver",
+          "name": "Rusty Revolver",
+          "emoji": "🔫",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "lever-repeater": {
+          "id": "lever-repeater",
+          "name": "Lever Repeater",
+          "emoji": "🔫",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "silver-peacemaker": {
+          "id": "silver-peacemaker",
+          "name": "Silver Peacemaker",
+          "emoji": "🔫",
+          "rarity": "rare",
+          "equipSlot": "weapon"
+        },
+        "midnight-six-shooter": {
+          "id": "midnight-six-shooter",
+          "name": "Midnight Six-Shooter",
+          "emoji": "🔫",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "dusty-hat": {
+          "id": "dusty-hat",
+          "name": "Dusty Hat",
+          "emoji": "🤠",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "marshals-stetson": {
+          "id": "marshals-stetson",
+          "name": "Marshal's Stetson",
+          "emoji": "🤠",
+          "rarity": "rare",
+          "equipSlot": "head"
+        },
+        "canvas-duster": {
+          "id": "canvas-duster",
+          "name": "Canvas Duster",
+          "emoji": "🧥",
+          "rarity": "uncommon",
+          "equipSlot": "body"
+        },
+        "leather-vest": {
+          "id": "leather-vest",
+          "name": "Leather Vest",
+          "emoji": "🦺",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "ghost-riders-coat": {
+          "id": "ghost-riders-coat",
+          "name": "Night Rider's Coat",
+          "emoji": "🧥",
+          "rarity": "epic",
+          "equipSlot": "body"
+        },
+        "rawhide-chaps": {
+          "id": "rawhide-chaps",
+          "name": "Rawhide Chaps",
+          "emoji": "👖",
+          "rarity": "uncommon",
+          "equipSlot": "legs"
+        },
+        "ropers-gloves": {
+          "id": "ropers-gloves",
+          "name": "Roper's Gloves",
+          "emoji": "🧤",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "spurred-boots": {
+          "id": "spurred-boots",
+          "name": "Spurred Boots",
+          "emoji": "🥾",
+          "rarity": "common",
+          "equipSlot": "feet"
+        },
+        "silver-tip-boots": {
+          "id": "silver-tip-boots",
+          "name": "Silver-Tip Boots",
+          "emoji": "🥾",
+          "rarity": "rare",
+          "equipSlot": "feet"
+        },
+        "skillet-shield": {
+          "id": "skillet-shield",
+          "name": "Skillet Shield",
+          "emoji": "🍳",
+          "rarity": "common",
+          "equipSlot": "shield"
+        },
+        "saloon-door": {
+          "id": "saloon-door",
+          "name": "Saloon Door",
+          "emoji": "🚪",
+          "rarity": "rare",
+          "equipSlot": "shield"
+        },
+        "sheriffs-star": {
+          "id": "sheriffs-star",
+          "name": "Sheriff's Star",
+          "emoji": "⭐",
+          "rarity": "uncommon",
+          "equipSlot": "accessory"
+        },
+        "conductors-watch": {
+          "id": "conductors-watch",
+          "name": "Conductor's Watch",
+          "emoji": "⏱️",
+          "rarity": "epic",
+          "equipSlot": "accessory"
+        },
+        "cheap-whiskey": {
+          "id": "cheap-whiskey",
+          "name": "Cheap Whiskey",
+          "emoji": "🥃",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "docs-tonic": {
+          "id": "docs-tonic",
+          "name": "Doc's Tonic",
+          "emoji": "🧪",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "ghost-pepper-elixir": {
+          "id": "ghost-pepper-elixir",
+          "name": "Ghost Pepper Elixir",
+          "emoji": "🌶️",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "gold-flake": {
+          "id": "gold-flake",
+          "name": "Gold Flake",
+          "emoji": "✨",
+          "rarity": "poor"
+        },
+        "quartz-chunk": {
+          "id": "quartz-chunk",
+          "name": "Quartz Chunk",
+          "emoji": "🔹",
+          "rarity": "common"
+        },
+        "turquoise-stone": {
+          "id": "turquoise-stone",
+          "name": "Turquoise Stone",
+          "emoji": "🟦",
+          "rarity": "rare"
+        },
+        "copper-ore": {
+          "id": "copper-ore",
+          "name": "Copper Ore",
+          "emoji": "🟠",
+          "rarity": "common"
+        },
+        "silver-ore": {
+          "id": "silver-ore",
+          "name": "Silver Ore",
+          "emoji": "⚪",
+          "rarity": "uncommon"
+        },
+        "gold-nugget": {
+          "id": "gold-nugget",
+          "name": "Gold Nugget",
+          "emoji": "🟡",
+          "rarity": "rare"
+        },
+        "iron-ore": {
+          "id": "iron-ore",
+          "name": "Iron Ore",
+          "emoji": "🔩",
+          "rarity": "uncommon"
+        },
+        "ghost-silver": {
+          "id": "ghost-silver",
+          "name": "Ghost Silver",
+          "emoji": "🩶",
+          "rarity": "uncommon"
+        },
+        "motherlode-chunk": {
+          "id": "motherlode-chunk",
+          "name": "Motherlode Chunk",
+          "emoji": "🏆",
+          "rarity": "epic"
+        },
+        "wagon-spring": {
+          "id": "wagon-spring",
+          "name": "Wagon Spring",
+          "emoji": "🌀",
+          "rarity": "poor"
+        },
+        "canvas-scrap": {
+          "id": "canvas-scrap",
+          "name": "Canvas Scrap",
+          "emoji": "🧵",
+          "rarity": "common"
+        },
+        "silver-locket": {
+          "id": "silver-locket",
+          "name": "Silver Locket",
+          "emoji": "📿",
+          "rarity": "rare"
+        },
+        "old-bone": {
+          "id": "old-bone",
+          "name": "Old Bone",
+          "emoji": "🦴",
+          "rarity": "common"
+        },
+        "rusty-spurs": {
+          "id": "rusty-spurs",
+          "name": "Rusty Spurs",
+          "emoji": "⚙️",
+          "rarity": "uncommon"
+        },
+        "lost-deed": {
+          "id": "lost-deed",
+          "name": "Lost Deed",
+          "emoji": "📜",
+          "rarity": "rare"
+        },
+        "rail-bolt": {
+          "id": "rail-bolt",
+          "name": "Rail Bolt",
+          "emoji": "🔩",
+          "rarity": "uncommon"
+        },
+        "brass-lantern": {
+          "id": "brass-lantern",
+          "name": "Brass Lantern",
+          "emoji": "🏮",
+          "rarity": "uncommon"
+        },
+        "midnight-ticket": {
+          "id": "midnight-ticket",
+          "name": "Midnight Ticket",
+          "emoji": "🎟️",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "prospecting": {
+          "id": "prospecting",
+          "name": "Prospecting",
+          "emoji": "⛏️",
+          "locations": {
+            "dry-creekbed": {
+              "id": "dry-creekbed",
+              "name": "Dry Creekbed",
+              "emoji": "🏞️",
+              "loot": [
+                {
+                  "itemId": "gold-flake",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "quartz-chunk",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "turquoise-stone",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "upper-tunnels": {
+              "id": "upper-tunnels",
+              "name": "Upper Tunnels",
+              "emoji": "🕳️",
+              "loot": [
+                {
+                  "itemId": "copper-ore",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "silver-ore",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "gold-nugget",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "deep-shaft": {
+              "id": "deep-shaft",
+              "name": "Deep Shaft",
+              "emoji": "🌑",
+              "loot": [
+                {
+                  "itemId": "iron-ore",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "ghost-silver",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "motherlode-chunk",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "scavenging": {
+          "id": "scavenging",
+          "name": "Scavenging",
+          "emoji": "🔍",
+          "locations": {
+            "abandoned-wagon": {
+              "id": "abandoned-wagon",
+              "name": "Abandoned Wagon",
+              "emoji": "🛒",
+              "loot": [
+                {
+                  "itemId": "wagon-spring",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "canvas-scrap",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "silver-locket",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "boot-hill": {
+              "id": "boot-hill",
+              "name": "Boot Hill",
+              "emoji": "🪦",
+              "loot": [
+                {
+                  "itemId": "old-bone",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "rusty-spurs",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "lost-deed",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "derailed-boxcar": {
+              "id": "derailed-boxcar",
+              "name": "Derailed Boxcar",
+              "emoji": "🚃",
+              "loot": [
+                {
+                  "itemId": "rail-bolt",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "brass-lantern",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "midnight-ticket",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
