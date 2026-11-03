@@ -37,7 +37,7 @@ import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
 import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
-import { logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
+import { countCommandUse, logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
@@ -371,6 +371,15 @@ async function main() {
             "(see scripts/setup-test-db.sh)."
         );
     }
+
+    await test("command uses are counted per server, command and day", async () => {
+        await query(`DELETE FROM command_uses WHERE discord_guild_id = 990000000000000001`);
+        await countCommandUse("990000000000000001", "fight");
+        await countCommandUse("990000000000000001", "fight");
+        await countCommandUse("990000000000000001", "admin give");
+        const rows = (await query(`SELECT command, uses FROM command_uses WHERE discord_guild_id = 990000000000000001 ORDER BY command`)).rows;
+        check("one row a command, counting up", rows.map((r) => [r.command, r.uses]), [["admin give", 1], ["fight", 2]]);
+    });
 
     await test("XP is buffered in cache, not written straight through", async () => {
         const { userId, guildId, config } = await reset();

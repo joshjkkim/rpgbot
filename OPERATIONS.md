@@ -211,6 +211,10 @@ default). Only Discord user ids in `ADMIN_USER_IDS` (Vercel env, comma-separated
 can open it; everyone else gets a 404. AI defaults: `AI_HELPER_DAILY` (20),
 `AI_FREE_PACKS` (3), `AI_DAILY_BUDGET_USD` (5, across all servers).
 
+Each server's name opens `/admin/server/<id>`: players and how active they are,
+what the server has set up, the health check, which commands it used
+(`command_uses`, counts per command and day, no users), and the events log.
+
 ## Bot lists
 
 The bot posts its server count to discord.bots.gg and discordbotlist.com at
