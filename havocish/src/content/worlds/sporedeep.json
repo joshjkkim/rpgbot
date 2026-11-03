@@ -1,0 +1,934 @@
+{
+  "id": "sporedeep",
+  "name": "Sporedeep",
+  "prompt": "A glowing fungal underworld of spore caverns, beetle riders and a fungal queen at its heart.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "sporeling": {
+          "id": "sporeling",
+          "name": "Sporeling",
+          "emoji": "🍄",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "nibble",
+              "weight": 3
+            }
+          ]
+        },
+        "cave-mite": {
+          "id": "cave-mite",
+          "name": "Cave Mite",
+          "emoji": "🕷️",
+          "minLevel": 3,
+          "moves": [
+            {
+              "moveId": "nibble",
+              "weight": 3
+            },
+            {
+              "moveId": "skitter-strike",
+              "weight": 1
+            }
+          ]
+        },
+        "glowslug": {
+          "id": "glowslug",
+          "name": "Glowslug",
+          "emoji": "🐌",
+          "minLevel": 6,
+          "moves": [
+            {
+              "moveId": "gnash",
+              "weight": 3
+            },
+            {
+              "moveId": "spore-puff",
+              "weight": 1
+            }
+          ]
+        },
+        "puffcap": {
+          "id": "puffcap",
+          "name": "Puffcap",
+          "emoji": "☁️",
+          "minLevel": 9,
+          "moves": [
+            {
+              "moveId": "spore-puff",
+              "weight": 3
+            },
+            {
+              "moveId": "cap-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "rot-crawler": {
+          "id": "rot-crawler",
+          "name": "Rot Crawler",
+          "emoji": "🪱",
+          "minLevel": 12,
+          "moves": [
+            {
+              "moveId": "rot-touch",
+              "weight": 3
+            },
+            {
+              "moveId": "gnash",
+              "weight": 1
+            }
+          ]
+        },
+        "myco-stalker": {
+          "id": "myco-stalker",
+          "name": "Myco Stalker",
+          "emoji": "🌿",
+          "minLevel": 15,
+          "moves": [
+            {
+              "moveId": "root-lash",
+              "weight": 3
+            },
+            {
+              "moveId": "mind-spores",
+              "weight": 1
+            },
+            {
+              "moveId": "rot-touch",
+              "weight": 1
+            }
+          ]
+        },
+        "spore-mother": {
+          "id": "spore-mother",
+          "name": "Spore Mother",
+          "emoji": "🍄",
+          "minLevel": 18,
+          "moves": [
+            {
+              "moveId": "spore-puff",
+              "weight": 3
+            },
+            {
+              "moveId": "red-frenzy",
+              "weight": 1
+            },
+            {
+              "moveId": "cap-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "beetle-grunt": {
+          "id": "beetle-grunt",
+          "name": "Beetle Grunt",
+          "emoji": "🪲",
+          "minLevel": 20,
+          "moves": [
+            {
+              "moveId": "gnash",
+              "weight": 3
+            },
+            {
+              "moveId": "shell-guard",
+              "weight": 1
+            }
+          ]
+        },
+        "horned-rider": {
+          "id": "horned-rider",
+          "name": "Horned Rider",
+          "emoji": "🐞",
+          "minLevel": 23,
+          "moves": [
+            {
+              "moveId": "lance-charge",
+              "weight": 3
+            },
+            {
+              "moveId": "skitter-strike",
+              "weight": 1
+            }
+          ]
+        },
+        "tunnel-ravager": {
+          "id": "tunnel-ravager",
+          "name": "Tunnel Ravager",
+          "emoji": "🦂",
+          "minLevel": 26,
+          "moves": [
+            {
+              "moveId": "venom-sting",
+              "weight": 3
+            },
+            {
+              "moveId": "red-frenzy",
+              "weight": 1
+            },
+            {
+              "moveId": "gnash",
+              "weight": 1
+            }
+          ]
+        },
+        "stag-beetle-knight": {
+          "id": "stag-beetle-knight",
+          "name": "Stag Beetle Knight",
+          "emoji": "🤺",
+          "minLevel": 28,
+          "moves": [
+            {
+              "moveId": "lance-charge",
+              "weight": 3
+            },
+            {
+              "moveId": "shell-guard",
+              "weight": 1
+            },
+            {
+              "moveId": "mind-spores",
+              "weight": 1
+            }
+          ]
+        },
+        "bloom-thrall": {
+          "id": "bloom-thrall",
+          "name": "Bloom Thrall",
+          "emoji": "🧟",
+          "minLevel": 31,
+          "moves": [
+            {
+              "moveId": "rot-touch",
+              "weight": 3
+            },
+            {
+              "moveId": "nibble",
+              "weight": 1
+            }
+          ]
+        },
+        "hollow-champion": {
+          "id": "hollow-champion",
+          "name": "Hollow Champion",
+          "emoji": "🛡️",
+          "minLevel": 34,
+          "moves": [
+            {
+              "moveId": "cap-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "shell-guard",
+              "weight": 1
+            },
+            {
+              "moveId": "red-frenzy",
+              "weight": 1
+            }
+          ]
+        },
+        "ichor-wraith": {
+          "id": "ichor-wraith",
+          "name": "Ichor Wraith",
+          "emoji": "👻",
+          "minLevel": 38,
+          "moves": [
+            {
+              "moveId": "venom-sting",
+              "weight": 3
+            },
+            {
+              "moveId": "mind-spores",
+              "weight": 1
+            },
+            {
+              "moveId": "root-lash",
+              "weight": 1
+            }
+          ]
+        },
+        "the-fungal-queen": {
+          "id": "the-fungal-queen",
+          "name": "The Fungal Queen",
+          "emoji": "👑",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "cap-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "spore-puff",
+              "weight": 1
+            },
+            {
+              "moveId": "red-frenzy",
+              "weight": 1
+            },
+            {
+              "moveId": "mind-spores",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "nibble": {
+          "id": "nibble",
+          "name": "Nibble",
+          "emoji": "🦷",
+          "telegraph": "skitters forward, mandibles clicking…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "gnash": {
+          "id": "gnash",
+          "name": "Gnash",
+          "emoji": "😬",
+          "telegraph": "snaps its jaws in the glow…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "cap-slam": {
+          "id": "cap-slam",
+          "name": "Cap Slam",
+          "emoji": "🍄",
+          "telegraph": "rears back its massive cap…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "lance-charge": {
+          "id": "lance-charge",
+          "name": "Lance Charge",
+          "emoji": "🪲",
+          "telegraph": "lowers its horn and digs in its legs…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "skitter-strike": {
+          "id": "skitter-strike",
+          "name": "Skitter Strike",
+          "emoji": "💨",
+          "telegraph": "blurs into a frantic skitter…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "root-lash": {
+          "id": "root-lash",
+          "name": "Root Lash",
+          "emoji": "🌿",
+          "telegraph": "twitches as pale roots uncoil…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "spore-puff": {
+          "id": "spore-puff",
+          "name": "Spore Puff",
+          "emoji": "☁️",
+          "telegraph": "gurgles and swells, glowing dust leaking out…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "venom-sting": {
+          "id": "venom-sting",
+          "name": "Venom Sting",
+          "emoji": "🦂",
+          "telegraph": "curls its dripping stinger overhead…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "rot-touch": {
+          "id": "rot-touch",
+          "name": "Rot Touch",
+          "emoji": "🥀",
+          "telegraph": "reaches out with a withering, grey hand…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "red-frenzy": {
+          "id": "red-frenzy",
+          "name": "Red Frenzy",
+          "emoji": "🔴",
+          "telegraph": "trembles as crimson spores bloom across its body…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "shell-guard": {
+          "id": "shell-guard",
+          "name": "Shell Guard",
+          "emoji": "🛡️",
+          "telegraph": "tucks itself behind its glossy shell…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "mind-spores": {
+          "id": "mind-spores",
+          "name": "Mind Spores",
+          "emoji": "💫",
+          "telegraph": "exhales a shimmering, dizzying haze…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Sporerot",
+          "emoji": "☣️",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Withering",
+          "emoji": "🥀",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Red Bloom",
+          "emoji": "🔴",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "mossy-club": {
+          "id": "mossy-club",
+          "name": "Mossy Club",
+          "emoji": "🏏",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "cap-helm": {
+          "id": "cap-helm",
+          "name": "Cap Helm",
+          "emoji": "⛑️",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "grub-hide-vest": {
+          "id": "grub-hide-vest",
+          "name": "Grub-Hide Vest",
+          "emoji": "🦺",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "shell-buckler": {
+          "id": "shell-buckler",
+          "name": "Shell Buckler",
+          "emoji": "🛡️",
+          "rarity": "uncommon",
+          "equipSlot": "shield"
+        },
+        "chitin-dagger": {
+          "id": "chitin-dagger",
+          "name": "Chitin Dagger",
+          "emoji": "🗡️",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "rootwoven-leggings": {
+          "id": "rootwoven-leggings",
+          "name": "Rootwoven Leggings",
+          "emoji": "👖",
+          "rarity": "uncommon",
+          "equipSlot": "legs"
+        },
+        "sporeskin-gloves": {
+          "id": "sporeskin-gloves",
+          "name": "Sporeskin Gloves",
+          "emoji": "🧤",
+          "rarity": "rare",
+          "equipSlot": "hands"
+        },
+        "glowstep-boots": {
+          "id": "glowstep-boots",
+          "name": "Glowstep Boots",
+          "emoji": "🥾",
+          "rarity": "uncommon",
+          "equipSlot": "feet"
+        },
+        "lantern-charm": {
+          "id": "lantern-charm",
+          "name": "Lantern Charm",
+          "emoji": "🏮",
+          "rarity": "rare",
+          "equipSlot": "accessory"
+        },
+        "beetle-lance": {
+          "id": "beetle-lance",
+          "name": "Beetle Lance",
+          "emoji": "🔱",
+          "rarity": "rare",
+          "equipSlot": "weapon"
+        },
+        "carapace-plate": {
+          "id": "carapace-plate",
+          "name": "Carapace Plate",
+          "emoji": "🥋",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "horncrown": {
+          "id": "horncrown",
+          "name": "Horncrown",
+          "emoji": "👑",
+          "rarity": "epic",
+          "equipSlot": "head"
+        },
+        "mycelium-greaves": {
+          "id": "mycelium-greaves",
+          "name": "Mycelium Greaves",
+          "emoji": "🦵",
+          "rarity": "epic",
+          "equipSlot": "legs"
+        },
+        "queenguard-shield": {
+          "id": "queenguard-shield",
+          "name": "Queenguard Shield",
+          "emoji": "🔰",
+          "rarity": "epic",
+          "equipSlot": "shield"
+        },
+        "ichor-gauntlets": {
+          "id": "ichor-gauntlets",
+          "name": "Ichor Gauntlets",
+          "emoji": "🥊",
+          "rarity": "epic",
+          "equipSlot": "hands"
+        },
+        "deepwalker-treads": {
+          "id": "deepwalker-treads",
+          "name": "Deepwalker Treads",
+          "emoji": "👢",
+          "rarity": "legendary",
+          "equipSlot": "feet"
+        },
+        "sovereign-spore-blade": {
+          "id": "sovereign-spore-blade",
+          "name": "Sovereign Spore-Blade",
+          "emoji": "⚔️",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "heart-of-the-bloom": {
+          "id": "heart-of-the-bloom",
+          "name": "Heart of the Bloom",
+          "emoji": "💠",
+          "rarity": "legendary",
+          "equipSlot": "accessory"
+        },
+        "dewcap-tonic": {
+          "id": "dewcap-tonic",
+          "name": "Dewcap Tonic",
+          "emoji": "🧪",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "glowbrew": {
+          "id": "glowbrew",
+          "name": "Glowbrew",
+          "emoji": "🍵",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "queens-nectar": {
+          "id": "queens-nectar",
+          "name": "Queen's Nectar",
+          "emoji": "🍯",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "quartz-shard": {
+          "id": "quartz-shard",
+          "name": "Quartz Shard",
+          "emoji": "🔹",
+          "rarity": "poor"
+        },
+        "cave-clay": {
+          "id": "cave-clay",
+          "name": "Cave Clay",
+          "emoji": "🟤",
+          "rarity": "common"
+        },
+        "amber-drip": {
+          "id": "amber-drip",
+          "name": "Amber Drip",
+          "emoji": "🟠",
+          "rarity": "rare"
+        },
+        "salt-crystal": {
+          "id": "salt-crystal",
+          "name": "Salt Crystal",
+          "emoji": "🧂",
+          "rarity": "common"
+        },
+        "copper-nugget": {
+          "id": "copper-nugget",
+          "name": "Copper Nugget",
+          "emoji": "🟧",
+          "rarity": "uncommon"
+        },
+        "deep-geode": {
+          "id": "deep-geode",
+          "name": "Deep Geode",
+          "emoji": "🔮",
+          "rarity": "rare"
+        },
+        "blackstone": {
+          "id": "blackstone",
+          "name": "Blackstone",
+          "emoji": "⚫",
+          "rarity": "uncommon"
+        },
+        "silverglint": {
+          "id": "silverglint",
+          "name": "Silverglint",
+          "emoji": "⚪",
+          "rarity": "uncommon"
+        },
+        "starcore": {
+          "id": "starcore",
+          "name": "Starcore",
+          "emoji": "🌟",
+          "rarity": "epic"
+        },
+        "blind-minnow": {
+          "id": "blind-minnow",
+          "name": "Blind Minnow",
+          "emoji": "🐟",
+          "rarity": "poor"
+        },
+        "cave-snail": {
+          "id": "cave-snail",
+          "name": "Cave Snail",
+          "emoji": "🐚",
+          "rarity": "common"
+        },
+        "pale-pearl": {
+          "id": "pale-pearl",
+          "name": "Pale Pearl",
+          "emoji": "🦪",
+          "rarity": "rare"
+        },
+        "pale-eel": {
+          "id": "pale-eel",
+          "name": "Pale Eel",
+          "emoji": "🐍",
+          "rarity": "common"
+        },
+        "glow-crab": {
+          "id": "glow-crab",
+          "name": "Glow Crab",
+          "emoji": "🦀",
+          "rarity": "uncommon"
+        },
+        "lanternfish": {
+          "id": "lanternfish",
+          "name": "Lanternfish",
+          "emoji": "🐠",
+          "rarity": "rare"
+        },
+        "ghost-carp": {
+          "id": "ghost-carp",
+          "name": "Ghost Carp",
+          "emoji": "🐡",
+          "rarity": "uncommon"
+        },
+        "ink-jelly": {
+          "id": "ink-jelly",
+          "name": "Ink Jelly",
+          "emoji": "🪼",
+          "rarity": "uncommon"
+        },
+        "leviathan-tooth": {
+          "id": "leviathan-tooth",
+          "name": "Leviathan Tooth",
+          "emoji": "🦷",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "crystal-delving": {
+          "id": "crystal-delving",
+          "name": "Crystal Delving",
+          "emoji": "⛏️",
+          "locations": {
+            "crumbly-tunnels": {
+              "id": "crumbly-tunnels",
+              "name": "Crumbly Tunnels",
+              "emoji": "🕳️",
+              "loot": [
+                {
+                  "itemId": "quartz-shard",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "cave-clay",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "amber-drip",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "crystal-seam": {
+              "id": "crystal-seam",
+              "name": "Crystal Seam",
+              "emoji": "💠",
+              "loot": [
+                {
+                  "itemId": "salt-crystal",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "copper-nugget",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "deep-geode",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "bottomless-vein": {
+              "id": "bottomless-vein",
+              "name": "Bottomless Vein",
+              "emoji": "🌑",
+              "loot": [
+                {
+                  "itemId": "blackstone",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "silverglint",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "starcore",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "pool-angling": {
+          "id": "pool-angling",
+          "name": "Pool Angling",
+          "emoji": "🎣",
+          "locations": {
+            "still-pool": {
+              "id": "still-pool",
+              "name": "Still Pool",
+              "emoji": "💧",
+              "loot": [
+                {
+                  "itemId": "blind-minnow",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "cave-snail",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "pale-pearl",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "sporefall-basin": {
+              "id": "sporefall-basin",
+              "name": "Sporefall Basin",
+              "emoji": "🌊",
+              "loot": [
+                {
+                  "itemId": "pale-eel",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "glow-crab",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "lanternfish",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "black-lake": {
+              "id": "black-lake",
+              "name": "Black Lake",
+              "emoji": "🌌",
+              "loot": [
+                {
+                  "itemId": "ghost-carp",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "ink-jelly",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "leviathan-tooth",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

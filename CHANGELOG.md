@@ -2,6 +2,17 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### New
+- **The havocish Daily: a new world to beat every day, at havocish.com/daily.** Play it in your browser, no server needed. You get 24 hours on a map of one of havocish's worlds to gather, shop, forge, level up on its creatures and beat its boss, and everything you do takes time. Everyone gets the same day, so the challenge is how fast you can do it. Gathering is played on skill (timed fishing, a logic dig, a risky descent down a mine shaft), gear rolls new stats and perks every day, and bosses come with traits that change how you have to fight them. Try it as often as you like and share your time.
+
+### Fixed
+- **Wind-ups warn on the right turn.** The turn an enemy starts winding up no longer shows as danger, since nothing lands yet: its warning now says when the hit lands ("lands next turn"), and turns red on the turn it does.
+- **Sunder hits their ATK, not your DEF.** In the Classic Fantasy pack, Sunder lowered your own defense by mistake. It now lowers the enemy's ATK by 30% for 3 turns: about a third less damage coming at you. Frontier Station's Armor Shred had the same mistake; it's now Weapon Jam 🔧 and does the same. Re-add the pack from the Library to pick it up (anything you edited is kept).
+- **Quick Jab interrupts.** It still goes first, and now also stops an enemy that's winding up. Battle Cry's rage lasts 4 turns instead of 3, so the turn spent on it pays off. Frontier Station's Quick Draw and Combat Stims match.
+- **Statuses say what they do.** A move that puts on a status now shows its effect too: "😤 Enraged on you for 4 turns (ATK +40%, DEF −20%)". A status with an upside is no longer listed as a drawback.
+
 ## v0.18.2 · October 30, 2026
 
 A quick follow-up: fights now point you at your quest, managers pick any enemy (or a world boss) right in `/fight`, and the Helper talks in plain words.

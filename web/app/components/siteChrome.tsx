@@ -33,6 +33,9 @@ export function SiteHeader() {
     <header className="flex items-center justify-between gap-4 px-6 py-4">
       <div className="flex items-center gap-6">
         <Wordmark />
+        <Link href="/daily" className="text-sm text-[var(--gold)] hover:text-[var(--accent)]">
+          Daily
+        </Link>
         <Link href="/features" className="hidden text-sm text-[var(--muted)] hover:text-[var(--accent)] sm:inline">
           Features
         </Link>
@@ -68,6 +71,8 @@ export function SiteFooter() {
       Set everything up from the dashboard. In Discord, <code className="font-mono">/config</code> switches
       features on and off.
       <div className="mt-3">
+        <a href="/daily" className="hover:text-[var(--accent)]">Daily</a>
+        {" · "}
         <a href="/features" className="hover:text-[var(--accent)]">Features</a>
         {" · "}
         <a href="/docs" className="hover:text-[var(--accent)]">Docs</a>

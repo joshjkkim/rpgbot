@@ -163,15 +163,29 @@ function turnsText(n: number): string {
   return n === 1 ? "this turn" : `for ${n} turns`;
 }
 
+/** A status that does its holder some good: HP back or a raised stat. */
+function helpful(s: StatusConfig | undefined): boolean {
+  return !!s && (s.hpPercentPerTurn > 0 || Object.values(s.stats ?? {}).some((v) => (v ?? 0) > 0));
+}
+
 function isDrawback(e: MoveEffect, statuses: Record<string, StatusConfig>): boolean {
   const self = effectTarget(e) === "self";
   switch (e.type) {
     case "hit": case "stun": return self;
     case "heal": return self ? e.percent < 0 : e.percent > 0;
     case "boost": return self ? e.percent < 0 : e.percent > 0;
-    case "status": return self === harmful(statuses[e.statusId]);
+    // Mixed ones (Enraged: ATK up, DEF down) are taken for their upside; the text says the cost.
+    case "status": return self ? !helpful(statuses[e.statusId]) : !harmful(statuses[e.statusId]);
     default: return false;
   }
+}
+
+/** What a status does while it's on, short: "ATK +40%, DEF −20%" or "loses 5% of max HP each turn". */
+function statusEffects(s: StatusConfig): string {
+  return [
+    s.hpPercentPerTurn ? `${s.hpPercentPerTurn > 0 ? "heals" : "loses"} ${Math.abs(s.hpPercentPerTurn)}% of max HP each turn` : "",
+    ...(Object.entries(s.stats ?? {}) as Array<[MoveStat, number]>).filter(([, v]) => v).map(([k, v]) => `${STAT_LABEL[k]} ${v > 0 ? "+" : "−"}${Math.abs(v)}%`),
+  ].filter(Boolean).join(", ");
 }
 
 function effectText(e: MoveEffect, statuses: Record<string, StatusConfig>): string {
@@ -193,7 +207,7 @@ function effectText(e: MoveEffect, statuses: Record<string, StatusConfig>): stri
     case "boost": text = `${self ? "Your" : "The target's"} ${STAT_LABEL[e.stat]} ${e.percent >= 0 ? "rises" : "drops"} ${Math.abs(e.percent)}% ${turnsText(e.turns)}`; break;
     case "status": {
       const s = statuses[e.statusId];
-      text = `${s ? `${s.emoji} ${s.name}` : e.statusId} on ${who} for ${e.turns} turn${e.turns === 1 ? "" : "s"}${(s?.maxStacks ?? 1) > 1 ? `, stacking up to ${s!.maxStacks}` : ""}`;
+      text = `${s ? `${s.emoji} ${s.name}` : e.statusId} on ${who} for ${e.turns} turn${e.turns === 1 ? "" : "s"}${s && statusEffects(s) ? ` (${statusEffects(s)})` : ""}${(s?.maxStacks ?? 1) > 1 ? `, stacking up to ${s!.maxStacks}` : ""}`;
       break;
     }
     case "stun": text = `Stuns ${who}: the next action is lost`; break;

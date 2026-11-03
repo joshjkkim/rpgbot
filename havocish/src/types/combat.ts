@@ -1,4 +1,8 @@
 import type { Requirements } from "./requirements.js";
+import type { MoveStat, MoveCondition, MoveEffect, MoveConfig, StatusConfig, EnemyMove, FighterState, FightOutcome } from "../content/fight.js";
+
+// The fight engine's own types live with it, so the website can run fights too.
+export type { MoveStat, MoveCondition, MoveEffect, MoveConfig, StatusConfig, EnemyMove, FighterState, FightOutcome } from "../content/fight.js";
 import type { CombatStats } from "../player/combat.js";
 import type { DbUserGuildProfile } from "./userprofile.js";
 import type { GuildConfig } from "./guild.js";
@@ -51,79 +55,6 @@ export interface EnemyConfig {
     image?: string;
 }
 
-// ─── Moves ────────────────────────────────────────────────────────────────────
-// Every fight move, a player's or an enemy's, is up to three effects built from
-// the same blocks (player/moves.ts). Owners combine them; nothing is themed.
-
-export type MoveStat = "atk" | "def" | "spd" | "crit";
-
-/** When an effect applies. "target" is the other fighter, "self" the one moving. */
-export type MoveCondition =
-    | { type: "targetHasStatus"; statusId: string }
-    | { type: "selfHpBelow"; percent: number }
-    | { type: "targetHpBelow"; percent: number }
-    | { type: "targetCharging" }
-    | { type: "targetGuarding" };
-
-export type MoveEffect = {
-    /** Who it lands on. Each block has its own default; "self" with a bad value is a drawback. */
-    target?: "self" | "target";
-    /** Percent chance it happens at all (default 100). */
-    chance?: number;
-    when?: MoveCondition;
-} & (
-    /** Damage: power x the normal hit; pierce ignores that % of defense; lifesteal heals that % of the damage. */
-    | { type: "hit"; power: number; hits?: number; pierce?: number; lifesteal?: number }
-    /** Takes that % less damage this turn. */
-    | { type: "guard"; percent: number }
-    /** When hit this turn: deals that % of the damage back, and/or stuns the attacker. */
-    | { type: "counter"; percent?: number; stun?: boolean }
-    /** Heals that % of max HP; negative loses it (never below 1 HP). */
-    | { type: "heal"; percent: number }
-    /** Changes a stat by that % for some turns, counting this one. */
-    | { type: "boost"; stat: MoveStat; percent: number; turns: number }
-    /** Puts an owner-made status on for some turns. */
-    | { type: "status"; statusId: string; turns: number }
-    /** The next action is lost; a wind-up is cancelled. */
-    | { type: "stun" }
-    | { type: "cleanse"; harmfulOnly?: boolean }
-);
-
-export interface MoveConfig {
-    id: string;
-    name: string;
-    emoji: string;
-    /** Shown before an enemy uses it, or while it winds up: "raises its club high…" */
-    telegraph?: string;
-    /** Turns it can't be used again after. */
-    cooldown?: number;
-    usesPerFight?: number;
-    /** Goes before the other side's move. */
-    firstStrike?: boolean;
-    /** Turns spent winding up before it goes off. */
-    charge?: number;
-    effects: MoveEffect[];
-    /** Set for moves players can have; without it the move is enemies-only. */
-    players?: {
-        requirements?: Requirements;
-        /** Only by learning it (a move scroll) or from gear, not by meeting the requirements. */
-        learned?: boolean;
-    };
-}
-
-/** An owner-made lasting effect: Bleeding, Poisoned, Blessed... */
-export interface StatusConfig {
-    id: string;
-    name: string;
-    emoji: string;
-    /** % of max HP each turn: negative hurts, positive heals. */
-    hpPercentPerTurn: number;
-    /** Stat changes while it's on, in %, per stack: { atk: -20 } is Weakened. */
-    stats?: Partial<Record<MoveStat, number>>;
-    /** Putting it on again adds a stack, up to this many (default 1: it just refreshes). */
-    maxStacks?: number;
-}
-
 /**
  * A place in the server: the channels (or whole categories) it covers, the
  * enemies met there, and how loudly fights show. The server's channel list
@@ -144,24 +75,6 @@ export interface PlaceConfig {
     /** The battle scene's sky colour, or a background image (URL) for it. */
     colour?: string;
     image?: string;
-}
-
-export interface EnemyMove {
-    moveId: string;
-    weight?: number;
-    when?: MoveCondition;
-}
-
-/** One side's fight state beyond HP: what is on it and what it's doing. */
-export interface FighterState {
-    statuses: Record<string, number>;               // status id -> turns left
-    /** Stacks of each status on, when above 1. */
-    stacks?: Record<string, number>;
-    boosts: { stat: MoveStat; percent: number; turns: number }[];
-    cooldowns: Record<string, number>;              // move id -> turns left
-    uses: Record<string, number>;
-    stunned?: boolean;
-    charging?: { moveId: string; turnsLeft: number };
 }
 
 // ─── In-memory fight state ────────────────────────────────────────────────────
@@ -252,8 +165,6 @@ export interface FightContext {
 
 // ─── Combat action result ─────────────────────────────────────────────────────
 // Returned by every CombatAction.execute(). The fight loop applies this.
-
-export type FightOutcome = "continue" | "win" | "loss" | "flee";
 
 export interface CombatActionResult {
     outcome: FightOutcome;
