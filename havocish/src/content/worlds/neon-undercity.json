@@ -1,0 +1,887 @@
+{
+  "id": "neon-undercity",
+  "name": "Neon Undercroft",
+  "prompt": "The neon undercity of a rain-soaked megacity: street gangs, rogue drones, back-alley clinics and a corrupt tower above it all.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "cyber-rat": {
+          "id": "cyber-rat",
+          "name": "Cyber Rat",
+          "emoji": "🐀",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "switchblade-slash",
+              "weight": 3
+            }
+          ]
+        },
+        "scrap-scavenger": {
+          "id": "scrap-scavenger",
+          "name": "Scrap Scavenger",
+          "emoji": "🧟",
+          "minLevel": 3,
+          "moves": [
+            {
+              "moveId": "shock-baton-jab",
+              "weight": 3
+            },
+            {
+              "moveId": "blink-dash",
+              "weight": 1
+            }
+          ]
+        },
+        "neon-punk": {
+          "id": "neon-punk",
+          "name": "Neon Punk",
+          "emoji": "🧑‍🎤",
+          "minLevel": 6,
+          "moves": [
+            {
+              "moveId": "switchblade-slash",
+              "weight": 3
+            },
+            {
+              "moveId": "overclock",
+              "weight": 1
+            }
+          ]
+        },
+        "gel-junkie": {
+          "id": "gel-junkie",
+          "name": "Gel Junkie",
+          "emoji": "🤪",
+          "minLevel": 9,
+          "moves": [
+            {
+              "moveId": "toxin-dart",
+              "weight": 3
+            },
+            {
+              "moveId": "blink-dash",
+              "weight": 1
+            }
+          ]
+        },
+        "razor-gang-thug": {
+          "id": "razor-gang-thug",
+          "name": "Razor Gang Thug",
+          "emoji": "🦹",
+          "minLevel": 12,
+          "moves": [
+            {
+              "moveId": "shock-baton-jab",
+              "weight": 3
+            },
+            {
+              "moveId": "piston-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "rogue-hacker": {
+          "id": "rogue-hacker",
+          "name": "Rogue Hacker",
+          "emoji": "👾",
+          "minLevel": 15,
+          "moves": [
+            {
+              "moveId": "signal-hack",
+              "weight": 3
+            },
+            {
+              "moveId": "emp-burst",
+              "weight": 1
+            }
+          ]
+        },
+        "chrome-bouncer": {
+          "id": "chrome-bouncer",
+          "name": "Chrome Bouncer",
+          "emoji": "💪",
+          "minLevel": 18,
+          "moves": [
+            {
+              "moveId": "piston-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "riot-barrier",
+              "weight": 1
+            }
+          ]
+        },
+        "razor-queen": {
+          "id": "razor-queen",
+          "name": "Razor Queen",
+          "emoji": "👸",
+          "minLevel": 20,
+          "moves": [
+            {
+              "moveId": "switchblade-slash",
+              "weight": 3
+            },
+            {
+              "moveId": "overclock",
+              "weight": 1
+            },
+            {
+              "moveId": "blink-dash",
+              "weight": 1
+            }
+          ]
+        },
+        "rogue-drone": {
+          "id": "rogue-drone",
+          "name": "Rogue Drone",
+          "emoji": "🛸",
+          "minLevel": 22,
+          "moves": [
+            {
+              "moveId": "blink-dash",
+              "weight": 3
+            },
+            {
+              "moveId": "micro-missile-volley",
+              "weight": 1
+            }
+          ]
+        },
+        "rooftop-sniper": {
+          "id": "rooftop-sniper",
+          "name": "Rooftop Sniper",
+          "emoji": "🎯",
+          "minLevel": 25,
+          "moves": [
+            {
+              "moveId": "micro-missile-volley",
+              "weight": 3
+            },
+            {
+              "moveId": "toxin-dart",
+              "weight": 1
+            }
+          ]
+        },
+        "scrap-mech": {
+          "id": "scrap-mech",
+          "name": "Scrap Mech",
+          "emoji": "🤖",
+          "minLevel": 28,
+          "moves": [
+            {
+              "moveId": "piston-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "emp-burst",
+              "weight": 1
+            },
+            {
+              "moveId": "riot-barrier",
+              "weight": 1
+            }
+          ]
+        },
+        "spire-guard": {
+          "id": "spire-guard",
+          "name": "Spire Guard",
+          "emoji": "💂",
+          "minLevel": 32,
+          "moves": [
+            {
+              "moveId": "shock-baton-jab",
+              "weight": 3
+            },
+            {
+              "moveId": "riot-barrier",
+              "weight": 1
+            }
+          ]
+        },
+        "spire-enforcer": {
+          "id": "spire-enforcer",
+          "name": "Spire Enforcer",
+          "emoji": "🦾",
+          "minLevel": 35,
+          "moves": [
+            {
+              "moveId": "piston-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "signal-hack",
+              "weight": 1
+            },
+            {
+              "moveId": "overclock",
+              "weight": 1
+            }
+          ]
+        },
+        "ghost-assassin": {
+          "id": "ghost-assassin",
+          "name": "Ghost Assassin",
+          "emoji": "🥷",
+          "minLevel": 38,
+          "moves": [
+            {
+              "moveId": "blink-dash",
+              "weight": 3
+            },
+            {
+              "moveId": "toxin-dart",
+              "weight": 1
+            },
+            {
+              "moveId": "switchblade-slash",
+              "weight": 1
+            }
+          ]
+        },
+        "the-overseer": {
+          "id": "the-overseer",
+          "name": "The Overseer",
+          "emoji": "🧠",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "emp-burst",
+              "weight": 3
+            },
+            {
+              "moveId": "micro-missile-volley",
+              "weight": 1
+            },
+            {
+              "moveId": "overclock",
+              "weight": 1
+            },
+            {
+              "moveId": "signal-hack",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "shock-baton-jab": {
+          "id": "shock-baton-jab",
+          "name": "Shock Baton Jab",
+          "emoji": "⚡",
+          "telegraph": "thumbs the baton's charge switch…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "piston-slam": {
+          "id": "piston-slam",
+          "name": "Piston Slam",
+          "emoji": "🔨",
+          "telegraph": "hydraulics whine as it winds up…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "blink-dash": {
+          "id": "blink-dash",
+          "name": "Blink Dash",
+          "emoji": "💨",
+          "telegraph": "flickers, a blur of afterimages…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "toxin-dart": {
+          "id": "toxin-dart",
+          "name": "Toxin Dart",
+          "emoji": "☣️",
+          "telegraph": "levels a dripping green injector…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "signal-hack": {
+          "id": "signal-hack",
+          "name": "Signal Hack",
+          "emoji": "📉",
+          "telegraph": "static crawls across your vision…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "overclock": {
+          "id": "overclock",
+          "name": "Overclock",
+          "emoji": "🔥",
+          "telegraph": "vents steam, its eyes burning red…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "riot-barrier": {
+          "id": "riot-barrier",
+          "name": "Riot Barrier",
+          "emoji": "🛡️",
+          "telegraph": "snaps up a humming energy shield…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "emp-burst": {
+          "id": "emp-burst",
+          "name": "EMP Burst",
+          "emoji": "🌩️",
+          "telegraph": "capacitors whine to a shrill pitch…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        },
+        "switchblade-slash": {
+          "id": "switchblade-slash",
+          "name": "Switchblade Slash",
+          "emoji": "🔪",
+          "telegraph": "flicks a blade out of its sleeve…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "micro-missile-volley": {
+          "id": "micro-missile-volley",
+          "name": "Micro-Missile Volley",
+          "emoji": "🚀",
+          "telegraph": "pods click open on its shoulder…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Toxin",
+          "emoji": "☣️",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Glitched",
+          "emoji": "📉",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Overclocked",
+          "emoji": "🔥",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "rusty-pipe": {
+          "id": "rusty-pipe",
+          "name": "Rusty Pipe",
+          "emoji": "🔧",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "rain-hood": {
+          "id": "rain-hood",
+          "name": "Rain Hood",
+          "emoji": "🧢",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "synth-leather-jacket": {
+          "id": "synth-leather-jacket",
+          "name": "Synth-Leather Jacket",
+          "emoji": "🧥",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "shock-baton": {
+          "id": "shock-baton",
+          "name": "Shock Baton",
+          "emoji": "⚡",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "grip-gloves": {
+          "id": "grip-gloves",
+          "name": "Grip Gloves",
+          "emoji": "🧤",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "magnet-boots": {
+          "id": "magnet-boots",
+          "name": "Magnet Boots",
+          "emoji": "🥾",
+          "rarity": "uncommon",
+          "equipSlot": "feet"
+        },
+        "armored-cargo-pants": {
+          "id": "armored-cargo-pants",
+          "name": "Armored Cargo Pants",
+          "emoji": "👖",
+          "rarity": "uncommon",
+          "equipSlot": "legs"
+        },
+        "riot-shield": {
+          "id": "riot-shield",
+          "name": "Riot Shield",
+          "emoji": "🛡️",
+          "rarity": "rare",
+          "equipSlot": "shield"
+        },
+        "targeting-visor": {
+          "id": "targeting-visor",
+          "name": "Targeting Visor",
+          "emoji": "🕶️",
+          "rarity": "rare",
+          "equipSlot": "head"
+        },
+        "pulse-pistol": {
+          "id": "pulse-pistol",
+          "name": "Pulse Pistol",
+          "emoji": "🔫",
+          "rarity": "rare",
+          "equipSlot": "weapon"
+        },
+        "aramid-weave-vest": {
+          "id": "aramid-weave-vest",
+          "name": "Aramid Weave Vest",
+          "emoji": "🦺",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "ghost-runner-greaves": {
+          "id": "ghost-runner-greaves",
+          "name": "Ghost Runner Greaves",
+          "emoji": "🦿",
+          "rarity": "epic",
+          "equipSlot": "legs"
+        },
+        "monofilament-katana": {
+          "id": "monofilament-katana",
+          "name": "Monofilament Katana",
+          "emoji": "🗡️",
+          "rarity": "epic",
+          "equipSlot": "weapon"
+        },
+        "neural-booster-implant": {
+          "id": "neural-booster-implant",
+          "name": "Neural Booster Implant",
+          "emoji": "💍",
+          "rarity": "epic",
+          "equipSlot": "accessory"
+        },
+        "spire-aegis-plate": {
+          "id": "spire-aegis-plate",
+          "name": "Spire Aegis Plate",
+          "emoji": "🔰",
+          "rarity": "epic",
+          "equipSlot": "body"
+        },
+        "helix-railgun": {
+          "id": "helix-railgun",
+          "name": "Helix Railgun",
+          "emoji": "💥",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "halo-circuit": {
+          "id": "halo-circuit",
+          "name": "Halo Circuit",
+          "emoji": "👑",
+          "rarity": "legendary",
+          "equipSlot": "accessory"
+        },
+        "street-patch": {
+          "id": "street-patch",
+          "name": "Street Patch",
+          "emoji": "🩹",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "combat-stim": {
+          "id": "combat-stim",
+          "name": "Combat Stim",
+          "emoji": "💉",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "nanite-flood": {
+          "id": "nanite-flood",
+          "name": "Nanite Flood",
+          "emoji": "🧬",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "crushed-cans": {
+          "id": "crushed-cans",
+          "name": "Crushed Cans",
+          "emoji": "🥫",
+          "rarity": "poor"
+        },
+        "burnt-circuit-board": {
+          "id": "burnt-circuit-board",
+          "name": "Burnt Circuit Board",
+          "emoji": "🔌",
+          "rarity": "common"
+        },
+        "gold-plated-chip": {
+          "id": "gold-plated-chip",
+          "name": "Gold-Plated Chip",
+          "emoji": "🪙",
+          "rarity": "rare"
+        },
+        "greasy-gears": {
+          "id": "greasy-gears",
+          "name": "Greasy Gears",
+          "emoji": "⚙️",
+          "rarity": "common"
+        },
+        "working-servo": {
+          "id": "working-servo",
+          "name": "Working Servo",
+          "emoji": "🔧",
+          "rarity": "uncommon"
+        },
+        "prototype-actuator": {
+          "id": "prototype-actuator",
+          "name": "Prototype Actuator",
+          "emoji": "🦾",
+          "rarity": "rare"
+        },
+        "alloy-foil": {
+          "id": "alloy-foil",
+          "name": "Alloy Foil",
+          "emoji": "📎",
+          "rarity": "uncommon"
+        },
+        "fiber-optics": {
+          "id": "fiber-optics",
+          "name": "Fiber Optics",
+          "emoji": "🧵",
+          "rarity": "uncommon"
+        },
+        "quantum-shard": {
+          "id": "quantum-shard",
+          "name": "Quantum Shard",
+          "emoji": "🔷",
+          "rarity": "epic"
+        },
+        "coupon-codes": {
+          "id": "coupon-codes",
+          "name": "Coupon Codes",
+          "emoji": "🏷️",
+          "rarity": "poor"
+        },
+        "chat-logs": {
+          "id": "chat-logs",
+          "name": "Chat Logs",
+          "emoji": "💬",
+          "rarity": "common"
+        },
+        "stolen-credentials": {
+          "id": "stolen-credentials",
+          "name": "Stolen Credentials",
+          "emoji": "🔑",
+          "rarity": "rare"
+        },
+        "turf-maps": {
+          "id": "turf-maps",
+          "name": "Turf Maps",
+          "emoji": "🗺️",
+          "rarity": "common"
+        },
+        "dirty-ledger": {
+          "id": "dirty-ledger",
+          "name": "Dirty Ledger",
+          "emoji": "📒",
+          "rarity": "uncommon"
+        },
+        "gang-vault-key": {
+          "id": "gang-vault-key",
+          "name": "Gang Vault Key",
+          "emoji": "🗝️",
+          "rarity": "rare"
+        },
+        "executive-memos": {
+          "id": "executive-memos",
+          "name": "Executive Memos",
+          "emoji": "📄",
+          "rarity": "uncommon"
+        },
+        "blueprints": {
+          "id": "blueprints",
+          "name": "Blueprints",
+          "emoji": "📐",
+          "rarity": "uncommon"
+        },
+        "master-override": {
+          "id": "master-override",
+          "name": "Master Override",
+          "emoji": "🔓",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "scrap-diving": {
+          "id": "scrap-diving",
+          "name": "Scrap Diving",
+          "emoji": "🗑️",
+          "locations": {
+            "back-alley-dumpsters": {
+              "id": "back-alley-dumpsters",
+              "name": "Back-Alley Dumpsters",
+              "emoji": "🚮",
+              "loot": [
+                {
+                  "itemId": "crushed-cans",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "burnt-circuit-board",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "gold-plated-chip",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "junkyard-heaps": {
+              "id": "junkyard-heaps",
+              "name": "Junkyard Heaps",
+              "emoji": "🏚️",
+              "loot": [
+                {
+                  "itemId": "greasy-gears",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "working-servo",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "prototype-actuator",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "spire-waste-chute": {
+              "id": "spire-waste-chute",
+              "name": "Spire Waste Chute",
+              "emoji": "🕳️",
+              "loot": [
+                {
+                  "itemId": "alloy-foil",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "fiber-optics",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "quantum-shard",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "net-fishing": {
+          "id": "net-fishing",
+          "name": "Net Fishing",
+          "emoji": "📶",
+          "locations": {
+            "public-wifi": {
+              "id": "public-wifi",
+              "name": "Public Wifi",
+              "emoji": "📶",
+              "loot": [
+                {
+                  "itemId": "coupon-codes",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "chat-logs",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "stolen-credentials",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "gang-servers": {
+              "id": "gang-servers",
+              "name": "Gang Servers",
+              "emoji": "🖧",
+              "loot": [
+                {
+                  "itemId": "turf-maps",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "dirty-ledger",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "gang-vault-key",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "spire-mainframe": {
+              "id": "spire-mainframe",
+              "name": "Spire Mainframe",
+              "emoji": "🏢",
+              "loot": [
+                {
+                  "itemId": "executive-memos",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "blueprints",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "master-override",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -259,6 +259,16 @@ CREATE TABLE IF NOT EXISTS public.ai_limits (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ─── daily_overrides ─────────────────────────────────────────────────────────
+-- An admin's changes to one day of the website's Daily. See
+-- migrations/009_daily_overrides.sql.
+
+CREATE TABLE IF NOT EXISTS public.daily_overrides (
+    day        INTEGER     PRIMARY KEY,
+    override   JSONB       NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed

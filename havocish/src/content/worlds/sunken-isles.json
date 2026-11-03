@@ -1,0 +1,912 @@
+{
+  "id": "sunken-isles",
+  "name": "The Drowned Reach",
+  "prompt": "A sunken pirate archipelago where crews dive for treasure among coral ruins and drowned ghosts.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "scuttler-crab": {
+          "id": "scuttler-crab",
+          "name": "Scuttler Crab",
+          "emoji": "🦀",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "claw-swipe",
+              "weight": 3
+            }
+          ]
+        },
+        "bilge-rat": {
+          "id": "bilge-rat",
+          "name": "Bilge Rat",
+          "emoji": "🐀",
+          "minLevel": 3,
+          "moves": [
+            {
+              "moveId": "claw-swipe",
+              "weight": 3
+            },
+            {
+              "moveId": "eel-snap",
+              "weight": 1
+            }
+          ]
+        },
+        "gulper-eel": {
+          "id": "gulper-eel",
+          "name": "Gulper Eel",
+          "emoji": "🐍",
+          "minLevel": 6,
+          "moves": [
+            {
+              "moveId": "eel-snap",
+              "weight": 3
+            },
+            {
+              "moveId": "venomous-sting",
+              "weight": 1
+            }
+          ]
+        },
+        "drowned-deckhand": {
+          "id": "drowned-deckhand",
+          "name": "Drowned Deckhand",
+          "emoji": "🧟",
+          "minLevel": 9,
+          "moves": [
+            {
+              "moveId": "rusted-cutlass",
+              "weight": 3
+            }
+          ]
+        },
+        "stingjelly": {
+          "id": "stingjelly",
+          "name": "Stingjelly",
+          "emoji": "🪼",
+          "minLevel": 12,
+          "moves": [
+            {
+              "moveId": "venomous-sting",
+              "weight": 3
+            },
+            {
+              "moveId": "siren-song",
+              "weight": 1
+            }
+          ]
+        },
+        "reef-siren": {
+          "id": "reef-siren",
+          "name": "Reef Siren",
+          "emoji": "🧜",
+          "minLevel": 14,
+          "moves": [
+            {
+              "moveId": "siren-song",
+              "weight": 3
+            },
+            {
+              "moveId": "drowned-wail",
+              "weight": 1
+            }
+          ]
+        },
+        "coral-golem": {
+          "id": "coral-golem",
+          "name": "Coral Golem",
+          "emoji": "🗿",
+          "minLevel": 17,
+          "moves": [
+            {
+              "moveId": "tidal-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "barnacle-shell",
+              "weight": 1
+            }
+          ]
+        },
+        "phantom-cutthroat": {
+          "id": "phantom-cutthroat",
+          "name": "Phantom Cutthroat",
+          "emoji": "💀",
+          "minLevel": 20,
+          "moves": [
+            {
+              "moveId": "rusted-cutlass",
+              "weight": 3
+            },
+            {
+              "moveId": "drowned-wail",
+              "weight": 1
+            },
+            {
+              "moveId": "eel-snap",
+              "weight": 1
+            }
+          ]
+        },
+        "wailing-gunner": {
+          "id": "wailing-gunner",
+          "name": "Wailing Gunner",
+          "emoji": "👻",
+          "minLevel": 22,
+          "moves": [
+            {
+              "moveId": "drowned-wail",
+              "weight": 3
+            },
+            {
+              "moveId": "tidal-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "barnacled-bosun": {
+          "id": "barnacled-bosun",
+          "name": "Barnacled Bosun",
+          "emoji": "⚓",
+          "minLevel": 25,
+          "moves": [
+            {
+              "moveId": "rusted-cutlass",
+              "weight": 3
+            },
+            {
+              "moveId": "barnacle-shell",
+              "weight": 1
+            },
+            {
+              "moveId": "blood-frenzy",
+              "weight": 1
+            }
+          ]
+        },
+        "captain-vane": {
+          "id": "captain-vane",
+          "name": "Captain Vane",
+          "emoji": "🏴‍☠️",
+          "minLevel": 28,
+          "moves": [
+            {
+              "moveId": "rusted-cutlass",
+              "weight": 3
+            },
+            {
+              "moveId": "drowned-wail",
+              "weight": 1
+            },
+            {
+              "moveId": "blood-frenzy",
+              "weight": 1
+            }
+          ]
+        },
+        "abyssal-angler": {
+          "id": "abyssal-angler",
+          "name": "Abyssal Angler",
+          "emoji": "🐟",
+          "minLevel": 32,
+          "moves": [
+            {
+              "moveId": "eel-snap",
+              "weight": 3
+            },
+            {
+              "moveId": "siren-song",
+              "weight": 1
+            },
+            {
+              "moveId": "tidal-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "kraken-spawn": {
+          "id": "kraken-spawn",
+          "name": "Kraken Spawn",
+          "emoji": "🦑",
+          "minLevel": 35,
+          "moves": [
+            {
+              "moveId": "kraken-crush",
+              "weight": 3
+            },
+            {
+              "moveId": "venomous-sting",
+              "weight": 1
+            }
+          ]
+        },
+        "tideborn-revenant": {
+          "id": "tideborn-revenant",
+          "name": "Tideborn Revenant",
+          "emoji": "🌊",
+          "minLevel": 37,
+          "moves": [
+            {
+              "moveId": "kraken-crush",
+              "weight": 3
+            },
+            {
+              "moveId": "drowned-wail",
+              "weight": 1
+            },
+            {
+              "moveId": "blood-frenzy",
+              "weight": 1
+            }
+          ]
+        },
+        "the-drowned-admiral": {
+          "id": "the-drowned-admiral",
+          "name": "The Drowned Admiral",
+          "emoji": "☠️",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "kraken-crush",
+              "weight": 3
+            },
+            {
+              "moveId": "drowned-wail",
+              "weight": 1
+            },
+            {
+              "moveId": "blood-frenzy",
+              "weight": 1
+            },
+            {
+              "moveId": "tidal-slam",
+              "weight": 1
+            },
+            {
+              "moveId": "siren-song",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "claw-swipe": {
+          "id": "claw-swipe",
+          "name": "Claw Swipe",
+          "emoji": "🦀",
+          "telegraph": "clicks its claws and scuttles sideways…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "rusted-cutlass": {
+          "id": "rusted-cutlass",
+          "name": "Rusted Cutlass",
+          "emoji": "🗡️",
+          "telegraph": "raises a corroded blade overhead…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "tidal-slam": {
+          "id": "tidal-slam",
+          "name": "Tidal Slam",
+          "emoji": "🌊",
+          "telegraph": "rears back as the water pulls away…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "kraken-crush": {
+          "id": "kraken-crush",
+          "name": "Kraken Crush",
+          "emoji": "🐙",
+          "telegraph": "coils a huge tentacle around you…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "eel-snap": {
+          "id": "eel-snap",
+          "name": "Eel Snap",
+          "emoji": "⚡",
+          "telegraph": "darts out of the shadows in a blur…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "venomous-sting": {
+          "id": "venomous-sting",
+          "name": "Venomous Sting",
+          "emoji": "🪼",
+          "telegraph": "trails glowing tendrils toward you…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "drowned-wail": {
+          "id": "drowned-wail",
+          "name": "Drowned Wail",
+          "emoji": "👻",
+          "telegraph": "opens a hollow mouth and moans like the tide…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "blood-frenzy": {
+          "id": "blood-frenzy",
+          "name": "Blood Frenzy",
+          "emoji": "🦈",
+          "telegraph": "thrashes as the water turns red…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "barnacle-shell": {
+          "id": "barnacle-shell",
+          "name": "Barnacle Shell",
+          "emoji": "🐚",
+          "telegraph": "tucks in behind a crusted shell…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "siren-song": {
+          "id": "siren-song",
+          "name": "Siren Song",
+          "emoji": "🎶",
+          "telegraph": "hums a sweet, haunting melody…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Venom",
+          "emoji": "☠️",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Waterlogged",
+          "emoji": "💧",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Bloodfrenzy",
+          "emoji": "🩸",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "rusty-cutlass": {
+          "id": "rusty-cutlass",
+          "name": "Rusty Cutlass",
+          "emoji": "🗡️",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "boarding-axe": {
+          "id": "boarding-axe",
+          "name": "Boarding Axe",
+          "emoji": "🪓",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "coral-edged-saber": {
+          "id": "coral-edged-saber",
+          "name": "Coral-Edged Saber",
+          "emoji": "⚔️",
+          "rarity": "rare",
+          "equipSlot": "weapon"
+        },
+        "trident-of-the-drowned-king": {
+          "id": "trident-of-the-drowned-king",
+          "name": "Trident of the Drowned King",
+          "emoji": "🔱",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "faded-bandana": {
+          "id": "faded-bandana",
+          "name": "Faded Bandana",
+          "emoji": "🧣",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "tricorn-of-the-tides": {
+          "id": "tricorn-of-the-tides",
+          "name": "Tricorn of the Tides",
+          "emoji": "🎩",
+          "rarity": "uncommon",
+          "equipSlot": "head"
+        },
+        "ghost-captains-hat": {
+          "id": "ghost-captains-hat",
+          "name": "Ghost Captain's Hat",
+          "emoji": "👒",
+          "rarity": "epic",
+          "equipSlot": "head"
+        },
+        "sailcloth-vest": {
+          "id": "sailcloth-vest",
+          "name": "Sailcloth Vest",
+          "emoji": "🦺",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "shell-mail": {
+          "id": "shell-mail",
+          "name": "Shell Mail",
+          "emoji": "🛡️",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "kraken-hide-coat": {
+          "id": "kraken-hide-coat",
+          "name": "Kraken-Hide Coat",
+          "emoji": "🧥",
+          "rarity": "epic",
+          "equipSlot": "body"
+        },
+        "deckhand-breeches": {
+          "id": "deckhand-breeches",
+          "name": "Deckhand Breeches",
+          "emoji": "👖",
+          "rarity": "common",
+          "equipSlot": "legs"
+        },
+        "coral-greaves": {
+          "id": "coral-greaves",
+          "name": "Coral Greaves",
+          "emoji": "🦵",
+          "rarity": "rare",
+          "equipSlot": "legs"
+        },
+        "rope-wrapped-gloves": {
+          "id": "rope-wrapped-gloves",
+          "name": "Rope-Wrapped Gloves",
+          "emoji": "🧤",
+          "rarity": "common",
+          "equipSlot": "hands"
+        },
+        "divers-gauntlets": {
+          "id": "divers-gauntlets",
+          "name": "Diver's Gauntlets",
+          "emoji": "🥊",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "barnacle-boots": {
+          "id": "barnacle-boots",
+          "name": "Barnacle Boots",
+          "emoji": "🥾",
+          "rarity": "uncommon",
+          "equipSlot": "feet"
+        },
+        "deepwalker-boots": {
+          "id": "deepwalker-boots",
+          "name": "Deepwalker Boots",
+          "emoji": "👢",
+          "rarity": "epic",
+          "equipSlot": "feet"
+        },
+        "barrel-lid-buckler": {
+          "id": "barrel-lid-buckler",
+          "name": "Barrel-Lid Buckler",
+          "emoji": "🪵",
+          "rarity": "common",
+          "equipSlot": "shield"
+        },
+        "ships-wheel-shield": {
+          "id": "ships-wheel-shield",
+          "name": "Ship's Wheel Shield",
+          "emoji": "☸️",
+          "rarity": "rare",
+          "equipSlot": "shield"
+        },
+        "sea-glass-charm": {
+          "id": "sea-glass-charm",
+          "name": "Sea Glass Charm",
+          "emoji": "🔷",
+          "rarity": "uncommon",
+          "equipSlot": "accessory"
+        },
+        "ghost-pearl-pendant": {
+          "id": "ghost-pearl-pendant",
+          "name": "Ghost Pearl Pendant",
+          "emoji": "📿",
+          "rarity": "legendary",
+          "equipSlot": "accessory"
+        },
+        "tot-of-rum": {
+          "id": "tot-of-rum",
+          "name": "Tot of Rum",
+          "emoji": "🥃",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "kelp-tonic": {
+          "id": "kelp-tonic",
+          "name": "Kelp Tonic",
+          "emoji": "🌿",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "mermaids-tears": {
+          "id": "mermaids-tears",
+          "name": "Mermaid's Tears",
+          "emoji": "💧",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "copper-doubloon": {
+          "id": "copper-doubloon",
+          "name": "Copper Doubloon",
+          "emoji": "🪙",
+          "rarity": "poor"
+        },
+        "message-bottle": {
+          "id": "message-bottle",
+          "name": "Message Bottle",
+          "emoji": "🍾",
+          "rarity": "common"
+        },
+        "jeweled-goblet": {
+          "id": "jeweled-goblet",
+          "name": "Jeweled Goblet",
+          "emoji": "🏆",
+          "rarity": "rare"
+        },
+        "broken-compass": {
+          "id": "broken-compass",
+          "name": "Broken Compass",
+          "emoji": "🧭",
+          "rarity": "common"
+        },
+        "gold-chain-link": {
+          "id": "gold-chain-link",
+          "name": "Gold Chain Link",
+          "emoji": "⛓️",
+          "rarity": "uncommon"
+        },
+        "treasure-map-fragment": {
+          "id": "treasure-map-fragment",
+          "name": "Treasure Map Fragment",
+          "emoji": "🗺️",
+          "rarity": "rare"
+        },
+        "silver-ingot": {
+          "id": "silver-ingot",
+          "name": "Silver Ingot",
+          "emoji": "🪨",
+          "rarity": "uncommon"
+        },
+        "gilded-pistol": {
+          "id": "gilded-pistol",
+          "name": "Gilded Pistol",
+          "emoji": "🔫",
+          "rarity": "uncommon"
+        },
+        "crown-shard": {
+          "id": "crown-shard",
+          "name": "Crown Shard",
+          "emoji": "👑",
+          "rarity": "epic"
+        },
+        "silver-sardine": {
+          "id": "silver-sardine",
+          "name": "Silver Sardine",
+          "emoji": "🐟",
+          "rarity": "poor"
+        },
+        "red-snapper": {
+          "id": "red-snapper",
+          "name": "Red Snapper",
+          "emoji": "🐠",
+          "rarity": "common"
+        },
+        "gilded-carp": {
+          "id": "gilded-carp",
+          "name": "Gilded Carp",
+          "emoji": "✨",
+          "rarity": "rare"
+        },
+        "wreck-grouper": {
+          "id": "wreck-grouper",
+          "name": "Wreck Grouper",
+          "emoji": "🐡",
+          "rarity": "common"
+        },
+        "lanternfish": {
+          "id": "lanternfish",
+          "name": "Lanternfish",
+          "emoji": "🔦",
+          "rarity": "uncommon"
+        },
+        "ghost-ray": {
+          "id": "ghost-ray",
+          "name": "Ghost Ray",
+          "emoji": "👻",
+          "rarity": "rare"
+        },
+        "black-eel": {
+          "id": "black-eel",
+          "name": "Black Eel",
+          "emoji": "🐍",
+          "rarity": "uncommon"
+        },
+        "viperfish": {
+          "id": "viperfish",
+          "name": "Viperfish",
+          "emoji": "🦷",
+          "rarity": "uncommon"
+        },
+        "abyssal-oarfish": {
+          "id": "abyssal-oarfish",
+          "name": "Abyssal Oarfish",
+          "emoji": "🐉",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "treasure-diving": {
+          "id": "treasure-diving",
+          "name": "Treasure Diving",
+          "emoji": "🤿",
+          "locations": {
+            "sunlit-wreckfield": {
+              "id": "sunlit-wreckfield",
+              "name": "Sunlit Wreckfield",
+              "emoji": "☀️",
+              "loot": [
+                {
+                  "itemId": "copper-doubloon",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "message-bottle",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "jeweled-goblet",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "coral-vaults": {
+              "id": "coral-vaults",
+              "name": "Coral Vaults",
+              "emoji": "🪸",
+              "loot": [
+                {
+                  "itemId": "broken-compass",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "gold-chain-link",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "treasure-map-fragment",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "admirals-hold": {
+              "id": "admirals-hold",
+              "name": "Admiral's Hold",
+              "emoji": "🌑",
+              "loot": [
+                {
+                  "itemId": "silver-ingot",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "gilded-pistol",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "crown-shard",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "deep-fishing": {
+          "id": "deep-fishing",
+          "name": "Deep Fishing",
+          "emoji": "🎣",
+          "locations": {
+            "pier-pilings": {
+              "id": "pier-pilings",
+              "name": "Pier Pilings",
+              "emoji": "🌉",
+              "loot": [
+                {
+                  "itemId": "silver-sardine",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "red-snapper",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "gilded-carp",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "ghost-fleet-anchorage": {
+              "id": "ghost-fleet-anchorage",
+              "name": "Ghost Fleet Anchorage",
+              "emoji": "⚓",
+              "loot": [
+                {
+                  "itemId": "wreck-grouper",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "lanternfish",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "ghost-ray",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "trench-edge": {
+              "id": "trench-edge",
+              "name": "Trench Edge",
+              "emoji": "🌑",
+              "loot": [
+                {
+                  "itemId": "black-eel",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "viperfish",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "abyssal-oarfish",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

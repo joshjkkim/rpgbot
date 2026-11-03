@@ -2,6 +2,13 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### Fixed
+- **Sunder hits their ATK, not your DEF.** In the Classic Fantasy pack, Sunder lowered your own defense by mistake. It now lowers the enemy's ATK by 30% for 3 turns: about a third less damage coming at you. Frontier Station's Armor Shred had the same mistake; it's now Weapon Jam 🔧 and does the same. Re-add the pack from the Library to pick it up (anything you edited is kept).
+- **Quick Jab interrupts.** It still goes first, and now also stops an enemy that's winding up. Battle Cry's rage lasts 4 turns instead of 3, so the turn spent on it pays off. Frontier Station's Quick Draw and Combat Stims match.
+- **Statuses say what they do.** A move that puts on a status now shows its effect too: "😤 Enraged on you for 4 turns (ATK +40%, DEF −20%)". A status with an upside is no longer listed as a drawback.
+
 ## v0.18.2 · October 30, 2026
 
 A quick follow-up: fights now point you at your quest, managers pick any enemy (or a world boss) right in `/fight`, and the Helper talks in plain words.

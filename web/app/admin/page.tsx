@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/app/lib/admin";
@@ -65,7 +66,10 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
+      <div className="flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
+        <Link href="/admin/daily" className="text-sm underline">Daily →</Link>
+      </div>
       <p className="mt-1 text-sm text-[var(--muted)]">
         AI today: {spent === null ? "no usage table yet" : `${dollars(spent)} of ${dollars(DAILY_BUDGET)}`} · last 30 days: {dollars(month)} · {rows.length} servers.
         Empty limits use the defaults ({DEFAULT_LIMITS.helperDaily} helper messages a day, {DEFAULT_LIMITS.packs} worlds).

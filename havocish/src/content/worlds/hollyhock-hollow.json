@@ -1,0 +1,893 @@
+{
+  "id": "hollyhock-hollow",
+  "name": "Hollyhock Hollow",
+  "content": {
+    "combat": {
+      "enemies": {
+        "sly-fox": {
+          "id": "sly-fox",
+          "name": "Sly Fox",
+          "emoji": "🦊",
+          "moves": [
+            {
+              "moveId": "dizzy-dance",
+              "weight": 3
+            },
+            {
+              "moveId": "pounce",
+              "weight": 1
+            }
+          ],
+          "minLevel": 23
+        },
+        "barn-rat": {
+          "id": "barn-rat",
+          "name": "Barn Rat",
+          "emoji": "🐀",
+          "moves": [
+            {
+              "moveId": "nibble",
+              "weight": 3
+            },
+            {
+              "moveId": "sour-berry-spit",
+              "weight": 1
+            }
+          ],
+          "minLevel": 16
+        },
+        "field-mouse": {
+          "id": "field-mouse",
+          "name": "Field Mouse",
+          "emoji": "🐭",
+          "moves": [
+            {
+              "moveId": "nibble",
+              "weight": 3
+            },
+            {
+              "moveId": "dash-and-grab",
+              "weight": 1
+            }
+          ],
+          "minLevel": 1
+        },
+        "tunnel-mole": {
+          "id": "tunnel-mole",
+          "name": "Tunnel Mole",
+          "emoji": "🦫",
+          "moves": [
+            {
+              "moveId": "burrow-ambush",
+              "weight": 3
+            },
+            {
+              "moveId": "yawn",
+              "weight": 1
+            }
+          ],
+          "minLevel": 33
+        },
+        "carrot-bunny": {
+          "id": "carrot-bunny",
+          "name": "Carrot Bunny",
+          "emoji": "🐰",
+          "moves": [
+            {
+              "moveId": "nibble",
+              "weight": 3
+            },
+            {
+              "moveId": "pounce",
+              "weight": 1
+            }
+          ],
+          "minLevel": 7
+        },
+        "seed-sparrow": {
+          "id": "seed-sparrow",
+          "name": "Seed Sparrow",
+          "emoji": "🐦",
+          "moves": [
+            {
+              "moveId": "peck",
+              "weight": 3
+            },
+            {
+              "moveId": "dash-and-grab",
+              "weight": 1
+            }
+          ],
+          "minLevel": 4
+        },
+        "truffle-boar": {
+          "id": "truffle-boar",
+          "name": "Truffle Boar",
+          "emoji": "🐗",
+          "moves": [
+            {
+              "moveId": "garden-stampede",
+              "weight": 3
+            },
+            {
+              "moveId": "puff-up",
+              "weight": 1
+            },
+            {
+              "moveId": "dizzy-dance",
+              "weight": 1
+            }
+          ],
+          "minLevel": 37
+        },
+        "grumpy-badger": {
+          "id": "grumpy-badger",
+          "name": "Grumpy Badger",
+          "emoji": "🦡",
+          "moves": [
+            {
+              "moveId": "puff-up",
+              "weight": 3
+            },
+            {
+              "moveId": "pounce",
+              "weight": 1
+            },
+            {
+              "moveId": "prickly-curl",
+              "weight": 1
+            }
+          ],
+          "minLevel": 29
+        },
+        "acorn-squirrel": {
+          "id": "acorn-squirrel",
+          "name": "Acorn Squirrel",
+          "emoji": "🐿️",
+          "moves": [
+            {
+              "moveId": "dash-and-grab",
+              "weight": 3
+            },
+            {
+              "moveId": "puff-up",
+              "weight": 1
+            }
+          ],
+          "minLevel": 11
+        },
+        "apple-hedgehog": {
+          "id": "apple-hedgehog",
+          "name": "Apple Hedgehog",
+          "emoji": "🦔",
+          "moves": [
+            {
+              "moveId": "prickly-curl",
+              "weight": 3
+            },
+            {
+              "moveId": "sour-berry-spit",
+              "weight": 1
+            }
+          ],
+          "minLevel": 17
+        },
+        "bandit-raccoon": {
+          "id": "bandit-raccoon",
+          "name": "Bandit Raccoon",
+          "emoji": "🦝",
+          "moves": [
+            {
+              "moveId": "dash-and-grab",
+              "weight": 3
+            },
+            {
+              "moveId": "yawn",
+              "weight": 1
+            },
+            {
+              "moveId": "pounce",
+              "weight": 1
+            }
+          ],
+          "minLevel": 20
+        },
+        "scarecrow-crow": {
+          "id": "scarecrow-crow",
+          "name": "Scarecrow Crow",
+          "emoji": "🐦‍⬛",
+          "moves": [
+            {
+              "moveId": "peck",
+              "weight": 3
+            },
+            {
+              "moveId": "dizzy-dance",
+              "weight": 1
+            }
+          ],
+          "minLevel": 14
+        },
+        "honey-bee-swarm": {
+          "id": "honey-bee-swarm",
+          "name": "Honey Bee Swarm",
+          "emoji": "🐝",
+          "moves": [
+            {
+              "moveId": "sour-berry-spit",
+              "weight": 3
+            },
+            {
+              "moveId": "dash-and-grab",
+              "weight": 1
+            }
+          ],
+          "minLevel": 26
+        },
+        "the-great-pumpkin-bandit": {
+          "id": "the-great-pumpkin-bandit",
+          "name": "The Great Pumpkin Bandit",
+          "emoji": "🎃",
+          "moves": [
+            {
+              "moveId": "garden-stampede",
+              "weight": 3
+            },
+            {
+              "moveId": "puff-up",
+              "weight": 1
+            },
+            {
+              "moveId": "yawn",
+              "weight": 1
+            },
+            {
+              "moveId": "burrow-ambush",
+              "weight": 1
+            }
+          ],
+          "boss": true,
+          "minLevel": 1
+        }
+      },
+      "moves": {
+        "peck": {
+          "id": "peck",
+          "name": "Peck",
+          "emoji": "🐦",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ],
+          "telegraph": "cocks its head at your seed bag…"
+        },
+        "yawn": {
+          "id": "yawn",
+          "name": "Yawn",
+          "emoji": "🥱",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "turns": 2,
+              "statusId": "weakened"
+            }
+          ],
+          "cooldown": 4,
+          "telegraph": "opens its mouth in a huge, contagious yawn…"
+        },
+        "nibble": {
+          "id": "nibble",
+          "name": "Nibble",
+          "emoji": "🦷",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ],
+          "telegraph": "sniffs and leans in for a nibble…"
+        },
+        "pounce": {
+          "id": "pounce",
+          "name": "Pounce",
+          "emoji": "🐾",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ],
+          "cooldown": 3,
+          "telegraph": "wiggles its backside, ready to leap…"
+        },
+        "puff-up": {
+          "id": "puff-up",
+          "name": "Puff Up",
+          "emoji": "🎈",
+          "effects": [
+            {
+              "type": "status",
+              "turns": 3,
+              "target": "self",
+              "statusId": "enraged"
+            }
+          ],
+          "cooldown": 5,
+          "telegraph": "puffs out its cheeks and fur…"
+        },
+        "dizzy-dance": {
+          "id": "dizzy-dance",
+          "name": "Dizzy Dance",
+          "emoji": "💫",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ],
+          "cooldown": 4,
+          "telegraph": "spins in a mesmerizing little circle…"
+        },
+        "prickly-curl": {
+          "id": "prickly-curl",
+          "name": "Prickly Curl",
+          "emoji": "🦔",
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ],
+          "cooldown": 3,
+          "telegraph": "tucks into a spiky ball…"
+        },
+        "burrow-ambush": {
+          "id": "burrow-ambush",
+          "name": "Burrow Ambush",
+          "emoji": "🕳️",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ],
+          "cooldown": 2,
+          "telegraph": "the ground trembles under the carrots…",
+          "firstStrike": true
+        },
+        "dash-and-grab": {
+          "id": "dash-and-grab",
+          "name": "Dash and Grab",
+          "emoji": "💨",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ],
+          "cooldown": 2,
+          "telegraph": "darts between the cabbages…",
+          "firstStrike": true
+        },
+        "garden-stampede": {
+          "id": "garden-stampede",
+          "name": "Garden Stampede",
+          "emoji": "🐗",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ],
+          "cooldown": 3,
+          "telegraph": "paws the soil and snorts…"
+        },
+        "sour-berry-spit": {
+          "id": "sour-berry-spit",
+          "name": "Sour Berry Spit",
+          "emoji": "🫐",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "turns": 3,
+              "statusId": "poison"
+            }
+          ],
+          "cooldown": 3,
+          "telegraph": "chews on a suspicious berry…"
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Tummy Ache",
+          "emoji": "🤢",
+          "hpPercentPerTurn": -4
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Fluffed Up",
+          "emoji": "😤",
+          "stats": {
+            "atk": 40,
+            "def": -20
+          },
+          "hpPercentPerTurn": 0
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Drowsy",
+          "emoji": "😴",
+          "stats": {
+            "atk": -25
+          },
+          "hpPercentPerTurn": 0
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "corn": {
+          "id": "corn",
+          "name": "Corn",
+          "emoji": "🌽",
+          "rarity": "uncommon"
+        },
+        "daisy": {
+          "id": "daisy",
+          "name": "Daisy",
+          "emoji": "🌼",
+          "rarity": "uncommon"
+        },
+        "carrot": {
+          "id": "carrot",
+          "name": "Carrot",
+          "emoji": "🥕",
+          "rarity": "poor"
+        },
+        "pepper": {
+          "id": "pepper",
+          "name": "Pepper",
+          "emoji": "🫑",
+          "rarity": "uncommon"
+        },
+        "potato": {
+          "id": "potato",
+          "name": "Potato",
+          "emoji": "🥔",
+          "rarity": "common"
+        },
+        "tomato": {
+          "id": "tomato",
+          "name": "Tomato",
+          "emoji": "🍅",
+          "rarity": "common"
+        },
+        "truffle": {
+          "id": "truffle",
+          "name": "Truffle",
+          "emoji": "🍄‍🟫",
+          "rarity": "rare"
+        },
+        "chestnut": {
+          "id": "chestnut",
+          "name": "Chestnut",
+          "emoji": "🌰",
+          "rarity": "uncommon"
+        },
+        "lavender": {
+          "id": "lavender",
+          "name": "Lavender",
+          "emoji": "🪻",
+          "rarity": "uncommon"
+        },
+        "straw-hat": {
+          "id": "straw-hat",
+          "name": "Straw Hat",
+          "emoji": "👒",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "blackberry": {
+          "id": "blackberry",
+          "name": "Blackberry",
+          "emoji": "🫐",
+          "rarity": "poor"
+        },
+        "herbal-tea": {
+          "id": "herbal-tea",
+          "name": "Herbal Tea",
+          "emoji": "🍵",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "amount": 45,
+              "statId": "health"
+            }
+          }
+        },
+        "moon-melon": {
+          "id": "moon-melon",
+          "name": "Moon Melon",
+          "emoji": "🍈",
+          "rarity": "epic"
+        },
+        "strawberry": {
+          "id": "strawberry",
+          "name": "Strawberry",
+          "emoji": "🍓",
+          "rarity": "uncommon"
+        },
+        "wild-herbs": {
+          "id": "wild-herbs",
+          "name": "Wild Herbs",
+          "emoji": "🌿",
+          "rarity": "common"
+        },
+        "golden-beet": {
+          "id": "golden-beet",
+          "name": "Golden Beet",
+          "emoji": "🟡",
+          "rarity": "rare"
+        },
+        "clover-clogs": {
+          "id": "clover-clogs",
+          "name": "Clover Clogs",
+          "emoji": "👞",
+          "rarity": "rare",
+          "equipSlot": "feet"
+        },
+        "berry-cordial": {
+          "id": "berry-cordial",
+          "name": "Berry Cordial",
+          "emoji": "🍷",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "amount": 220,
+              "statId": "health"
+            }
+          }
+        },
+        "giant-pumpkin": {
+          "id": "giant-pumpkin",
+          "name": "Giant Pumpkin",
+          "emoji": "🎃",
+          "rarity": "rare"
+        },
+        "golden-scythe": {
+          "id": "golden-scythe",
+          "name": "Golden Scythe",
+          "emoji": "🌙",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "muddy-wellies": {
+          "id": "muddy-wellies",
+          "name": "Muddy Wellies",
+          "emoji": "🥾",
+          "rarity": "common",
+          "equipSlot": "feet"
+        },
+        "trusty-trowel": {
+          "id": "trusty-trowel",
+          "name": "Trusty Trowel",
+          "emoji": "🥄",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "fairy-ring-cap": {
+          "id": "fairy-ring-cap",
+          "name": "Fairy Ring Cap",
+          "emoji": "🔮",
+          "rarity": "rare"
+        },
+        "pot-lid-shield": {
+          "id": "pot-lid-shield",
+          "name": "Pot Lid Shield",
+          "emoji": "🛡️",
+          "rarity": "common",
+          "equipSlot": "shield"
+        },
+        "button-mushroom": {
+          "id": "button-mushroom",
+          "name": "Button Mushroom",
+          "emoji": "🍄",
+          "rarity": "common"
+        },
+        "honeyed-mittens": {
+          "id": "honeyed-mittens",
+          "name": "Honeyed Mittens",
+          "emoji": "🍯",
+          "rarity": "epic",
+          "equipSlot": "hands"
+        },
+        "patchwork-apron": {
+          "id": "patchwork-apron",
+          "name": "Patchwork Apron",
+          "emoji": "👗",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "gardening-gloves": {
+          "id": "gardening-gloves",
+          "name": "Gardening Gloves",
+          "emoji": "🧤",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "honeydew-blossom": {
+          "id": "honeydew-blossom",
+          "name": "Honeydew Blossom",
+          "emoji": "🌸",
+          "rarity": "epic"
+        },
+        "knitted-cardigan": {
+          "id": "knitted-cardigan",
+          "name": "Knitted Cardigan",
+          "emoji": "🧶",
+          "rarity": "uncommon",
+          "equipSlot": "body"
+        },
+        "moonlit-overalls": {
+          "id": "moonlit-overalls",
+          "name": "Moonlit Overalls",
+          "emoji": "👖",
+          "rarity": "epic",
+          "equipSlot": "legs"
+        },
+        "patched-trousers": {
+          "id": "patched-trousers",
+          "name": "Patched Trousers",
+          "emoji": "🩳",
+          "rarity": "common",
+          "equipSlot": "legs"
+        },
+        "sunflower-locket": {
+          "id": "sunflower-locket",
+          "name": "Sunflower Locket",
+          "emoji": "🌻",
+          "rarity": "uncommon",
+          "equipSlot": "accessory"
+        },
+        "wildflower-crown": {
+          "id": "wildflower-crown",
+          "name": "Wildflower Crown",
+          "emoji": "🌼",
+          "rarity": "rare",
+          "equipSlot": "head"
+        },
+        "harvest-pitchfork": {
+          "id": "harvest-pitchfork",
+          "name": "Harvest Pitchfork",
+          "emoji": "🔱",
+          "rarity": "rare",
+          "equipSlot": "weapon"
+        },
+        "sturdy-garden-rake": {
+          "id": "sturdy-garden-rake",
+          "name": "Sturdy Garden Rake",
+          "emoji": "🧹",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "blue-ribbon-rosette": {
+          "id": "blue-ribbon-rosette",
+          "name": "Blue Ribbon Rosette",
+          "emoji": "🏅",
+          "rarity": "legendary",
+          "equipSlot": "accessory"
+        },
+        "golden-honey-elixir": {
+          "id": "golden-honey-elixir",
+          "name": "Golden Honey Elixir",
+          "emoji": "🍯",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "amount": 600,
+              "statId": "health"
+            }
+          }
+        },
+        "wicker-basket-shield": {
+          "id": "wicker-basket-shield",
+          "name": "Wicker Basket Shield",
+          "emoji": "🧺",
+          "rarity": "rare",
+          "equipSlot": "shield"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "foraging": {
+          "id": "foraging",
+          "name": "Foraging",
+          "emoji": "🧺",
+          "skillName": "Forager's Eye",
+          "locations": {
+            "hedgerow": {
+              "id": "hedgerow",
+              "name": "Hedgerow",
+              "emoji": "🌿",
+              "loot": [
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 40,
+                  "itemId": "blackberry"
+                },
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 50,
+                  "itemId": "wild-herbs"
+                },
+                {
+                  "max": 1,
+                  "min": 1,
+                  "chance": 10,
+                  "itemId": "truffle"
+                }
+              ]
+            },
+            "sunny-meadow": {
+              "id": "sunny-meadow",
+              "name": "Sunny Meadow",
+              "emoji": "🌼",
+              "loot": [
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 40,
+                  "itemId": "daisy"
+                },
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 50,
+                  "itemId": "lavender"
+                },
+                {
+                  "max": 1,
+                  "min": 1,
+                  "chance": 10,
+                  "itemId": "honeydew-blossom"
+                }
+              ]
+            },
+            "mushroom-wood": {
+              "id": "mushroom-wood",
+              "name": "Mushroom Wood",
+              "emoji": "🍄",
+              "loot": [
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 40,
+                  "itemId": "button-mushroom"
+                },
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 50,
+                  "itemId": "chestnut"
+                },
+                {
+                  "max": 1,
+                  "min": 1,
+                  "chance": 10,
+                  "itemId": "fairy-ring-cap"
+                }
+              ]
+            }
+          }
+        },
+        "gardening": {
+          "id": "gardening",
+          "name": "Gardening",
+          "emoji": "🌱",
+          "skillName": "Green Thumb",
+          "locations": {
+            "pumpkin-field": {
+              "id": "pumpkin-field",
+              "name": "Pumpkin Field",
+              "emoji": "🎃",
+              "loot": [
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 40,
+                  "itemId": "tomato"
+                },
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 50,
+                  "itemId": "corn"
+                },
+                {
+                  "max": 1,
+                  "min": 1,
+                  "chance": 10,
+                  "itemId": "giant-pumpkin"
+                }
+              ]
+            },
+            "kitchen-garden": {
+              "id": "kitchen-garden",
+              "name": "Kitchen Garden",
+              "emoji": "🥬",
+              "loot": [
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 40,
+                  "itemId": "carrot"
+                },
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 50,
+                  "itemId": "potato"
+                },
+                {
+                  "max": 1,
+                  "min": 1,
+                  "chance": 10,
+                  "itemId": "golden-beet"
+                }
+              ]
+            },
+            "moonlit-greenhouse": {
+              "id": "moonlit-greenhouse",
+              "name": "Moonlit Greenhouse",
+              "emoji": "🌙",
+              "loot": [
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 40,
+                  "itemId": "pepper"
+                },
+                {
+                  "max": 2,
+                  "min": 1,
+                  "chance": 50,
+                  "itemId": "strawberry"
+                },
+                {
+                  "max": 1,
+                  "min": 1,
+                  "chance": 10,
+                  "itemId": "moon-melon"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

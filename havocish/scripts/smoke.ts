@@ -68,7 +68,7 @@ import { checkRequirements, itemRequirements } from "../src/player/requirements.
 import { addCombatXp, combatLevel, combatXpForLevel, convertLegacyCombat } from "../src/player/combatLevel.js";
 import { afterLoss, calculateStats, hpRules, minutesToFull, resolveCurrentHp, respawnHp, storeHp, woundedUntil, type CombatStats } from "../src/player/combat.js";
 import { fightsInThread, pickFromPlace, placeEnemies, placeFor } from "../src/player/places.js";
-import { DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
+import { comingNext, landsThisTurn, DEFAULT_MOVES, describeMove, learnMove, moveToLearn, intentLine, intentThreat, turnOrderLine, loadoutFor, moveById, newFighterState, pickIntent, playTurn, usable, type PlayerChoice } from "../src/player/moves.js";
 import { announceRareFinds } from "../src/ui/rareFinds.js";
 import { mentionsFor } from "../src/ui/mentions.js";
 import { newMoveLines, nextFightLine, nextGatherLine, questLine } from "../src/player/nextSteps.js";
@@ -86,6 +86,9 @@ import { energyNow, gridRules, makeClusteredGrid, makeGrid, rollLoot, skillLevel
 import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
+import { act, bless, distance, GRID, gridCounts, hintsAt, itemsLeft, reelZone, shaftHint, SNAP, WALK_HOURS, kitOf, LEVELS, levelOf, gather, HOURS, mapScore, neighbours, prepare, START_NODE, startFight as startDailyFight, startState, validLoadout } from "../src/content/daily.js";
+import { dailyFor, gameFor, replayMap, WORLDS } from "../src/content/dailyWorlds.js";
+import type { MapAction } from "../src/content/daily.js";
 
 // ─── Tiny assertion harness ───────────────────────────────────────────────────
 
@@ -1685,7 +1688,7 @@ async function main() {
         playTurn(fight, { u: { kind: "move", moveId: "venom" } }, cfg);
         playTurn(fight, { u: { kind: "move", moveId: "venom" } }, cfg);
         check("a stacking status counts its stacks", [fight.foe.stacks?.venom, fight.enemyCurrentHp], [2, 85]);
-        check("and says so", describeMove(cfg.combat.moves.venom!, cfg).does[0], "🐍 Venom on the target for 3 turns, stacking up to 3.");
+        check("and says so", describeMove(cfg.combat.moves.venom!, cfg).does[0], "🐍 Venom on the target for 3 turns (loses 5% of max HP each turn), stacking up to 3.");
     });
 
     await test("parties: joining, picks, the turn timer's default, knockouts and shares", async () => {
@@ -1946,6 +1949,164 @@ async function main() {
         const act = { skillName: "Mining", locations: { a: { name: "Shallows", emoji: "⛏️", minSkill: 1 }, b: { name: "Deep Vein", emoji: "🌑", minSkill: 30 } } } as any;
         check("the next location", nextGatherLine(act, 27), "-# Next: 🌑 **Deep Vein** opens at Mining 30 (3 levels to go).");
         check("nothing left: nothing said", nextGatherLine(act, 40), null);
+    });
+
+    await test("Daily: moves, gathering, the shop and admin picks", async () => {
+        const d = dailyFor(3);
+        check("no more than four moves", validLoadout(d, d.movePool.slice(0, 5)), false);
+        check("four from the pool", validLoadout(d, d.movePool.slice(0, 4)), true);
+
+        // Gathering: each game's rules hold, wherever it's played.
+        const spots = (n: number) => dailyFor(n).map.nodes.flatMap((x) => (x.gather ? [x.gather] : []));
+        const spec = (game: string) => [1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap(spots).find((g) => g.game === game)!;
+        const grid = spec("grid");
+        check("a tile can't be opened twice", gather(grid, [2, 2]), null);
+        const hazard = grid.tiles.indexOf("hazard");
+        check("a hazard ends the dig", gather(grid, [hazard])?.end, "hazard");
+        check("nothing past the end", gather(grid, [hazard, (hazard + 1) % 16]), null);
+        check("pulls come in order", gather(spec("pulls"), [1]), null);
+        check("the tunnel starts in the top row", gather(spec("tunnel"), [5]), null);
+        check("and goes on next to what's open", gather(spec("tunnel"), [0, 2]), null);
+        check("four gathering spots on the map", spots(3).length, 4);
+        // Skill, not luck: the dig's clues, and fishing on timing.
+        const counts = gridCounts(grid);
+        check("the grid's edge clues count every hazard", [counts.rows.reduce((a, b) => a + b), counts.cols.reduce((a, b) => a + b)], [GRID.hazards, GRID.hazards]);
+        const safe = grid.tiles.findIndex((t) => t !== "hazard");
+        const near = [-5, -4, -3, -1, 1, 3, 4, 5].map((d) => safe + d).filter((j) => j >= 0 && j < 16 && Math.abs((j % 4) - (safe % 4)) <= 1);
+        check("an opened tile counts the hazards touching it", hintsAt(grid, [safe], safe).danger, near.filter((j) => grid.tiles[j] === "hazard").length);
+        const fishing = spec("pulls");
+        check("no hidden snap in fishing", fishing.tiles.includes("hazard"), false);
+        const two = gather(fishing, [0, 1])!;
+        check("a missed reel snaps the line and halves the catch", [gather(fishing, [0, 1, SNAP])?.end, gather(fishing, [0, 1, SNAP])?.gold], ["hazard", Math.ceil(two.gold / 2)]);
+        check("nothing after a snap", gather(fishing, [0, SNAP, 1]), null);
+        check("each zone narrower and faster than the last", reelZone(fishing, 1).width < reelZone(fishing, 0).width && reelZone(fishing, 1).speed > reelZone(fishing, 0).speed, true);
+        const shaft = spec("tunnel");
+        const levels = [0, 1, 2, 3, 4, 5].map((r) => shaft.tiles.slice(r * 3, r * 3 + 3).filter((t) => t === "hazard").length);
+        check("the descent: a safe top level, then one cave-in a level", levels, [0, 1, 1, 1, 1, 1]);
+        check("no skipping a level", gather(shaft, [1, 7]), null);
+        check("straight down or one step aside, no further", gather(shaft, [0, 5]), null);
+        const top = 1, below = shaft.tiles[top + 3];
+        check("you see cracks under you only over a cave-in", shaftHint(shaft, [top])?.cracks, below === "hazard");
+        check("a zone stays on the bar", [0, 3, 7].every((k) => { const z = reelZone(fishing, k); return z.centre - z.width / 2 >= 0 && z.centre + z.width / 2 <= 1; }), true);
+        check("each activity gets the game that suits it", ["Gardening", "Herb Foraging", "Mining", "Crystal Delving", "Scrap Diving", "Net Fishing", "Stargazing"].map((name) => gameFor({ name })), ["grid", "grid", "tunnel", "tunnel", "tunnel", "pulls", "grid"]);
+        check("fishing is played as pulls", [1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap(spots).filter((g) => /fish|angl/i.test(g.name)).every((g) => g.game === "pulls"), true);
+
+        // The shop.
+        const shop = dailyFor(3, { kinds: ["potion", "teacher", "elixir"] });
+        check("can't spend what you don't have", prepare(shop, 0, ["potion"]), null);
+        check("a potion bought is a potion carried", prepare(shop, 200, ["potion"])?.potions, 1);
+        check("gear can teach a fifth move", prepare(shop, 200, ["teacher"])?.taught.length, 1);
+        check("an elixir opens every fight with its status", startDailyFight(shop, 0, shop.boss, prepare(shop, 200, ["elixir"])!, 100).members[0]!.state.statuses["daily-elixir"], 2);
+        check("each kind once", prepare(shop, 1000, ["elixir", "elixir"]), null);
+        const kit = prepare(d, 0, [])!;
+        check("a shrine changes the stats", bless(kit, { name: "t", emoji: "t", atk: 50 }).stats.atk, Math.round(kit.stats.atk * 1.5));
+        const potionDay = dailyFor(3, { kinds: ["potion", "boots"] });
+        check("no more than the stock", prepare(potionDay, 10_000, ["potion", "potion", "potion", "potion"]), null);
+
+        // Admin overrides.
+        const o = dailyFor(3, { world: "classic-fantasy", boss: "lich", mobs: ["giant-rat", "grey-wolf"] });
+        const mobs = o.map.nodes.filter((x) => x.kind === "enemy").map((x) => x.name);
+        check("an admin's picks replace the day's", [o.world, mobs.includes("Giant Rat") && mobs.includes("Grey Wolf"), o.boss.name], ["Classic Fantasy", true, "Lich"]);
+        check("an id the world doesn't have is ignored", dailyFor(3, { boss: "nobody" }).ids.boss, dailyFor(3).ids.boss);
+        const activity = Object.values(WORLDS[0]!.content.gathering.activities)[0]!;
+        const location = Object.values(activity.locations).at(-1)!;
+        const placed = dailyFor(3, { world: WORLDS[0]!.id, place: `${activity.id}/${location.id}` });
+        check("an admin's gathering place is on the map", placed.map.nodes.some((x) => x.gather && x.name === location.name), true);
+    });
+
+    await test("Daily: a guard timed on a wind-up parries it", async () => {
+        const days = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => dailyFor(n));
+        const guardsIn = (d: (typeof days)[number]) => d.movePool.filter((id) => moveById(d.config, id).effects.some((e) => e.type === "guard"));
+        check("every day has a guard move to pick", days.every((d) => guardsIn(d).length > 0), true);
+        const d = days[0]!, guard = guardsIn(d)[0]!;
+        check("it blocks all of a wind-up", moveById(d.config, guard).effects.some((e) => e.type === "guard" && e.percent === 100 && e.when?.type === "targetCharging"), true);
+        const windup = d.map.nodes.filter((n) => n.enemy).flatMap((n) => n.enemy!.pattern ?? []).map((id) => moveById(d.config, id)).find((m) => m.charge);
+        check("a wind-up hits like five plain hits", (windup?.effects.reduce((sum, e) => sum + (e.type === "hit" ? e.power * (e.hits ?? 1) : 0), 0) ?? 0) >= 4.9, true);
+
+        // What the screen says is coming is what happens: the turn a wind-up starts lands nothing, the next one does.
+        const node = d.map.nodes.find((n) => n.kind === "lair")!;
+        const fight = startDailyFight(d, 1, node.enemy!, kitOf(d, { ...startState(d), loadout: ["attack"] }), 99999);
+        fight.members[0]!.hp = 99999;
+        let said: ReturnType<typeof comingNext> = [], matched = 0, missed = 0, windups = 0;
+        for (let t = 0; t < 20; t++) {
+            const now = fight.foe.charging?.moveId ?? fight.enemyIntent;
+            const lands = !!landsThisTurn(fight, d.config);
+            if (moveById(d.config, now).charge && !lands) windups++;
+            if (said[0]) said[0].move.id === now && said[0].lands === lands ? matched++ : missed++;
+            said = comingNext(fight, d.config, 2);
+            if (playTurn(fight, { you: { kind: "move", moveId: "attack" } }, d.config).outcome !== "continue") break;
+            fight.round++;
+        }
+        check("the next move shown is the one it uses, wind-ups included", [missed, matched > 10, windups > 0], [0, true, true]);
+    });
+
+    await test("Daily map: an hour an action, and only what the map allows", async () => {
+        const d = dailyFor(4);
+        let st = startState(d);
+        const near = neighbours(d.map, START_NODE);
+        check("the start is in the middle", st.at, START_NODE);
+        check("no road to a tile that isn't next door", act(d, st, { type: "move", to: 0 }), null);
+        const moved = act(d, st, { type: "move", to: near[0]! })!;
+        check("walking a tile takes half an hour", [moved.at, moved.hour], [near[0], WALK_HOURS]);
+        check("cliffs can't be walked onto", d.map.nodes.filter((n) => n.kind === "blocked").every((n) => !near.includes(n.id)), true);
+        check("every open tile can be reached", d.map.nodes.filter((n) => n.kind !== "blocked").every((n) => distance(d.map, START_NODE, n.id) < Infinity), true);
+        check("the lair is a walk away", distance(d.map, START_NODE, d.map.nodes.findIndex((n) => n.kind === "lair")) >= 3, true);
+        check("shopping happens in town only", act(d, st, { type: "buy", id: d.shop[0]!.id }), null);
+        check("moves can be set at the start, for free", act(d, st, { type: "loadout", moves: d.movePool.slice(0, 4) })?.hour, 0);
+        // A gathering spot: one visit, then it's dry.
+        const spot = d.map.nodes.find((n) => n.kind === "gather")!;
+        st = { ...st, at: spot.id };
+        const dug = act(d, st, { type: "gather", opened: [] })!;
+        check("gathering takes an hour", dug.hour, 1);
+        check("and the spot runs dry", act(d, dug, { type: "gather", opened: [] }), null);
+        const away = { ...st, at: d.map.nodes.findIndex((n) => n.kind === "lair") };
+        const set = act(d, away, { type: "loadout", moves: d.movePool.slice(0, 4) })!;
+        check("your first moves can be picked anywhere, even at the boss", set?.loadout.length, 4);
+        check("but changing them needs town", act(d, set, { type: "loadout", moves: d.movePool.slice(1, 5) }), null);
+        check("XP sets your level", [levelOf(0), levelOf(1), levelOf(3), levelOf(99)], [1, 2, 3, LEVELS.length]);
+        check("and each level makes you stronger", kitOf(d, { ...st, xp: 3 }).stats.atk > kitOf(d, st).stats.atk, true);
+        check("elites carry a trophy for the forge", d.map.nodes.filter((n) => n.kind === "elite").every((n) => !!n.trophy) && d.map.recipes.some((r) => r.needs.some((x) => x.name.endsWith("Trophy"))), true);
+        // Energy and habits (the Daily's fights only).
+        const attack = d.config.combat!.moves!["attack"]!;
+        check("a basic attack builds energy", attack.energy, -1);
+        const costly = d.movePool.map((id) => d.config.combat!.moves![id]!).find((m) => (m.energy ?? 0) > 0)!;
+        const mobNode = d.map.nodes.find((n) => n.kind === "enemy")!;
+        const fresh = startDailyFight(d, 100 + mobNode.id, mobNode.enemy!, kitOf(d, st), 400);
+        check("a fight starts with no energy, so a costly move waits", usable(fresh.members[0]!.state, costly), false);
+        check("every enemy on the map follows a habit", d.map.nodes.filter((n) => n.enemy).every((n) => (n.enemy!.pattern?.length ?? 0) > 0), true);
+        check("and does the first thing in it", fresh.enemyIntent, mobNode.enemy!.pattern![0]);
+        // The shop: a potion and an effect item every day; effect items are used in a fight from the bag.
+        check("a potion and an effect item every day", [1, 2, 3, 4, 5].every((n) => { const shop = dailyFor(n).shop; return shop.some((it) => it.heal) && shop.some((it) => it.use); }), true);
+        const fx = dailyFor(4).shop.find((it) => it.use)!;
+        const inTown = { ...st, at: d.map.nodes.findIndex((n) => n.kind === "town"), gold: 500 };
+        check("an effect item goes in the bag", itemsLeft(d, act(d, inTown, { type: "buy", id: fx.id })!)[fx.id], 1);
+        check("a level doesn't raise DEF", kitOf(d, { ...st, xp: 12 }).stats.def, kitOf(d, st).stats.def);
+        // Relics, slots, traits: the strategy layer.
+        const elite = d.map.nodes.find((n) => n.kind === "elite")!;
+        check("an elite offers three relics", elite.relics?.length, 3);
+        const picking = { ...st, pendingRelic: elite.id };
+        check("nothing happens until a relic is picked", act(d, picking, { type: "move", to: near[0]! }), null);
+        check("only an offered relic can be taken", act(d, picking, { type: "relic", id: "not-a-relic" }), null);
+        check("taking one carries it", act(d, picking, { type: "relic", id: elite.relics![0]! })?.relics, [elite.relics![0]]);
+        const twoBlades = dailyFor(4, { kinds: ["weapon", "heavy"] });
+        const shopping = { ...startState(twoBlades), at: twoBlades.map.nodes.findIndex((n) => n.kind === "town"), gold: 1000 };
+        const swapped = act(twoBlades, act(twoBlades, shopping, { type: "buy", id: "weapon" })!, { type: "buy", id: "heavy" })!;
+        check("one weapon at a time: a new one swaps in", swapped.buys, ["heavy"]);
+        check("and the old one isn't refunded", swapped.gold, 1000 - twoBlades.shop.find((it) => it.id === "weapon")!.price - twoBlades.shop.find((it) => it.id === "heavy")!.price);
+        check("gear can't be returned for gold", act(twoBlades, swapped, { type: "unbuy", id: "heavy" }), null);
+        const lair = d.map.nodes.find((n) => n.kind === "lair")!;
+        check("the boss has two traits", lair.enemy!.traits?.length, 2);
+        check("thick hide comes with armour", [1, 2, 3, 4, 5, 6, 7, 8].map((n) => dailyFor(n).map.nodes.find((x) => x.kind === "lair")!.enemy!).filter((e) => e.traits?.includes("thick-hide")).every((e) => (e.armor ?? 0) > 0), true);
+        check("no fight without your four moves", act(d, { ...st, at: d.map.nodes.findIndex((n) => n.kind === "enemy") }, { type: "fight", picks: ["attack"] }), null);
+        // The clock.
+        const late = { ...st, at: d.map.nodes.findIndex((n) => n.kind === "camp"), hour: HOURS - 1 };
+        const last = act(d, late, { type: "rest" })!;
+        check("the 24th hour ends the day", last.over, "timeout");
+        check("nothing after it", act(d, last, { type: "move", to: START_NODE }), null);
+        const steps: MapAction[] = [{ type: "loadout", moves: d.movePool.slice(0, 4) }, { type: "move", to: near[0]! }, { type: "move", to: START_NODE }];
+        check("a run replays to the same place and hour", [replayMap(4, steps).state.hour, replayMap(4, steps).state.at], [2 * WALK_HOURS, START_NODE]);
+        check("a refused action stops the replay there", replayMap(4, [{ type: "move", to: near[0]! }, { type: "move", to: 0 }, { type: "move", to: START_NODE }]).state.hour, WALK_HOURS);
+        check("a win beats every loss, and sooner beats later", [mapScore(d, { ...st, over: "won", hour: 10, hp: 5 }) > mapScore(d, { ...st, over: "won", hour: 12, hp: 400 }), mapScore(d, { ...st, over: "won", hour: 23, hp: 1 }) > mapScore(d, { ...st, over: "lost" }, 1)], [true, true]);
     });
 
     await test("enemies below your level pay less XP, gently", async () => {

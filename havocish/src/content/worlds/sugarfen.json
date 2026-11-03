@@ -1,0 +1,862 @@
+{
+  "id": "sugarfen",
+  "name": "Sugarmire",
+  "prompt": "A sugary confection marsh of gummy beasts, toffee bogs and a chocolate river ruled by a sour old sugar witch.",
+  "content": {
+    "combat": {
+      "enemies": {
+        "gummy-bear": {
+          "id": "gummy-bear",
+          "name": "Gummy Bear",
+          "emoji": "🧸",
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "gummy-gnash",
+              "weight": 3
+            }
+          ]
+        },
+        "gummy-worm": {
+          "id": "gummy-worm",
+          "name": "Gummy Worm",
+          "emoji": "🪱",
+          "minLevel": 3,
+          "moves": [
+            {
+              "moveId": "gummy-gnash",
+              "weight": 3
+            },
+            {
+              "moveId": "taffy-tangle",
+              "weight": 1
+            }
+          ]
+        },
+        "sprinkle-sprite": {
+          "id": "sprinkle-sprite",
+          "name": "Sprinkle Sprite",
+          "emoji": "🧚",
+          "minLevel": 6,
+          "moves": [
+            {
+              "moveId": "sprinkle-dart",
+              "weight": 3
+            },
+            {
+              "moveId": "sugar-frenzy",
+              "weight": 1
+            }
+          ]
+        },
+        "lollipop-sentry": {
+          "id": "lollipop-sentry",
+          "name": "Lollipop Sentry",
+          "emoji": "🍭",
+          "minLevel": 9,
+          "moves": [
+            {
+              "moveId": "jawbreaker-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "hard-candy-shell",
+              "weight": 1
+            }
+          ]
+        },
+        "toffee-gator": {
+          "id": "toffee-gator",
+          "name": "Toffee Gator",
+          "emoji": "🐊",
+          "minLevel": 13,
+          "moves": [
+            {
+              "moveId": "gummy-gnash",
+              "weight": 3
+            },
+            {
+              "moveId": "jawbreaker-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "taffy-slug": {
+          "id": "taffy-slug",
+          "name": "Taffy Slug",
+          "emoji": "🐌",
+          "minLevel": 16,
+          "moves": [
+            {
+              "moveId": "taffy-tangle",
+              "weight": 3
+            },
+            {
+              "moveId": "chocolate-gloop",
+              "weight": 1
+            }
+          ]
+        },
+        "sour-frog": {
+          "id": "sour-frog",
+          "name": "Sour Frog",
+          "emoji": "🐸",
+          "minLevel": 18,
+          "moves": [
+            {
+              "moveId": "sour-spit",
+              "weight": 3
+            },
+            {
+              "moveId": "sprinkle-dart",
+              "weight": 1
+            }
+          ]
+        },
+        "caramel-brute": {
+          "id": "caramel-brute",
+          "name": "Caramel Brute",
+          "emoji": "👹",
+          "minLevel": 21,
+          "moves": [
+            {
+              "moveId": "jawbreaker-slam",
+              "weight": 3
+            },
+            {
+              "moveId": "sugar-frenzy",
+              "weight": 1
+            },
+            {
+              "moveId": "hard-candy-shell",
+              "weight": 1
+            }
+          ]
+        },
+        "cocoa-eel": {
+          "id": "cocoa-eel",
+          "name": "Cocoa Eel",
+          "emoji": "🐍",
+          "minLevel": 23,
+          "moves": [
+            {
+              "moveId": "sprinkle-dart",
+              "weight": 3
+            },
+            {
+              "moveId": "chocolate-gloop",
+              "weight": 1
+            }
+          ]
+        },
+        "fudge-crab": {
+          "id": "fudge-crab",
+          "name": "Fudge Crab",
+          "emoji": "🦀",
+          "minLevel": 26,
+          "moves": [
+            {
+              "moveId": "hard-candy-shell",
+              "weight": 3
+            },
+            {
+              "moveId": "jawbreaker-slam",
+              "weight": 1
+            }
+          ]
+        },
+        "mint-serpent": {
+          "id": "mint-serpent",
+          "name": "Mint Serpent",
+          "emoji": "🐉",
+          "minLevel": 29,
+          "moves": [
+            {
+              "moveId": "sour-spit",
+              "weight": 3
+            },
+            {
+              "moveId": "sprinkle-dart",
+              "weight": 1
+            },
+            {
+              "moveId": "sugar-frenzy",
+              "weight": 1
+            }
+          ]
+        },
+        "gingerbread-knight": {
+          "id": "gingerbread-knight",
+          "name": "Gingerbread Knight",
+          "emoji": "🫅",
+          "minLevel": 32,
+          "moves": [
+            {
+              "moveId": "cane-crack",
+              "weight": 3
+            },
+            {
+              "moveId": "hard-candy-shell",
+              "weight": 1
+            }
+          ]
+        },
+        "candy-ghoul": {
+          "id": "candy-ghoul",
+          "name": "Candy Ghoul",
+          "emoji": "👻",
+          "minLevel": 35,
+          "moves": [
+            {
+              "moveId": "candied-hex",
+              "weight": 3
+            },
+            {
+              "moveId": "taffy-tangle",
+              "weight": 1
+            }
+          ]
+        },
+        "the-sour-sugar-witch": {
+          "id": "the-sour-sugar-witch",
+          "name": "The Sour Sugar Witch",
+          "emoji": "🧙‍♀️",
+          "boss": true,
+          "minLevel": 1,
+          "moves": [
+            {
+              "moveId": "candied-hex",
+              "weight": 3
+            },
+            {
+              "moveId": "cane-crack",
+              "weight": 1
+            },
+            {
+              "moveId": "chocolate-gloop",
+              "weight": 1
+            },
+            {
+              "moveId": "sugar-frenzy",
+              "weight": 1
+            }
+          ]
+        }
+      },
+      "moves": {
+        "gummy-gnash": {
+          "id": "gummy-gnash",
+          "name": "Gummy Gnash",
+          "emoji": "🦷",
+          "telegraph": "wobbles and bares chewy teeth…",
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1
+            }
+          ]
+        },
+        "jawbreaker-slam": {
+          "id": "jawbreaker-slam",
+          "name": "Jawbreaker Slam",
+          "emoji": "🔨",
+          "telegraph": "rears back, hard as candy rock…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        },
+        "sprinkle-dart": {
+          "id": "sprinkle-dart",
+          "name": "Sprinkle Dart",
+          "emoji": "✨",
+          "telegraph": "flicks sprinkles in a blur…",
+          "cooldown": 2,
+          "firstStrike": true,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.3
+            }
+          ]
+        },
+        "sour-spit": {
+          "id": "sour-spit",
+          "name": "Sour Spit",
+          "emoji": "🍋",
+          "telegraph": "puckers and gurgles green…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "taffy-tangle": {
+          "id": "taffy-tangle",
+          "name": "Taffy Tangle",
+          "emoji": "🪢",
+          "telegraph": "stretches long, sticky strands…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.6
+            },
+            {
+              "type": "status",
+              "statusId": "weakened",
+              "turns": 2
+            }
+          ]
+        },
+        "sugar-frenzy": {
+          "id": "sugar-frenzy",
+          "name": "Sugar Frenzy",
+          "emoji": "🍭",
+          "telegraph": "vibrates and bounces wildly…",
+          "cooldown": 5,
+          "effects": [
+            {
+              "type": "status",
+              "statusId": "enraged",
+              "turns": 3,
+              "target": "self"
+            }
+          ]
+        },
+        "hard-candy-shell": {
+          "id": "hard-candy-shell",
+          "name": "Hard Candy Shell",
+          "emoji": "🛡️",
+          "telegraph": "hardens into a glossy shell…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "guard",
+              "percent": 70
+            },
+            {
+              "type": "counter",
+              "percent": 40
+            }
+          ]
+        },
+        "chocolate-gloop": {
+          "id": "chocolate-gloop",
+          "name": "Chocolate Gloop",
+          "emoji": "🍫",
+          "telegraph": "gurgles and swells with syrup…",
+          "cooldown": 4,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "stun"
+            }
+          ]
+        },
+        "candied-hex": {
+          "id": "candied-hex",
+          "name": "Candied Hex",
+          "emoji": "🔮",
+          "telegraph": "cackles, stirring a bubbling pot…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 0.5
+            },
+            {
+              "type": "status",
+              "statusId": "poison",
+              "turns": 3
+            }
+          ]
+        },
+        "cane-crack": {
+          "id": "cane-crack",
+          "name": "Cane Crack",
+          "emoji": "🦯",
+          "telegraph": "raises a striped cane high…",
+          "cooldown": 3,
+          "effects": [
+            {
+              "type": "hit",
+              "power": 1.6
+            }
+          ]
+        }
+      },
+      "statuses": {
+        "poison": {
+          "id": "poison",
+          "name": "Sour Rot",
+          "emoji": "🤢",
+          "hpPercentPerTurn": -4
+        },
+        "weakened": {
+          "id": "weakened",
+          "name": "Sugar Crash",
+          "emoji": "😵",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": -25
+          }
+        },
+        "enraged": {
+          "id": "enraged",
+          "name": "Sugar Rush",
+          "emoji": "⚡",
+          "hpPercentPerTurn": 0,
+          "stats": {
+            "atk": 40,
+            "def": -20
+          }
+        }
+      }
+    },
+    "shop": {
+      "items": {
+        "lollipop-blade": {
+          "id": "lollipop-blade",
+          "name": "Lollipop Blade",
+          "emoji": "🗡️",
+          "rarity": "common",
+          "equipSlot": "weapon"
+        },
+        "candy-cane-spear": {
+          "id": "candy-cane-spear",
+          "name": "Candy Cane Spear",
+          "emoji": "🔱",
+          "rarity": "uncommon",
+          "equipSlot": "weapon"
+        },
+        "toffee-mace": {
+          "id": "toffee-mace",
+          "name": "Toffee Mace",
+          "emoji": "🔨",
+          "rarity": "rare",
+          "equipSlot": "weapon"
+        },
+        "witchbane-whisk": {
+          "id": "witchbane-whisk",
+          "name": "Witchbane Whisk",
+          "emoji": "🥄",
+          "rarity": "legendary",
+          "equipSlot": "weapon"
+        },
+        "wafer-cap": {
+          "id": "wafer-cap",
+          "name": "Wafer Cap",
+          "emoji": "🧢",
+          "rarity": "common",
+          "equipSlot": "head"
+        },
+        "mint-crystal-helm": {
+          "id": "mint-crystal-helm",
+          "name": "Mint Crystal Helm",
+          "emoji": "⛑️",
+          "rarity": "rare",
+          "equipSlot": "head"
+        },
+        "graham-cracker-vest": {
+          "id": "graham-cracker-vest",
+          "name": "Graham Cracker Vest",
+          "emoji": "🦺",
+          "rarity": "common",
+          "equipSlot": "body"
+        },
+        "chocolate-plate": {
+          "id": "chocolate-plate",
+          "name": "Chocolate Plate",
+          "emoji": "🍫",
+          "rarity": "rare",
+          "equipSlot": "body"
+        },
+        "licorice-leggings": {
+          "id": "licorice-leggings",
+          "name": "Licorice Leggings",
+          "emoji": "👖",
+          "rarity": "uncommon",
+          "equipSlot": "legs"
+        },
+        "gumdrop-gloves": {
+          "id": "gumdrop-gloves",
+          "name": "Gumdrop Gloves",
+          "emoji": "🧤",
+          "rarity": "uncommon",
+          "equipSlot": "hands"
+        },
+        "taffy-boots": {
+          "id": "taffy-boots",
+          "name": "Taffy Boots",
+          "emoji": "🥾",
+          "rarity": "uncommon",
+          "equipSlot": "feet"
+        },
+        "cookie-shield": {
+          "id": "cookie-shield",
+          "name": "Cookie Shield",
+          "emoji": "🍪",
+          "rarity": "common",
+          "equipSlot": "shield"
+        },
+        "jawbreaker-bulwark": {
+          "id": "jawbreaker-bulwark",
+          "name": "Jawbreaker Bulwark",
+          "emoji": "🛡️",
+          "rarity": "epic",
+          "equipSlot": "shield"
+        },
+        "sprinkle-ring": {
+          "id": "sprinkle-ring",
+          "name": "Sprinkle Ring",
+          "emoji": "💍",
+          "rarity": "uncommon",
+          "equipSlot": "accessory"
+        },
+        "caramel-amulet": {
+          "id": "caramel-amulet",
+          "name": "Caramel Amulet",
+          "emoji": "📿",
+          "rarity": "epic",
+          "equipSlot": "accessory"
+        },
+        "crown-of-sour-sugar": {
+          "id": "crown-of-sour-sugar",
+          "name": "Crown of Sour Sugar",
+          "emoji": "👑",
+          "rarity": "legendary",
+          "equipSlot": "head"
+        },
+        "maple-syrup-vial": {
+          "id": "maple-syrup-vial",
+          "name": "Maple Syrup Vial",
+          "emoji": "🍯",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 45
+            }
+          }
+        },
+        "hot-cocoa-flask": {
+          "id": "hot-cocoa-flask",
+          "name": "Hot Cocoa Flask",
+          "emoji": "☕",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 220
+            }
+          }
+        },
+        "rainbow-elixir": {
+          "id": "rainbow-elixir",
+          "name": "Rainbow Elixir",
+          "emoji": "🌈",
+          "rarity": "common",
+          "actions": {
+            "0": {
+              "type": "giveStat",
+              "statId": "health",
+              "amount": 600
+            }
+          }
+        },
+        "gumdrop": {
+          "id": "gumdrop",
+          "name": "Gumdrop",
+          "emoji": "🍬",
+          "rarity": "poor"
+        },
+        "sugar-cube": {
+          "id": "sugar-cube",
+          "name": "Sugar Cube",
+          "emoji": "🧊",
+          "rarity": "common"
+        },
+        "ruby-gumdrop": {
+          "id": "ruby-gumdrop",
+          "name": "Ruby Gumdrop",
+          "emoji": "❤️",
+          "rarity": "rare"
+        },
+        "butterscotch-nugget": {
+          "id": "butterscotch-nugget",
+          "name": "Butterscotch Nugget",
+          "emoji": "🟡",
+          "rarity": "common"
+        },
+        "nougat-chunk": {
+          "id": "nougat-chunk",
+          "name": "Nougat Chunk",
+          "emoji": "🥜",
+          "rarity": "uncommon"
+        },
+        "amber-heart": {
+          "id": "amber-heart",
+          "name": "Amber Heart",
+          "emoji": "🧡",
+          "rarity": "rare"
+        },
+        "rock-candy": {
+          "id": "rock-candy",
+          "name": "Rock Candy",
+          "emoji": "💎",
+          "rarity": "uncommon"
+        },
+        "mint-ore": {
+          "id": "mint-ore",
+          "name": "Mint Ore",
+          "emoji": "🌿",
+          "rarity": "uncommon"
+        },
+        "stardrop-crystal": {
+          "id": "stardrop-crystal",
+          "name": "Stardrop Crystal",
+          "emoji": "🌟",
+          "rarity": "epic"
+        },
+        "honey-minnow": {
+          "id": "honey-minnow",
+          "name": "Honey Minnow",
+          "emoji": "🐟",
+          "rarity": "poor"
+        },
+        "jelly-fish": {
+          "id": "jelly-fish",
+          "name": "Jelly Fish",
+          "emoji": "🪼",
+          "rarity": "common"
+        },
+        "golden-koi": {
+          "id": "golden-koi",
+          "name": "Golden Koi",
+          "emoji": "🐠",
+          "rarity": "rare"
+        },
+        "taffy-eel": {
+          "id": "taffy-eel",
+          "name": "Taffy Eel",
+          "emoji": "🐍",
+          "rarity": "common"
+        },
+        "caramel-carp": {
+          "id": "caramel-carp",
+          "name": "Caramel Carp",
+          "emoji": "🐡",
+          "rarity": "uncommon"
+        },
+        "butterscotch-bass": {
+          "id": "butterscotch-bass",
+          "name": "Butterscotch Bass",
+          "emoji": "🐋",
+          "rarity": "rare"
+        },
+        "cocoa-catfish": {
+          "id": "cocoa-catfish",
+          "name": "Cocoa Catfish",
+          "emoji": "🐟",
+          "rarity": "uncommon"
+        },
+        "fudge-fish": {
+          "id": "fudge-fish",
+          "name": "Fudge Fish",
+          "emoji": "🍫",
+          "rarity": "uncommon"
+        },
+        "choco-shark": {
+          "id": "choco-shark",
+          "name": "Choco Shark",
+          "emoji": "🦈",
+          "rarity": "epic"
+        }
+      }
+    },
+    "gathering": {
+      "activities": {
+        "candy-mining": {
+          "id": "candy-mining",
+          "name": "Candy Mining",
+          "emoji": "⛏️",
+          "locations": {
+            "gumdrop-hollow": {
+              "id": "gumdrop-hollow",
+              "name": "Gumdrop Hollow",
+              "emoji": "🍬",
+              "loot": [
+                {
+                  "itemId": "gumdrop",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "sugar-cube",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "ruby-gumdrop",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "toffee-tunnels": {
+              "id": "toffee-tunnels",
+              "name": "Toffee Tunnels",
+              "emoji": "🟤",
+              "loot": [
+                {
+                  "itemId": "butterscotch-nugget",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "nougat-chunk",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "amber-heart",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "rock-candy-depths": {
+              "id": "rock-candy-depths",
+              "name": "Rock Candy Depths",
+              "emoji": "💎",
+              "loot": [
+                {
+                  "itemId": "rock-candy",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "mint-ore",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "stardrop-crystal",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        },
+        "syrup-fishing": {
+          "id": "syrup-fishing",
+          "name": "Syrup Fishing",
+          "emoji": "🎣",
+          "locations": {
+            "honey-pond": {
+              "id": "honey-pond",
+              "name": "Honey Pond",
+              "emoji": "🍯",
+              "loot": [
+                {
+                  "itemId": "honey-minnow",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "jelly-fish",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "golden-koi",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "toffee-creek": {
+              "id": "toffee-creek",
+              "name": "Toffee Creek",
+              "emoji": "🟤",
+              "loot": [
+                {
+                  "itemId": "taffy-eel",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "caramel-carp",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "butterscotch-bass",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            },
+            "chocolate-falls": {
+              "id": "chocolate-falls",
+              "name": "Chocolate Falls",
+              "emoji": "🍫",
+              "loot": [
+                {
+                  "itemId": "cocoa-catfish",
+                  "chance": 40,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "fudge-fish",
+                  "chance": 50,
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "itemId": "choco-shark",
+                  "chance": 10,
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
