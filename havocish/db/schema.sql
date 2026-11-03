@@ -281,6 +281,19 @@ CREATE TABLE IF NOT EXISTS public.command_uses (
     PRIMARY KEY (discord_guild_id, command, day)
 );
 
+-- ─── daily_plays ─────────────────────────────────────────────────────────────
+-- How many played each day of the website's Daily and how their runs ended:
+-- anonymous counts, no players stored. See migrations/011_daily_plays.sql.
+
+CREATE TABLE IF NOT EXISTS public.daily_plays (
+    day        INTEGER     PRIMARY KEY,
+    players    INTEGER     NOT NULL DEFAULT 0,
+    wins       INTEGER     NOT NULL DEFAULT 0,
+    timeouts   INTEGER     NOT NULL DEFAULT 0,
+    falls      INTEGER     NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── schema_migrations ───────────────────────────────────────────────────────
 -- The ledger scripts/migrate.sh keeps, so "is migration N live yet?" has an
 -- answer that is not somebody's memory. One row per applied migration, keyed

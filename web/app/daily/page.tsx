@@ -7,7 +7,7 @@ import DailyRun from "./dailyRun";
 
 export const metadata: Metadata = {
   title: "Daily",
-  description: "A new havocish run every day: gather, gear up, two fights and a boss, the same for everyone. Compare your score.",
+  description: "A new havocish world every day: 24 hours to gather, craft, fight and beat its boss. The same day for everyone; how fast can you do it?",
 };
 export const dynamic = "force-dynamic";
 

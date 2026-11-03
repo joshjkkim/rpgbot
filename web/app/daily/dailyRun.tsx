@@ -122,6 +122,11 @@ type View = "map" | "gather" | "town" | "forge" | "moves" | "fight";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Counts a play for the admin page (daily_plays): anonymous, and never in the way if it fails. */
+function count(day: number, event: "player" | "won" | "timeout" | "lost") {
+  void fetch("/api/daily/play", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ day, event }), keepalive: true }).catch(() => {});
+}
+
 /** Today's run on the map. */
 export default function DailyRun({ daily }: { daily: Daily }) {
   const [s, setS] = useState<MapState>(() => startState(daily));
@@ -210,6 +215,7 @@ export default function DailyRun({ daily }: { daily: Daily }) {
     else if (next.gold > s.gold) sfx.coin();
     if (levelOf(next.xp) > levelOf(s.xp)) setTimeout(sfx.level, 400);
     if (next.over === "timeout" && !s.over) setTimeout(sfx.lose, 300);
+    if (next.over && !s.over) count(daily.day, next.over);
     setS(next);
     if (mark) setTrail((t) => [...t, mark]);
     return next;
@@ -392,7 +398,11 @@ export default function DailyRun({ daily }: { daily: Daily }) {
           <p className="font-display text-4xl text-[var(--gold)] [text-shadow:3px_3px_0_#000] sm:text-5xl">havocish daily</p>
           <p className="font-display text-lg text-[#f2e4bf]">#{daily.day} · {daily.world}</p>
           <p className="max-w-sm text-sm text-[#e2dacb]">Today&apos;s quest: beat <b className="text-[#ff7060]">{daily.map.nodes.find((n) => n.kind === "lair")!.enemy!.name}</b> before the day runs out.</p>
-          <button type="button" autoFocus className="btn mt-2 px-10 py-3 text-xl" onClick={() => { unlock(); setMutedState(isMuted()); sfx.click(); setStarted(true); }}>▶ Play</button>
+          <button type="button" autoFocus className="btn mt-2 px-10 py-3 text-xl" onClick={() => {
+            unlock(); setMutedState(isMuted()); sfx.click(); setStarted(true);
+            // A player, once a day per browser.
+            try { if (localStorage.getItem(`daily-played-${daily.day}`) !== "1") { localStorage.setItem(`daily-played-${daily.day}`, "1"); count(daily.day, "player"); } } catch { /* no storage: not counted */ }
+          }}>▶ Play</button>
           <p className="text-[11px] text-[var(--muted)]">Sound on · 🔊 in the corner to mute</p>
         </div>
       )}

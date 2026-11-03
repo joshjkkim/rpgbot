@@ -82,6 +82,10 @@ export default async function AdminDaily({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const edit = Number(params.edit) || null;
   const overrides = await dailyOverrides(today - 1, Math.max(today + DAYS_SHOWN, edit ?? 0));
+  // How each day went (daily_plays): empty until migration 011 is live.
+  const plays = new Map(((await dbQuery<{ day: number; players: number; wins: number; timeouts: number; falls: number }>(
+    `SELECT day, players, wins, timeouts, falls FROM daily_plays WHERE day BETWEEN $1 AND $2`, [today - 30, today],
+  ).catch(() => null))?.rows ?? []).map((r) => [r.day, r]));
   const days = Array.from({ length: DAYS_SHOWN + 1 }, (_, i) => today - 1 + i).filter((d) => d > 0);
 
   return (
@@ -99,7 +103,7 @@ export default async function AdminDaily({ searchParams }: { searchParams: Promi
         <table className="w-full text-sm">
           <thead className="text-left text-[var(--muted)]">
             <tr>
-              {["Day", "World", "Gather", "Fights", "Shop", ""].map((h) => <th key={h} className="px-3 py-2 font-normal">{h}</th>)}
+              {["Day", "Played · won", "World", "Gather", "Fights", "Shop", ""].map((h) => <th key={h} className="px-3 py-2 font-normal">{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -112,6 +116,12 @@ export default async function AdminDaily({ searchParams }: { searchParams: Promi
                     {day === today && <span className="ml-1 text-xs text-[var(--gold)]">today</span>}
                     {overrides.has(day) && <span className="ml-1 text-xs text-[var(--accent)]">edited</span>}
                   </td>
+                  <td className="px-3 py-2 whitespace-nowrap tabular-nums">{(() => {
+                    const p = plays.get(day);
+                    if (!p) return <span className="text-[var(--muted)]">–</span>;
+                    const runs = p.wins + p.timeouts + p.falls;
+                    return <span title={`${p.wins} won · ${p.timeouts} ran out of time · ${p.falls} fell`}>{p.players} · {p.wins}/{runs}{runs ? ` (${Math.round((p.wins / runs) * 100)}%)` : ""}</span>;
+                  })()}</td>
                   <td className="px-3 py-2">{d.world}</td>
                   <td className="px-3 py-2">{gatherText(d)}</td>
                   <td className="px-3 py-2">{fightsText(d)}</td>
