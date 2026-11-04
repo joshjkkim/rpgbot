@@ -225,7 +225,11 @@ written by a trigger on `guilds`, so every path that saves a config is
 covered, and the latest 50 versions per server are kept. Fights, gathers,
 crafts and upgrades are events (`recordActivity`), recorded for every server
 whether or not it posts a log channel; chat and voice XP rows still only for
-servers that do. `command_uses` counts commands per day, no users.
+servers that do. `command_uses` counts commands per day, no users. The Sessions section reads `interaction_log` (migration 013): a row per
+command, button, menu and form with its time, user, role, options, duration
+and whether it failed, written from `events/interactionCreate.ts` and pruned
+after 30 days with the events. Run 013 before the deploy that writes it, or
+every click logs a "Skipped logging an interaction" warning.
 
 ## Bot lists
 

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "What the havocish Discord bot and dashboard store, and what they do not.",
 };
 
-const UPDATED = "30 October 2026";
+const UPDATED = "4 November 2026";
 
 export default function PrivacyPage() {
   return (
@@ -79,6 +79,13 @@ export default function PrivacyPage() {
         each with the user ID involved, the amounts and a timestamp. No message content appears in
         it.
       </p>
+      <p>
+        To see where people get stuck and improve havocish, the bot also keeps a{" "}
+        <strong>usage log</strong>: which commands, buttons and menus were used in a server, when,
+        by which user ID (and whether they own or manage the server), the options picked, and
+        whether it worked. Text typed into a command&rsquo;s options is cut to 60 characters, and
+        what is typed into a form is never kept. Only we see it, and it is kept for 30 days.
+      </p>
 
       <h2>What the dashboard stores</h2>
       <p>
@@ -136,7 +143,8 @@ export default function PrivacyPage() {
         Progression is kept while you keep playing. Removing the bot from a server does{" "}
         <strong>not</strong> delete that server&rsquo;s data: it is marked as removed, so
         progression survives an accidental kick and is there again if the bot is re-added. Event
-        log entries are kept for auditing. Everything is deleted on request, as below.
+        log entries are kept for auditing, and usage log entries for 30 days. Everything is deleted on
+        request, as below.
       </p>
 
       <h2>Your choices</h2>

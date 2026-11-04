@@ -1,7 +1,7 @@
-import type { Client, Interaction } from "discord.js";
-import { Events } from "discord.js";
+import type { Client, CommandInteractionOption, Interaction } from "discord.js";
+import { Events, PermissionFlagsBits } from "discord.js";
 import { commands } from "../commands/index.js";
-import { countCommandUse } from "../db/events.js";
+import { countCommandUse, recordInteraction, type InteractionRecord } from "../db/events.js";
 import { bestEffort } from "../ui/bestEffort.js";
 import { MessageFlags } from "discord.js";
 import { handleConfigPanelSelect } from "../ui/panel/panelSelection.js";
@@ -35,8 +35,33 @@ function allowedMidFight(interaction: Interaction): boolean {
     return true;
 }
 
+/** What it was, for the interaction log: null for what isn't logged (autocomplete, DMs). */
+function describe(interaction: Interaction): Pick<InteractionRecord, "kind" | "name" | "options"> | null {
+    if (!interaction.guildId) return null;
+    if (interaction.isChatInputCommand()) {
+        const name = [interaction.commandName, interaction.options.getSubcommandGroup(false), interaction.options.getSubcommand(false)].filter(Boolean).join(" ");
+        // The options picked; typed text is cut to 60 characters.
+        const options: Record<string, unknown> = {};
+        const walk = (opts: readonly CommandInteractionOption[]) => {
+            for (const o of opts) {
+                if (o.options) walk(o.options);
+                else if (o.value !== undefined) options[o.name] = typeof o.value === "string" ? o.value.slice(0, 60) : o.value;
+            }
+        };
+        walk(interaction.options.data);
+        return { kind: "command", name, options: Object.keys(options).length ? options : null };
+    }
+    if (interaction.isButton()) return { kind: "button", name: interaction.customId.slice(0, 100), options: null };
+    if (interaction.isAnySelectMenu()) return { kind: "select", name: interaction.customId.slice(0, 100), options: { values: interaction.values.slice(0, 10) } };
+    // What was typed into a form is never kept, only that it was sent.
+    if (interaction.isModalSubmit()) return { kind: "form", name: interaction.customId.slice(0, 100), options: null };
+    return null;
+}
+
 export function registerInteractionCreate(client: Client) {
     client.on(Events.InteractionCreate, async (interaction) => {
+        const started = Date.now();
+        let ok = true;
         try {
 
             if (interaction.isAutocomplete()) {
@@ -138,8 +163,19 @@ export function registerInteractionCreate(client: Client) {
             }
 
         } catch (err) {
+            ok = false;
             console.error("Error handling interaction:", err);
             await reportInteractionError(interaction);
+        } finally {
+            const what = describe(interaction);
+            if (what) {
+                const role = interaction.guild?.ownerId === interaction.user.id ? "owner"
+                    : interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ? "manager" : null;
+                void bestEffort("logging an interaction", recordInteraction({
+                    ...what, discordGuildId: interaction.guildId!, discordUserId: interaction.user.id, role,
+                    ok, ms: Date.now() - started, at: interaction.createdAt,
+                }));
+            }
         }
     });
 }
