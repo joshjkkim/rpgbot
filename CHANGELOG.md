@@ -6,6 +6,8 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 
 ### For server owners
 - **Start playing in one click.** Before setup, `/fight` and `/gather` used to just say combat was off. Now they offer server owners **Start now**, which sets up Classic Fantasy with the usual settings, or the full setup. Members are told to ask an admin to run `/setup`.
+- **The welcome says to run `/setup`.** The message havocish posts when it joins now names `/setup` and says fights start once it's done. When it has to DM the owner instead, it says which server to run it in, since a setup button can't work in a DM.
+- **Support is one click from `/help`.** Every page of `/help` has a Support server button.
 
 ## v0.19 · November 2, 2026
 

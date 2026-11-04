@@ -25,6 +25,9 @@ export function canManage(interaction: Interaction) {
     return !!interaction.guild && !!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
 }
 
+/** havocish's support server: where owners ask for help. */
+export const SUPPORT_URL = "https://discord.gg/9dV5NnV9tq";
+
 /** A "set this up" link for anyone who can use the dashboard, or no rows for anyone else. */
 export function managerSetupRows(interaction: Interaction, page: DashboardPage, label: string) {
     if (!interaction.guildId || !canManage(interaction)) return [];
