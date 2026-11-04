@@ -4,6 +4,7 @@ import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
+import { needsSetup, setupPrompt } from "../admin/setup.js";
 import { getOrCreateProfile } from "../../cache/profileService.js";
 import { respondFiltered } from "../../ui/autocomplete.js";
 import { accentColor } from "../../ui/pager.js";
@@ -80,6 +81,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const say = (content: string) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
     const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+    if (needsSetup(config)) return void await interaction.reply(setupPrompt(interaction));
     if (!enabledActivities(config).length) {
         await interaction.reply({
             content: "Gathering isn't set up on this server yet.",

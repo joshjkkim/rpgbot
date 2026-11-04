@@ -1,4 +1,5 @@
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, Client, ColorResolvable, Message, User } from "discord.js";
+import { needsSetup, setupPrompt } from "../admin/setup.js";
 import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
 import {
@@ -429,7 +430,7 @@ export function buildActionRows(
 // /fight and random encounters (player/encounters.ts) start fights the same way.
 
 type Ready =
-    | { ok: false; message: string }
+    | { ok: false; message: string; needsSetup?: true }
     | { ok: true; profile: DbUserGuildProfile; config: GuildConfig; stats: CombatStats; currentHp: number };
 
 /** Whether this member can start a fight right now, with what they need to start one. */
@@ -441,7 +442,9 @@ export async function readyToFight(user: User, discordGuildId: string): Promise<
     });
     const { guild: dbGuild, config } = await getOrCreateGuildConfig({ discordGuildId });
 
-    if (!config.combat.enabled) return { ok: false, message: "⚔️ Combat isn't enabled on this server." };
+    if (!config.combat.enabled) return needsSetup(config)
+        ? { ok: false, message: "⚔️ This server hasn't set up its world yet.", needsSetup: true }
+        : { ok: false, message: "⚔️ Combat isn't enabled on this server." };
     const busy = busyFighting(user.id, discordGuildId, "Finish it first.");
     if (busy) return { ok: false, message: busy };
 
@@ -479,7 +482,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const ready = await readyToFight(interaction.user, interaction.guildId);
     if (!ready.ok) {
-        await interaction.reply({ content: ready.message, flags: MessageFlags.Ephemeral });
+        // Not set up yet: a way forward (a one-click start for managers), not a dead end.
+        await interaction.reply(ready.needsSetup ? setupPrompt(interaction) : { content: ready.message, flags: MessageFlags.Ephemeral });
         return;
     }
     const { profile, config } = ready;
