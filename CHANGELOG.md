@@ -2,6 +2,11 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### For server owners
+- **Start playing in one click.** Before setup, `/fight` and `/gather` used to just say combat was off. Now they offer server owners **Start now**, which sets up Classic Fantasy with the usual settings, or the full setup. Members are told to ask an admin to run `/setup`.
+
 ## v0.19 · November 2, 2026
 
 The Daily: a free browser game at havocish.com/daily, with a new world to beat every day.
