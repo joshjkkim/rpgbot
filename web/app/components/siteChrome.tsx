@@ -19,7 +19,7 @@ function Wordmark() {
   return (
     <Link href="/" className="flex items-center gap-2.5 font-display text-xl text-[var(--gold)] [text-shadow:0_1px_0_#000]">
       {/* eslint-disable-next-line @next/next/no-img-element -- a 64px pixel-art PNG */}
-      <img src="/logo.png" alt="" width={32} height={32} className="[image-rendering:pixelated]" />
+      <img src="/logo.png" alt="" width={32} height={32} />
       havocish
     </Link>
   );
