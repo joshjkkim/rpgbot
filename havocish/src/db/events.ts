@@ -1,6 +1,6 @@
 import { query } from "../db/index.js";
 import type { GuildConfig } from "../types/guild.js";
-import type { LogEvent } from "../types/logging.js";
+import type { EventCategory, LogEvent } from "../types/logging.js";
 import { EmbedBuilder, type BaseInteraction, type ColorResolvable, type Guild, type GuildTextBasedChannel } from "discord.js";
 import { bestEffort } from "../ui/bestEffort.js";
 
@@ -16,7 +16,7 @@ export async function logEvent(opts: LogEvent): Promise<void> {
          old_streak, new_streak,
          metadata, timestamp)
         VALUES
-        ($1, $2, $3, $4, $5, $6, $7,
+        ($1, COALESCE($2::bigint, (SELECT discord_guild_id FROM guilds WHERE id = $1)), $3, $4, $5, $6, $7,
          $8, $9, $10, $11,
          $12, $13,
          $14, $15,
@@ -24,7 +24,7 @@ export async function logEvent(opts: LogEvent): Promise<void> {
          $18, NOW())`,
         [
             guildId,
-            discordGuildId,
+            discordGuildId ?? null,
             userId,
             targetUserId ?? null,
             category,
@@ -63,7 +63,7 @@ export async function sendServerLogEvent(ctx: LogContext, event: LogEvent, confi
 
     const loggingCfg = config.logging!;
 
-    const categoryCfg = loggingCfg.allowedCategories?.[event.category];
+    const categoryCfg = loggingCfg.allowedCategories?.[event.category as EventCategory];
 
     if (categoryCfg === false) {
         return;
@@ -154,15 +154,23 @@ export function enqueueLogEvent(event: LogEvent): void {
     LOG_BUFFER.push(event);
 }
 
-export async function logAndBroadcastEvent(ctx: LogContext, event: LogEvent, config: GuildConfig): Promise<void> {
-    if(!config.logging?.enabled || !config.logging?.mainChannelId) return;
-    if (config.logging?.allowedCategories?.[event.category] === false) return;
+/** Records what a player did (a fight, a gather, a craft) for /admin, without posting it to the server's log channel. */
+export function recordActivity(guildId: number, userId: number, category: LogEvent["category"], eventType: LogEvent["eventType"], metaData: Record<string, unknown>): void {
+    enqueueLogEvent({ guildId, userId, category, eventType, metaData, timestamp: new Date() });
+}
 
-    // Recorded first, and the channel post neither awaited nor allowed to throw:
-    // a log channel the bot cannot post in used to fail the command being
-    // logged -- after it had already changed gold or items -- and lose the row.
-    enqueueLogEvent(event);
-    void bestEffort("log channel post", sendServerLogEvent(ctx, event, config));
+/** A row per message or voice tick: recorded only for servers that post a log, to keep the table small. */
+const CHATTER = new Set<LogEvent["eventType"]>(["messageXp", "vcXp"]);
+
+export async function logAndBroadcastEvent(ctx: LogContext, event: LogEvent, config: GuildConfig): Promise<void> {
+    const posts = !!config.logging?.enabled && !!config.logging?.mainChannelId && config.logging?.allowedCategories?.[event.category as EventCategory] !== false;
+
+    // Recorded for every server (/admin reads it), whether or not it posts a
+    // log. Recorded first, and the channel post neither awaited nor allowed to
+    // throw: a log channel the bot cannot post in used to fail the command
+    // being logged -- after it had already changed gold or items -- and lose the row.
+    if (posts || !CHATTER.has(event.eventType)) enqueueLogEvent(event);
+    if (posts) void bestEffort("log channel post", sendServerLogEvent(ctx, event, config));
 
     if (LOG_BUFFER.length >= MAX_SIZE) {
         void flushLogBuffer();
@@ -185,7 +193,8 @@ export async function flushLogBuffer(): Promise<void> {
         let idx = 1;
 
         for (const event of batch) {
-            valuePlaceholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++},
+            const g = idx;
+            valuePlaceholders.push(`($${idx++}, COALESCE($${idx++}::bigint, (SELECT discord_guild_id FROM guilds WHERE id = $${g})), $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++},
                                     $${idx++}, $${idx++}, $${idx++}, $${idx++},
                                     $${idx++}, $${idx++},
                                     $${idx++}, $${idx++},
@@ -193,7 +202,7 @@ export async function flushLogBuffer(): Promise<void> {
                                     $${idx++}, $${idx++})`);
             values.push(
                 event.guildId,
-                event.discordGuildId,
+                event.discordGuildId ?? null,
                 event.userId,
                 event.targetUserId ?? null,
                 event.category,

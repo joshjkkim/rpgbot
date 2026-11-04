@@ -1,3 +1,4 @@
+import { recordActivity } from "../db/events.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { CraftingStation, Recipe } from "../types/crafting.js";
 import type { DbUserGuildProfile, item } from "../types/userprofile.js";
@@ -158,6 +159,7 @@ export async function craftOnce(opts: {
             changes: { ...(cached.pendingChanges ?? {}), inventory: inv } as PendingProfileChanges,
             baseline: { xp: p.xp, gold: p.gold },
         });
+        recordActivity(guildId, userId, "crafting", "craft", { station: station.name, item: config.shop?.items?.[recipe.output.itemId]?.name ?? recipe.output.itemId, ruined: true });
         return { ok: true, ruined: true, lost, xp: 0, skillBefore, skillAfter: skillBefore };
     }
     for (const i of state.inputs) take(i.itemId, i.need);
@@ -187,6 +189,7 @@ export async function craftOnce(opts: {
         event: { type: "craft", guildId: String(p.guild_id), userId: String(p.user_id), itemId: gave.itemId, quantity: gave.quantity },
     });
     commitProfileChanges({ userId, guildId, profile: q.profile, changes: q.pending, baseline });
+    recordActivity(guildId, userId, "crafting", "craft", { station: station.name, item: config.shop?.items?.[gave.itemId]?.name ?? gave.itemId, quantity: gave.quantity, masterwork });
 
     return { ok: true, ruined: false, gave, masterwork, xp, skillBefore, skillAfter: skillLevel(mine.xp + xp, config), questsCompleted: q.completed.map((c) => c.name) };
 }

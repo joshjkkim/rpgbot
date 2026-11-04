@@ -1,4 +1,5 @@
 import { combatLevel } from "../player/combatLevel.js";
+import { needsSetup } from "../commands/admin/setup.js";
 import { dailyTemplate } from "../leveling/levels.js";
 import { checkRoleRewards } from "./roleRewards.js";
 import { Client, Events } from "discord.js";
@@ -139,7 +140,8 @@ export function registerMessageCreate(client: Client) {
           }
         }
 
-        if (config.xp.replyToDailyInChannel) {
+        // Quiet until the server is set up: a bot nobody has configured yet replying to everyone's first message is how it gets kicked.
+        if (config.xp.replyToDailyInChannel && !needsSetup(config)) {
           const replyMessage = dailyTemplate(config.xp.replyToDailyMessage, config)
             .replace('{xp}', rewardXp?.toString() ?? '0')
             .replace('{gold}', rewardGold?.toString() ?? '0')

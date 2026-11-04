@@ -1,3 +1,4 @@
+import { recordActivity } from "../db/events.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { GatheringActivity, GatheringLocation, GatheringLoot } from "../types/gathering.js";
 import type { item } from "../types/userprofile.js";
@@ -281,6 +282,9 @@ export async function finishRun(opts: {
         userId, guildId, profile,
         changes: pending,
         baseline: { xp: p.xp, gold: p.gold },
+    });
+    recordActivity(guildId, userId, "gathering", "gather", {
+        activity: activity.name, place: location.name, found: Object.entries(kept).map(([id, n]) => `${config.shop?.items?.[id]?.name ?? id} ×${n}`),
     });
 
     return { kept, skillBefore: before, skillAfter: skillLevel(xp, config), skillXp, questsCompleted };

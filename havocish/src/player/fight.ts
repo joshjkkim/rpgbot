@@ -1,3 +1,4 @@
+import { recordActivity } from "../db/events.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { DbGuild } from "../types/guild.js";
 import type { DbUserGuildProfile, item } from "../types/userprofile.js";
@@ -518,6 +519,10 @@ export async function applyFightRewards(
 
     p.user_stats = stats;
     pendingChanges.user_stats = stats;
+    recordActivity(p.guild_id, p.user_id, "combat", "fight", {
+        enemy: fight.enemy?.name ?? null, type: fight.enemy?.boss ? "boss" : fight.combatType, outcome: summary.outcome, party: fight.members?.length ?? 1,
+        xp: summary.xpGained, gold: summary.goldGained, drops: summary.itemsDropped.length,
+    });
 
     // ── Quests ── (a finished one shows as ready to claim in /quests)
     if (summary.outcome === "win" && fight.combatType === "pve" && fight.enemy) {

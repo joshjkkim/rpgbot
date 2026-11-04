@@ -2,12 +2,20 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.19.1 · November 3, 2026
+
+A smoother first few minutes for new servers, and a new face.
+
+### New
+- **havocish has a new face.** The bot's picture and the website's icon are now a smug cat in a helmet too big for it, holding a lit bomb.
 
 ### For server owners
 - **Start playing in one click.** Before setup, `/fight` and `/gather` used to just say combat was off. Now they offer server owners **Start now**, which sets up Classic Fantasy with the usual settings, or the full setup. Members are told to ask an admin to run `/setup`.
 - **The welcome says to run `/setup`.** The message havocish posts when it joins now names `/setup` and says fights start once it's done. When it has to DM the owner instead, it says which server to run it in, since a setup button can't work in a DM.
 - **Support is one click from `/help`.** Every page of `/help` has a Support server button.
+- **Quiet until you set up.** Before setup, havocish no longer replies to everyone's first message of the day; their daily rewards still count.
+- **Tell your members it's ready.** After **Start now**, a **Tell everyone** button posts a short note in the channel saying what to try first.
+- **A shortcut before setting up by hand.** On a server that hasn't been set up, `/config-combat` and `/config-enemy` first offer a ready-made world in one click. Run the command again to carry on by hand.
 
 ## v0.19 · November 2, 2026
 

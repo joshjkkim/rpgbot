@@ -16,7 +16,7 @@ export function DiscordMessage({ children, time = "Today at 21:14" }: { children
     <div className="w-full max-w-[460px] rounded-md p-4 font-sans text-[15px] leading-snug shadow-[0_2px_10px_rgb(0_0_0/0.5)]" style={{ background: D.bg, color: D.text }}>
       <div className="flex gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- a 64px pixel-art PNG */}
-        <img src="/logo.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-full bg-black/40 [image-rendering:pixelated]" />
+        <img src="/logo.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-full bg-black/40" />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5">
             <span className="font-medium text-white">havocish</span>
