@@ -2,7 +2,7 @@ import type { Client, Guild } from "discord.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Events, PermissionFlagsBits } from "discord.js";
 import { setGuildConfig, upsertGuild } from "../db/guilds.js";
 import { DEFAULT_GUILD_CONFIG } from "../types/guild.js";
-import { dashboardButton } from "../ui/dashboardLinks.js";
+import { dashboardButton, SUPPORT_URL } from "../ui/dashboardLinks.js";
 
 export function registerGuildCreate(client: Client) {
   client.on(Events.GuildCreate, async (guild: Guild) => {
@@ -38,26 +38,34 @@ export function registerGuildCreate(client: Client) {
 
 /**
  * Greets the server in its system channel, or DMs the owner when the bot
- * cannot post there, with a link to finish setup on the dashboard.
+ * cannot post there, with how to set up: /setup (or its button, in the
+ * server), the dashboard, and the support server.
  */
 async function sendWelcome(guild: Guild) {
-  const embed = new EmbedBuilder()
-    .setColor(0xc4a462)
-    .setTitle("⚔️ havocish has arrived")
-    .setDescription(
-      [
-        `Adventurers of **${guild.name}** now earn XP and gold just by chatting. Try \`/profile\` to see your character, \`/daily\` to claim a reward, and \`/help\` for everything else.`,
-        "",
-        "**Server owner:** press **Set up here** to choose how fast people level and what world to start in (a ready-made one, one AI writes from your description, or blank to build your own). It takes a minute, right here in Discord. Prefer the website? The dashboard has the same setup, and everything after it.",
-      ].join("\n")
-    );
-  const payload = {
-    embeds: [embed],
-    components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId("setup:start").setStyle(ButtonStyle.Primary).setLabel("⚡ Set up here"),
-      dashboardButton(guild.id, "setup", "Set up on the dashboard"),
-      new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Support server").setURL("https://discord.gg/9dV5NnV9tq"),
-    )],
+  // A DM's buttons don't know which server they're for, so there the setup button becomes words.
+  const welcome = (inDm: boolean) => {
+    const embed = new EmbedBuilder()
+      .setColor(0xc4a462)
+      .setTitle("⚔️ havocish has arrived")
+      .setDescription(
+        [
+          `Adventurers of **${guild.name}** now earn XP and gold just by chatting. Try \`/profile\` to see your character, \`/daily\` to claim a reward, and \`/help\` for everything else.`,
+          "",
+          inDm
+            ? `**First, set up your world:** run **\`/setup\`** in **${guild.name}**. It takes a minute: pick how fast people level and a world to start in (a ready-made one, one AI writes from your description, or blank). Fights, gathering and the shop start once it's done. Prefer the website? The dashboard has the same setup.`
+            : "**Server owner, first set up your world:** run **`/setup`** or press **Set up here**. It takes a minute: pick how fast people level and a world to start in (a ready-made one, one AI writes from your description, or blank). Fights, gathering and the shop start once it's done. Prefer the website? The dashboard has the same setup.",
+          "",
+          "Stuck or have an idea? Come say hi in the support server.",
+        ].join("\n")
+      );
+    return {
+      embeds: [embed],
+      components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
+        ...(inDm ? [] : [new ButtonBuilder().setCustomId("setup:start").setStyle(ButtonStyle.Primary).setLabel("⚡ Set up here")]),
+        dashboardButton(guild.id, "setup", "Set up on the dashboard"),
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Support server").setURL(SUPPORT_URL),
+      )],
+    };
   };
 
   const me = guild.members.me;
@@ -67,10 +75,10 @@ async function sendWelcome(guild: Guild) {
     .has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]);
 
   if (channel && canPost) {
-    await channel.send(payload);
+    await channel.send(welcome(false));
     return;
   }
 
   const owner = await guild.fetchOwner();
-  await owner.send(payload);
+  await owner.send(welcome(true));
 }

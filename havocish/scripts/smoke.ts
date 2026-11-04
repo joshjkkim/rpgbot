@@ -37,6 +37,7 @@ import type { shopItemConfig } from "../src/types/economy.js";
 import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encounters.js";
 import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
+import { needsSetup } from "../src/commands/admin/setup.js";
 import { countCommandUse, logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
@@ -1958,6 +1959,16 @@ async function main() {
         const act = { skillName: "Mining", locations: { a: { name: "Shallows", emoji: "⛏️", minSkill: 1 }, b: { name: "Deep Vein", emoji: "🌑", minSkill: 30 } } } as any;
         check("the next location", nextGatherLine(act, 27), "-# Next: 🌑 **Deep Vein** opens at Mining 30 (3 levels to go).");
         check("nothing left: nothing said", nextGatherLine(act, 40), null);
+    });
+
+    await test("a server that never set up gets a way forward, not a dead end", async () => {
+        check("a fresh server needs setup", needsSetup(mergeConfig({} as GuildConfig)), true);
+        const started = mergeConfig({} as GuildConfig);
+        started.combat = { ...started.combat, enabled: true };
+        check("a server playing doesn't", needsSetup(started), false);
+        const off = mergeConfig({} as GuildConfig);
+        off.combat = { ...off.combat, enabled: false, enemies: Object.fromEntries(["a", "b", "c"].map((id) => [id, {} as EnemyConfig])) };
+        check("nor one that set up a world and switched fights off", needsSetup(off), false);
     });
 
     await test("Daily: moves, gathering, the shop and admin picks", async () => {

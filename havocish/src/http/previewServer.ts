@@ -3,6 +3,7 @@ import type { Client } from "discord.js";
 import { checkGuild, discordAccess } from "../health/checkGuild.js";
 import { timingSafeEqual } from "node:crypto";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
+import { getGuildByDiscordId, mergeConfig } from "../db/guilds.js";
 import { calculateTotalXpForLevel } from "../leveling/levels.js";
 import { buildFantasyProfileCard, buildProfileCard } from "../commands/user/profile.js";
 import { renderLevelUpBanner } from "../ui/canvas/levelUpBanner.js";
@@ -71,11 +72,15 @@ function draftStyle(saved: GuildConfig["style"], draft: any): GuildConfig["style
     };
 }
 
-async function render(body: any): Promise<Buffer> {
+async function render(body: any, client: Client): Promise<Buffer> {
     const guildId = str(body?.guildId, 32);
     if (!guildId || !/^\d+$/.test(guildId)) throw new BadRequest("bad guildId");
 
-    const { config: saved } = await getOrCreateGuildConfig({ discordGuildId: guildId });
+    // Only a server the bot is in goes through getOrCreateGuildConfig: its upsert marks the server present,
+    // and an owner opening the dashboard after removing the bot must not bring it back on /admin.
+    const saved = client.guilds.cache.has(guildId)
+        ? (await getOrCreateGuildConfig({ discordGuildId: guildId })).config
+        : mergeConfig((await getGuildByDiscordId(guildId))?.config ?? null);
     const config: GuildConfig = { ...saved, style: draftStyle(saved.style, body.style) };
 
     // The bot fetches this URL, so only Discord's CDN is allowed.
@@ -137,7 +142,7 @@ export function startPreviewServer(client: Client) {
                 res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify(report));
                 return;
             }
-            const png = await render(await readJson(req));
+            const png = await render(await readJson(req), client);
             res.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" }).end(png);
         } catch (err) {
             if (!(err instanceof BadRequest)) console.error("Preview render failed:", err);
