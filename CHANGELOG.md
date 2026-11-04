@@ -2,8 +2,6 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
-
 ## v0.19.1 · November 3, 2026
 
 A smoother first few minutes for new servers, and a new face.
