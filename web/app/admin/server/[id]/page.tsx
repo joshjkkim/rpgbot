@@ -6,7 +6,9 @@ import { isAdmin } from "@/app/lib/admin";
 import { dbQuery } from "@/app/lib/db";
 import { fetchHealth } from "@/app/lib/health";
 import { DEFAULT_LIMITS } from "@/app/lib/aiUsage";
-import { ago, configChanges, describeEvent, type EventRow } from "../../describe";
+import { ago, configChanges, describeClick, describeEvent, type ClickRow, type EventRow } from "../../describe";
+import { When } from "../../when";
+import { Sessions, type Click } from "./sessions";
 
 export const metadata: Metadata = { title: "Admin · server", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -78,7 +80,7 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
     `SELECT id::text, name, created_at, removed_at, config FROM guilds WHERE discord_guild_id = $1`, [id])).rows[0];
   if (!guild) notFound();
 
-  const [players, doing, recent, perDay, commands, firstUses, log, versions, limits, health] = await Promise.all([
+  const [players, doing, recent, perDay, commands, firstUses, log, versions, limits, health, clicks] = await Promise.all([
     dbQuery<Record<string, string | null>>(`
       SELECT count(*) AS players,
              count(*) FILTER (WHERE updated_at > NOW() - INTERVAL '1 day') AS day,
@@ -110,6 +112,11 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
     dbQuery<{ helper_daily: number | null; packs: number | null; note: string | null }>(
       `SELECT helper_daily, packs, note FROM ai_limits WHERE discord_guild_id = $1`, [id]).catch(() => null),
     fetchHealth(id),
+    // Null until migration 013 is live. Players keyed as in events (users.id), so letters match across the page.
+    dbQuery<ClickRow & { at: string; ok: boolean; ms: number | null; role: string | null; player: string }>(`
+      SELECT l.at, l.kind, l.name, l.options, l.ok, l.ms, l.role, coalesce(u.id::text, 'd' || l.discord_user_id) AS player
+      FROM interaction_log l LEFT JOIN users u ON u.discord_user_id = l.discord_user_id
+      WHERE l.discord_guild_id = $1 ORDER BY l.at DESC LIMIT 800`, [id]).catch(() => null),
   ]);
 
   const p = players.rows[0]!;
@@ -121,24 +128,36 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
     return it?.name ? `${it.emoji ? `${it.emoji} ` : ""}${it.name}` : itemId;
   };
 
+  // Each command's first use: exact from the interaction log, else (before migration 013) only the day from command_uses.
+  type Moment = { at: string; title: string; lines?: string[]; day?: boolean };
+  const exact = new Map<string, string>();
+  for (const r of clicks?.rows ?? []) if (r.kind === "command") exact.set(r.name, r.at);
+  const firsts: Moment[] = [
+    ...[...exact].map(([command, at]) => ({ at, title: `First used /${command}` })),
+    ...(firstUses?.rows ?? []).filter((r) => !exact.has(r.command)).map((r) => ({ at: r.first, title: `First used /${r.command}`, day: true })),
+  ];
+
   // The history: joins and leaves, each setup change (compared with the version before), and each command's first use.
-  type Moment = { at: string; title: string; lines?: string[] };
   const history: Moment[] = [
     ...(log?.rows.length ? log.rows : [{ event: "joined", at: guild.created_at }]).map((r) => ({ at: r.at, title: LOG_WORDS[r.event] ?? r.event })),
     ...(versions?.rows ?? []).flatMap((v, k, all): Moment[] => {
       if (k === 0) return [];
-      const lines = configChanges(all[k - 1]!.config, v.config);
+      const lines = configChanges(all[k - 1]!.config, v.config, Infinity);
       return lines.length ? [{ at: v.at, title: "Changed their setup", lines }] : [];
     }),
-    ...(firstUses?.rows ?? []).map((r) => ({ at: r.first, title: `First used /${r.command}` })),
+    ...firsts,
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
-  // Recent activity, players told apart by a letter (A is whoever acted most recently) rather than named.
+  // Players told apart by a letter (A is whoever acted most recently) rather than named.
   const letters = new Map<string, string>();
   const who = (player: string) => {
     if (!letters.has(player)) letters.set(player, letters.size < 26 ? String.fromCharCode(65 + letters.size) : `#${letters.size + 1}`);
     return letters.get(player)!;
   };
+  const sessionClicks: Click[] = (clicks?.rows ?? []).map((r) => ({
+    at: new Date(r.at).toISOString(), who: who(r.player), role: r.role, text: describeClick(r), failed: !r.ok,
+    slow: r.ms != null && r.ms > 3000 ? Math.round(r.ms / 100) / 10 : null,
+  }));
 
   const built: Array<[string, string]> = [
     [`Enemies (${Object.keys(c.combat?.enemies ?? {}).length})${c.combat?.enabled ? "" : ", combat off"}`, names(c.combat?.enemies)],
@@ -159,7 +178,7 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
         <Link href="/admin" className="text-sm underline">← Admin</Link>
         <h1 className={`mt-2 text-2xl font-semibold tracking-tight ${guild.removed_at ? "line-through" : ""}`}>{guild.name ?? "Unnamed server"}</h1>
         <p className="text-sm text-[var(--muted)]">
-          <span className="font-mono">{id}</span> · added havocish {ago(guild.created_at)}{guild.removed_at ? ` · removed it ${ago(guild.removed_at)}` : ""}
+          <span className="font-mono">{id}</span> · added havocish <When at={guild.created_at} />{guild.removed_at ? <> · removed it <When at={guild.removed_at} /></> : ""}
         </p>
       </div>
 
@@ -178,15 +197,30 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
       </section>
 
       <section>
+        <h2 className="font-semibold">Sessions <span className="font-normal text-[var(--muted)]">every command, button, menu and form, newest first</span></h2>
+        {clicks === null ? <p className="mt-2 text-sm text-[var(--muted)]">Not recorded yet: needs migration 013 and the bot deploy with it.</p>
+          : !sessionClicks.length ? <p className="mt-2 text-sm text-[var(--muted)]">Nothing since recording started.</p>
+          : <Sessions clicks={sessionClicks} />}
+      </section>
+
+      <section>
         <h2 className="font-semibold">History</h2>
         {versions === null && <p className="mt-1 text-sm text-[var(--muted)]">Joins, leaves and setup changes are recorded from migration 012 on.</p>}
         <ol className="mt-2 space-y-2 border-l border-[var(--border)] pl-4 text-sm">
           {history.map((m, k) => (
             <li key={k}>
-              <span className="text-[var(--muted)]">{ago(m.at)}</span> · <b className="font-semibold">{m.title}</b>
+              <span className="text-[var(--muted)]">{m.day ? `that day (${new Date(m.at).toISOString().slice(0, 10)})` : <When at={m.at} />}</span> · <b className="font-semibold">{m.title}</b>
               {m.lines && (
                 <ul className="mt-0.5 text-[var(--muted)]">
-                  {m.lines.map((l, j) => <li key={j}>{l}</li>)}
+                  {m.lines.slice(0, 14).map((l, j) => <li key={j}>{l}</li>)}
+                  {m.lines.length > 14 && (
+                    <li>
+                      <details>
+                        <summary className="cursor-pointer">{m.lines.length - 14} more changes</summary>
+                        <ul>{m.lines.slice(14).map((l, j) => <li key={j}>{l}</li>)}</ul>
+                      </details>
+                    </li>
+                  )}
                 </ul>
               )}
             </li>
@@ -248,7 +282,7 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
           <ul className="mt-2 space-y-0.5 text-sm">
             {recent.rows.map((r, k) => (
               <li key={k}>
-                <span className="inline-block w-16 text-[var(--muted)]">{ago(r.at)}</span>
+                <span className="inline-block w-44 text-[var(--muted)]"><When at={r.at} /></span>
                 <span className="inline-block w-8 font-mono text-[var(--muted)]">{who(r.player)}</span>
                 {describeEvent(r, itemName)}
               </li>

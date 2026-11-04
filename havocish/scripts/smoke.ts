@@ -38,7 +38,7 @@ import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encoun
 import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { needsSetup } from "../src/commands/admin/setup.js";
-import { countCommandUse, logAndBroadcastEvent, recordActivity, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
+import { countCommandUse, logAndBroadcastEvent, recordActivity, recordInteraction, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
@@ -404,6 +404,15 @@ async function main() {
         const ev = (await query(`SELECT e.discord_guild_id::text AS d, g.discord_guild_id::text AS want FROM events e JOIN guilds g ON g.id = e.guild_id
                                  WHERE e.guild_id = $1 AND e.event_type = 'fight' ORDER BY e.id DESC LIMIT 1`, [guildId])).rows[0];
         check("the fight is recorded under its server's Discord id", ev?.d, ev?.want);
+    });
+
+    await test("the interaction log keeps a row per click", async () => {
+        const gid = "990000000000000003";
+        await query(`DELETE FROM interaction_log WHERE discord_guild_id = $1`, [gid]);
+        const at = new Date();
+        await recordInteraction({ discordGuildId: gid, discordUserId: "990000000000000009", role: "owner", kind: "command", name: "fight", options: { enemy: "slime" }, ok: true, ms: 120, at });
+        const row = (await query(`SELECT kind, name, options, role, ok FROM interaction_log WHERE discord_guild_id = $1`, [gid])).rows[0];
+        check("written as given", [row?.kind, row?.name, row?.options?.enemy, row?.role, row?.ok], ["command", "fight", "slime", "owner", true]);
     });
 
     await test("XP is buffered in cache, not written straight through", async () => {
