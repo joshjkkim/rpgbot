@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js";
+import { nudgeFirst, setupPrompt } from "./setup.js";
 import { EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -156,6 +157,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: interaction.guildId });
+
+    // Not set up yet: offer a ready-made world first (once), since this is the slow way.
+    if (nudgeFirst(interaction.guildId, interaction.user.id, config)) {
+        const { flags: _ephemeral, ...prompt } = setupPrompt(interaction, "Or run this command again to carry on by hand.");
+        await interaction.editReply(prompt);
+        return;
+    }
     const newConfig = structuredClone(config);
     const sub = interaction.options.getSubcommand();
 

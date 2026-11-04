@@ -156,17 +156,32 @@ export function needsSetup(config: GuildConfig): boolean {
  * usual answers (Classic Fantasy, havocish leveling, everything on) or the full setup; to anyone
  * else, who to ask.
  */
-export function setupPrompt(interaction: ChatInputCommandInteraction | ButtonInteraction) {
+export function setupPrompt(interaction: ChatInputCommandInteraction | ButtonInteraction, note = "") {
     if (!canManage(interaction)) {
         return { content: "⚔️ This server hasn't set up its world yet, so there's nothing to fight. Ask an admin to run **/setup**: it takes a minute.", flags: MessageFlags.Ephemeral as const };
     }
     const embed = new EmbedBuilder().setColor(0xc4a462).setTitle("⚔️ Let's give your server a world first")
-        .setDescription(`havocish needs a world to play in: enemies, items, places to gather. **Start now** sets up ${STARTER_PACKS[0]?.name ?? "a starter world"} with the usual settings, and you can change anything later. Or pick your own world and pace.`);
+        .setDescription(`havocish needs a world to play in: enemies, items, places to gather. **Start now** sets up ${STARTER_PACKS[0]?.name ?? "a starter world"} with the usual settings, and you can change anything later. Or pick your own world and pace.${note ? `\n\n${note}` : ""}`);
     return {
         embeds: [embed],
         components: [row(button("quick", `Start now with ${STARTER_PACKS[0]?.name ?? "a starter world"}`, ButtonStyle.Primary), button("start", "Set up my way"))],
         flags: MessageFlags.Ephemeral as const,
     };
+}
+
+// ponytail: in memory, so after a restart a manager sees the card once more.
+const nudged = new Set<string>();
+
+/**
+ * Whether to show a manager the setup card before an old by-hand setup command (/config-combat,
+ * /config-enemy), once per manager per server: owners reached for those instead of /setup and
+ * built single enemies by hand. Running the command again carries on as before.
+ */
+export function nudgeFirst(guildId: string, userId: string, config: GuildConfig): boolean {
+    const key = `${guildId}:${userId}`;
+    if (!needsSetup(config) || nudged.has(key)) return false;
+    nudged.add(key);
+    return true;
 }
 
 /** Start now: the setup's usual answers, applied in one go. */
@@ -177,7 +192,18 @@ async function quickStart(interaction: ButtonInteraction) {
     await interaction.update({
         embeds: [new EmbedBuilder().setColor(0xc4a462).setTitle("✅ You're set up")
             .setDescription(`${STARTER_PACKS[0]?.name ?? "Your world"} is ready. Try **/fight** now, then **/gather**, **/shop** and **/quests**. Your members can play right away.\n\nChange anything (the world, the pace, names) with **/setup** or on the dashboard.`)],
-        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(dashboardButton(guildId, "setup", "Open the dashboard"))],
+        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(button("announce", "📣 Tell everyone", ButtonStyle.Primary), dashboardButton(guildId, "setup", "Open the dashboard"))],
+    });
+}
+
+/** Tell everyone: a short note in the channel, so members know there's something to play. */
+async function announce(interaction: ButtonInteraction) {
+    const embed = new EmbedBuilder().setColor(0xc4a462).setTitle("⚔️ havocish is ready")
+        .setDescription(`**${interaction.guild?.name ?? "This server"}** has a world to explore now. Try **/fight** to battle a monster, **/gather** to collect materials, and **/shop** and **/quests**. Chatting earns XP and gold, and **/me** shows your character.`);
+    const posted = interaction.channel?.isSendable() ? await interaction.channel.send({ embeds: [embed] }).then(() => true, () => false) : false;
+    await interaction.update({
+        content: posted ? "📣 Posted in this channel." : "I couldn't post here: check I can send messages in this channel.",
+        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(dashboardButton(interaction.guildId!, "setup", "Open the dashboard"))],
     });
 }
 
@@ -201,6 +227,7 @@ export async function handleSetupInteraction(
         return;
     }
     if (interaction.customId === "setup:quick" && interaction.isButton()) return quickStart(interaction);
+    if (interaction.customId === "setup:announce" && interaction.isButton()) return announce(interaction);
     const s = sessions.get(sessionKey(interaction));
     if (!s) {
         await interaction.reply({ content: "That setup expired. Run `/setup` to start again.", flags: MessageFlags.Ephemeral });
