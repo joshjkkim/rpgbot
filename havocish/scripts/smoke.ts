@@ -38,7 +38,7 @@ import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encoun
 import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { needsSetup } from "../src/commands/admin/setup.js";
-import { countCommandUse, logAndBroadcastEvent, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
+import { countCommandUse, logAndBroadcastEvent, recordActivity, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
 import { renderSheet } from "../src/commands/user/me.js";
@@ -380,6 +380,30 @@ async function main() {
         await countCommandUse("990000000000000001", "admin give");
         const rows = (await query(`SELECT command, uses FROM command_uses WHERE discord_guild_id = 990000000000000001 ORDER BY command`)).rows;
         check("one row a command, counting up", rows.map((r) => [r.command, r.uses]), [["admin give", 1], ["fight", 2]]);
+    });
+
+    await test("server history: joins, leaves and setup versions are logged; activity finds its server", async () => {
+        const gid = "990000000000000002";
+        await query(`DELETE FROM guild_log WHERE discord_guild_id = $1`, [gid]);
+        await query(`DELETE FROM config_history WHERE discord_guild_id = $1`, [gid]);
+        await query(`DELETE FROM guilds WHERE discord_guild_id = $1`, [gid]);
+        const g = await upsertGuild({ discordGuildId: gid, name: "History test" });
+        await setGuildConfig(gid, { ...mergeConfig(g.config), xp: { ...mergeConfig(g.config).xp, basePerMessage: 99 } });
+        await markGuildRemoved(gid);
+        await upsertGuild({ discordGuildId: gid });
+        const log = (await query(`SELECT event FROM guild_log WHERE discord_guild_id = $1 ORDER BY at, event`, [gid])).rows.map((r) => r.event);
+        check("joined, left and rejoined", [...log].sort(), ["joined", "left", "rejoined"]);
+        // The empty config it started with, the defaults, then the change.
+        const versions = (await query(`SELECT config FROM config_history WHERE discord_guild_id = $1 ORDER BY id`, [gid])).rows;
+        check("three versions kept", versions.length, 3);
+        check("the latest has the change", versions[2]!.config.xp.basePerMessage, 99);
+
+        const { userId, guildId } = await reset();
+        recordActivity(guildId, userId, "combat", "fight", { enemy: "Test Slime", outcome: "win" });
+        await flushLogsForTest();
+        const ev = (await query(`SELECT e.discord_guild_id::text AS d, g.discord_guild_id::text AS want FROM events e JOIN guilds g ON g.id = e.guild_id
+                                 WHERE e.guild_id = $1 AND e.event_type = 'fight' ORDER BY e.id DESC LIMIT 1`, [guildId])).rows[0];
+        check("the fight is recorded under its server's Discord id", ev?.d, ev?.want);
     });
 
     await test("XP is buffered in cache, not written straight through", async () => {
