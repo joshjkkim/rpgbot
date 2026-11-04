@@ -1,41 +1,73 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/app/lib/admin";
 import { dbQuery } from "@/app/lib/db";
 import { fetchHealth } from "@/app/lib/health";
+import { DEFAULT_LIMITS } from "@/app/lib/aiUsage";
+import { ago, configChanges, describeEvent, type EventRow } from "../../describe";
 
 export const metadata: Metadata = { title: "Admin · server", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 /*
- * One server, for havocish's admin: what they set up, how many people play,
- * which commands they use (command_uses, from migration 010) and what the
- * events log says happened. Counts only; no player names.
+ * One server, for havocish's admin: its history (joins, leaves, every setup
+ * change, the first use of each command), what it has built, what its
+ * players do, and its AI limits. History and setup changes need migration
+ * 012; fights, gathers and crafts are recorded from the bot deploy after it.
+ * No player names.
  */
 
 const STATS = ["messagesSent", "fightsWon", "fightsLost", "enemiesDefeated", "itemsPurchased", "dailiesClaimed"] as const;
-
-function ago(when: string | Date | null): string {
-  if (!when) return "never";
-  const mins = Math.round((Date.now() - new Date(when).getTime()) / 60_000);
-  if (mins < 60) return `${mins}m ago`;
-  if (mins < 60 * 48) return `${Math.round(mins / 60)}h ago`;
-  return `${Math.round(mins / 1440)}d ago`;
-}
-
-/** The parts of a server's config this page counts (GuildConfig, loosely: old servers may lack any of it). */
-type Config = {
-  combat?: { enabled?: boolean; enemies?: object };
-  shop?: { items?: object };
-  gathering?: { activities?: object };
-  crafting?: { stations?: object };
-  quests?: { enabled?: boolean; quests?: object };
-  achievements?: { enabled?: boolean; achievements?: object };
-  characters?: { list?: object };
+const LOG_WORDS: Record<string, string> = { joined: "Added havocish", left: "Removed havocish", rejoined: "Added havocish back" };
+const ACTIVITY = ["fight", "gather", "craft", "upgrade", "buy", "sell", "use"];
+const DOING: Record<string, { title: string; good?: string }> = {
+  fight: { title: "Fights", good: "won" }, gather: { title: "Gathering" }, craft: { title: "Crafting" },
+  upgrade: { title: "Upgrades", good: "succeeded" }, buy: { title: "Bought" }, sell: { title: "Sold" }, use: { title: "Used" },
 };
 
-const count = (o: unknown) => (o && typeof o === "object" ? Object.keys(o).length : 0);
+type Named = { name?: string; emoji?: string };
+type Config = {
+  combat?: { enabled?: boolean; enemies?: Record<string, Named> };
+  shop?: { items?: Record<string, Named> };
+  gathering?: { activities?: Record<string, Named> };
+  crafting?: { stations?: Record<string, Named> };
+  quests?: { enabled?: boolean; quests?: Record<string, Named> };
+  achievements?: { enabled?: boolean; achievements?: Record<string, Named> };
+  characters?: { list?: Record<string, Named> };
+};
+
+/** Saves the server's AI limits; empty fields go back to the default, and a row with nothing left is removed. */
+async function saveLimits(form: FormData) {
+  "use server";
+  if (!(await isAdmin())) return;
+  const id = String(form.get("id") ?? "");
+  if (!/^\d{5,20}$/.test(id)) return;
+  const num = (k: string) => {
+    const v = String(form.get(k) ?? "").trim();
+    return v === "" || !Number.isFinite(Number(v)) ? null : Math.max(0, Math.floor(Number(v)));
+  };
+  const note = String(form.get("note") ?? "").trim() || null;
+  const [helperDaily, packs] = [num("helper_daily"), num("packs")];
+  if (helperDaily === null && packs === null && note === null) {
+    await dbQuery(`DELETE FROM ai_limits WHERE discord_guild_id = $1`, [id]);
+  } else {
+    await dbQuery(
+      `INSERT INTO ai_limits (discord_guild_id, helper_daily, packs, note) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (discord_guild_id) DO UPDATE SET helper_daily = $2, packs = $3, note = $4, updated_at = NOW()`,
+      [id, helperDaily, packs, note]
+    );
+  }
+  revalidatePath(`/admin/server/${id}`);
+}
+
+/** A list of owner-made things by name: "🐺 Wolf, 🐗 Boar … +4 more". */
+function names(set: Record<string, Named> | undefined, max = 12): string {
+  const all = Object.entries(set ?? {}).map(([id, v]) => `${v?.emoji ? `${v.emoji} ` : ""}${v?.name || id}`);
+  if (!all.length) return "none";
+  return all.length > max ? `${all.slice(0, max).join(", ")} … +${all.length - max} more` : all.join(", ");
+}
 
 export default async function ServerPage({ params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) notFound();
@@ -46,7 +78,7 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
     `SELECT id::text, name, created_at, removed_at, config FROM guilds WHERE discord_guild_id = $1`, [id])).rows[0];
   if (!guild) notFound();
 
-  const [players, events, recent, perDay, commands, health] = await Promise.all([
+  const [players, doing, recent, perDay, commands, firstUses, log, versions, limits, health] = await Promise.all([
     dbQuery<Record<string, string | null>>(`
       SELECT count(*) AS players,
              count(*) FILTER (WHERE updated_at > NOW() - INTERVAL '1 day') AS day,
@@ -54,43 +86,80 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
              max(updated_at) AS last, max(level) AS top_level,
              ${STATS.map((k) => `coalesce(sum((user_stats->>'${k}')::numeric), 0) AS "${k}"`).join(", ")}
       FROM user_guild_profiles WHERE guild_id = $1`, [guild.id]),
-    dbQuery<{ category: string; event_type: string; n: string; last: string }>(`
-      SELECT category, event_type, count(*) AS n, max("timestamp") AS last FROM events
-      WHERE guild_id = $1 AND "timestamp" > NOW() - INTERVAL '30 days' GROUP BY 1, 2 ORDER BY 3 DESC`, [guild.id]),
-    dbQuery<{ event_type: string; at: string; xp_delta: string | null; gold_delta: string | null; item_id: string | null; quantity: number | null; new_level: number | null }>(`
-      SELECT event_type, "timestamp" AS at, xp_delta, gold_delta, item_id, quantity, new_level FROM events
-      WHERE guild_id = $1 AND event_type <> 'messageXp' ORDER BY "timestamp" DESC LIMIT 25`, [guild.id]),
+    dbQuery<{ event_type: string; what: string | null; n: string; good: string; players: string }>(`
+      SELECT event_type, coalesce(metadata->>'enemy', metadata->>'activity', metadata->>'item', item_id) AS what,
+             count(*) AS n, count(DISTINCT user_id) AS players,
+             count(*) FILTER (WHERE metadata->>'outcome' = 'win' OR metadata->>'success' = 'true') AS good
+      FROM events WHERE guild_id = $1 AND "timestamp" > NOW() - INTERVAL '30 days' AND event_type = ANY($2)
+      GROUP BY 1, 2 ORDER BY 3 DESC`, [guild.id, ACTIVITY]),
+    dbQuery<EventRow & { player: string }>(`
+      SELECT event_type, "timestamp" AS at, xp_delta, gold_delta, item_id, quantity, new_level, metadata, user_id::text AS player FROM events
+      WHERE guild_id = $1 AND event_type NOT IN ('messageXp', 'vcXp') ORDER BY "timestamp" DESC LIMIT 40`, [guild.id]),
     dbQuery<{ day: string; n: string }>(`
       SELECT to_char(date_trunc('day', "timestamp"), 'Mon DD') AS day, count(*) AS n FROM events
-      WHERE guild_id = $1 AND "timestamp" > NOW() - INTERVAL '14 days' GROUP BY date_trunc('day', "timestamp"), 1 ORDER BY date_trunc('day', "timestamp")`, [guild.id]),
-    // Null until migration 010 is live.
+      WHERE guild_id = $1 AND "timestamp" > NOW() - INTERVAL '14 days' AND event_type NOT IN ('messageXp', 'vcXp')
+      GROUP BY date_trunc('day', "timestamp"), 1 ORDER BY date_trunc('day', "timestamp")`, [guild.id]),
     dbQuery<{ command: string; uses: string; last: string }>(`
       SELECT command, sum(uses) AS uses, max(day)::text AS last FROM command_uses
       WHERE discord_guild_id = $1 AND day > CURRENT_DATE - 30 GROUP BY 1 ORDER BY 2 DESC`, [id]).catch(() => null),
+    dbQuery<{ command: string; first: string }>(`
+      SELECT command, min(day) AS first FROM command_uses WHERE discord_guild_id = $1 GROUP BY 1`, [id]).catch(() => null),
+    // Both null until migration 012 is live.
+    dbQuery<{ event: string; at: string }>(`SELECT event, at FROM guild_log WHERE discord_guild_id = $1`, [id]).catch(() => null),
+    dbQuery<{ config: unknown; at: string }>(`SELECT config, at FROM config_history WHERE discord_guild_id = $1 ORDER BY id`, [id]).catch(() => null),
+    dbQuery<{ helper_daily: number | null; packs: number | null; note: string | null }>(
+      `SELECT helper_daily, packs, note FROM ai_limits WHERE discord_guild_id = $1`, [id]).catch(() => null),
     fetchHealth(id),
   ]);
 
   const p = players.rows[0]!;
   const c = guild.config ?? {};
-  const setup: Array<[string, string]> = [
-    ["Combat", c.combat?.enabled === false ? "off" : "on"],
-    ["Enemies", String(count(c.combat?.enemies))],
-    ["Shop items", String(count(c.shop?.items))],
-    ["Gathering activities", String(count(c.gathering?.activities))],
-    ["Crafting stations", String(count(c.crafting?.stations))],
-    ["Quests", `${count(c.quests?.quests)}${c.quests?.enabled === false ? " (off)" : ""}`],
-    ["Achievements", `${count(c.achievements?.achievements)}${c.achievements?.enabled === false ? " (off)" : ""}`],
-    ["Characters", String(count(c.characters?.list))],
+  const lim = limits?.rows[0];
+  // Events store item ids; show each item's live name, as everywhere else.
+  const itemName = (itemId: string) => {
+    const it = c.shop?.items?.[itemId];
+    return it?.name ? `${it.emoji ? `${it.emoji} ` : ""}${it.name}` : itemId;
+  };
+
+  // The history: joins and leaves, each setup change (compared with the version before), and each command's first use.
+  type Moment = { at: string; title: string; lines?: string[] };
+  const history: Moment[] = [
+    ...(log?.rows.length ? log.rows : [{ event: "joined", at: guild.created_at }]).map((r) => ({ at: r.at, title: LOG_WORDS[r.event] ?? r.event })),
+    ...(versions?.rows ?? []).flatMap((v, k, all): Moment[] => {
+      if (k === 0) return [];
+      const lines = configChanges(all[k - 1]!.config, v.config);
+      return lines.length ? [{ at: v.at, title: "Changed their setup", lines }] : [];
+    }),
+    ...(firstUses?.rows ?? []).map((r) => ({ at: r.first, title: `First used /${r.command}` })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  // Recent activity, players told apart by a letter (A is whoever acted most recently) rather than named.
+  const letters = new Map<string, string>();
+  const who = (player: string) => {
+    if (!letters.has(player)) letters.set(player, letters.size < 26 ? String.fromCharCode(65 + letters.size) : `#${letters.size + 1}`);
+    return letters.get(player)!;
+  };
+
+  const built: Array<[string, string]> = [
+    [`Enemies (${Object.keys(c.combat?.enemies ?? {}).length})${c.combat?.enabled ? "" : ", combat off"}`, names(c.combat?.enemies)],
+    [`Items (${Object.keys(c.shop?.items ?? {}).length})`, names(c.shop?.items)],
+    [`Gathering (${Object.keys(c.gathering?.activities ?? {}).length})`, names(c.gathering?.activities)],
+    [`Crafting (${Object.keys(c.crafting?.stations ?? {}).length})`, names(c.crafting?.stations)],
+    [`Quests (${Object.keys(c.quests?.quests ?? {}).length})${c.quests?.enabled === false ? ", off" : ""}`, names(c.quests?.quests)],
+    [`Achievements (${Object.keys(c.achievements?.achievements ?? {}).length})${c.achievements?.enabled === false ? ", off" : ""}`, names(c.achievements?.achievements)],
+    [`Characters (${Object.keys(c.characters?.list ?? {}).length})`, names(c.characters?.list)],
   ];
+  const groups = Object.keys(DOING).map((type) => ({ type, rows: doing.rows.filter((r) => r.event_type === type) })).filter((g) => g.rows.length);
   const busiest = Math.max(1, ...perDay.rows.map((r) => Number(r.n)));
+  const field = "rounded-sm border border-[var(--border)] bg-[var(--surface)] px-2 py-1";
 
   return (
-    <main className="mx-auto min-h-screen max-w-5xl space-y-8 px-6 py-12">
+    <main className="mx-auto min-h-screen max-w-5xl space-y-10 px-6 py-12">
       <div>
         <Link href="/admin" className="text-sm underline">← Admin</Link>
         <h1 className={`mt-2 text-2xl font-semibold tracking-tight ${guild.removed_at ? "line-through" : ""}`}>{guild.name ?? "Unnamed server"}</h1>
         <p className="text-sm text-[var(--muted)]">
-          <span className="font-mono">{id}</span> · added the bot {ago(guild.created_at)}{guild.removed_at ? ` · removed it ${ago(guild.removed_at)}` : ""}
+          <span className="font-mono">{id}</span> · added havocish {ago(guild.created_at)}{guild.removed_at ? ` · removed it ${ago(guild.removed_at)}` : ""}
         </p>
       </div>
 
@@ -109,10 +178,32 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
       </section>
 
       <section>
-        <h2 className="font-semibold">Setup</h2>
-        <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-          {setup.map(([k, v]) => <p key={k}><span className="text-[var(--muted)]">{k}:</span> {v}</p>)}
-        </div>
+        <h2 className="font-semibold">History</h2>
+        {versions === null && <p className="mt-1 text-sm text-[var(--muted)]">Joins, leaves and setup changes are recorded from migration 012 on.</p>}
+        <ol className="mt-2 space-y-2 border-l border-[var(--border)] pl-4 text-sm">
+          {history.map((m, k) => (
+            <li key={k}>
+              <span className="text-[var(--muted)]">{ago(m.at)}</span> · <b className="font-semibold">{m.title}</b>
+              {m.lines && (
+                <ul className="mt-0.5 text-[var(--muted)]">
+                  {m.lines.map((l, j) => <li key={j}>{l}</li>)}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section>
+        <h2 className="font-semibold">What they&apos;ve built</h2>
+        <dl className="mt-2 space-y-1.5 text-sm">
+          {built.map(([k, v]) => (
+            <div key={k} className="grid gap-x-4 sm:grid-cols-[13rem_1fr]">
+              <dt className="text-[var(--muted)]">{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
         <div className="mt-3 text-sm">
           {health === null ? <p className="text-[var(--muted)]">Health check: the bot couldn&apos;t be reached.</p>
             : !health.inGuild ? <p className="text-[var(--muted)]">Health check: the bot isn&apos;t in this server.</p>
@@ -126,30 +217,47 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
       </section>
 
       <section>
-        <h2 className="font-semibold">Commands, last 30 days</h2>
-        {commands === null ? <p className="mt-2 text-sm text-[var(--muted)]">Not counted yet: needs migration 010 and the bot deploy that counts them.</p>
-          : !commands.rows.length ? <p className="mt-2 text-sm text-[var(--muted)]">No commands used since counting started.</p>
-          : (
-            <div className="frame mt-2 overflow-x-auto">
-              <table className="w-full text-sm">
-                <tbody>
-                  {commands.rows.map((r) => (
-                    <tr key={r.command} className="border-t border-[var(--border)] first:border-t-0">
-                      <td className="px-3 py-1.5 font-mono">/{r.command}</td>
-                      <td className="px-3 py-1.5 tabular-nums">{r.uses}</td>
-                      <td className="px-3 py-1.5 text-[var(--muted)]">last {r.last}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <h2 className="font-semibold">What players do <span className="font-normal text-[var(--muted)]">last 30 days</span></h2>
+        {!groups.length ? <p className="mt-2 text-sm text-[var(--muted)]">Nothing recorded yet. Fights, gathering and crafting are recorded from the bot deploy with migration 012.</p> : (
+          <div className="mt-2 grid gap-4 sm:grid-cols-2">
+            {groups.map((g) => (
+              <div key={g.type} className="frame px-3 py-2 text-sm">
+                <h3 className="mb-1 font-semibold">{DOING[g.type]!.title}</h3>
+                <table className="w-full">
+                  <tbody>
+                    {g.rows.slice(0, 10).map((r) => (
+                      <tr key={r.what ?? ""}>
+                        <td className="py-0.5 pr-2">{["buy", "sell", "use"].includes(g.type) && r.what ? itemName(r.what) : r.what ?? "?"}</td>
+                        <td className="py-0.5 text-right tabular-nums whitespace-nowrap">
+                          ×{r.n}{DOING[g.type]!.good ? ` · ${r.good} ${DOING[g.type]!.good}` : ""}
+                          <span className="text-[var(--muted)]"> · {r.players} player{r.players === "1" ? "" : "s"}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section>
-        <h2 className="font-semibold">Events, last 14 days</h2>
-        {!perDay.rows.length ? <p className="mt-2 text-sm text-[var(--muted)]">Nothing logged.</p> : (
-          <div className="mt-2 space-y-0.5 text-sm">
+        <h2 className="font-semibold">Latest activity <span className="font-normal text-[var(--muted)]">players shown as letters, chat XP left out</span></h2>
+        {!recent.rows.length ? <p className="mt-2 text-sm text-[var(--muted)]">Nothing yet.</p> : (
+          <ul className="mt-2 space-y-0.5 text-sm">
+            {recent.rows.map((r, k) => (
+              <li key={k}>
+                <span className="inline-block w-16 text-[var(--muted)]">{ago(r.at)}</span>
+                <span className="inline-block w-8 font-mono text-[var(--muted)]">{who(r.player)}</span>
+                {describeEvent(r, itemName)}
+              </li>
+            ))}
+          </ul>
+        )}
+        {perDay.rows.length > 0 && (
+          <div className="mt-4 space-y-0.5 text-sm">
+            <p className="text-[var(--muted)]">Per day, last 14 days</p>
             {perDay.rows.map((r) => (
               <div key={r.day} className="flex items-center gap-3">
                 <span className="w-14 text-[var(--muted)]">{r.day}</span>
@@ -159,32 +267,29 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
             ))}
           </div>
         )}
-        {events.rows.length > 0 && (
-          <p className="mt-3 text-sm">
-            {events.rows.map((r) => `${r.event_type} ×${r.n}`).join(" · ")}
-          </p>
-        )}
       </section>
 
       <section>
-        <h2 className="font-semibold">Latest events <span className="font-normal text-[var(--muted)]">(chat XP left out)</span></h2>
-        {!recent.rows.length ? <p className="mt-2 text-sm text-[var(--muted)]">Nothing yet.</p> : (
-          <div className="frame mt-2 overflow-x-auto">
-            <table className="w-full text-sm">
-              <tbody>
-                {recent.rows.map((r, k) => (
-                  <tr key={k} className="border-t border-[var(--border)] first:border-t-0">
-                    <td className="px-3 py-1.5 whitespace-nowrap text-[var(--muted)]">{ago(r.at)}</td>
-                    <td className="px-3 py-1.5">{r.event_type}</td>
-                    <td className="px-3 py-1.5 text-[var(--muted)]">
-                      {[r.item_id && `${r.item_id}${r.quantity && r.quantity !== 1 ? ` ×${r.quantity}` : ""}`, r.xp_delta && `${r.xp_delta} XP`, r.gold_delta && `${r.gold_delta} gold`, r.new_level && `→ level ${r.new_level}`].filter(Boolean).join(" · ")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <h2 className="font-semibold">Commands <span className="font-normal text-[var(--muted)]">last 30 days</span></h2>
+        {commands === null ? <p className="mt-2 text-sm text-[var(--muted)]">Not counted yet: needs migration 010.</p>
+          : !commands.rows.length ? <p className="mt-2 text-sm text-[var(--muted)]">No commands used since counting started.</p>
+          : (
+            <p className="mt-2 text-sm">
+              {commands.rows.map((r) => `/${r.command} ×${r.uses}`).join(" · ")}
+            </p>
+          )}
+      </section>
+
+      <section>
+        <h2 className="font-semibold">AI limits</h2>
+        <form action={saveLimits} className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+          <input type="hidden" name="id" value={id} />
+          <label>Helper messages a day <input name="helper_daily" type="number" min={0} defaultValue={lim?.helper_daily ?? ""} placeholder={String(DEFAULT_LIMITS.helperDaily)} className={`w-16 ${field}`} /></label>
+          <label>Worlds in all <input name="packs" type="number" min={0} defaultValue={lim?.packs ?? ""} placeholder={String(DEFAULT_LIMITS.packs)} className={`w-14 ${field}`} /></label>
+          <input name="note" defaultValue={lim?.note ?? ""} placeholder="note" aria-label="Note" className={`w-48 ${field}`} />
+          <button type="submit" className="rounded-sm border border-[var(--border)] px-2 py-1 hover:bg-[var(--accent)]/10">Save</button>
+          <span className="text-[var(--muted)]">Empty uses the default.</span>
+        </form>
       </section>
     </main>
   );

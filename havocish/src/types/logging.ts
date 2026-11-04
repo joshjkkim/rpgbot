@@ -9,6 +9,9 @@ export type EventCategory =
     | "admin"
     | "quests";
 
+/** What players did, recorded for /admin only (recordActivity): never posted to a log channel, so no switch for it there. */
+export type ActivityCategory = "combat" | "gathering" | "crafting";
+
 export type EventType = 
     "buy" 
     | "sell" 
@@ -30,16 +33,21 @@ export type EventType =
     | "startQuest"
     | "claimQuest"
     | "giftItem"
-    | "duel";
+    | "duel"
+    | "fight"
+    | "gather"
+    | "craft"
+    | "upgrade";
 
 
 export interface LogEvent {
     guildId: number;
-    discordGuildId: string;
+    /** Looked up from guildId when the event is written, if left out. */
+    discordGuildId?: string;
     userId: number;
     targetUserId?: number;
 
-    category: EventCategory;
+    category: EventCategory | ActivityCategory;
     eventType: EventType;
     source?: string | null;
 

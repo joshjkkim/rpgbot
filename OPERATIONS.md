@@ -205,15 +205,27 @@ Worth knowing:
 
 ## Admin page
 
-`havocish.com/admin` lists every server with its AI cost (30 days), helper use
-today and worlds made, and edits its AI limits (`ai_limits`; empty = the
-default). Only Discord user ids in `ADMIN_USER_IDS` (Vercel env, comma-separated)
-can open it; everyone else gets a 404. AI defaults: `AI_HELPER_DAILY` (20),
-`AI_FREE_PACKS` (3), `AI_DAILY_BUDGET_USD` (5, across all servers).
+`havocish.com/admin` shows how many servers have havocish, added it this week,
+are set up, had players this week and removed it; every server newest first
+with its status and its last 7 days (commands, fights, gathers, crafts); and a
+feed of the latest joins, leaves and setup changes. Only Discord user ids in
+`ADMIN_USER_IDS` (Vercel env, comma-separated) can open it; everyone else gets
+a 404. AI defaults: `AI_HELPER_DAILY` (20), `AI_FREE_PACKS` (3),
+`AI_DAILY_BUDGET_USD` (5, across all servers).
 
-Each server's name opens `/admin/server/<id>`: players and how active they are,
-what the server has set up, the health check, which commands it used
-(`command_uses`, counts per command and day, no users), and the events log.
+Each server's name opens `/admin/server/<id>`: players, a history (joins,
+leaves, each setup change compared with the version before, each command's
+first use), what it has built by name, what its players do (fights by enemy,
+gathering, crafting, purchases), the latest activity with players as letters,
+commands used, the health check, and its AI limits (`ai_limits`; empty = the
+default).
+
+Where it comes from: `guild_log` and `config_history` (migration 012) are
+written by a trigger on `guilds`, so every path that saves a config is
+covered, and the latest 50 versions per server are kept. Fights, gathers,
+crafts and upgrades are events (`recordActivity`), recorded for every server
+whether or not it posts a log channel; chat and voice XP rows still only for
+servers that do. `command_uses` counts commands per day, no users.
 
 ## Bot lists
 

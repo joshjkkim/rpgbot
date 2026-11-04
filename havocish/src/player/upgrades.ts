@@ -1,3 +1,4 @@
+import { recordActivity } from "../db/events.js";
 import type { GuildConfig, UpgradeRules } from "../types/guild.js";
 import type { DbUserGuildProfile, item } from "../types/userprofile.js";
 import type { PendingProfileChanges } from "../types/cache.js";
@@ -121,5 +122,6 @@ export async function attemptUpgrade(opts: {
         changes: { ...(cached.pendingChanges ?? {}), gold: p.gold, inventory: inv, user_stats: stats } as PendingProfileChanges,
         baseline,
     });
+    recordActivity(guildId, userId, "crafting", "upgrade", { item: item.name, to: step.to, success, chance: Math.round(chance) });
     return { ok: true, success, level: success ? step.to : level, chance, step };
 }
