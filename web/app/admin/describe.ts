@@ -75,7 +75,8 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
  * filling in a default, not an owner's change.
  */
 export function configChanges(before: unknown, after: unknown, max = 14): string[] {
-  if (!isObj(before) || !Object.keys(before).length) return ["started from the default settings"];
+  // An empty config is a server just added: its first save is the defaults, not an owner's change.
+  if (!isObj(before) || !Object.keys(before).length) return [];
   const lines: string[] = [];
   const walk = (a: unknown, b: unknown, path: string[]) => {
     if (same(a, b)) return;
@@ -103,4 +104,25 @@ export function configChanges(before: unknown, after: unknown, max = 14): string
   };
   walk(before, after, []);
   return lines.length > max ? [...lines.slice(0, max), `…and ${lines.length - max} more`] : lines;
+}
+
+// ─── Clicks ──────────────────────────────────────────────────────────────────
+
+export type ClickRow = { kind: string; name: string; options: Record<string, unknown> | null };
+
+/** A button or menu id, readable: "fight:move:heavy:1440170111074963638" → "fight › move › heavy" (Discord ids dropped). */
+const clean = (id: string) => id.split(":").filter((seg) => seg && !/^\d{15,}$/.test(seg)).join(" › ");
+
+/** One click as a line: "/fight enemy: Goblin", "pressed setup › quick", "picked heavy in moves › pick". */
+export function describeClick(c: ClickRow): string {
+  const o = c.options ?? {};
+  switch (c.kind) {
+    case "command": {
+      const opts = Object.entries(o).map(([k, v]) => `${k}: ${String(v)}`).join(", ");
+      return `/${c.name}${opts ? ` · ${opts}` : ""}`;
+    }
+    case "select": return `picked ${Array.isArray(o.values) ? o.values.map((v) => clean(String(v))).join(", ") : "?"} in ${clean(c.name)}`;
+    case "form": return `sent the ${clean(c.name)} form`;
+    default: return `pressed ${clean(c.name)}`;
+  }
 }

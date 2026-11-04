@@ -254,6 +254,8 @@ const PRUNE_BATCH = 5000;
  * add an index on events("timestamp") if the table gets into the millions.
  */
 export async function pruneOldEvents(days = EVENT_RETENTION_DAYS): Promise<number> {
+    // The interaction log, a row per click, keeps 30 days. Fails quietly until migration 013 is live.
+    await query(`DELETE FROM interaction_log WHERE at < NOW() - INTERVAL '30 days'`).catch(() => undefined);
     let total = 0;
     for (;;) {
         const res = await query(
@@ -273,5 +275,20 @@ export async function countCommandUse(discordGuildId: string, command: string): 
         `INSERT INTO command_uses (discord_guild_id, command, uses) VALUES ($1, $2, 1)
          ON CONFLICT (discord_guild_id, command, day) DO UPDATE SET uses = command_uses.uses + 1`,
         [discordGuildId, command]
+    );
+}
+
+export type InteractionRecord = {
+    discordGuildId: string; discordUserId: string; role: "owner" | "manager" | null;
+    kind: "command" | "button" | "select" | "form"; name: string; options: Record<string, unknown> | null;
+    ok: boolean; ms: number; at: Date;
+};
+
+/** One row of the interaction log (migration 013). Callers don't wait on it or mind if it fails. */
+export async function recordInteraction(r: InteractionRecord): Promise<void> {
+    await query(
+        `INSERT INTO interaction_log (discord_guild_id, discord_user_id, role, kind, name, options, ok, ms, at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [r.discordGuildId, r.discordUserId, r.role, r.kind, r.name, r.options ? JSON.stringify(r.options) : null, r.ok, r.ms, r.at],
     );
 }
