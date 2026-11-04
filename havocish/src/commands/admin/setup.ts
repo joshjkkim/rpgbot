@@ -143,6 +143,44 @@ function next(s: State): Step {
 
 const notManager = "Only the server owner and members with **Manage Server** can set havocish up.";
 
+/**
+ * Whether a server never got set up: combat still off and next to no enemies (what every server
+ * starts with). Players hitting /fight then get a way forward instead of "combat isn't enabled".
+ */
+export function needsSetup(config: GuildConfig): boolean {
+    return !config.combat?.enabled && Object.keys(config.combat?.enemies ?? {}).length < 3;
+}
+
+/**
+ * What a command says on a server that hasn't been set up: to a manager, a one-click start with the
+ * usual answers (Classic Fantasy, havocish leveling, everything on) or the full setup; to anyone
+ * else, who to ask.
+ */
+export function setupPrompt(interaction: ChatInputCommandInteraction | ButtonInteraction) {
+    if (!canManage(interaction)) {
+        return { content: "⚔️ This server hasn't set up its world yet, so there's nothing to fight. Ask an admin to run **/setup**: it takes a minute.", flags: MessageFlags.Ephemeral as const };
+    }
+    const embed = new EmbedBuilder().setColor(0xc4a462).setTitle("⚔️ Let's give your server a world first")
+        .setDescription(`havocish needs a world to play in: enemies, items, places to gather. **Start now** sets up ${STARTER_PACKS[0]?.name ?? "a starter world"} with the usual settings, and you can change anything later. Or pick your own world and pace.`);
+    return {
+        embeds: [embed],
+        components: [row(button("quick", `Start now with ${STARTER_PACKS[0]?.name ?? "a starter world"}`, ButtonStyle.Primary), button("start", "Set up my way"))],
+        flags: MessageFlags.Ephemeral as const,
+    };
+}
+
+/** Start now: the setup's usual answers, applied in one go. */
+async function quickStart(interaction: ButtonInteraction) {
+    const guildId = interaction.guildId!;
+    const { config } = await getOrCreateGuildConfig({ discordGuildId: guildId, fresh: true });
+    await setGuildConfig(guildId, buildSetup(config as unknown as GuildConfigJson, fresh().answers, STARTER_PACKS) as unknown as GuildConfig);
+    await interaction.update({
+        embeds: [new EmbedBuilder().setColor(0xc4a462).setTitle("✅ You're set up")
+            .setDescription(`${STARTER_PACKS[0]?.name ?? "Your world"} is ready. Try **/fight** now, then **/gather**, **/shop** and **/quests**. Your members can play right away.\n\nChange anything (the world, the pace, names) with **/setup** or on the dashboard.`)],
+        components: [new ActionRowBuilder<ButtonBuilder>().addComponents(dashboardButton(guildId, "setup", "Open the dashboard"))],
+    });
+}
+
 /** /setup, and the welcome message's "Set up here". */
 export async function execute(interaction: ChatInputCommandInteraction | ButtonInteraction) {
     if (!interaction.guildId || !canManage(interaction)) {
@@ -162,6 +200,7 @@ export async function handleSetupInteraction(
         await interaction.reply({ content: notManager, flags: MessageFlags.Ephemeral });
         return;
     }
+    if (interaction.customId === "setup:quick" && interaction.isButton()) return quickStart(interaction);
     const s = sessions.get(sessionKey(interaction));
     if (!s) {
         await interaction.reply({ content: "That setup expired. Run `/setup` to start again.", flags: MessageFlags.Ephemeral });

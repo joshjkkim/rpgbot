@@ -2,7 +2,7 @@ import type { ButtonInteraction, ChatInputCommandInteraction, ColorResolvable } 
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import type { GuildConfig } from "../../types/guild.js";
-import { dashboardButton } from "../../ui/dashboardLinks.js";
+import { dashboardButton, SUPPORT_URL } from "../../ui/dashboardLinks.js";
 import { partyRules } from "../../player/fight.js";
 
 /**
@@ -161,9 +161,9 @@ function render(page: Page, config: GuildConfig, guildId: string, isOwner: boole
     );
     // A row holds five buttons.
     const rows = [buttons.slice(0, 3), buttons.slice(3)].map((b) => new ActionRowBuilder<ButtonBuilder>().addComponents(b));
-    if (page === "owner" && isOwner) {
-        rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(dashboardButton(guildId, undefined, "Open dashboard")));
-    }
+    // The support server on every page; owners also get the dashboard.
+    const support = new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Support server").setURL(SUPPORT_URL);
+    rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(...(page === "owner" && isOwner ? [dashboardButton(guildId, undefined, "Open dashboard")] : []), support));
     return { embeds: [embed], components: rows };
 }
 
