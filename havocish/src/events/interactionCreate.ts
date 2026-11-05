@@ -3,6 +3,7 @@ import { Events, PermissionFlagsBits } from "discord.js";
 import { commands } from "../commands/index.js";
 import { countCommandUse, recordInteraction, type InteractionRecord } from "../db/events.js";
 import { bestEffort } from "../ui/bestEffort.js";
+import { takeWarnings } from "../health/blocked.js";
 import { MessageFlags } from "discord.js";
 import { handleConfigPanelSelect } from "../ui/panel/panelSelection.js";
 import { handleConfigPanelButton } from "../ui/panel/panelButton.js";
@@ -168,9 +169,18 @@ export function registerInteractionCreate(client: Client) {
             await reportInteractionError(interaction);
         } finally {
             const what = describe(interaction);
+            const role = interaction.guild?.ownerId === interaction.user.id ? "owner"
+                : interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ? "manager" : null;
+            // Whatever Discord refused havocish in this server, told privately to whoever can fix it (health/blocked.ts).
+            if (role && interaction.guildId && interaction.isRepliable() && (interaction.replied || interaction.deferred)) {
+                const warnings = takeWarnings(interaction.guildId);
+                if (warnings.length) {
+                    void bestEffort("telling a manager what's blocked", interaction.followUp({
+                        content: warnings.map((w) => `⚠️ ${w}`).join("\n"), flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] },
+                    }));
+                }
+            }
             if (what) {
-                const role = interaction.guild?.ownerId === interaction.user.id ? "owner"
-                    : interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ? "manager" : null;
                 void bestEffort("logging an interaction", recordInteraction({
                     ...what, discordGuildId: interaction.guildId!, discordUserId: interaction.user.id, role,
                     ok, ms: Date.now() - started, at: interaction.createdAt,

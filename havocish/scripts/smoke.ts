@@ -38,6 +38,7 @@ import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encoun
 import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { needsSetup } from "../src/commands/admin/setup.js";
+import { checkPostable, refusal, takeWarnings } from "../src/health/blocked.js";
 import { countCommandUse, logAndBroadcastEvent, recordActivity, recordInteraction, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
@@ -413,6 +414,26 @@ async function main() {
         await recordInteraction({ discordGuildId: gid, discordUserId: "990000000000000009", role: "owner", kind: "command", name: "fight", options: { enemy: "slime" }, ok: true, ms: 120, at });
         const row = (await query(`SELECT kind, name, options, role, ok FROM interaction_log WHERE discord_guild_id = $1`, [gid])).rows[0];
         check("written as given", [row?.kind, row?.name, row?.options?.enemy, row?.role, row?.ok], ["command", "fight", "slime", "owner", true]);
+    });
+
+    await test("refused posts become one private warning a day for managers", async () => {
+        const channel = {
+            id: "111", guildId: "g1", parentId: null, isDMBased: () => false, isThread: () => false,
+            guild: { id: "g1", members: { me: {} } },
+            permissionsFor: () => ({ missing: () => ["SendMessages", "EmbedLinks"] }),
+        };
+        const guild = { id: "g1", channels: { cache: new Map([["111", channel]]) } } as any;
+        const client = { channels: { cache: new Map([["111", channel]]) }, guilds: { cache: new Map() } } as any;
+
+        const post = refusal(client, "POST", "/channels/111/messages");
+        check("a refused post names what's missing", post?.text, "I couldn't post in <#111>: give me Send Messages, Embed Links there.");
+        check("a refused thread is about threads", refusal(client, "POST", "/channels/111/messages/123/threads")?.key, "threads:111");
+        check("reading isn't a post", refusal(client, "GET", "/channels/111/messages"), null);
+
+        check("picking a channel havocish can't post in is caught", checkPostable(guild, "111", "logs"), false);
+        check("told once", takeWarnings("g1"), ["I can't post logs in <#111> yet: give me Send Messages, Embed Links there."]);
+        checkPostable(guild, "111", "logs");
+        check("not again the same day", takeWarnings("g1"), []);
     });
 
     await test("XP is buffered in cache, not written straight through", async () => {
@@ -2722,7 +2743,7 @@ async function main() {
         const before = structuredClone((await reset()).config);
         let shown: any = null;
         const click = (customId: string, extra: Record<string, unknown> = {}) => handleSetupInteraction({
-            customId, guildId: TEST_DISCORD_GUILD, guild: {}, user: { id: TEST_DISCORD_USER },
+            customId, guildId: TEST_DISCORD_GUILD, guild: { id: TEST_DISCORD_GUILD, channels: { cache: new Map() } }, user: { id: TEST_DISCORD_USER },
             memberPermissions: { has: () => true },
             isButton: () => !("values" in extra), isStringSelectMenu: () => "values" in extra && !extra.channel,
             isChannelSelectMenu: () => !!extra.channel, isModalSubmit: () => false,

@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import { registerMessageCreate } from "./events/messageCreate.js";
 import { registerGuildCreate } from "./events/guildCreate.js";
+import { watchRefusals } from "./health/blocked.js";
 import { registerGuildDelete } from "./events/guildDelete.js";
 import { registerInteractionCreate } from "./events/interactionCreate.js";
 import { registerVoiceStateUpdate } from "./events/voiceStateUpdate.js";
@@ -62,6 +63,7 @@ registerMessageCreate(client);
 registerGuildCreate(client);
 registerGuildDelete(client);
 registerInteractionCreate(client);
+watchRefusals(client);
 registerVoiceStateUpdate(client);
 registerLevelUps(client);
 registerRoleRewards(client);
