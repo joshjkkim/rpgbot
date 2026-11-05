@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { checkPostable } from "../../health/blocked.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { logAndBroadcastEvent } from "../../db/events.js";
@@ -130,7 +131,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             config.logging.mainChannelId = channelId;
             await setGuildConfig(interaction.guildId, config);
 
-            await interaction.editReply(`Main event logging channel set to <#${channelId}>.`);
+            const can = checkPostable(interaction.guild!, channelId, "logs");
+            await interaction.editReply(`Main event logging channel set to <#${channelId}>.${can ? "" : " I can't post there yet, see below."}`);
             break;
         }
 
@@ -141,7 +143,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             (config.logging.allowedCategories as Record<string, string | null>)[category] = channelId;
             await setGuildConfig(interaction.guildId, config);
 
-            await interaction.editReply(`Logging for category **${category}** has been added${channelId ? ` with channel <#${channelId}>` : ""}.`);
+            const can = !channelId || checkPostable(interaction.guild!, channelId, `${category} logs`);
+            await interaction.editReply(`Logging for category **${category}** has been added${channelId ? ` with channel <#${channelId}>` : ""}.${can ? "" : " I can't post there yet, see below."}`);
             break;
         }
 
