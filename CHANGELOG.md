@@ -2,7 +2,9 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.19.2 · November 4, 2026
+
+Logs that arrive, and a heads-up when havocish can't post.
 
 ### For server owners
 - **havocish tells you when it can't post.** If Discord stops havocish posting somewhere (a log channel, fight threads, level-ups, giving a role), the next time an owner or manager uses havocish they get a private note saying exactly which permission to give and where. Picking a log or level-up channel havocish can't post in tells you right away. Once a day at most, and only when something's wrong.
