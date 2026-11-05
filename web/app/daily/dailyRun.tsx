@@ -394,7 +394,7 @@ export default function DailyRun({ daily }: { daily: Daily }) {
       {view === "map" && !started && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/70 px-4 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- the 64px pixel logo */}
-          <img src="/logo.png" alt="" width={72} height={72} style={{ animation: "daily-slam 0.6s ease-out both" }} />
+          <img src="/logo.png" alt="" width={72} height={72} className="[image-rendering:pixelated]" style={{ animation: "daily-slam 0.6s ease-out both" }} />
           <p className="font-display text-4xl text-[var(--gold)] [text-shadow:3px_3px_0_#000] sm:text-5xl">havocish daily</p>
           <p className="font-display text-lg text-[#f2e4bf]">#{daily.day} · {daily.world}</p>
           <p className="max-w-sm text-sm text-[#e2dacb]">Today&apos;s quest: beat <b className="text-[#ff7060]">{daily.map.nodes.find((n) => n.kind === "lair")!.enemy!.name}</b> before the day runs out.</p>
@@ -1046,7 +1046,7 @@ function Hud({ daily, s, kitMax, muted, onMute }: { daily: Daily; s: MapState; k
           </div>
           <Link href="/" className="hidden items-center gap-1.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] sm:flex">
             {/* eslint-disable-next-line @next/next/no-img-element -- the 64px pixel logo */}
-            <img src="/logo.png" alt="" width={14} height={14} />
+            <img src="/logo.png" alt="" width={14} height={14} className="[image-rendering:pixelated]" />
             <span className="hidden sm:inline">havocish daily ·</span> #{daily.day} · {daily.world}
           </Link>
         </div>

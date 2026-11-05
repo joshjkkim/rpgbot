@@ -19,7 +19,7 @@ export default async function OpenGraphImage() {
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 36, background: "#14110d", color: "#e8dcc0" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <img src={icon} width={96} height={96} alt="" />
+          <img src={icon} width={96} height={96} alt="" style={{ imageRendering: "pixelated" }} />
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 72, fontWeight: 700, color: "#d9b25f" }}>havocish</div>
             <div style={{ fontSize: 30, color: "#a89a7c" }}>A Discord RPG you design yourself</div>
