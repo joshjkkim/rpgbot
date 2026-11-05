@@ -352,7 +352,7 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
 
     // ── Logging ──
     if (config.logging?.enabled) {
-        if (!config.logging.mainChannelId) {
+        if (!config.logging.mainChannelId && !Object.values(config.logging.allowedCategories ?? {}).some((t) => typeof t === "string")) {
             issues.push({ severity: "warning", message: "Logging is on but has no channel to post in.", page: "logging" });
         }
         channel(config.logging.mainChannelId, "logs", "logging", POST_EMBED);

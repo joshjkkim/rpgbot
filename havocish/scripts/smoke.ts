@@ -2668,6 +2668,26 @@ async function main() {
         check("the event row was still written", (rows.rowCount ?? 0) > 0, true);
     });
 
+    await test("a category's own log channel posts even with no main channel", async () => {
+        const { guildId, userId, config } = await reset();
+        config.logging = {
+            ...config.logging, enabled: true, mainChannelId: null,
+            allowedCategories: { ...config.logging.allowedCategories, economy: "456", quests: null } as Record<EventCategory, string | false | null>,
+        } as any;
+        const posted: string[] = [];
+        const guild = {
+            channels: { fetch: async (id: string) => ({
+                isTextBased: () => true, isSendable: () => true,
+                send: async () => { posted.push(id); },
+            }) },
+        } as any;
+        const event = (category: EventCategory) => ({ guildId, discordGuildId: TEST_DISCORD_GUILD, userId, category, eventType: "duel" as const, source: "smokeCategoryLog", timestamp: new Date() });
+        await logAndBroadcastEvent(guild, event("economy"), config);
+        await logAndBroadcastEvent(guild, event("quests"), config);
+        await new Promise((r) => setTimeout(r, 50));
+        check("economy went to its own channel, quests (no channel, no main) nowhere", posted, ["456"]);
+    });
+
     await test("nobody can duel at 0 HP, and no gold moves", async () => {
         const fx = await resetTrades();
         const g = fx.guild.id;
