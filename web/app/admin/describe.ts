@@ -90,7 +90,10 @@ export function configChanges(before: unknown, after: unknown, max = 14): string
       if (removed.length) lines.push(`${label}: removed ${list(removed, ao)}`);
       for (const k of edited) {
         const x = ao[k], y = bo[k];
-        const fields = isObj(x) && isObj(y) ? [...new Set([...Object.keys(x), ...Object.keys(y)])].filter((f) => !same(x[f], y[f])) : [];
+        const all = isObj(x) && isObj(y) ? [...new Set([...Object.keys(x), ...Object.keys(y)])].filter((f) => !same(x[f], y[f])) : [];
+        // Stock goes down as people buy: that's shopping, not an owner's edit.
+        const fields = all.filter((f) => f !== "stock");
+        if (all.length && !fields.length) continue;
         lines.push(`${label}: edited ${nameOf(y, k)}${fields.length ? ` (${fields.slice(0, 5).join(", ")}${fields.length > 5 ? "…" : ""})` : ""}`);
       }
       return;
@@ -123,6 +126,7 @@ export function describeClick(c: ClickRow): string {
     }
     case "select": return `picked ${Array.isArray(o.values) ? o.values.map((v) => clean(String(v))).join(", ") : "?"} in ${clean(c.name)}`;
     case "form": return `sent the ${clean(c.name)} form`;
+    case "dashboard": return `opened the dashboard › ${c.name.split("/").join(" › ")}`;
     default: return `pressed ${clean(c.name)}`;
   }
 }

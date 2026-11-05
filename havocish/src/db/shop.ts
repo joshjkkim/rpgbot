@@ -111,6 +111,8 @@ export async function purchaseItem(opts: {
                 if (shopItem.stock < quantity) {
                     return { success: false, message: "There is not enough stock to complete your purchase." };
                 }
+                // A purchase, not a setup change: config_history skips it (migration 014).
+                await client.query(`SELECT set_config('havocish.history', 'skip', true)`);
                 await client.query(
                     `UPDATE guilds
                      SET config = jsonb_set(config, ARRAY['shop', 'items', $2::text, 'stock'], to_jsonb($3::bigint))

@@ -163,7 +163,9 @@ export function recordActivity(guildId: number, userId: number, category: LogEve
 const CHATTER = new Set<LogEvent["eventType"]>(["messageXp", "vcXp"]);
 
 export async function logAndBroadcastEvent(ctx: LogContext, event: LogEvent, config: GuildConfig): Promise<void> {
-    const posts = !!config.logging?.enabled && !!config.logging?.mainChannelId && config.logging?.allowedCategories?.[event.category as EventCategory] !== false;
+    // Posted to the category's own channel if it has one, else the main channel; a server can use only category channels.
+    const target = config.logging?.allowedCategories?.[event.category as EventCategory];
+    const posts = !!config.logging?.enabled && (typeof target === "string" || (!!config.logging?.mainChannelId && target !== false));
 
     // Recorded for every server (/admin reads it), whether or not it posts a
     // log. Recorded first, and the channel post neither awaited nor allowed to

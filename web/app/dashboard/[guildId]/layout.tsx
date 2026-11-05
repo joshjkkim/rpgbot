@@ -5,6 +5,7 @@ import { fetchGuildMeta, requireGuildManager } from "@/app/lib/discord";
 import { GuildMetaProvider } from "@/app/components/ui/pickers";
 import { dbQuery } from "@/app/lib/db";
 import Sidebar from "@/app/components/sidebar/sidebar";
+import Seen from "@/app/components/seen";
 
 export default async function GuildLayout({ children, params }: { children: React.ReactNode; params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
@@ -34,6 +35,7 @@ export default async function GuildLayout({ children, params }: { children: Reac
 
     return (
         <div className="min-h-screen grid grid-cols-[240px_1fr]">
+            <Seen guildId={guildId} />
             <Sidebar
                 guildId={guildId}
                 guildName={guild?.name ?? null}

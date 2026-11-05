@@ -38,6 +38,7 @@ import { handleEncounterButton, maybeSpawnEncounter } from "../src/player/encoun
 import { dismissBoss, handleBossButton, liveBoss, nextIntent, restoreBosses, saveLiveBosses, spawnBoss, splitBossRewards } from "../src/player/bosses.js";
 import { execute as helpCommand, handleHelpButton } from "../src/commands/user/help.js";
 import { needsSetup } from "../src/commands/admin/setup.js";
+import { checkPostable, refusal, takeWarnings } from "../src/health/blocked.js";
 import { countCommandUse, logAndBroadcastEvent, recordActivity, recordInteraction, flushLogBuffer as flushLogsForTest } from "../src/db/events.js";
 import { calculateLevelFromXp as levelFromXp, levelStartXp } from "../src/leveling/levels.js";
 import type { EventCategory } from "../src/types/logging.js";
@@ -397,6 +398,13 @@ async function main() {
         const versions = (await query(`SELECT config FROM config_history WHERE discord_guild_id = $1 ORDER BY id`, [gid])).rows;
         check("three versions kept", versions.length, 3);
         check("the latest has the change", versions[2]!.config.xp.basePerMessage, 99);
+        check("made in Discord unless tagged", (await query(`SELECT source FROM config_history WHERE discord_guild_id = $1 ORDER BY id DESC LIMIT 1`, [gid])).rows[0]?.source, "discord");
+
+        // A purchase's stock change isn't a version; a dashboard save says so.
+        await query(`WITH s AS (SELECT set_config('havocish.history', 'skip', true)) UPDATE guilds SET config = jsonb_set(config, '{xp,basePerMessage}', '98') FROM s WHERE discord_guild_id = $1`, [gid]);
+        check("a skipped write keeps no version", (await query(`SELECT count(*)::int AS n FROM config_history WHERE discord_guild_id = $1`, [gid])).rows[0]?.n, 3);
+        await query(`WITH s AS (SELECT set_config('havocish.source', 'dashboard', true)) UPDATE guilds SET config = jsonb_set(config, '{xp,basePerMessage}', '97') FROM s WHERE discord_guild_id = $1`, [gid]);
+        check("a dashboard save is tagged", (await query(`SELECT source FROM config_history WHERE discord_guild_id = $1 ORDER BY id DESC LIMIT 1`, [gid])).rows[0]?.source, "dashboard");
 
         const { userId, guildId } = await reset();
         recordActivity(guildId, userId, "combat", "fight", { enemy: "Test Slime", outcome: "win" });
@@ -413,6 +421,26 @@ async function main() {
         await recordInteraction({ discordGuildId: gid, discordUserId: "990000000000000009", role: "owner", kind: "command", name: "fight", options: { enemy: "slime" }, ok: true, ms: 120, at });
         const row = (await query(`SELECT kind, name, options, role, ok FROM interaction_log WHERE discord_guild_id = $1`, [gid])).rows[0];
         check("written as given", [row?.kind, row?.name, row?.options?.enemy, row?.role, row?.ok], ["command", "fight", "slime", "owner", true]);
+    });
+
+    await test("refused posts become one private warning a day for managers", async () => {
+        const channel = {
+            id: "111", guildId: "g1", parentId: null, isDMBased: () => false, isThread: () => false,
+            guild: { id: "g1", members: { me: {} } },
+            permissionsFor: () => ({ missing: () => ["SendMessages", "EmbedLinks"] }),
+        };
+        const guild = { id: "g1", channels: { cache: new Map([["111", channel]]) } } as any;
+        const client = { channels: { cache: new Map([["111", channel]]) }, guilds: { cache: new Map() } } as any;
+
+        const post = refusal(client, "POST", "/channels/111/messages");
+        check("a refused post names what's missing", post?.text, "I couldn't post in <#111>: give me Send Messages, Embed Links there.");
+        check("a refused thread is about threads", refusal(client, "POST", "/channels/111/messages/123/threads")?.key, "threads:111");
+        check("reading isn't a post", refusal(client, "GET", "/channels/111/messages"), null);
+
+        check("picking a channel havocish can't post in is caught", checkPostable(guild, "111", "logs"), false);
+        check("told once", takeWarnings("g1"), ["I can't post logs in <#111> yet: give me Send Messages, Embed Links there."]);
+        checkPostable(guild, "111", "logs");
+        check("not again the same day", takeWarnings("g1"), []);
     });
 
     await test("XP is buffered in cache, not written straight through", async () => {
@@ -2647,6 +2675,26 @@ async function main() {
         check("the event row was still written", (rows.rowCount ?? 0) > 0, true);
     });
 
+    await test("a category's own log channel posts even with no main channel", async () => {
+        const { guildId, userId, config } = await reset();
+        config.logging = {
+            ...config.logging, enabled: true, mainChannelId: null,
+            allowedCategories: { ...config.logging.allowedCategories, economy: "456", quests: null } as Record<EventCategory, string | false | null>,
+        } as any;
+        const posted: string[] = [];
+        const guild = {
+            channels: { fetch: async (id: string) => ({
+                isTextBased: () => true, isSendable: () => true,
+                send: async () => { posted.push(id); },
+            }) },
+        } as any;
+        const event = (category: EventCategory) => ({ guildId, discordGuildId: TEST_DISCORD_GUILD, userId, category, eventType: "duel" as const, source: "smokeCategoryLog", timestamp: new Date() });
+        await logAndBroadcastEvent(guild, event("economy"), config);
+        await logAndBroadcastEvent(guild, event("quests"), config);
+        await new Promise((r) => setTimeout(r, 50));
+        check("economy went to its own channel, quests (no channel, no main) nowhere", posted, ["456"]);
+    });
+
     await test("nobody can duel at 0 HP, and no gold moves", async () => {
         const fx = await resetTrades();
         const g = fx.guild.id;
@@ -2722,7 +2770,7 @@ async function main() {
         const before = structuredClone((await reset()).config);
         let shown: any = null;
         const click = (customId: string, extra: Record<string, unknown> = {}) => handleSetupInteraction({
-            customId, guildId: TEST_DISCORD_GUILD, guild: {}, user: { id: TEST_DISCORD_USER },
+            customId, guildId: TEST_DISCORD_GUILD, guild: { id: TEST_DISCORD_GUILD, channels: { cache: new Map() } }, user: { id: TEST_DISCORD_USER },
             memberPermissions: { has: () => true },
             isButton: () => !("values" in extra), isStringSelectMenu: () => "values" in extra && !extra.channel,
             isChannelSelectMenu: () => !!extra.channel, isModalSubmit: () => false,

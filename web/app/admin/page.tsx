@@ -5,6 +5,7 @@ import { isAdmin } from "@/app/lib/admin";
 import { dbQuery } from "@/app/lib/db";
 import { costOf, DAILY_BUDGET, spentToday } from "@/app/lib/aiUsage";
 import { ago } from "./describe";
+import { Metrics } from "./metrics";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -95,6 +96,8 @@ export default async function AdminPage() {
           </div>
         ))}
       </section>
+
+      <Metrics />
 
       <section>
         <h2 className="font-semibold">Servers <span className="font-normal text-[var(--muted)]">newest first · counts are the last 7 days</span></h2>

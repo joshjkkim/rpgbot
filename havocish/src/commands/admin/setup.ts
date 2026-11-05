@@ -4,6 +4,7 @@ import {
     type ButtonInteraction, type ChannelSelectMenuInteraction, type ChatInputCommandInteraction, type ModalSubmitInteraction,
     type StringSelectMenuInteraction,
 } from "discord.js";
+import { checkPostable } from "../../health/blocked.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { setGuildConfig } from "../../db/guilds.js";
 import { canManage, DASHBOARD_URL, dashboardButton } from "../../ui/dashboardLinks.js";
@@ -283,7 +284,10 @@ export async function handleSetupInteraction(
                 s.names = { gold: interaction.fields.getTextInputValue("gold").trim() || "gold", xp: interaction.fields.getTextInputValue("xp").trim() || "XP" };
             }
             break;
-        case "channel": a.levelUpChannelId = interaction.isChannelSelectMenu() ? interaction.values[0] ?? "" : ""; break;
+        case "channel":
+            a.levelUpChannelId = interaction.isChannelSelectMenu() ? interaction.values[0] ?? "" : "";
+            if (a.levelUpChannelId && interaction.guild) checkPostable(interaction.guild, a.levelUpChannelId, "level-ups");
+            break;
         case "restart": sessions.set(sessionKey(interaction), Object.assign(s, fresh())); break;
         case "apply": {
             let packs = STARTER_PACKS;
