@@ -7,6 +7,9 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ### For server owners
 - **havocish tells you when it can't post.** If Discord stops havocish posting somewhere (a log channel, fight threads, level-ups, giving a role), the next time an owner or manager uses havocish they get a private note saying exactly which permission to give and where. Picking a log or level-up channel havocish can't post in tells you right away. Once a day at most, and only when something's wrong.
 
+### Fixed
+- **Log channels per category work on their own.** Giving a category (daily, level-ups, quests…) its own log channel now posts there even if no main log channel is set. Before, nothing was posted at all.
+
 ## v0.19.1 · November 3, 2026
 
 A smoother first few minutes for new servers, and a new face.
