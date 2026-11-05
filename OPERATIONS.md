@@ -229,7 +229,13 @@ servers that do. `command_uses` counts commands per day, no users. The Sessions 
 command, button, menu and form with its time, user, role, options, duration
 and whether it failed, written from `events/interactionCreate.ts` and pruned
 after 30 days with the events. Run 013 before the deploy that writes it, or
-every click logs a "Skipped logging an interaction" warning.
+every click logs a "Skipped logging an interaction" warning. The overview's
+funnel, daily table, commands table and failures read the same log
+(`web/app/admin/metrics.tsx`); dashboard page views are logged there too
+(kind `dashboard`, from `components/seen.tsx`). Migration 014 adds where each
+setup change came from (`config_history.source`: the dashboard's save sets
+`havocish.source`) and keeps purchases' stock changes out of the history
+(the shop sets `havocish.history` to `skip`).
 
 ## Bot lists
 

@@ -397,6 +397,13 @@ async function main() {
         const versions = (await query(`SELECT config FROM config_history WHERE discord_guild_id = $1 ORDER BY id`, [gid])).rows;
         check("three versions kept", versions.length, 3);
         check("the latest has the change", versions[2]!.config.xp.basePerMessage, 99);
+        check("made in Discord unless tagged", (await query(`SELECT source FROM config_history WHERE discord_guild_id = $1 ORDER BY id DESC LIMIT 1`, [gid])).rows[0]?.source, "discord");
+
+        // A purchase's stock change isn't a version; a dashboard save says so.
+        await query(`WITH s AS (SELECT set_config('havocish.history', 'skip', true)) UPDATE guilds SET config = jsonb_set(config, '{xp,basePerMessage}', '98') FROM s WHERE discord_guild_id = $1`, [gid]);
+        check("a skipped write keeps no version", (await query(`SELECT count(*)::int AS n FROM config_history WHERE discord_guild_id = $1`, [gid])).rows[0]?.n, 3);
+        await query(`WITH s AS (SELECT set_config('havocish.source', 'dashboard', true)) UPDATE guilds SET config = jsonb_set(config, '{xp,basePerMessage}', '97') FROM s WHERE discord_guild_id = $1`, [gid]);
+        check("a dashboard save is tagged", (await query(`SELECT source FROM config_history WHERE discord_guild_id = $1 ORDER BY id DESC LIMIT 1`, [gid])).rows[0]?.source, "dashboard");
 
         const { userId, guildId } = await reset();
         recordActivity(guildId, userId, "combat", "fight", { enemy: "Test Slime", outcome: "win" });

@@ -80,8 +80,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
         );
     }
 
+    // Tagged so config_history records the change as made on the dashboard (migration 014).
     const res = await dbQuery<{ version: string }>(
-        `UPDATE guilds SET config = $1
+        `WITH src AS (SELECT set_config('havocish.source', 'dashboard', true))
+         UPDATE guilds SET config = $1 FROM src
          WHERE discord_guild_id = $2 AND md5(config::text) = $3
          RETURNING md5(config::text) AS version`,
         [newConfig, guildId, expectedVersion]
