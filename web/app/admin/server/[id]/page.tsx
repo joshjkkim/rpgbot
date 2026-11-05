@@ -108,7 +108,10 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
       SELECT command, min(day) AS first FROM command_uses WHERE discord_guild_id = $1 GROUP BY 1`, [id]).catch(() => null),
     // Both null until migration 012 is live.
     dbQuery<{ event: string; at: string }>(`SELECT event, at FROM guild_log WHERE discord_guild_id = $1`, [id]).catch(() => null),
-    dbQuery<{ config: unknown; at: string }>(`SELECT config, at FROM config_history WHERE discord_guild_id = $1 ORDER BY id`, [id]).catch(() => null),
+    // source needs migration 014; before it, the plain query.
+    dbQuery<{ config: unknown; at: string; source: string | null }>(`SELECT config, at, source FROM config_history WHERE discord_guild_id = $1 ORDER BY id`, [id])
+      .catch(() => dbQuery<{ config: unknown; at: string; source: string | null }>(`SELECT config, at, NULL AS source FROM config_history WHERE discord_guild_id = $1 ORDER BY id`, [id]))
+      .catch(() => null),
     dbQuery<{ helper_daily: number | null; packs: number | null; note: string | null }>(
       `SELECT helper_daily, packs, note FROM ai_limits WHERE discord_guild_id = $1`, [id]).catch(() => null),
     fetchHealth(id),
@@ -143,7 +146,8 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
     ...(versions?.rows ?? []).flatMap((v, k, all): Moment[] => {
       if (k === 0) return [];
       const lines = configChanges(all[k - 1]!.config, v.config, Infinity);
-      return lines.length ? [{ at: v.at, title: "Changed their setup", lines }] : [];
+      const where = v.source === "dashboard" ? " on the dashboard" : v.source === "discord" ? " in Discord" : "";
+      return lines.length ? [{ at: v.at, title: `Changed their setup${where}`, lines }] : [];
     }),
     ...firsts,
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
@@ -154,6 +158,20 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
     if (!letters.has(player)) letters.set(player, letters.size < 26 ? String.fromCharCode(65 + letters.size) : `#${letters.size + 1}`);
     return letters.get(player)!;
   };
+  // The headline numbers, from the click log (its latest 800 rows).
+  const used = (clicks?.rows ?? []).filter((r) => r.kind !== "dashboard");
+  const firstUse = used.at(-1)?.at;
+  const added = new Date(guild.created_at).getTime();
+  const span = (ms: number) => (ms < 60_000 ? `${Math.round(ms / 1000)}s` : ms < 3_600_000 ? `${Math.round(ms / 60_000)}m` : ms < 172_800_000 ? `${Math.round(ms / 3_600_000)}h` : `${Math.round(ms / 86_400_000)}d`);
+  const setUp = versions?.rows.find((v) => (v.config as Config | null)?.combat?.enabled)?.at;
+  const keyNumbers: Array<[string, string]> = [
+    ["first used it", firstUse ? `${span(new Date(firstUse).getTime() - added)} after adding` : "not yet"],
+    ["set up", setUp ? `${span(new Date(setUp).getTime() - added)} after adding` : "not yet"],
+    ["people", String(new Set(used.map((r) => r.player)).size)],
+    ["actions · failed", `${used.length} · ${used.filter((r) => !r.ok).length}`],
+    ["dashboard pages", String((clicks?.rows ?? []).length - used.length)],
+    ["came back after a day", used.some((r) => new Date(r.at).getTime() > added + 86_400_000) ? "yes" : "no"],
+  ];
   const sessionClicks: Click[] = (clicks?.rows ?? []).map((r) => ({
     at: new Date(r.at).toISOString(), who: who(r.player), role: r.role, text: describeClick(r), failed: !r.ok,
     slow: r.ms != null && r.ms > 3000 ? Math.round(r.ms / 100) / 10 : null,
@@ -181,6 +199,17 @@ export default async function ServerPage({ params }: { params: Promise<{ id: str
           <span className="font-mono">{id}</span> · added havocish <When at={guild.created_at} />{guild.removed_at ? <> · removed it <When at={guild.removed_at} /></> : ""}
         </p>
       </div>
+
+      {clicks && (
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+          {keyNumbers.map(([label, value]) => (
+            <div key={label} className="frame px-3 py-2">
+              <div className="text-lg font-semibold tabular-nums">{value}</div>
+              <div className="text-xs text-[var(--muted)]">{label}</div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section>
         <h2 className="font-semibold">Players</h2>
