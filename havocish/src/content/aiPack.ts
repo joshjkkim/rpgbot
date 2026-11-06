@@ -59,6 +59,8 @@ const numbers = (o: Json) => Object.fromEntries(Object.entries(o).filter(([k]) =
 const GAMES: Record<string, { fields: Json; words: Record<string, string>; locations: Json[] }> = Object.fromEntries(
     (Object.values(CF.gathering.activities) as Json[]).map((a) => [a.game, { fields: numbers(a), words: a.words, locations: (Object.values(a.locations) as Json[]).map(numbers) }]),
 );
+// Mining plays Dig now but still carries its Grid numbers and words, so AI worlds keep Grid until Dig is settled.
+if (!GAMES.grid && GAMES.dig) GAMES.grid = { ...GAMES.dig, fields: { ...GAMES.dig.fields, game: "grid" } };
 /** Each crafting style's fields and words: forge (a timed strike) from Smithing, simple (one click) from Cooking. */
 const STYLES: Record<string, { fields: Json; words: Record<string, string> }> = {
     forge: { fields: numbers(CF.crafting.stations.smithing), words: CF.crafting.stations.smithing.words },

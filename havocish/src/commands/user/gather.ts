@@ -1,7 +1,7 @@
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
 import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
 import { needsSetup, setupPrompt } from "../admin/setup.js";
@@ -19,6 +19,7 @@ import { itemLabel, type Ctx, type EndReason, type Game, type Run, type Words } 
 import { grid } from "../../ui/gathering/grid.js";
 import { timing } from "../../ui/gathering/timing.js";
 import { find } from "../../ui/gathering/find.js";
+import { dig } from "../../ui/gathering/dig.js";
 import { conditionNow, runMods } from "../../player/twists.js";
 import { checkProgress } from "../../player/collections.js";
 import { nextGatherLine } from "../../player/nextSteps.js";
@@ -30,9 +31,9 @@ export const data = new SlashCommandBuilder()
     .addStringOption((o) => o.setName("activity").setDescription("What to do").setRequired(true).setAutocomplete(true))
     .addStringOption((o) => o.setName("location").setDescription("Where to go (defaults to your best one)").setAutocomplete(true));
 
-const GAMES: Record<GameType, Game> = { grid, timing, find };
+const GAMES: Record<GameType, Game> = { grid, timing, find, dig };
 
-/** An unattended run ends itself after this long, keeping what was found. */
+/** A run left alone this long ends itself, keeping what was found. */
 const RUN_TIMEOUT_MS = 2 * 60 * 1000;
 
 type LiveRun = Run & { ctx: Ctx };
@@ -53,9 +54,19 @@ function findActivity(config: GuildConfig, typed: string): GatheringActivity | u
 const foundLine = (found: Record<string, number>, config: GuildConfig) =>
     Object.entries(found).map(([id, n]) => itemLabel(config, id, n)).join(", ");
 
-function render(run: Run, config: GuildConfig) {
+/** The game's picture, for games drawn as a scene; a failed drawing just leaves it out. */
+async function sceneOf(run: Run, config: GuildConfig) {
+    const png = await gameOf(run.activity).scene?.(run, run.state, wordsOf(run.activity), config).catch((err) => {
+        console.error("Gathering scene failed:", err);
+        return null;
+    });
+    return png ? new AttachmentBuilder(png, { name: "scene.png" }) : null;
+}
+
+async function render(run: Run, config: GuildConfig) {
     const w = wordsOf(run.activity);
     const { text, rows } = gameOf(run.activity).body(run, run.state, w, config);
+    const picture = await sceneOf(run, config);
     const container = new ContainerBuilder()
         .setAccentColor(accentColor(config.style.mainThemeColor))
         .addTextDisplayComponents((t) => t.setContent([
@@ -64,13 +75,18 @@ function render(run: Run, config: GuildConfig) {
             `-# ${run.energyLabel}${run.toolId ? ` · with ${itemLabel(config, run.toolId)}` : ""}`,
             `Found: ${Object.keys(run.found).length ? foundLine(run.found, config) : "nothing yet"}`,
             ...(run.status ? [`-# ${run.status}`] : []),
-            text,
+            ...(picture ? [] : [text]),
         ].join("\n")));
+    if (picture) {
+        container.addMediaGalleryComponents((m) => m.addItems((i) => i.setURL("attachment://scene.png")));
+        container.addTextDisplayComponents((t) => t.setContent(text));
+    }
     for (const row of rows) container.addActionRowComponents(row);
     container.addActionRowComponents(new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder().setCustomId(`gather:leave:${run.ownerId}:0`).setLabel(w.leave ?? "Leave").setStyle(ButtonStyle.Danger),
     ));
-    return { components: [container], flags: MessageFlags.IsComponentsV2 as const };
+    // `attachments: []` drops the last picture, so edits don't pile them up.
+    return { components: [container], files: picture ? [picture] : [], attachments: [], flags: MessageFlags.IsComponentsV2 as const };
 }
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -146,7 +162,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // Checked again after the awaits, so a double-tapped command can't start two runs.
     if (runs.has(key)) return void await say("You're already out gathering.");
     const run = {
-        ownerId: interaction.user.id, discordGuildId: interaction.guildId, userId: user.id, guildId: guild.id,
+        ownerId: interaction.user.id, avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 128 }), discordGuildId: interaction.guildId, userId: user.id, guildId: guild.id,
         activity, location, skill, toolId: tool?.itemId ?? null, toolBonus: tool?.bonus ?? 0,
         energyLabel: `⚡ ${power.energy - cost}/${power.max}`, mods, found: {}, status: null, message: null, timer: null, deadline: null, state: null,
     } as unknown as LiveRun;
@@ -154,7 +170,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         config,
         alive: () => runs.get(key) === run,
         refresh: async () => {
-            if (runs.get(key) === run) await run.message?.edit(render(run, config)).catch(() => null);
+            if (runs.get(key) === run) await run.message?.edit(await render(run, config)).catch(() => null);
         },
         end: (why) => endRun(run, why),
         later: (ms, fn) => {
@@ -167,8 +183,15 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     run.state = gameOf(activity).start(run, wordsOf(activity), run.ctx);
 
     await spendEnergy(user.id, guild.id, activity, cost);
-    const response = await interaction.reply({ ...render(run, config), withResponse: true });
+    const { attachments: _, ...first } = await render(run, config);
+    const response = await interaction.reply({ ...first, withResponse: true });
     run.message = response.resource?.message ?? null;
+    keepAlive(run);
+}
+
+/** (Re)starts the clock that ends a run nobody touches. */
+function keepAlive(run: Run) {
+    if (run.deadline) clearTimeout(run.deadline);
     run.deadline = setTimeout(() => void endRun(run, "timeout").catch((err) => console.error("Gathering timeout failed:", err)), RUN_TIMEOUT_MS);
     run.deadline.unref();
 }
@@ -203,10 +226,15 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
         for (const l of opened) lines.push(`${l.emoji} **${l.name}** is open to you now.`);
     }
 
+    // A drawn game keeps its last picture: where you dug to.
+    const picture = await sceneOf(run, config);
+    const end = new ContainerBuilder().setAccentColor(accentColor(config.style.mainThemeColor));
+    if (picture) end.addMediaGalleryComponents((m) => m.addItems((i) => i.setURL("attachment://scene.png")));
+    end.addTextDisplayComponents((t) => t.setContent(lines.join("\n")));
     const view = {
-        components: [new ContainerBuilder()
-            .setAccentColor(accentColor(config.style.mainThemeColor))
-            .addTextDisplayComponents((t) => t.setContent(lines.join("\n")))],
+        components: [end],
+        files: picture ? [picture] : [],
+        attachments: [],
         flags: MessageFlags.IsComponentsV2 as const,
         allowedMentions: { parse: [] },
     };
@@ -246,7 +274,8 @@ export async function handleGatherButton(interaction: ButtonInteraction) {
     // A timer may have ended the run while the click was being handled.
     if (runs.get(key) !== run) return void await interaction.deferUpdate().catch(() => null);
     if (end) return endRun(run, end, interaction);
-    await interaction.update(render(run, run.ctx.config));
+    keepAlive(run);
+    await interaction.update(await render(run, run.ctx.config));
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction) {

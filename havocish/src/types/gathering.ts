@@ -7,7 +7,7 @@ import type { Requirements } from "./requirements.js";
  */
 
 /** Wave 2 and 3 add more (codebreaker, trail, forge, memory, sequence). */
-export type GameType = "grid" | "timing" | "find";
+export type GameType = "grid" | "timing" | "find" | "dig";
 
 export interface GatheringLoot {
     itemId: string;
@@ -21,7 +21,8 @@ export interface GatheringLoot {
 export type TwistRule =
     | "grid.adjacent" | "grid.clustered" | "grid.unstable"
     | "timing.falseAlarm" | "timing.twice" | "timing.fragile"
-    | "find.glimpse" | "find.reshuffle" | "find.twin";
+    | "find.glimpse" | "find.reshuffle" | "find.twin"
+    | "dig.dark" | "dig.seams" | "dig.loose";
 
 /** What a trait or condition does. General effects work in any game; rules only in theirs. */
 export interface TwistEffects {
@@ -68,7 +69,7 @@ export interface GatheringLocation {
     /** Skill XP for finishing a run here. */
     skillXp: number;
     loot: GatheringLoot[];
-    /** Per game. Grid: finds, hazards, tries. */
+    /** Per game. Grid: finds, hazards, tries. Dig: swings, ores, hard, loose. */
     difficulty?: Record<string, number>;
     /** Its fixed character. */
     traits?: LocationTrait[];

@@ -20,6 +20,9 @@ export const RULES: Record<TwistRule, { game: GameType; name: string; line: stri
     "find.glimpse": { game: "find", name: "Glimpse", line: "You only see it for a moment: remember where it was." },
     "find.reshuffle": { game: "find", name: "Reshuffle", line: "A wrong pick scrambles everything." },
     "find.twin": { game: "find", name: "Twin", line: "There are two to find each round." },
+    "dig.dark": { game: "dig", name: "Dark", line: "Your light only reaches the next block." },
+    "dig.seams": { game: "dig", name: "Seams", line: "Ore runs in seams: where there's one block, there's more beside it." },
+    "dig.loose": { game: "dig", name: "Loose", line: "More loose rock, waiting to come down." },
 };
 
 /** Everything acting on a run, combined. */

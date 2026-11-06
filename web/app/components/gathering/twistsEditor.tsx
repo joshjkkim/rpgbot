@@ -6,12 +6,13 @@ import { idFromName } from "@/app/components/ui/slots";
 
 // ─── Types (mirrored from havocish/src/types/gathering.ts and player/twists.ts) ───
 
-export type GameType = "grid" | "timing" | "find";
+export type GameType = "grid" | "timing" | "find" | "dig";
 
 export type TwistRule =
   | "grid.adjacent" | "grid.clustered" | "grid.unstable"
   | "timing.falseAlarm" | "timing.twice" | "timing.fragile"
-  | "find.glimpse" | "find.reshuffle" | "find.twin";
+  | "find.glimpse" | "find.reshuffle" | "find.twin"
+  | "dig.dark" | "dig.seams" | "dig.loose";
 
 export interface TwistEffects {
   difficulty?: number;
@@ -48,9 +49,12 @@ export const RULES: Record<TwistRule, { game: GameType; name: string; line: stri
   "find.glimpse": { game: "find", name: "Glimpse", line: "You only see it for a moment: remember where it was." },
   "find.reshuffle": { game: "find", name: "Reshuffle", line: "A wrong pick scrambles everything." },
   "find.twin": { game: "find", name: "Twin", line: "There are two to find each round." },
+  "dig.dark": { game: "dig", name: "Dark", line: "Your light only reaches the next block." },
+  "dig.seams": { game: "dig", name: "Seams", line: "Ore runs in seams: where there's one block, there's more beside it." },
+  "dig.loose": { game: "dig", name: "Loose", line: "More loose rock, waiting to come down." },
 };
 
-const GAME_NAMES: Record<GameType, string> = { grid: "Grid", timing: "Timing", find: "Find it" };
+const GAME_NAMES: Record<GameType, string> = { grid: "Grid", timing: "Timing", find: "Find it", dig: "Dig" };
 
 /** What a set of effects does, in a line, for previews and lists. */
 export function describeEffects(e: TwistEffects | undefined, game?: GameType): string {

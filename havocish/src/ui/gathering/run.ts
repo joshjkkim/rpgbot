@@ -12,6 +12,8 @@ import { rollLoot } from "../../player/gathering.js";
 
 export type Run = {
     ownerId: string;
+    /** The player's avatar, for games drawn as a scene. */
+    avatarUrl?: string;
     discordGuildId: string;
     userId: number;
     guildId: number;
@@ -60,6 +62,8 @@ export interface Game<S = any> {
     start(run: Run, w: Words, ctx: Ctx): S;
     /** Lines under the header, and the game's button rows. Leave is added after them. */
     body(run: Run, s: S, w: Words, config: GuildConfig): { text: string; rows: ActionRowBuilder<ButtonBuilder>[] };
+    /** A picture of the run, shown above the buttons, for games drawn as a scene. */
+    scene?(run: Run, s: S, w: Words, config: GuildConfig): Promise<Buffer | null>;
     /** A click. Returns why the run ends, or nothing to keep going. `at` is when the player clicked. */
     click(run: Run, s: S, w: Words, action: string, arg: string, at: number, ctx: Ctx): EndReason | void | Promise<EndReason | void>;
 }

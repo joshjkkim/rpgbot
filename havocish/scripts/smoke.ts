@@ -88,6 +88,7 @@ import { energyNow, gridRules, makeClusteredGrid, makeGrid, rollLoot, skillLevel
 import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
+import { COLS, digRules, done as digDone, FALL_COST, lit, makeWall, reachable as digReachable, swing as digSwing, type Cell, type DigState } from "../src/ui/gathering/dig.js";
 import { act, bless, distance, GRID, gridCounts, hintsAt, itemsLeft, reelZone, shaftHint, SNAP, WALK_HOURS, kitOf, LEVELS, levelOf, gather, HOURS, mapScore, neighbours, prepare, START_NODE, startFight as startDailyFight, startState, validLoadout } from "../src/content/daily.js";
 import { dailyFor, gameFor, replayMap, WORLDS } from "../src/content/dailyWorlds.js";
 import type { MapAction } from "../src/content/daily.js";
@@ -1976,6 +1977,69 @@ async function main() {
             check(`clustered grid ${n} keeps its counts`, [finds.length, cells.filter((c) => c === "hazard").length], [5, 2]);
         }
         check("clustered finds touch each other", touching >= 35, true);
+    });
+
+    await test("dig: tunnel through a rock face, ore in the light, loose rock that falls", async () => {
+        const location = { difficulty: { swings: 12, ores: 4, hard: 2, loose: 2 } } as any;
+        const rules = digRules(location, 1, 0, 0);
+        check("dig: bare hands do one a swing", [rules.swings, rules.power, rules.light], [12, 1, 2]);
+        check("dig: a tool's bonus hits harder", digRules(location, 1, 2).power, 3);
+        check("dig: harder takes two swings a step", digRules(location, 1, 0, 1).swings, 10);
+        check("dig: dark shortens the light", digRules(location, 1, 0, 0, new Set(["dig.dark"])).light, 1);
+        check("dig: more swings with skill", digRules(location, 17).swings, 14);
+
+        const rarities = ["common", "common", "uncommon", "rare"];
+        for (let n = 0; n < 30; n++) {
+            let k = 0;
+            const cells = makeWall(rules, () => ({ itemId: `ore${k}`, quantity: 1, rarity: rarities[k++ % 4] }));
+            const count = (kind: string) => cells.filter((c) => c.kind === kind).length;
+            check(`dig wall ${n} keeps its counts`, [count("ore"), count("hard"), count("loose")], [4, 2, 2]);
+            check(`dig wall ${n}: the mouth is plain rock`, [cells[10]!.kind, cells[15]!.kind], ["rock", "rock"]);
+            const col = (rarity: string) => cells.findIndex((c) => c.rarity === rarity) % COLS;
+            check(`dig wall ${n}: the rare find is no nearer than the common ones`, col("rare") >= Math.max(...cells.map((c, i) => (c.rarity === "common" ? i % COLS : -1))), true);
+            check(`dig wall ${n}: rarer takes more swings`, [cells.find((c) => c.rarity === "common")!.hp, cells.find((c) => c.rarity === "rare")!.hp], [2, 4]);
+        }
+
+        const rock = (): Cell => ({ kind: "rock", hp: 1, max: 1 });
+        const state = (cells: Cell[], swings = 10): DigState => ({ cells, swings, rules: { ...rules }, pos: -1, last: null });
+        const s = state(Array.from({ length: 20 }, rock));
+        check("dig: at first only the mouth can be swung at", s.cells.map((_, i) => i).filter((i) => digReachable(s, i)), [10, 15]);
+        check("dig: rock past the mouth can't be swung at", digSwing(s, 12, false), false);
+        check("dig: the light reaches two blocks in", [lit(s, 11), lit(s, 12)], [true, false]);
+        digSwing(s, 15, false);
+        check("dig: you step into what you dig out", [s.pos, s.swings, s.cells[15]!.kind], [15, 9, "open"]);
+        check("dig: and can swing at what's next to it", digReachable(s, 16), true);
+
+        // Ore takes its swings, then comes out as a find.
+        s.cells[16] = { kind: "ore", hp: 2, max: 2, itemId: "copper", quantity: 2, rarity: "common" };
+        digSwing(s, 16, false);
+        check("dig: ore cracks first", [s.cells[16]!.hp, !!s.last?.got], [1, false]);
+        digSwing(s, 16, false);
+        check("dig: then breaks into a find", [s.cells[16]!.kind, s.last?.got?.itemId, s.last?.got?.quantity], ["open", "copper", 2]);
+
+        // Loose rock over the block you dig out lands on you.
+        const t = state(Array.from({ length: 20 }, rock));
+        t.cells[15] = { kind: "open", hp: 0, max: 0 };
+        t.pos = 15;
+        t.cells[5] = { kind: "loose", hp: 1, max: 1 };
+        digSwing(t, 10, false);
+        check("dig: loose rock falls into the gap, on you, and packs into rock", [t.cells[5]!.kind, t.cells[10]!.kind, t.cells[15]!.kind], ["open", "rock", "open"]);
+        check("dig: and costs you swings, knocking you back", [t.swings, t.pos, t.last?.fell], [10 - 1 - FALL_COST, 15, FALL_COST]);
+        const u = state(Array.from({ length: 20 }, rock));
+        u.cells[5] = { kind: "loose", hp: 1, max: 1 };
+        u.cells[15] = { kind: "open", hp: 0, max: 0 };
+        u.pos = 15;
+        digSwing(u, 16, false);
+        check("dig: loose rock on solid rock stays put", u.cells[5]!.kind, "loose");
+        const fall = state(Array.from({ length: 20 }, rock));
+        fall.cells[0] = { kind: "loose", hp: 1, max: 1 };
+        fall.cells[5] = { kind: "open", hp: 0, max: 0 };
+        fall.cells[10] = { kind: "open", hp: 0, max: 0 };
+        fall.pos = 10;
+        digSwing(fall, 11, false);
+        check("dig: and falls as far as it can when it isn't on you", [fall.cells[0]!.kind, fall.cells[5]!.kind], ["open", "open"]);
+        check("dig: a clean strike does one more", (() => { const v = state([{ kind: "hard", hp: 3, max: 3 }, ...Array.from({ length: 19 }, rock)]); v.cells[1] = { kind: "open", hp: 0, max: 0 }; digSwing(v, 0, true); return v.cells[0]!.hp; })(), 1);
+        check("dig: the run is over without swings", digDone(state(Array.from({ length: 20 }, rock), 0)), true);
     });
 
     await test("quests can ask for gathering and crafting", async () => {
