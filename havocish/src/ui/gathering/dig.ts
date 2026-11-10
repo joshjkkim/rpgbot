@@ -234,6 +234,7 @@ export const dig: Game<DigState> = {
             avatarUrl: run.avatarUrl,
             tool: (run.toolId && config.shop?.items?.[run.toolId]?.emoji) || run.activity.emoji,
             look: run.activity.look,
+            colours: run.activity.colours,
         });
     },
 

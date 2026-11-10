@@ -53,6 +53,7 @@ import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
+import { digPalette } from "../src/content/digLooks.js";
 import { applyChanges, cleanChanges, outline, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
@@ -3111,6 +3112,9 @@ async function main() {
         check("station words fill in what's left out", [bench.words.craft, bench.words.forging], ["Tinker", "Forging"]);
         const find = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "find", words: { prompt: "Look for it!" } }] }, "x").content.gathering!.activities.diving as any;
         check("words that drop a {placeholder} keep the default", find.words.prompt, "Search the undergrowth for the {target}!");
+        const dug = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "dig", colours: { rock: "#46405A", light: "nope", back: 5 } }] }, "x").content.gathering!.activities.diving as any;
+        check("a dig world keeps only well-formed colours", [dug.game, dug.colours], ["dig", { rock: "#46405a" }]);
+        check("colours set over a look work out the rest", [digPalette("ice", { rock: "#46405a" }).rock, digPalette("ice", { rock: "#46405a" }).light, digPalette("ice").vein], ["#46405a", "#aadcff", "#c4e2f0"]);
         check("apostrophes don't split ids", Object.keys(buildPack({ ...skeleton, materials: [{ ...w("Keeper's Relic"), key: "r", description: "" }] }, "x").content.shop.items).includes("keepers-relic"), true);
         // Replies aren't schema-checked: wrapped in prose, or missing whole parts, they still build.
         const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');

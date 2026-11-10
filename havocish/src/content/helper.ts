@@ -21,6 +21,7 @@ The server's config is one JSON object. Below you get its channels, roles and an
 - unlocks (Combat rules page, "Roles at levels"): unlocks.list.<id> = {id, roleId, requirements: {combatLevel}, placeId?}: a role given at a Combat level, often to open a hidden channel.
 - roleRewards (rewards for getting a role from anywhere): roles: {"<roleId>": [{type: "giveGold", amount}]}.
 - quests, achievements (their pages), gathering (activities and locations), crafting (stations and recipes), collections, characters (list, shopkeeperId, announcerId).
+- gathering.activities.<id> = {name, emoji, game: "grid" | "timing" | "find" | "dig", words, locations, ...} (Gathering page). A dig activity is drawn as a picture: look is "mine", "ice", "sand", "metal" or "soil", and colours = {rock, hard, loose, back, light} as #rrggbb sets any of them over the look's, so it can match any world (an asteroid, a ship's hull, a reef). back is the dug-out wall and should stay dark; light is the player's lamp.
 - announcements: levels.announceLevelUpInChannelId, quests.announceAllId, achievements.announceAllId, collections.channelId, unlocks.channelId, rareFinds.channelId (Announcements page). logging.mainChannelId (Logging page).
 - Each feature section has "enabled".
 Requirements anywhere look like {combatLevel, chatLevel, skills: {<activity or station id>: level}, roles: [ids], memberDays, booster, found: [item ids], collections: [ids]}.

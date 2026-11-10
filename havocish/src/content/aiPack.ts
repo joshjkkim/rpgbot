@@ -1,5 +1,6 @@
 import { enemyPreset, gearPreset, potionPreset, type EnemyRole, type GearSlot, type Rarity } from "./balance.ts";
 import type { StarterPack } from "./packs.ts";
+import { cleanColours } from "./digLooks.ts";
 import classicFantasy from "./packs/classic-fantasy.json" with { type: "json" };
 
 /**
@@ -38,7 +39,7 @@ export type Skeleton = {
     enemies: Array<Words & { key: string; level: number; role: EnemyRole; place: string; moves: string[]; drops: string[] }>;
     quests: Array<{ name: string; description: string; enemy: string; count: number }>;
     activities: Array<Words & {
-        skillName: string; game: string; words: Record<string, unknown>;
+        skillName: string; game: string; words: Record<string, unknown>; colours?: unknown;
         tools: Array<Words & { description: string }>;
         locations: Array<Words & { finds: Array<Words & { key: string; description: string }> }>;
         collection?: SetWords;
@@ -59,7 +60,7 @@ const numbers = (o: Json) => Object.fromEntries(Object.entries(o).filter(([k]) =
 const GAMES: Record<string, { fields: Json; words: Record<string, string>; locations: Json[] }> = Object.fromEntries(
     (Object.values(CF.gathering.activities) as Json[]).map((a) => [a.game, { fields: numbers(a), words: a.words, locations: (Object.values(a.locations) as Json[]).map(numbers) }]),
 );
-// Mining plays Dig now but still carries its Grid numbers and words, so AI worlds keep Grid until Dig is settled.
+// Mining plays Dig, and still carries its Grid numbers and words, so a world can pick either.
 if (!GAMES.grid && GAMES.dig) GAMES.grid = { ...GAMES.dig, fields: { ...GAMES.dig.fields, game: "grid" } };
 /** Each crafting style's fields and words: forge (a timed strike) from Smithing, simple (one click) from Cooking. */
 const STYLES: Record<string, { fields: Json; words: Record<string, string> }> = {
@@ -89,7 +90,7 @@ Make, roughly:
 - 3 to 5 places, from the first one beginners fight in to the most dangerous.
 - 12 to 16 enemies spread from level 1 to 40, each in a place, with 1 to 3 of the moves and 1 or 2 of the materials (by key). Roles: weak, normal, tough, elite, boss. Mostly weak, normal and tough; a couple of elites (rare); exactly one world boss (role boss, level 30 or so) that the whole server fights together.
 - 3 to 5 hunting quests: defeat some number (3 to 20) of one enemy (by key).
-- 2 gathering activities that suit the world (what players dig, catch, scavenge or hack), each played as a minigame: grid (uncover tiles, avoiding hazards), timing (wait for the signal, then react) or find (spot the target among decoys). Each has 3 locations from easy to hard, each location 3 finds (two everyday ones, then a rare one), and 3 tools that get better.
+- 2 gathering activities that suit the world (what players dig, catch, scavenge or hack), each played as a minigame: dig (tunnel through a drawn face of blocks toward buried finds), grid (uncover tiles, avoiding hazards), timing (wait for the signal, then react) or find (spot the target among decoys). A dig activity also gets "colours" for its picture, as #rrggbb, to suit the world (an asteroid, a ship's hull, a reef, a candy mountain): rock (the face), hard (tougher blocks), loose (rubble that falls), back (the wall behind what's dug out, dark) and light (the player's lamp). Each has 3 locations from easy to hard, each location 3 finds (two everyday ones, then a rare one), and 3 tools that get better.
 - 1 or 2 crafting stations, style forge (strike at the right moment) or simple (one click), with 4 to 8 recipes that make the world's gear or potions (by key) from materials and finds (by key). Mark a few good pieces of gear "crafted": true to make them crafting-only, never sold.
 - A collection for each place's enemies ("bestiary" on the place), each activity's finds ("collection" on the activity) and the crafting-only gear ("crafted"): a name, emoji and one-line description each.
 - A name in the world's style for each of these achievements, by id (the goal stays as written): ${JSON.stringify(Object.fromEntries((Object.values(CF.achievements.achievements) as Json[]).map((a) => [a.id, a.description])))}
@@ -108,7 +109,7 @@ Reply with only a JSON object, no other text, shaped like this (lists shortened)
 "places":[{"key":"","name":"","emoji":"","arrival":"what an enemy does as it appears, e.g. drifts out of the murk","bestiary":{"name":"","emoji":"","description":""}}],
 "enemies":[{"key":"","name":"","emoji":"","level":1,"role":"weak","place":"","moves":[""],"drops":[""]}],
 "quests":[{"name":"","description":"","enemy":"","count":5}],
-"activities":[{"name":"","emoji":"","skillName":"","game":"grid","words":{},"tools":[{"name":"","emoji":"","description":""}],"locations":[{"name":"","emoji":"","finds":[{"key":"","name":"","emoji":"","description":""}]}],"collection":{"name":"","emoji":"","description":""}}],
+"activities":[{"name":"","emoji":"","skillName":"","game":"dig","colours":{"rock":"","hard":"","loose":"","back":"","light":""},"words":{},"tools":[{"name":"","emoji":"","description":""}],"locations":[{"name":"","emoji":"","finds":[{"key":"","name":"","emoji":"","description":""}]}],"collection":{"name":"","emoji":"","description":""}}],
 "stations":[{"name":"","emoji":"","skillName":"","style":"forge","words":{},"recipes":[{"makes":"","uses":[""]}]}],
 "crafted":{"name":"","emoji":"","description":""},
 "achievements":{"first-blood":""}}`;
@@ -276,7 +277,8 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
         }
         if (!Object.keys(locations).length) continue;
         const name = text(a.name, 40) || "Gathering";
-        activities[aid] = { ...structuredClone(game.fields), id: aid, name, emoji: emoji(a.emoji, "🧺"), skillName: text(a.skillName, 30) || name, words: wordsOver(game.words, a.words), locations };
+        const colours = game.fields.game === "dig" ? cleanColours(a.colours) : undefined;
+        activities[aid] = { ...structuredClone(game.fields), id: aid, name, emoji: emoji(a.emoji, "🧺"), skillName: text(a.skillName, 30) || name, words: wordsOver(game.words, a.words), locations, ...(colours && { colours }) };
         activityFinds.push({ words: a.collection, name, finds: Object.values(locations).flatMap((l) => l.loot.map((x: Json) => x.itemId)) });
         for (const [i, t] of own.entries()) {
             const tid = id(t.name, "tool");

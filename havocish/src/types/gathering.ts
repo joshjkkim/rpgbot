@@ -1,4 +1,6 @@
 import type { Requirements } from "./requirements.js";
+import type { DigColours, DigLook } from "../content/digLooks.js";
+export type { DigColours, DigLook };
 
 /**
  * Gathering: owner-made activities, each played as one of a set of button
@@ -8,8 +10,6 @@ import type { Requirements } from "./requirements.js";
 
 /** Wave 2 and 3 add more (codebreaker, trail, forge, memory, sequence). */
 export type GameType = "grid" | "timing" | "find" | "dig";
-/** Dig's setting: the same rock face in other colours (ui/canvas/digScene.ts LOOKS). */
-export type DigLook = "mine" | "ice" | "sand" | "metal" | "soil";
 
 export interface GatheringLoot {
     itemId: string;
@@ -94,6 +94,8 @@ export interface GatheringActivity {
     game: GameType;
     /** Dig only: the setting it's drawn in. A mine when unset. */
     look?: DigLook;
+    /** Dig only: colours over the look's (content/digLooks.ts), so it can be drawn for any world. */
+    colours?: Partial<DigColours>;
     /** Per game, every player-visible word. Grid: tile, empty, hazard, hazardLine, leave, tries, verb. */
     words?: Record<string, string>;
     locations: Record<string, GatheringLocation>;

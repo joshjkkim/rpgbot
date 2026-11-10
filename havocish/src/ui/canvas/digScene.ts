@@ -2,7 +2,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import { registerCardFonts } from "./fonts.js";
 import { emojiImageUrl, loadCachedImage } from "./drawEmojis.js";
 import { GOLD, PARCHMENT, RED, drawPanelFrame, roundRectPath } from "./theme.js";
-import type { DigLook } from "../../types/gathering.js";
+import { digPalette, type DigColours, type DigLook } from "../../content/digLooks.js";
 
 /**
  * The dig game's rock face, drawn in chunky pixels: the tunnel mouth on the
@@ -42,6 +42,8 @@ export type DigSceneArgs = {
     tool?: string;
     /** The setting it's drawn in; a mine when unset. */
     look?: DigLook | undefined;
+    /** Colours set over the look's. */
+    colours?: Partial<DigColours> | undefined;
 };
 
 /** A small seeded generator, so a block keeps its look between swings. */
@@ -60,17 +62,13 @@ type RGB = [number, number, number];
 const hex = ([r, g, b]: RGB) => `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 const shade = ([r, g, b]: RGB, f: number): RGB => [Math.min(255, r * f), Math.min(255, g * f), Math.min(255, b * f)];
 
-/** A look's colours: the rock and its kinds, the back wall, unlit rock, the mouth's sky and props, and the light. */
+/** A palette as the drawing uses it: RGB, except the sky's gradient stops. */
 type Look = { rock: RGB; hard: RGB; vein: RGB; loose: RGB; back: RGB; dark: RGB; sky: [string, string, string]; prop: RGB; light: RGB };
-
-/** The same rock face in other settings, picked per activity. Ore colours still come from each item's emoji. */
-export const LOOKS: Record<DigLook, Look> = {
-    mine: { rock: [92, 82, 72], hard: [58, 54, 52], vein: [120, 116, 112], loose: [112, 98, 82], back: [38, 32, 27], dark: [14, 11, 9], sky: ["#3b4452", "#2a2620", "#18130e"], prop: [96, 66, 38], light: [255, 180, 90] },
-    ice: { rock: [116, 146, 168], hard: [74, 96, 122], vein: [196, 226, 240], loose: [150, 180, 198], back: [28, 38, 52], dark: [8, 12, 18], sky: ["#4a5f78", "#2a3646", "#141b24"], prop: [92, 112, 132], light: [170, 220, 255] },
-    sand: { rock: [168, 138, 94], hard: [128, 100, 66], vein: [206, 184, 140], loose: [196, 166, 116], back: [64, 48, 30], dark: [20, 15, 10], sky: ["#7a6a52", "#4a3a26", "#241a10"], prop: [110, 78, 44], light: [255, 200, 120] },
-    metal: { rock: [92, 100, 108], hard: [58, 64, 72], vein: [150, 160, 170], loose: [132, 100, 72], back: [26, 30, 36], dark: [8, 10, 12], sky: ["#1e2a36", "#141a22", "#0a0d12"], prop: [76, 84, 92], light: [150, 255, 210] },
-    soil: { rock: [104, 74, 50], hard: [74, 56, 44], vein: [138, 110, 80], loose: [134, 98, 64], back: [40, 28, 20], dark: [12, 8, 6], sky: ["#3e4a3a", "#2a2a1e", "#16120c"], prop: [96, 66, 38], light: [255, 190, 110] },
-};
+const rgb = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as RGB;
+function lookOf(look: string | undefined, colours: unknown): Look {
+    const p = digPalette(look, colours);
+    return { rock: rgb(p.rock), hard: rgb(p.hard), vein: rgb(p.vein), loose: rgb(p.loose), back: rgb(p.back), dark: rgb(p.dark), sky: p.sky, prop: rgb(p.prop), light: rgb(p.light) };
+}
 
 const oreColours = new Map<string, RGB>();
 /** An emoji's main colour: the average of its solid pixels, brightened a little so it reads on rock. */
@@ -276,7 +274,7 @@ export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
     ctx.save();
     roundRectPath(ctx, PAD, PAD, W - PAD * 2, H - PAD * 2, 3);
     ctx.clip();
-    const L = LOOKS[args.look ?? "mine"] ?? LOOKS.mine;
+    const L = lookOf(args.look, args.colours);
     drawMouth(ctx, L);
 
     for (const [i, cell] of args.cells.entries()) {
