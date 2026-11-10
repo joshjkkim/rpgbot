@@ -239,13 +239,18 @@ function drawMouth(ctx: any, L: Look) {
     ctx.fillRect(x, y, MOUTH_W, h);
     // The ground outside, and the rock over the mouth.
     texture(ctx, x, y + h - CELL / 2, shade(L.rock, 0.7), 991, 0.1);
-    for (let row = 0; row < ROWS - 2; row++) {
-        texture(ctx, x, y + row * CELL, shade(L.rock, 0.85), 500 + row);
-        texture(ctx, x + MOUTH_W - CELL, y + row * CELL, shade(L.rock, 0.85), 600 + row);
+    // Over the mouth, the hillside the face is cut into: a dark slope rising toward the face,
+    // shaped unlike the blocks so it doesn't read as something to dig.
+    const top = y + (ROWS - 2) * CELL;
+    for (let gx = 0; gx < MOUTH_W; gx += PX) {
+        const hill = y + Math.round(((1 - gx / MOUTH_W) * (top - y) * 0.75) / PX) * PX;
+        ctx.fillStyle = hex(shade(L.rock, 0.42));
+        ctx.fillRect(x + gx, hill, PX, top - hill);
+        ctx.fillStyle = hex(shade(L.rock, 0.62));
+        ctx.fillRect(x + gx, hill, PX, PX);
     }
     // Timber props holding up the mouth.
     const wood = L.prop;
-    const top = y + (ROWS - 2) * CELL;
     for (const bx of [x + 6, x + MOUTH_W - 14]) {
         for (let py = top; py < y + h - CELL / 2; py += PX) {
             ctx.fillStyle = hex(shade(wood, py % (PX * 3) === 0 ? 0.8 : 1));
@@ -256,6 +261,9 @@ function drawMouth(ctx: any, L: Look) {
     ctx.fillRect(x, top, MOUTH_W, PX * 2);
     ctx.fillStyle = hex(shade(wood, 0.7));
     ctx.fillRect(x, top + PX * 2, MOUTH_W, PX);
+    // Where the face begins: a shadow line, so the mouth reads as outside the grid.
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(x + MOUTH_W - PX, y, PX, top - y);
 }
 
 export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
