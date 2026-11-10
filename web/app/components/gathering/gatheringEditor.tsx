@@ -17,6 +17,7 @@ import {
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
 import { DIG_COLOUR_KEYS, DIG_COLOUR_LABELS, DIG_LOOKS, digPalette, type DigColours, type DigLook } from "@content/digLooks";
+import DigPreview from "./digPreview";
 import { ConditionsEditor, LocationConditionsField, TraitsField, type GameType, type GatheringCondition, type LocationTrait } from "./twistsEditor";
 
 // ─── Types (mirrored from havocish/src/types/gathering.ts) ──────────────────────
@@ -421,6 +422,15 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
               />
             ))}
           </FieldGrid>
+        )}
+        {game === "dig" && (
+          <Field label="Preview" hint="A run partway in, as players see it in Discord. Ore takes each find's emoji colour.">
+            <DigPreview
+              look={a.look}
+              colours={a.colours}
+              oreEmojis={[...new Set(Object.values(a.locations ?? {}).flatMap((l) => l.loot ?? []).map((x) => shopItems[x.itemId]?.emoji).filter((e): e is string => !!e))].slice(0, 4)}
+            />
+          </Field>
         )}
 
         <Field label="Wording" hint="Everything players see in the game. Leave a box blank to use the default shown in it.">
