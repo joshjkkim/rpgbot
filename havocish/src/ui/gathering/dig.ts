@@ -233,6 +233,7 @@ export const dig: Game<DigState> = {
             last: s.last ? { ...s.last, emoji: s.last.got ? config.shop?.items?.[s.last.got.itemId]?.emoji : undefined } : null,
             avatarUrl: run.avatarUrl,
             tool: (run.toolId && config.shop?.items?.[run.toolId]?.emoji) || run.activity.emoji,
+            look: run.activity.look,
         });
     },
 

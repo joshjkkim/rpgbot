@@ -2,6 +2,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import { registerCardFonts } from "./fonts.js";
 import { emojiImageUrl, loadCachedImage } from "./drawEmojis.js";
 import { GOLD, PARCHMENT, RED, drawPanelFrame, roundRectPath } from "./theme.js";
+import type { DigLook } from "../../types/gathering.js";
 
 /**
  * The dig game's rock face, drawn in chunky pixels: the tunnel mouth on the
@@ -39,6 +40,8 @@ export type DigSceneArgs = {
     avatarUrl?: string | undefined;
     /** The tool's emoji, drawn in your hand. */
     tool?: string;
+    /** The setting it's drawn in; a mine when unset. */
+    look?: DigLook | undefined;
 };
 
 /** A small seeded generator, so a block keeps its look between swings. */
@@ -57,10 +60,17 @@ type RGB = [number, number, number];
 const hex = ([r, g, b]: RGB) => `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 const shade = ([r, g, b]: RGB, f: number): RGB => [Math.min(255, r * f), Math.min(255, g * f), Math.min(255, b * f)];
 
-const ROCK: RGB = [92, 82, 72];
-const HARD: RGB = [58, 54, 52];
-const LOOSE: RGB = [112, 98, 82];
-const BACK: RGB = [38, 32, 27];
+/** A look's colours: the rock and its kinds, the back wall, unlit rock, the mouth's sky and props, and the light. */
+type Look = { rock: RGB; hard: RGB; vein: RGB; loose: RGB; back: RGB; dark: RGB; sky: [string, string, string]; prop: RGB; light: RGB };
+
+/** The same rock face in other settings, picked per activity. Ore colours still come from each item's emoji. */
+export const LOOKS: Record<DigLook, Look> = {
+    mine: { rock: [92, 82, 72], hard: [58, 54, 52], vein: [120, 116, 112], loose: [112, 98, 82], back: [38, 32, 27], dark: [14, 11, 9], sky: ["#3b4452", "#2a2620", "#18130e"], prop: [96, 66, 38], light: [255, 180, 90] },
+    ice: { rock: [116, 146, 168], hard: [74, 96, 122], vein: [196, 226, 240], loose: [150, 180, 198], back: [28, 38, 52], dark: [8, 12, 18], sky: ["#4a5f78", "#2a3646", "#141b24"], prop: [92, 112, 132], light: [170, 220, 255] },
+    sand: { rock: [168, 138, 94], hard: [128, 100, 66], vein: [206, 184, 140], loose: [196, 166, 116], back: [64, 48, 30], dark: [20, 15, 10], sky: ["#7a6a52", "#4a3a26", "#241a10"], prop: [110, 78, 44], light: [255, 200, 120] },
+    metal: { rock: [92, 100, 108], hard: [58, 64, 72], vein: [150, 160, 170], loose: [132, 100, 72], back: [26, 30, 36], dark: [8, 10, 12], sky: ["#1e2a36", "#141a22", "#0a0d12"], prop: [76, 84, 92], light: [150, 255, 210] },
+    soil: { rock: [104, 74, 50], hard: [74, 56, 44], vein: [138, 110, 80], loose: [134, 98, 64], back: [40, 28, 20], dark: [12, 8, 6], sky: ["#3e4a3a", "#2a2a1e", "#16120c"], prop: [96, 66, 38], light: [255, 190, 110] },
+};
 
 const oreColours = new Map<string, RGB>();
 /** An emoji's main colour: the average of its solid pixels, brightened a little so it reads on rock. */
@@ -100,7 +110,7 @@ function texture(ctx: any, x: number, y: number, base: RGB, seed: number, spread
     const n = CELL / PX;
     for (let py = 0; py < n; py++) {
         for (let px = 0; px < n; px++) {
-            let f = 1 + (r() - 0.5) * spread * 2;
+            let f = 1 + (Math.round((r() - 0.5) * 4) / 4) * spread * 2;
             if (px === 0 || py === 0) f *= 1.18;
             if (px === n - 1 || py === n - 1) f *= 0.72;
             ctx.fillStyle = hex(shade(base, f));
@@ -109,22 +119,22 @@ function texture(ctx: any, x: number, y: number, base: RGB, seed: number, spread
     }
 }
 
-function drawRock(ctx: any, x: number, y: number, seed: number) {
-    texture(ctx, x, y, ROCK, seed);
+function drawRock(ctx: any, L: Look, x: number, y: number, seed: number) {
+    texture(ctx, x, y, L.rock, seed);
     // A few darker pits, so it reads as stone and not as noise.
     const r = rng(seed * 7 + 3);
     for (let k = 0; k < 5; k++) {
         const px = 1 + Math.floor(r() * (CELL / PX - 3)), py = 1 + Math.floor(r() * (CELL / PX - 3));
-        ctx.fillStyle = hex(shade(ROCK, 0.68));
+        ctx.fillStyle = hex(shade(L.rock, 0.68));
         ctx.fillRect(x + px * PX, y + py * PX, PX * 2, PX);
     }
 }
 
-function drawHard(ctx: any, x: number, y: number, seed: number) {
-    texture(ctx, x, y, HARD, seed, 0.1);
+function drawHard(ctx: any, L: Look, x: number, y: number, seed: number) {
+    texture(ctx, x, y, L.hard, seed, 0.1);
     // Pale veins: harder stone.
     const r = rng(seed * 13 + 1);
-    ctx.fillStyle = hex([120, 116, 112]);
+    ctx.fillStyle = hex(L.vein);
     for (let k = 0; k < 2; k++) {
         let px = Math.floor(r() * 10) + 2, py = 1;
         while (py < CELL / PX - 1) {
@@ -136,8 +146,8 @@ function drawHard(ctx: any, x: number, y: number, seed: number) {
     }
 }
 
-function drawLoose(ctx: any, x: number, y: number, seed: number) {
-    ctx.fillStyle = hex(shade(LOOSE, 0.35));
+function drawLoose(ctx: any, L: Look, x: number, y: number, seed: number) {
+    ctx.fillStyle = hex(shade(L.loose, 0.35));
     ctx.fillRect(x, y, CELL, CELL);
     const r = rng(seed * 11 + 5);
     // Rubble: rounded boulders of different sizes piled with gaps between.
@@ -153,15 +163,15 @@ function drawLoose(ctx: any, x: number, y: number, seed: number) {
                 if (gx < 0 || gy < 0 || gx >= n || gy >= n) continue;
                 // Lit from the top left: a bright rim up there, shadow down here.
                 const lightF = px + py < -rad ? 1.3 : px + py > rad ? 0.62 : 1;
-                ctx.fillStyle = hex(shade(LOOSE, f * lightF));
+                ctx.fillStyle = hex(shade(L.loose, f * lightF));
                 ctx.fillRect(x + gx * PX, y + gy * PX, PX, PX);
             }
         }
     }
 }
 
-function drawOre(ctx: any, x: number, y: number, seed: number, colour: RGB) {
-    drawRock(ctx, x, y, seed);
+function drawOre(ctx: any, L: Look, x: number, y: number, seed: number, colour: RGB) {
+    drawRock(ctx, L, x, y, seed);
     const r = rng(seed * 17 + 9);
     // Clumps of ore showing through, each with a glint.
     for (let k = 0; k < 6; k++) {
@@ -177,10 +187,10 @@ function drawOre(ctx: any, x: number, y: number, seed: number, colour: RGB) {
 }
 
 /** Open space: the back wall, darker, with a ledge where there's rock below. */
-function drawOpen(ctx: any, x: number, y: number, seed: number, floor: boolean) {
-    texture(ctx, x, y, BACK, seed, 0.12);
+function drawOpen(ctx: any, L: Look, x: number, y: number, seed: number, floor: boolean) {
+    texture(ctx, x, y, L.back, seed, 0.12);
     if (floor) {
-        ctx.fillStyle = hex(shade(ROCK, 0.55));
+        ctx.fillStyle = hex(shade(L.rock, 0.55));
         ctx.fillRect(x, y + CELL - PX * 2, CELL, PX * 2);
     }
 }
@@ -219,22 +229,22 @@ function label(ctx: any, text: string, x: number, y: number, colour: string, siz
     ctx.fillText(text, x, y);
 }
 
-function drawMouth(ctx: any) {
+function drawMouth(ctx: any, L: Look) {
     const x = PAD, y = PAD, h = ROWS * CELL;
     const sky = ctx.createLinearGradient(0, y, 0, y + h);
-    sky.addColorStop(0, "#3b4452");
-    sky.addColorStop(0.55, "#2a2620");
-    sky.addColorStop(1, "#18130e");
+    sky.addColorStop(0, L.sky[0]);
+    sky.addColorStop(0.55, L.sky[1]);
+    sky.addColorStop(1, L.sky[2]);
     ctx.fillStyle = sky;
     ctx.fillRect(x, y, MOUTH_W, h);
     // The ground outside, and the rock over the mouth.
-    texture(ctx, x, y + h - CELL / 2, shade(ROCK, 0.7), 991, 0.1);
+    texture(ctx, x, y + h - CELL / 2, shade(L.rock, 0.7), 991, 0.1);
     for (let row = 0; row < ROWS - 2; row++) {
-        texture(ctx, x, y + row * CELL, shade(ROCK, 0.85), 500 + row);
-        texture(ctx, x + MOUTH_W - CELL, y + row * CELL, shade(ROCK, 0.85), 600 + row);
+        texture(ctx, x, y + row * CELL, shade(L.rock, 0.85), 500 + row);
+        texture(ctx, x + MOUTH_W - CELL, y + row * CELL, shade(L.rock, 0.85), 600 + row);
     }
     // Timber props holding up the mouth.
-    const wood: RGB = [96, 66, 38];
+    const wood = L.prop;
     const top = y + (ROWS - 2) * CELL;
     for (const bx of [x + 6, x + MOUTH_W - 14]) {
         for (let py = top; py < y + h - CELL / 2; py += PX) {
@@ -258,22 +268,23 @@ export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
     ctx.save();
     roundRectPath(ctx, PAD, PAD, W - PAD * 2, H - PAD * 2, 3);
     ctx.clip();
-    drawMouth(ctx);
+    const L = LOOKS[args.look ?? "mine"] ?? LOOKS.mine;
+    drawMouth(ctx, L);
 
     for (const [i, cell] of args.cells.entries()) {
         const { x, y } = cellXY(i);
         const seed = i * 101 + 17;
         if (!cell.seen && !cell.dim) {
-            texture(ctx, x, y, [14, 11, 9], seed, 0.25);
+            texture(ctx, x, y, L.dark, seed, 0.25);
             continue;
         }
         const below = args.cells[i + COLS];
-        if (cell.kind === "open") drawOpen(ctx, x, y, seed, !below || below.kind !== "open");
-        else if (cell.kind === "hard") drawHard(ctx, x, y, seed);
-        else if (cell.kind === "loose") drawLoose(ctx, x, y, seed);
+        if (cell.kind === "open") drawOpen(ctx, L, x, y, seed, !below || below.kind !== "open");
+        else if (cell.kind === "hard") drawHard(ctx, L, x, y, seed);
+        else if (cell.kind === "loose") drawLoose(ctx, L, x, y, seed);
         // Ore at the light's edge looks like any other rock.
-        else if (cell.kind === "ore" && cell.seen) drawOre(ctx, x, y, seed, await oreColour(cell.emoji));
-        else drawRock(ctx, x, y, seed);
+        else if (cell.kind === "ore" && cell.seen) drawOre(ctx, L, x, y, seed, await oreColour(cell.emoji));
+        else drawRock(ctx, L, x, y, seed);
         if (cell.kind !== "open" && cell.max > 0) drawCracks(ctx, x, y, seed, 1 - cell.hp / cell.max);
         if (cell.dim) {
             ctx.fillStyle = "rgba(10,8,6,0.74)";
@@ -281,16 +292,21 @@ export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
         }
     }
 
-    // The lantern: warm light around you, falling off into the dark.
+    // The lantern: light around you in pixel steps, falling off into the dark.
+    // Stepped rather than a smooth gradient: it matches the pixel art and halves the PNG.
     const at = args.pos >= 0 ? cellXY(args.pos) : { x: PAD + MOUTH_W - CELL, y: PAD + (ROWS - 1) * CELL };
     const px = args.pos >= 0 ? at.x + CELL / 2 : PAD + MOUTH_W / 2 + 6;
     const py = at.y + CELL / 2 + 6;
     ctx.globalCompositeOperation = "lighter";
-    const glow = ctx.createRadialGradient(px, py, 8, px, py, CELL * 2.2);
-    glow.addColorStop(0, "rgba(255,180,90,0.26)");
-    glow.addColorStop(1, "rgba(255,180,90,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(PAD, PAD, W - PAD * 2, H - PAD * 2);
+    const [lr, lg, lb] = L.light;
+    for (let gy = PAD; gy < H - PAD; gy += PX * 2) {
+        for (let gx = PAD; gx < W - PAD; gx += PX * 2) {
+            const d = Math.hypot(gx + PX - px, gy + PX - py) / (CELL * 2.2);
+            if (d >= 1) continue;
+            ctx.fillStyle = `rgba(${lr},${lg},${lb},${(0.26 * Math.round((1 - d) * 4) / 4).toFixed(3)})`;
+            ctx.fillRect(gx, gy, PX * 2, PX * 2);
+        }
+    }
     ctx.globalCompositeOperation = "source-over";
 
     // You.
@@ -337,7 +353,7 @@ export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
         } else if (!last.broke) {
             // Chips flying off.
             const r = rng(last.at * 7 + last.damage);
-            ctx.fillStyle = hex(shade(ROCK, 1.3));
+            ctx.fillStyle = hex(shade(L.rock, 1.3));
             for (let k = 0; k < 6; k++) ctx.fillRect(cx + (r() - 0.5) * 50, cy + (r() - 0.5) * 50, PX, PX);
             label(ctx, `−${last.damage}${last.clean ? "!" : ""}`, cx, c.y + 22, last.clean ? GOLD : PARCHMENT);
         }

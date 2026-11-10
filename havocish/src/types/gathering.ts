@@ -8,6 +8,8 @@ import type { Requirements } from "./requirements.js";
 
 /** Wave 2 and 3 add more (codebreaker, trail, forge, memory, sequence). */
 export type GameType = "grid" | "timing" | "find" | "dig";
+/** Dig's setting: the same rock face in other colours (ui/canvas/digScene.ts LOOKS). */
+export type DigLook = "mine" | "ice" | "sand" | "metal" | "soil";
 
 export interface GatheringLoot {
     itemId: string;
@@ -90,6 +92,8 @@ export interface GatheringActivity {
     /** Seconds for one point to refill (default 360, so a full bar in an hour). */
     energyRefillSeconds?: number;
     game: GameType;
+    /** Dig only: the setting it's drawn in. A mine when unset. */
+    look?: DigLook;
     /** Per game, every player-visible word. Grid: tile, empty, hazard, hazardLine, leave, tries, verb. */
     words?: Record<string, string>;
     locations: Record<string, GatheringLocation>;

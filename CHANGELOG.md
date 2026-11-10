@@ -5,7 +5,7 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 ## Unreleased
 
 ### New
-- **Mining is a rock face you dig through.** `/gather mining` now shows a drawn mine: you start at the tunnel mouth and swing at the rock next to you, one block at a time, tunnelling toward what you want. Ore shows in the rock once your lantern reaches it, rarer ore takes more swings and sits further in, and a better pickaxe breaks rock faster. Watch for loose rock: dig out what holds it up and it comes down on you. Owners can give any activity this game (pick **Dig**) and reword all of it.
+- **Mining is a rock face you dig through.** `/gather mining` now shows a drawn mine: you start at the tunnel mouth and swing at the rock next to you, one block at a time, tunnelling toward what you want. Ore shows in the rock once your lantern reaches it, rarer ore takes more swings and sits further in, and a better pickaxe breaks rock faster. Watch for loose rock: dig out what holds it up and it comes down on you. Owners can give any activity this game (pick **Dig**), reword all of it, and pick its look: a mine, ice, sand, metal plating or soil.
 
 ## v0.19.2 · November 4, 2026
 

@@ -54,6 +54,8 @@ export interface GatheringActivity {
   energyMax?: number;
   energyRefillSeconds?: number;
   game: GameType;
+  /** Dig only. Mirrored from havocish/src/types/gathering.ts DigLook. */
+  look?: DigLook;
   words?: Record<string, string>;
   locations: Record<string, GatheringLocation>;
 }
@@ -193,6 +195,15 @@ const GAMES: Record<GameType, {
 };
 
 const GAME_OPTIONS = (Object.keys(GAMES) as GameType[]).map((g) => ({ value: g, label: GAMES[g].label }));
+
+type DigLook = "mine" | "ice" | "sand" | "metal" | "soil";
+const LOOK_OPTIONS: { value: DigLook; label: string }[] = [
+  { value: "mine", label: "Mine: grey stone, timber props" },
+  { value: "ice", label: "Ice: blue, cold light" },
+  { value: "sand", label: "Sand: desert rock, warm light" },
+  { value: "metal", label: "Metal: steel plating, rust, green work light" },
+  { value: "soil", label: "Soil: earth and roots" },
+];
 
 type ShopItems = Record<string, { name?: string; emoji?: string; tool?: { activityId?: string; tier?: number } }>;
 
@@ -399,6 +410,9 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
             hint={`A full bar refills in about ${Math.round(((a.energyMax ?? 10) * (a.energyRefillSeconds ?? 360)) / 60)} minutes. Each activity has its own bar.`}
           />
           <SelectField label="Minigame" value={game} options={GAME_OPTIONS} onChange={(v) => upsertActivity({ ...a, game: v })} hint={GAMES[game].blurb} wide />
+          {game === "dig" && (
+            <SelectField label="Look" value={a.look ?? "mine"} options={LOOK_OPTIONS} onChange={(v) => upsertActivity({ ...a, look: v })} hint="The setting the rock face is drawn in. Finds keep the colour of their own emoji." wide />
+          )}
         </FieldGrid>
 
         <Field label="Wording" hint="Everything players see in the game. Leave a box blank to use the default shown in it.">
