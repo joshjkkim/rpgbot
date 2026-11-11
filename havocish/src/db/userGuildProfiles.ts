@@ -6,6 +6,7 @@ import type { Client, GuildMember, TextChannel } from "discord.js";
 import type { PendingProfileChanges } from "../types/cache.js";
 import { refreshTempRolesForMember } from "../player/roles.js";
 import { applyAchievementSideEffects, runAchievementPipeline } from "../player/achievements.js";
+import { memberFacts } from "../player/requirements.js";
 import type { DbUserGuildProfile, UserStats } from "../types/userprofile.js";
 import type { GuildConfig } from "../types/guild.js";
 import { runQuestPipeline, announceQuestCompletions } from "../player/quests.js";
@@ -173,7 +174,7 @@ export async function addMessageXp(args: XpArgs): Promise<{profile: DbUserGuildP
         pendingChanges.level = profile.level;
     }
 
-    const achievementResults = await runAchievementPipeline({profile, pending: pendingChanges, config});
+    const achievementResults = await runAchievementPipeline({profile, pending: pendingChanges, config, facts: args.member ? memberFacts(args.member) : undefined});
     profile = achievementResults.profile;
     pendingChanges = achievementResults.pending;
 
@@ -439,7 +440,7 @@ export async function grantDailyXp(args: XpArgs): Promise<{profile: DbUserGuildP
         pendingChanges.level = profile.level;
     }
 
-    const achievementResults = await runAchievementPipeline({profile, pending: pendingChanges, config});
+    const achievementResults = await runAchievementPipeline({profile, pending: pendingChanges, config, facts: args.member ? memberFacts(args.member) : undefined});
     profile = achievementResults.profile;
     pendingChanges = achievementResults.pending;
 

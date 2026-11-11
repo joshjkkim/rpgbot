@@ -14,9 +14,10 @@ import {
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelField, ItemField, RoleField } from "@/app/components/ui/pickers";
 import { AnnouncedOn } from "@/app/components/ui/announcedOn";
+import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 
 export interface AchievementCondition {
-  type: "stat" | "level" | "xp" | "gold" | "streak";
+  type: "stat" | "level" | "xp" | "gold" | "streak" | "requirements";
   statKey?: string;
   operator: ">=" | "<=" | "==" | ">" | "<" | "!=";
   value: number;
@@ -38,6 +39,7 @@ export interface AchievementConfig {
   description: string;
   category: "xp" | "social" | "daily" | "economy" | "vc" | "misc";
   conditions: AchievementCondition;
+  requirements?: Requirements;
   // Flat, unlike quests: player/achievements.ts reads achievement.reward directly.
   reward?: AchievementReward;
   secret?: boolean;
@@ -55,6 +57,7 @@ export type AchievementsConfig = {
 type Props = {
   /** Shop items, so item fields can be dropdowns. */
   shopItems: Record<string, { name?: string; emoji?: string }>;
+  skills: SkillOption[];
   value: AchievementsConfig | null | undefined;
   onChange: (next: AchievementsConfig) => void;
 };
@@ -74,6 +77,24 @@ const CONDITION_TYPES = [
   { value: "xp" as const, label: "Total XP" },
   { value: "gold" as const, label: "Gold held" },
   { value: "streak" as const, label: "Streak" },
+  { value: "requirements" as const, label: "Just the requirements below (a role, days in the server…)" },
+];
+
+/** What the bot counts in user_stats. */
+const STATS = [
+  { value: "", label: "Choose a stat" },
+  { value: "messagesSent", label: "Messages sent" },
+  { value: "dailiesClaimed", label: "Dailies claimed" },
+  { value: "maxStreak", label: "Best streak" },
+  { value: "fightsWon", label: "Fights won" },
+  { value: "enemiesDefeated", label: "Enemies defeated" },
+  { value: "partyWins", label: "Party fights won" },
+  { value: "duelsWon", label: "Duels won" },
+  { value: "gatherRuns", label: "Gathering runs" },
+  { value: "craftsMade", label: "Items crafted" },
+  { value: "collectionsCompleted", label: "Collections completed" },
+  { value: "goldEarned", label: "Gold earned" },
+  { value: "goldSpent", label: "Gold spent" },
 ];
 
 const OPERATORS = [
@@ -85,7 +106,7 @@ const OPERATORS = [
   { value: "!=" as const, label: "not (!=)" },
 ];
 
-export default function AchievementsEditor({ value, onChange, shopItems }: Props) {
+export default function AchievementsEditor({ value, onChange, shopItems, skills }: Props) {
   const defaults: AchievementsConfig = useMemo(
     () => ({ enabled: false, achievements: {}, announceAllId: null, announceMessage: null }),
     []
@@ -186,27 +207,38 @@ export default function AchievementsEditor({ value, onChange, shopItems }: Props
                       onChange={(type) => upsert({ ...a, conditions: { ...condition, type } })}
                       options={CONDITION_TYPES}
                     />
-                    <SelectField
-                      value={condition.operator}
-                      onChange={(operator) => upsert({ ...a, conditions: { ...condition, operator } })}
-                      options={OPERATORS}
-                    />
                     {condition.type === "stat" && (
-                      <TextField
-                        label="Stat key"
+                      <SelectField
+                        label="Stat"
                         value={condition.statKey ?? ""}
                         onChange={(v) => upsert({ ...a, conditions: { ...condition, statKey: v } })}
-                        placeholder="e.g. messagesSent"
-                        mono
+                        options={STATS.some((s) => s.value === (condition.statKey ?? "")) ? STATS : [...STATS, { value: condition.statKey!, label: condition.statKey! }]}
                       />
                     )}
-                    <NumberField
-                      label="Value"
-                      value={condition.value ?? 0}
-                      onChange={(v) => upsert({ ...a, conditions: { ...condition, value: v } })}
-                    />
+                    {condition.type !== "requirements" && (
+                      <>
+                        <SelectField
+                          value={condition.operator}
+                          onChange={(operator) => upsert({ ...a, conditions: { ...condition, operator } })}
+                          options={OPERATORS}
+                        />
+                        <NumberField
+                          label="Value"
+                          value={condition.value ?? 0}
+                          onChange={(v) => upsert({ ...a, conditions: { ...condition, value: v } })}
+                        />
+                      </>
+                    )}
                   </FieldGrid>
                 </Field>
+
+                <RequirementsField
+                  items={shopItems}
+                  value={a.requirements}
+                  onChange={(next) => upsert({ ...a, requirements: next })}
+                  skills={skills}
+                  hint="Everything set here must be met. Using another leveling bot? Pick the role it gives at a level, and this unlocks the moment a member gets it."
+                />
 
                 <Field label="Reward">
                   <FieldGrid>

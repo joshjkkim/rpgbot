@@ -5,6 +5,7 @@ import { grantRoleRewards } from "../player/levelRewards.js";
 import { bestEffort } from "../ui/bestEffort.js";
 import { mentionsFor } from "../ui/mentions.js";
 import { announcer, speak } from "../ui/characters.js";
+import { checkRoleAchievements } from "../player/achievements.js";
 
 /**
  * Pays role rewards (config.roleRewards) when a member holds a rewarded role
@@ -30,7 +31,10 @@ export async function checkRoleRewards(member: GuildMember) {
 
 export function registerRoleRewards(client: Client) {
     const run = (member: GuildMember) => checkRoleRewards(member).catch((err) => console.error("Role rewards failed:", err));
-    client.on(Events.GuildMemberUpdate, (_old, member) => void run(member));
+    client.on(Events.GuildMemberUpdate, (old, member) => {
+        void run(member);
+        if (!old.roles.cache.equals(member.roles.cache)) void checkRoleAchievements(member).catch((err) => console.error("Role achievements failed:", err));
+    });
     // A member discord.js hadn't cached arrives as "available" instead of "update".
     client.on(Events.GuildMemberAvailable, (member) => void run(member as GuildMember));
 }
