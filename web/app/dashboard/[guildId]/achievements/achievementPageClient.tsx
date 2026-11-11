@@ -3,6 +3,7 @@
 import { useGuildConfig } from "@/app/hooks/useGuildConfig";
 import ConfigPage from "@/app/components/configPage";
 import AchievementsEditor from "@/app/components/achievements/achievementsEditor";
+import { skillOptions } from "@/app/components/ui/requirementsField";
 
 export default function AchievementsPageClient({ guildId }: { guildId: string }) {
   const { config, setConfig, loading, saving, dirty, error, save } = useGuildConfig(guildId);
@@ -18,12 +19,14 @@ export default function AchievementsPageClient({ guildId }: { guildId: string })
       error={error}
       dirty={dirty}
       onSave={() => save(config)}
+      collections={config?.collections?.sets}
       rawSection={achievements}
     >
       {config && (
         <AchievementsEditor
           value={achievements}
           shopItems={config.shop?.items ?? {}}
+          skills={skillOptions(config)}
           onChange={(next) => setConfig((prev) => ({ ...prev, achievements: next }))}
         />
       )}

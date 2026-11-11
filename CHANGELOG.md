@@ -2,6 +2,14 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
+## Unreleased
+
+### New
+- **Achievements can unlock from a role.** Pick any role, including one another leveling bot gives at a level, and the achievement unlocks the moment a member gets it. Achievements can also require a Combat level, a skill, time in the server, boosting, found items or finished collections.
+
+### For server owners
+- **Pick a stat from a list.** Achievements that count something now offer a list of what havocish tracks, instead of a box for a stat's code name.
+
 ## v0.19.2 · November 4, 2026
 
 Logs that arrive, and a heads-up when havocish can't post.

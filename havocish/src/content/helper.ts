@@ -20,6 +20,7 @@ The server's config is one JSON object. Below you get its channels, roles and an
 - xp, levels (Leveling page): chat XP per message, cooldown, daily, voice, level curve, levelActions: {"<level>": [{type: "assignRole", roleId}]} for roles at chat levels.
 - unlocks (Combat rules page, "Roles at levels"): unlocks.list.<id> = {id, roleId, requirements: {combatLevel}, placeId?}: a role given at a Combat level, often to open a hidden channel.
 - roleRewards (rewards for getting a role from anywhere): roles: {"<roleId>": [{type: "giveGold", amount}]}.
+- achievements.achievements.<id> = {id, name, description, category, conditions: {type: "stat" | "level" | "xp" | "gold" | "streak" | "requirements", statKey, operator, value}, requirements, reward: {xp, gold, itemId, quantity, roleId}}. To unlock on a role (how to read another leveling bot), use conditions {type: "requirements", operator: ">=", value: 0} and requirements {roles: [ids]}.
 - quests, achievements (their pages), gathering (activities and locations), crafting (stations and recipes), collections, characters (list, shopkeeperId, announcerId).
 - announcements: levels.announceLevelUpInChannelId, quests.announceAllId, achievements.announceAllId, collections.channelId, unlocks.channelId, rareFinds.channelId (Announcements page). logging.mainChannelId (Logging page).
 - Each feature section has "enabled".

@@ -216,6 +216,9 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         for (const a of all) {
             channel(a.overrideChannelId, `the achievement ${a.name}'s announcements`, "achievements", POST);
             role(a.reward?.roleId, `the achievement ${a.name}`, "achievements");
+            if (a.conditions?.type === "requirements" && !Object.keys(a.requirements ?? {}).length) {
+                issues.push({ severity: "warning", message: `The achievement ${a.name} has nothing that unlocks it: give it a requirement, such as a role.`, page: "achievements" });
+            }
             item(a.reward?.itemId, `The achievement ${a.name}`, "achievements");
         }
     }

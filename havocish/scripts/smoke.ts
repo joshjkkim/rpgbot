@@ -53,6 +53,7 @@ import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
+import { runAchievementPipeline } from "../src/player/achievements.js";
 import { applyChanges, cleanChanges, outline, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
@@ -2967,6 +2968,31 @@ async function main() {
             check(`${pack.name}: every reference resolves`, broken, []);
         }
         check("pack ids are unique", new Set(STARTER_PACKS.map((p) => p.id)).size, STARTER_PACKS.length);
+    });
+
+    await test("achievements unlock from roles and requirements", async () => {
+        const ach = (id: string, conditions: any, requirements?: any, reward?: any) => ({ id, name: id, description: "", category: "misc", conditions, requirements, reward });
+        const none = { type: "requirements", operator: ">=", value: 0 };
+        const config = { achievements: { enabled: true, achievements: {
+            bard: ach("bard", none, { roles: ["bard-role"] }, { gold: 5, roleId: "giveaway" }),
+            empty: ach("empty", none),
+            emptyBlock: ach("emptyBlock", none, {}),
+            bardChatter: ach("bardChatter", { type: "stat", statKey: "messagesSent", operator: ">=", value: 10 }, { roles: ["bard-role"] }),
+            plain: ach("plain", { type: "stat", statKey: "messagesSent", operator: ">=", value: 10 }),
+        } } } as any;
+        const profile = () => ({ xp: "0", gold: "0", level: 1, achievements: {}, inventory: {}, user_stats: { messagesSent: 3 } }) as any;
+        const facts = (roleIds: string[]) => ({ roleIds, joinedAt: null, boosting: false });
+        const run = async (p: any, f?: any) => (await runAchievementPipeline({ profile: p, pending: {} as any, config, facts: f })).unlocked.map((a) => a.id);
+
+        check("no role, nothing unlocks", await run(profile(), facts([])), []);
+        check("the role unlocks it; nothing set never unlocks", await run(profile(), facts(["bard-role"])), ["bard"]);
+        const chatty = () => ({ ...profile(), user_stats: { messagesSent: 12 } });
+        check("a count and a role must both hold", await run(chatty(), facts(["bard-role"])), ["bard", "bardChatter", "plain"]);
+        check("without the member's details, those with requirements wait", await run(chatty()), ["plain"]);
+        const p = profile();
+        const first = await runAchievementPipeline({ profile: p, pending: {} as any, config, facts: facts(["bard-role"]) });
+        check("the reward's gold and role are paid", [first.profile.gold, first.rewards?.grantedRoles], ["5", ["giveaway"]]);
+        check("it only unlocks once", await run(first.profile, facts(["bard-role"])), []);
     });
 
     await test("an AI-written world becomes a balanced, self-contained pack", async () => {
