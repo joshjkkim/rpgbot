@@ -165,6 +165,14 @@ seconds of XP and gold lives only in memory at any moment.
 
 ## Testing
 
+Gathering button logic has a quick check that needs no database or Discord connection:
+
+```bash
+npm --workspace havocish run check:gathering
+```
+
+It covers instructions, tile feedback, round deadlines, and repeated or stale clicks.
+
 There is a headless smoke suite for the persistence layer that never touches
 Discord. It runs against an **isolated scratch schema**, not your real data.
 

@@ -12,6 +12,8 @@ import { rollLoot } from "../../player/gathering.js";
 
 export type Run = {
     ownerId: string;
+    /** The player's avatar, for games drawn as a scene. */
+    avatarUrl?: string;
     discordGuildId: string;
     userId: number;
     guildId: number;
@@ -27,6 +29,8 @@ export type Run = {
     found: Record<string, number>;
     /** What just happened, shown under the header. */
     status: string | null;
+    /** Set before drawing the final results. */
+    ended?: EndReason;
     message: Message | null;
     /** The game's own timer (a bite, a round's deadline). One at a time. */
     timer: NodeJS.Timeout | null;
@@ -38,7 +42,7 @@ export type Run = {
     state: any;
 };
 
-export type EndReason = "leave" | "out" | "hazard" | "timeout";
+export type EndReason = "leave" | "out" | "timeout";
 
 export type Words = Record<string, string>;
 
@@ -60,6 +64,8 @@ export interface Game<S = any> {
     start(run: Run, w: Words, ctx: Ctx): S;
     /** Lines under the header, and the game's button rows. Leave is added after them. */
     body(run: Run, s: S, w: Words, config: GuildConfig): { text: string; rows: ActionRowBuilder<ButtonBuilder>[] };
+    /** A picture of the run, shown above the buttons, for games drawn as a scene. */
+    scene?(run: Run, s: S, w: Words, config: GuildConfig): Promise<Buffer | null>;
     /** A click. Returns why the run ends, or nothing to keep going. `at` is when the player clicked. */
     click(run: Run, s: S, w: Words, action: string, arg: string, at: number, ctx: Ctx): EndReason | void | Promise<EndReason | void>;
 }
@@ -72,6 +78,9 @@ export const itemLabel = (config: GuildConfig, id: string, n?: number) => {
 export const addFind = (run: Run, drop: { itemId: string; quantity: number }) => {
     run.found[drop.itemId] = (run.found[drop.itemId] ?? 0) + drop.quantity + run.mods.yield;
 };
+
+/** Puzzle rewards require a completed connection, including when leaving or timing out. */
+export const runXpMultiplier = (run: Run) => run.activity.game === "puzzle" && run.state?.solved !== true ? 0 : run.mods.xp;
 
 /** One roll of this run's loot, with today's rare-loot boost. */
 export const rollRunLoot = (run: Run, config: GuildConfig) => rollLoot(run.location.loot ?? [], config, Math.random, run.mods.rareLoot);

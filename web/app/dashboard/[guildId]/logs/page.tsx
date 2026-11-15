@@ -1,6 +1,6 @@
 import LogsPageClient from "./logsPageClient";
 
-export default async function LogsPage({ params }: { params: { guildId: string } }) {
+export default async function LogsPage({ params }: { params: Promise<{ guildId: string }> }) {
     const { guildId } = await params;
 
   return (

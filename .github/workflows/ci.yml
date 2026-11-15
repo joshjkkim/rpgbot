@@ -35,6 +35,9 @@ jobs:
         working-directory: havocish
         run: npm run typecheck
 
+      - name: Gathering game checks (no database)
+        run: npm --workspace havocish run check:gathering
+
       - name: Typecheck the dashboard
         working-directory: web
         run: npx tsc --noEmit

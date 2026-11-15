@@ -4,6 +4,7 @@ import RequirementsField, { type Requirements, type SkillOption } from "@/app/co
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
+  ColorField,
   Field,
   FieldGrid,
   KeyedList,
@@ -15,6 +16,15 @@ import {
 } from "@/app/components/ui/form";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ChannelsField, ItemField } from "@/app/components/ui/pickers";
+import { GRID_COLOUR_KEYS, GRID_COLOUR_LABELS, GRID_LOOKS, gridPalette, type GridColours, type GridLook } from "@content/gridLooks";
+import { GRID_SETTINGS, gridSettings } from "@content/gridSettings";
+import UploadButton from "@/app/components/ui/uploadButton";
+import GridPreview from "./gridPreview";
+import { normalizeGathering } from "@content/normalizeGathering";
+import GamePreview from "./gamePreview";
+import { sceneArtSlots, scenePalette, SCENE_COLOUR_LABELS, TIMING_SCENES, timingSceneOf, FIND_SCENES, findSceneOf, type TimingScene, type FindScene } from "@content/gatheringScenes";
+import { PUZZLE_SCENES, puzzleSceneOf, type PuzzleScene } from "@content/puzzleDraw";
+import { PUZZLE_SETTINGS, PUZZLE_WORDS, puzzleRules } from "@content/puzzle";
 import { ConditionsEditor, LocationConditionsField, TraitsField, type GameType, type GatheringCondition, type LocationTrait } from "./twistsEditor";
 
 // ─── Types (mirrored from havocish/src/types/gathering.ts) ──────────────────────
@@ -54,6 +64,13 @@ export interface GatheringActivity {
   energyMax?: number;
   energyRefillSeconds?: number;
   game: GameType;
+  timingScene?: TimingScene;
+  findScene?: FindScene;
+  puzzleScene?: PuzzleScene;
+  /** A scene palette and optional colour overrides. */
+  look?: GridLook;
+  colours?: Partial<GridColours>;
+  art?: Record<string, string>;
   words?: Record<string, string>;
   locations: Record<string, GatheringLocation>;
 }
@@ -83,50 +100,74 @@ const GAMES: Record<GameType, {
   label: string;
   blurb: string;
   words: Array<{ key: string; label: string; fallback: string; hint?: string }>;
-  difficulty: Array<{ key: string; label: string; fallback: number; hint?: string }>;
+  difficulty: Array<{ key: string; label: string; fallback: number; hint?: string; min?: number; max?: number; toggle?: boolean }>;
   difficultyLabel: string;
   /** One line on what the difficulty numbers add up to. */
   summary: (d: (key: string) => number) => string;
 }> = {
-  grid: {
-    label: "Grid: push your luck",
-    difficultyLabel: "How often players find something",
-    blurb: "A 4×4 grid and a few tries. Each tile is a find, nothing, or a hazard that ends the run with half the haul. Players can leave any time.",
+  puzzle: {
+    label: "Puzzle: rotate to connect",
+    difficultyLabel: "Puzzle rules",
+    blurb: "Rotate tiles clockwise to connect an entrance to a goal. Every board has a solution within its move budget. Items and skill XP are earned by completing the connection.",
     words: [
-      { key: "tile", label: "Hidden tile", fallback: "❔", hint: "Shown on tiles not yet revealed, like 🪨." },
-      { key: "empty", label: "Empty tile", fallback: "·" },
-      { key: "hazard", label: "Hazard", fallback: "💥" },
-      { key: "hazardLine", label: "Hazard message", fallback: "Disaster! You get away with half of what you found." },
+      { key: "prompt", label: "Objective", fallback: PUZZLE_WORDS.prompt, hint: "{start} and {goal} include the named endpoints and their coordinates." },
+      { key: "hint", label: "Instructions", fallback: PUZZLE_WORDS.hint },
+      { key: "source", label: "Entrance name", fallback: PUZZLE_WORDS.source },
+      { key: "goal", label: "Goal name", fallback: PUZZLE_WORDS.goal },
+      { key: "moves", label: "Move counter", fallback: PUZZLE_WORDS.moves },
+      { key: "rotate", label: "Tile button", fallback: PUZZLE_WORDS.rotate, hint: "{tile} is its coordinate, {shape} shows its connections." },
+      { key: "turned", label: "After rotating", fallback: PUZZLE_WORDS.turned },
+      { key: "solved", label: "Solved", fallback: PUZZLE_WORDS.solved },
+      { key: "failed", label: "Out of moves", fallback: PUZZLE_WORDS.failed },
+      { key: "leave", label: "Leave button", fallback: PUZZLE_WORDS.leave },
+      { key: "verb", label: "Result verb", fallback: PUZZLE_WORDS.verb },
+    ],
+    difficulty: Object.entries(PUZZLE_SETTINGS).map(([key, setting]) => ({ key, ...setting })),
+    summary: (d) => `A solvable 4×4 board with ${d("extraMoves")} extra moves and ${d("rewards")} loot rolls on completion. Skill adds a move every 10 levels; tools add their bonus.`,
+  },
+  grid: {
+    label: "Grid: uncover a path",
+    difficultyLabel: "Game rules",
+    blurb: "Work through obstacles to uncover finds. Change the rules, artwork and words to make a mine, a ship to salvage, or somewhere entirely your own.",
+    words: [
+      { key: "rock", label: "Normal obstacle symbol", fallback: "🪨", hint: "On the buttons for ordinary obstacles." },
+      { key: "hard", label: "Tough obstacle symbol", fallback: "⬛", hint: "Durability is set in each location's game rules." },
+      { key: "loose", label: "Unstable obstacle symbol", fallback: "⚠️", hint: "Falls when cleared underneath, if falling hazards are enabled." },
+      { key: "dark", label: "Out of the light", fallback: "▒" },
+      { key: "empty", label: "Cleared space symbol", fallback: "·" },
+      { key: "you", label: "Where the player stands", fallback: "🧍" },
+      { key: "crack", label: "A swing that doesn't break it", fallback: "It cracks." },
+      { key: "clean", label: "A clean strike", fallback: "Clean strike!", hint: "Does one more. Skill makes them likelier." },
+      { key: "broke", label: "Broke through", fallback: "It breaks away." },
+      { key: "got", label: "A find", fallback: "Got {item}!" },
+      { key: "fall", label: "Loose rock lands on them", fallback: "Loose rock comes down on you! −{n} {tries}." },
+      { key: "hint", label: "How to play", fallback: "Instructions follow your rules automatically.", hint: "Leave blank for instructions matching adjacency and falling hazards." },
       { key: "leave", label: "Leave button", fallback: "Leave" },
-      { key: "tries", label: "What tries are called", fallback: "tries", hint: "As in \"3 swings left\"." },
+      { key: "tries", label: "What actions are called", fallback: "swings", hint: "For example, charges or attempts." },
       { key: "verb", label: "Result verb", fallback: "found", hint: "As in \"@Ana mined Iron Ore ×2\"." },
     ],
-    difficulty: [
-      { key: "tries", label: "Tries", fallback: 5, hint: "Skill adds one every 12 levels." },
-      { key: "finds", label: "Finds hidden", fallback: 5, hint: "Out of 16 tiles." },
-      { key: "hazards", label: "Hazards hidden", fallback: 2, hint: "Skill removes one every 15 levels, never below 1." },
-    ],
-    summary: (d) => {
-      const finds = Math.min(d("finds"), 15);
-      const hazards = Math.min(d("hazards"), 16 - finds);
-      return `${finds} finds · ${hazards} hazards · ${16 - finds - hazards} empty, out of 16 tiles, with ${d("tries")} tries. More finds mean something almost every run; fewer finds and better loot make a location feel rich but risky.`;
-    },
+    difficulty: Object.entries(GRID_SETTINGS).map(([key, rule]) => ({ key, ...rule })),
+    summary: (d) => `${d("ores")} finds in a 5×4 board, with ${d("swings")} actions before skill bonuses and conditions. Rules apply to this location; artwork and wording come from the activity.`,
   },
   timing: {
     label: "Timing: react to the signal",
     difficultyLabel: "How hard it is to land a find",
-    blurb: "Players start an attempt, wait for the signal, and click in time. Uncommon and rarer finds then pull left or right before they're landed. A few attempts a run.",
+    blurb: "Players start an attempt, wait for the signal, and react in time. Rarer finds can add direction choices. Choose a setting and artwork to fit precision work, scanning, fishing or another activity.",
     words: [
       { key: "start", label: "Start button", fallback: "Start", hint: "Like Cast." },
       { key: "waiting", label: "While waiting", fallback: "Wait for it…" },
       { key: "signal", label: "The signal", fallback: "❗ Now!", hint: "Like ❗ Bite!" },
       { key: "action", label: "React button", fallback: "Go", hint: "Like Reel. Clicking it before the signal fails the attempt." },
-      { key: "early", label: "Clicked too early", fallback: "Too early, it got away." },
-      { key: "late", label: "Clicked too late", fallback: "Too slow, it got away." },
-      { key: "pull", label: "A find pulls", fallback: "It pulls {dir}!", hint: "{dir} becomes the left or right button's words." },
+      { key: "hint", label: "How to play", fallback: "Start an attempt, wait for the signal, then react. Match any direction shown to complete the attempt." },
+      { key: "fake", label: "False alarm", fallback: "👀 Was that something…?" },
+      { key: "again", label: "Second signal", fallback: "Again!" },
+      { key: "finished", label: "Finished scene", fallback: "Run complete" },
+      { key: "early", label: "Clicked too early", fallback: "Too early. Attempt missed." },
+      { key: "late", label: "Clicked too late", fallback: "Too slow. Attempt missed." },
+      { key: "pull", label: "Direction prompt", fallback: "Match {dir}!", hint: "{dir} becomes the left or right button's words." },
       { key: "left", label: "Left button", fallback: "⬅️ Left" },
       { key: "right", label: "Right button", fallback: "Right ➡️" },
-      { key: "lost", label: "Wrong way", fallback: "Wrong way, it got away." },
+      { key: "lost", label: "Wrong way", fallback: "Wrong direction. Attempt missed." },
       { key: "landed", label: "Landed", fallback: "Got it:", hint: "Followed by the item, like \"Landed: 🐟 Perch ×1\"." },
       { key: "attempts", label: "What attempts are called", fallback: "attempts", hint: "Like casts." },
       { key: "leave", label: "Leave button", fallback: "Leave" },
@@ -135,10 +176,10 @@ const GAMES: Record<GameType, {
     difficulty: [
       { key: "attempts", label: "Attempts per run", fallback: 3 },
       { key: "windowMs", label: "Reaction window (ms)", fallback: 3000, hint: "Skill adds 30 ms a level. Never under 2500, since Discord clicks can arrive late." },
-      { key: "maxRounds", label: "Most pulls", fallback: 3, hint: "Uncommon finds pull once, rare twice, epic and legendary three times, up to this." },
+      { key: "maxRounds", label: "Maximum direction steps", fallback: 3, hint: "Uncommon finds add one direction step, rare two, epic and legendary three, up to this." },
     ],
     summary: (d) =>
-      `${d("attempts")} attempts a run, each one find if landed, with ${(d("windowMs") / 1000).toFixed(1)} s to react. Finds come from the loot table, so set rare items' chances to decide how often a fight-back happens.`,
+      `${d("attempts")} attempts a run, each one find if completed, with ${(d("windowMs") / 1000).toFixed(1)} s to react. Rarer loot can add direction steps, up to the configured maximum.`,
   },
   find: {
     label: "Find it: spot the target",
@@ -146,6 +187,9 @@ const GAMES: Record<GameType, {
     blurb: "A 4×4 patch of look-alikes hides the item being searched for. Players click it before time runs out; a wrong click costs two seconds. A few rounds a run.",
     words: [
       { key: "prompt", label: "The task", fallback: "Find the {target}!", hint: "{target} becomes the item's name." },
+      { key: "hint", label: "How to play", fallback: "Pick the target before time runs out. Each wrong choice costs 2 seconds." },
+      { key: "twinHint", label: "Two targets instruction", fallback: "There are two targets to find this round." },
+      { key: "hidden", label: "Covered tile", fallback: "❔", hint: "Used by the Glimpse rule." },
       { key: "decoys", label: "Look-alikes", fallback: "🌱 ☘️ 🍀 🌿 🍃 🌾", hint: "Emoji separated by spaces. Pick ones close to your items' emoji to make it harder." },
       { key: "wrong", label: "Wrong click", fallback: "Not that one!" },
       { key: "slow", label: "Ran out of time", fallback: "Too slow, it's gone." },
@@ -163,11 +207,14 @@ const GAMES: Record<GameType, {
   },
 };
 
-const GAME_OPTIONS = (Object.keys(GAMES) as GameType[]).map((g) => ({ value: g, label: GAMES[g].label }));
+const GAME_OPTIONS = (Object.keys(GAMES) as GameType[]).map((game) => ({ value: game, label: GAMES[game].label }));
+
+const LOOK_OPTIONS = (Object.keys(GRID_LOOKS) as GridLook[]).map((l) => ({ value: l, label: GRID_LOOKS[l].label }));
 
 type ShopItems = Record<string, { name?: string; emoji?: string; tool?: { activityId?: string; tier?: number } }>;
 
 type Props = {
+  guildId: string;
   shopItems: ShopItems;
   /** Skills a requirement can name. */
   skills: SkillOption[];
@@ -195,6 +242,7 @@ function LocationEditor({
   onChange: (next: GatheringLocation) => void;
 }) {
   const loot = location.loot ?? [];
+  const settings: Record<string, number> = game === "grid" ? gridSettings(location.difficulty) : game === "puzzle" ? puzzleRules(location.difficulty) : location.difficulty ?? {};
   // Shares are of what can actually drop: entries for deleted items get nothing.
   const total = loot.reduce((sum, l) => sum + (l.chance > 0 && shopItems[l.itemId] ? l.chance : 0), 0);
   const patchLoot = (index: number, p: Partial<GatheringLoot>) =>
@@ -291,15 +339,19 @@ function LocationEditor({
 
       <Field
         label={GAMES[game].difficultyLabel}
-        hint={GAMES[game].summary((key) => location.difficulty?.[key] ?? GAMES[game].difficulty.find((d) => d.key === key)?.fallback ?? 0)}
+        hint={GAMES[game].summary((key) => settings[key as keyof typeof settings] ?? GAMES[game].difficulty.find((d) => d.key === key)?.fallback ?? 0)}
       >
           <FieldGrid>
-            {GAMES[game].difficulty.map((d) => (
+            {GAMES[game].difficulty.map((d) => d.toggle ? (
+              <Toggle key={d.key} label={d.label} checked={(settings[d.key as keyof typeof settings] ?? d.fallback) !== 0}
+                onChange={(v) => onChange({ ...location, difficulty: { ...location.difficulty, [d.key]: v ? 1 : 0 } })} hint={d.hint} />
+            ) : (
               <NumberField
                 key={d.key}
                 label={d.label}
-                value={location.difficulty?.[d.key] ?? d.fallback}
-                min={0}
+                value={settings[d.key as keyof typeof settings] ?? d.fallback}
+                min={d.min ?? 0}
+                max={d.max}
                 onChange={(v) => onChange({ ...location, difficulty: { ...(location.difficulty ?? {}), [d.key]: v } })}
                 hint={d.hint}
               />
@@ -310,10 +362,10 @@ function LocationEditor({
   );
 }
 
-export default function GatheringEditor({ value, onChange, shopItems, skills }: Props) {
+export default function GatheringEditor({ guildId, value, onChange, shopItems, skills }: Props) {
   // A pack can add activities to a server that never saved gathering settings, so fill in the rest.
   const withDefaults = (v: GatheringConfig | null | undefined): GatheringConfig =>
-    ({ ...DEFAULT_GATHERING, ...(v ?? {}), skill: { ...DEFAULT_GATHERING.skill, ...(v?.skill ?? {}) } });
+    normalizeGathering({ ...DEFAULT_GATHERING, ...(v ?? {}), skill: { ...DEFAULT_GATHERING.skill, ...(v?.skill ?? {}) } });
   const [local, setLocal] = useState<GatheringConfig>(withDefaults(value));
 
   useEffect(() => {
@@ -337,6 +389,9 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
 
   function renderActivity(id: string, a: GatheringActivity) {
     const game = GAMES[a.game] ? a.game : "grid";
+    const sceneSlots = sceneArtSlots(game);
+    const sceneColours = game === "grid" ? GRID_COLOUR_LABELS : SCENE_COLOUR_LABELS[game];
+    const palette = game === "grid" ? gridPalette(a.look, a.colours) : scenePalette(game, a.look, a.colours, game === "find" ? a.findScene : game === "puzzle" ? a.puzzleScene : a.timingScene);
     const words = a.words ?? {};
     const locations = Object.entries(a.locations ?? {}).sort((x, y) => (x[1].minSkill ?? 1) - (y[1].minSkill ?? 1));
     const setWord = (key: string, v: string) => {
@@ -369,12 +424,64 @@ export default function GatheringEditor({ value, onChange, shopItems, skills }: 
             onChange={(v) => upsertActivity({ ...a, energyRefillSeconds: Math.round(v * 60) })}
             hint={`A full bar refills in about ${Math.round(((a.energyMax ?? 10) * (a.energyRefillSeconds ?? 360)) / 60)} minutes. Each activity has its own bar.`}
           />
-          <SelectField label="Minigame" value={game} options={GAME_OPTIONS} onChange={(v) => upsertActivity({ ...a, game: v })} hint={GAMES[game].blurb} wide />
+          <SelectField label="Game template" value={game} options={GAME_OPTIONS} onChange={(v) => upsertActivity({ ...a, game: v })} hint={GAMES[game].blurb} wide />
+          {game === "timing" && <SelectField label="Scene" value={timingSceneOf(a.timingScene)} options={(Object.keys(TIMING_SCENES) as TimingScene[]).map((scene) => ({ value: scene, label: TIMING_SCENES[scene].label }))}
+            onChange={(timingScene) => upsertActivity({ ...a, timingScene })} hint="Change the built-in setting. An uploaded Background replaces the built-in scenery." wide />}
+          {game === "find" && <SelectField label="Scene" value={findSceneOf(a.findScene)} options={(Object.keys(FIND_SCENES) as FindScene[]).map((scene) => ({ value: scene, label: FIND_SCENES[scene].label }))}
+            onChange={(findScene) => upsertActivity({ ...a, findScene })} hint="Change the search setting. An uploaded Background replaces the built-in scenery and search patches." wide />}
+          {game === "puzzle" && <SelectField label="Scene" value={puzzleSceneOf(a.puzzleScene)} options={(Object.keys(PUZZLE_SCENES) as PuzzleScene[]).map((scene) => ({ value: scene, label: PUZZLE_SCENES[scene].label }))}
+            onChange={(puzzleScene) => upsertActivity({ ...a, puzzleScene })} hint="Choose water channels, electrical circuits or rune conduits. The connection rules stay the same." wide />}
+          <SelectField label="Palette" value={a.look ?? ""} options={[{ value: "" as const, label: game === "grid" ? "Default: mine" : game === "timing" ? `Default: ${TIMING_SCENES[timingSceneOf(a.timingScene)].label}` : game === "puzzle" ? `Default: ${PUZZLE_SCENES[puzzleSceneOf(a.puzzleScene)].label}` : `Default: ${FIND_SCENES[findSceneOf(a.findScene)].label}` }, ...LOOK_OPTIONS]}
+            onChange={(v) => upsertActivity({ ...a, look: v || undefined, colours: undefined })} hint="Colors affect built-in artwork; uploaded images keep their colors. Choosing a palette resets color overrides." wide />
         </FieldGrid>
+          <FieldGrid>
+            {GRID_COLOUR_KEYS.map((k) => (
+              <ColorField
+                key={k}
+                label={sceneColours[k]}
+                value={palette[k]}
+                onChange={(v) => upsertActivity({ ...a, colours: { ...a.colours, [k]: v } })}
+              />
+            ))}
+          </FieldGrid>
+        {game !== "grid" && (
+          <Field label="Preview" hint="See the scene players receive in Discord, including your wording and finds.">
+            <GamePreview key={`${a.id}:${game}`} activity={a} shopItems={shopItems} defaults={Object.fromEntries(GAMES[game].words.map((w) => [w.key, w.fallback]))} />
+          </Field>
+        )}
+        {game === "grid" && (
+          <Field label="Preview" hint="A sample board showing your artwork and colors. Finds take their item’s emoji color; visibility during play follows each location’s rules.">
+            <GridPreview
+              look={a.look}
+              colours={a.colours}
+              art={a.art}
+              oreEmojis={[...new Set(Object.values(a.locations ?? {}).flatMap((l) => l.loot ?? []).map((x) => shopItems[x.itemId]?.emoji).filter((e): e is string => !!e))].slice(0, 4)}
+            />
+          </Field>
+        )}
+
+          <Section title="Scene artwork" description={game === "grid" ? "Replace any part of the scene with your own images. A background replaces the entrance and shows through cleared spaces unless you supply those too." : game === "timing" ? "Replace the environment, foreground and objects for waiting, signal and pulling states. Your instructions and direction choices still appear below the scene." : game === "puzzle" ? "Replace the background, tile surfaces, connectors and endpoints. Connector artwork rotates with each tile; the connected path stays highlighted." : "A background replaces all built-in scenery, patches and plants. Add your own patches or foreground if wanted. Searchable objects, discovery markers and Glimpse covers remain part of play."} defaultOpen={false}>
+            <FieldGrid>
+              {Object.entries(sceneSlots).map(([slot, info]) => (
+                <Field key={slot} label={info.label} hint={`${info.hint} PNG, JPEG, GIF or WebP, up to 512 KB. Images fit the slot; transparent PNG works best for overlays.`}>
+                  <UploadButton guildId={guildId} label={`Upload ${info.label.toLowerCase()}`} onUploaded={(url) => upsertActivity({ ...a, art: { ...a.art, [slot]: new URL(url).pathname } })} />
+                  {a.art?.[slot] && (
+                    <div className="flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- managed uploaded artwork */}
+                      <img src={a.art[slot]} alt={`${info.label} artwork`} className="h-16 w-16 border border-[var(--border)] object-contain" />
+                      <button type="button" aria-label={`Use default ${info.label.toLowerCase()}`} className="text-sm text-[var(--muted)] underline" onClick={() => {
+                        const art = { ...a.art }; delete art[slot]; upsertActivity({ ...a, art });
+                      }}>Use default</button>
+                    </div>
+                  )}
+                </Field>
+              ))}
+            </FieldGrid>
+          </Section>
 
         <Field label="Wording" hint="Everything players see in the game. Leave a box blank to use the default shown in it.">
           <FieldGrid>
-            {GAMES[game].words.map((w) => (
+            {[...GAMES[game].words, { key: "timeout", label: "Inactive run ended", fallback: game === "puzzle" ? PUZZLE_WORDS.timeout : "This run ended after inactivity. Your haul was kept." }].map((w) => (
               <TextField key={w.key} label={w.label} value={words[w.key] ?? ""} placeholder={w.fallback} onChange={(v) => setWord(w.key, v)} hint={w.hint} />
             ))}
           </FieldGrid>
