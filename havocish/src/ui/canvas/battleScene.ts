@@ -21,7 +21,9 @@ const FLOOR = 186;
 /** Something on a fighter: a status's emoji and turns left, or 💫 / ⏳ with no count. */
 export type SceneEffect = { emoji: string; turns?: number };
 
-export type SceneMember = { name: string; avatarUrl?: string; hp: number; maxHp: number; down?: boolean; targeted?: boolean; hit?: number; effects?: SceneEffect[] };
+/** A member's pet: its stage's picture or emoji. HP shows only when enemies can hit pets. */
+export type ScenePet = { emoji: string; imageUrl?: string; hp?: number; maxHp?: number; down?: boolean; targeted?: boolean };
+export type SceneMember = { name: string; avatarUrl?: string; hp: number; maxHp: number; down?: boolean; targeted?: boolean; hit?: number; effects?: SceneEffect[]; pet?: ScenePet };
 
 export type SceneArgs = {
     place?: { emoji?: string; colour?: string; image?: string } | null;
@@ -70,6 +72,26 @@ function plate(ctx: any, x: number, y: number, w: number, who: { name: string; h
 
 async function image(url: string | null | undefined) {
     return url ? loadCachedImage(url).catch(() => null) : null;
+}
+
+/** A pet beside its owner, faded when knocked out, with a small bar and target mark when it can be hit. */
+async function petSprite(ctx: any, pet: ScenePet, cx: number, bottom: number, size: number) {
+    const img = await image(pet.imageUrl || emojiImageUrl(pet.emoji));
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.beginPath(); ctx.ellipse(cx, bottom, size * 0.45, size * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+    if (img) {
+        ctx.save();
+        if (pet.down) ctx.globalAlpha = 0.35;
+        const s = size / Math.max(img.width, img.height);
+        ctx.drawImage(img, cx - (img.width * s) / 2, bottom - img.height * s, img.width * s, img.height * s);
+        ctx.restore();
+    }
+    if (pet.hp != null && pet.maxHp) hpBar(ctx, cx - size / 2, bottom + 6, size, pet.hp, pet.maxHp);
+    if (pet.targeted && !pet.down) {
+        ctx.fillStyle = RED;
+        const top = bottom - size - 12;
+        ctx.beginPath(); ctx.moveTo(cx - 6, top); ctx.lineTo(cx + 6, top); ctx.lineTo(cx, top + 8); ctx.closePath(); ctx.fill();
+    }
 }
 
 /** An avatar in a stone ring; cached, so redrawing every turn costs no fetch. */
@@ -188,6 +210,7 @@ export async function renderBattleScene(args: SceneArgs): Promise<Buffer> {
         ctx.fillStyle = "rgba(0,0,0,0.45)";
         ctx.beginPath(); ctx.ellipse(150, 226, 50, 10, 0, 0, Math.PI * 2); ctx.fill();
         await portrait(ctx, m.avatarUrl, 150, 180, 40, !!m.down);
+        if (m.pet) await petSprite(ctx, m.pet, 232, 226, 44);
         plate(ctx, 410, 186, 200, m);
         await effectIcons(ctx, m.effects, 400, 200, 16, "right");
         damage(ctx, m.hit, 205, 140);
@@ -196,6 +219,7 @@ export async function renderBattleScene(args: SceneArgs): Promise<Buffer> {
         for (const [i, m] of members.entries()) {
             const cx = 80 + i * gap;
             await portrait(ctx, m.avatarUrl, cx, 168, 28, !!m.down);
+            if (m.pet) await petSprite(ctx, m.pet, cx + 30, 196, 22);
             if (m.targeted && !m.down) {
                 ctx.fillStyle = RED;
                 ctx.beginPath(); ctx.moveTo(cx - 7, 124); ctx.lineTo(cx + 7, 124); ctx.lineTo(cx, 133); ctx.closePath(); ctx.fill();

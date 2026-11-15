@@ -90,6 +90,7 @@ import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { feedPet } from "../src/player/pets.js";
+import { fightPet } from "../src/player/fight.js";
 import { collectTimed, craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn, startTimed } from "../src/player/crafting.js";
 import { energyNow, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
 import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
@@ -2499,6 +2500,16 @@ async function main() {
         const fed = feedPet(after, config, after.user_stats.pets!.active!, "fish");
         check("feeding levels it up", !("refused" in fed) && fed.after > fed.before, true);
         check("feeding uses the food", after.inventory.fish, undefined);
+
+        // A won fight pays the pet that fought a share of its owner's XP (50% by default).
+        const fought = fightPet(after, config)!;
+        check("the active pet comes into fights", `${fought.name}|${fought.moves.length > 0}`, "Wolf|true");
+        const xpBefore = after.user_stats.pets!.owned[0]!.xp;
+        const summary = { outcome: "win", xpGained: 40, goldGained: 0, goldLost: 0, itemsDropped: [], rounds: 1, totalDamageDealt: 1, totalDamageTaken: 0 } as any;
+        await applyFightRewards(summary, { combatType: "pve", enemy: { id: "rat", name: "Rat" } as any }, { hp: 50, stats: { maxHp: 100 } as any, pet: fought }, after, config);
+        const paid = (await getOrCreateProfile(at)).profile;
+        check("the pet gets its share of the XP", paid.user_stats.pets!.owned[0]!.xp - xpBefore, 20);
+        check("and the result says so", summary.petLines?.[0]?.includes("+20"), true);
     });
 
     await test("shop categories follow their sort order, hidden flag and roles", async () => {
