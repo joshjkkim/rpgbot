@@ -89,7 +89,7 @@ import { imgCache } from "../src/cache/caches.js";
 import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
-import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
+import { collectTimed, craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn, startTimed } from "../src/player/crafting.js";
 import { energyNow, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
 import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
@@ -2450,6 +2450,24 @@ async function main() {
         check("forge zone at the top skill", forgeRules(forge, 50, 50).zone, 8);
         const spot = placeForge({ zone: 5, centre: 1 }, () => 0);
         check("forge judging", [2, 0, 5].map((cell) => judgeForge(cell, spot)).join(","), "perfect,made,ruin");
+
+        // Timed: start takes the inputs now, collect gives the output once it's ready, through the real profile cache.
+        const timedRecipe = { ...recipe, gold: 0, minutes: 30 };
+        const timed = { ...station, id: "farm", style: "timed", timed: { slots: 1 }, masterworkChance: 0, recipes: { [timedRecipe.id]: timedRecipe } } as any;
+        const seed = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        seed.inventory = { ...seed.inventory, ore: { id: "ore", name: "Ore", quantity: 3 } } as any;
+        const swordsBefore = seed.inventory.sword?.quantity ?? 0;
+        check("a timed start succeeds", await startTimed({ userId: ids.userId, guildId: ids.guildId, config, station: timed, recipe: timedRecipe }), null);
+        const planted = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("a timed start takes the inputs", planted.inventory.ore?.quantity ?? 0, 0);
+        check("a timed start fills the slot", planted.user_stats.crafting?.farm?.slots?.length, 1);
+        check("nothing collects early", (await collectTimed({ userId: ids.userId, guildId: ids.guildId, config, station: timed })).gave.length, 0);
+        planted.user_stats.crafting!.farm!.slots![0]!.doneAt = new Date(Date.now() - 1000).toISOString();
+        const got = await collectTimed({ userId: ids.userId, guildId: ids.guildId, config, station: timed });
+        const harvested = (await getOrCreateProfile({ userId: ids.userId, guildId: ids.guildId })).profile;
+        check("a ready slot collects its output", `${got.gave.map((g) => g.itemId).join(",")}|${(harvested.inventory.sword?.quantity ?? 0) - swordsBefore}`, "sword|1");
+        check("collecting empties the slot and gives XP", `${harvested.user_stats.crafting?.farm?.slots?.length}|${harvested.user_stats.crafting?.farm?.xp}`, `0|${recipe.skillXp}`);
+        check("collecting twice gives nothing", (await collectTimed({ userId: ids.userId, guildId: ids.guildId, config, station: timed })).gave.length, 0);
     });
 
     await test("shop categories follow their sort order, hidden flag and roles", async () => {

@@ -22,7 +22,7 @@ import { find } from "../../ui/gathering/find.js";
 import { puzzle } from "../../ui/gathering/puzzle.js";
 import { conditionNow, runMods } from "../../player/twists.js";
 import { checkProgress } from "../../player/collections.js";
-import { nextGatherLine } from "../../player/nextSteps.js";
+import { nextGatherLine, readyLine } from "../../player/nextSteps.js";
 import { questCompleteLines } from "../../player/quests.js";
 
 export const data = new SlashCommandBuilder()
@@ -217,7 +217,7 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
         `<@${run.ownerId}> ${w.verb} ${foundLine(result.kept, config) || "nothing"} at ${run.location.emoji} ${run.location.name}.`,
         `-# +${result.skillXp} ${run.activity.skillName} XP · ${run.energyLabel} left`,
         ...(result.questsCompleted.length ? [questCompleteLines(result.questsCompleted)] : []),
-        ...[nextGatherLine(run.activity, result.skillAfter)].filter((l): l is string => !!l),
+        ...[nextGatherLine(run.activity, result.skillAfter), readyLine((await getOrCreateProfile({ userId: run.userId, guildId: run.guildId })).profile, config)].filter((l): l is string => !!l),
     ];
     if (result.skillAfter > result.skillBefore) {
         lines.push(`**${run.activity.skillName} ${result.skillAfter}!**`);
