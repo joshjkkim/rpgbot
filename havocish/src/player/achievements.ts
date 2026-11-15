@@ -7,6 +7,10 @@ import type { Client, GuildMember, MessageMentionOptions, TextChannel, TextBased
 import { bestEffort } from "../ui/bestEffort.js";
 import { mentionsFor } from "../ui/mentions.js";
 import { announcer, speak, speaker, type Speaker } from "../ui/characters.js";
+import { checkRequirements, memberFacts, type MemberFacts } from "./requirements.js";
+import { getOrCreateGuildConfig } from "../cache/guildService.js";
+import { getOrCreateDbUser } from "../cache/userService.js";
+import { commitProfileChanges, getOrCreateProfile } from "../cache/profileService.js";
 
 function getConditionCurrentValue(condition: AchievementCondition, profile: DbUserGuildProfile): number {
     switch (condition.type) {
@@ -41,6 +45,7 @@ function compare(operator: AchievementCondition["operator"], left: number, right
 
 function evaluateAchievements(args: AchievementCheckArgs): AchievementCheckResult {
     let { profile, pending, config } = args;
+    const { facts } = args;
 
     const achievementsConfig = config.achievements ?? { enabled: false, achievements: {} };
     const unlockedAchievements: AchievementConfig[] = [];
@@ -58,9 +63,14 @@ function evaluateAchievements(args: AchievementCheckArgs): AchievementCheckResul
         }
 
         const condition: AchievementCondition = achievement.conditions;
-        const currentValue = getConditionCurrentValue(condition, profile);
-
-        if (!compare(condition.operator, currentValue, condition.value)) {
+        const req = achievement.requirements;
+        if (condition.type === "requirements") {
+            // Nothing set must not mean everyone gets it.
+            if (!req || !Object.keys(req).length) continue;
+        } else if (!compare(condition.operator, getConditionCurrentValue(condition, profile), condition.value)) {
+            continue;
+        }
+        if (req && (!facts || !checkRequirements(req, { profile, config, facts }).ok)) {
             continue;
         }
 
@@ -154,10 +164,10 @@ function applyAchievementRewards(args: { profile: DbUserGuildProfile; pending: P
     return { profile, pending, totalXp, totalGold, grantedItems, grantedRoles, messages };
 }
 
-export async function runAchievementPipeline(args: {profile: DbUserGuildProfile; pending: PendingProfileChanges; config: GuildConfig;}):  Promise<{ profile: DbUserGuildProfile; pending: PendingProfileChanges; unlocked: AchievementConfig[]; rewards: AchievementRewardEffects | null; }> {
+export async function runAchievementPipeline(args: {profile: DbUserGuildProfile; pending: PendingProfileChanges; config: GuildConfig; facts?: MemberFacts | undefined;}):  Promise<{ profile: DbUserGuildProfile; pending: PendingProfileChanges; unlocked: AchievementConfig[]; rewards: AchievementRewardEffects | null; }> {
     let { profile, pending, config } = args;
 
-    const evalRes = evaluateAchievements({ profile, pending, config });
+    const evalRes = evaluateAchievements({ profile, pending, config, facts: args.facts });
     profile = evalRes.profile;
     pending = evalRes.pending;
 
@@ -230,4 +240,29 @@ export async function applyAchievementSideEffects(args: { client: Client; discor
         await member.roles.add(roleId).catch(() => null);
         }
     }
+}
+
+/**
+ * Unlocks achievements that wait on a member's roles, when those roles change:
+ * another bot handing out a level role unlocks "Reached Bard" straight away.
+ * (Members who already held the role get it from their next message that earns XP.)
+ */
+export async function checkRoleAchievements(member: GuildMember) {
+    if (member.user.bot) return;
+    const { guild, config } = await getOrCreateGuildConfig({ discordGuildId: member.guild.id });
+    // Checked first: on a big server this runs for every role change, and most servers have none of these.
+    if (!config.achievements?.enabled || !Object.values(config.achievements.achievements).some((a) => a.requirements)) return;
+
+    const { user } = await getOrCreateDbUser({ discordUserId: member.id, username: member.user.username });
+    const cached = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
+    const baseline = { xp: cached.profile.xp, gold: cached.profile.gold };
+    const res = await runAchievementPipeline({
+        profile: cached.profile, pending: cached.pendingChanges ?? {} as PendingProfileChanges, config, facts: memberFacts(member),
+    });
+    if (!res.unlocked.length) return;
+    commitProfileChanges({ userId: user.id, guildId: guild.id, profile: res.profile, changes: res.pending, baseline });
+    await applyAchievementSideEffects({
+        client: member.client, discordGuildId: member.guild.id, discordUserId: member.id, member, config, unlocked: res.unlocked,
+        rewards: res.rewards ? { grantedRoles: res.rewards.grantedRoles, messages: res.rewards.messages } : null,
+    });
 }

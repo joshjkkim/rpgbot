@@ -12,6 +12,10 @@ What's new in havocish, newest first. Posted to the support server and shown at 
 - **Gathering explains itself as you play.** Grid, Timing and Find show editable instructions, empty tiles give feedback, and the last action stays in the results. Find ignores already-found tiles and expired targets; Timing ignores direction clicks from earlier pulls.
 - **Make Grid your own game.** Upload a background, entrance and obstacle artwork, then tune each location's visibility, durability, actions, critical hits and skill bonuses. Switch falling hazards, tool bonuses, adjacency and deeper rare finds on or off: salvage a ship without gravity or build another setting on the same template. Preview the artwork on the dashboard and rename everything players see.
 - **Mining is a rock face you dig through.** `/gather mining` now shows a drawn mine: you start at the tunnel mouth and swing at the rock next to you, one block at a time, tunnelling toward what you want. Ore shows in the rock once your lantern reaches it, rarer ore takes more swings and sits further in, and a better pickaxe breaks rock faster. Watch for loose rock: dig out what holds it up and it comes down on you. Owners can give any activity this game (pick **Grid**), reword all of it, and colour it to match any world: start from a mine, ice, sand, metal or soil look and change any colour. Worlds the AI builder writes can use Grid too, coloured to fit, and the Helper can recolour it when you ask.
+- **Achievements can unlock from a role.** Pick any role, including one another leveling bot gives at a level, and the achievement unlocks the moment a member gets it. Achievements can also require a Combat level, a skill, time in the server, boosting, found items or finished collections.
+
+### For server owners
+- **Pick a stat from a list.** Achievements that count something now offer a list of what havocish tracks, instead of a box for a stat's code name.
 
 ## v0.19.2 · November 4, 2026
 
