@@ -48,6 +48,9 @@ export type Skeleton = {
         collection?: SetWords;
     }>;
     stations: Array<Words & { skillName: string; style: string; words: Record<string, unknown>; recipes: Array<{ makes: string; uses: string[] }> }>;
+    /** Pets that fit the world, each hatched from an egg in the nursery. */
+    pets: Array<Words & { stages: Words[]; moves: string[]; egg: Words & { description?: string } }>;
+    nursery?: Words & { skillName?: string };
     /** The collection of crafting-only gear. */
     crafted?: SetWords;
     /** New names for Classic Fantasy's achievements, by id; their goals and rewards stay. */
@@ -103,6 +106,7 @@ Make, roughly:
 - 3 to 5 hunting quests: defeat some number (3 to 20) of one enemy (by key).
 - 2 gathering activities that suit the world (what players dig, catch, scavenge or hack), each played as a minigame: grid (work through a drawn board of durable obstacles toward buried finds), timing (wait for the signal, then react), find (spot the target among decoys) or puzzle (rotate tiles clockwise to connect an entrance to a goal within a move budget). For timing, set timingScene to "workshop" (general precision tasks), "signal" (scanning or hacking) or "fishing" (actual fishing); the default is workshop. For find, set findScene to "clearing", "ruins" or "cargo" to match the world; the default is clearing. For puzzle, set puzzleScene to "runes", "water" or "circuit" to match the world; puzzles award items and skill XP only when solved. Every activity also gets "colours" for its picture, as #rrggbb, to suit the world (an asteroid, a ship's hull, a reef, a candy mountain): rock (surface or shore), hard (tough blocks, stone or water), loose (rubble or foliage), back (dark background) and light (the player's lamp). Each has 3 locations from easy to hard, each location 3 finds (two everyday ones, then a rare one), and 3 tools that get better.
 - 1 or 2 crafting stations, style forge (strike at the right moment) or simple (one click), with 4 to 8 recipes that make the world's gear or potions (by key) from materials and finds (by key). Mark a few good pieces of gear "crafted": true to make them crafting-only, never sold.
+- 1 or 2 pets that suit the world (a creature, a drone, a spirit): each with 3 stages from young to grown (a name and emoji each), 1 to 3 of the moves (by key) and an egg or kit (name, emoji, one-line description) that hatches in a "nursery" (name it for the world, with a skill name).
 - A collection for each place's enemies ("bestiary" on the place), each activity's finds ("collection" on the activity) and the crafting-only gear ("crafted"): a name, emoji and one-line description each.
 - A name in the world's style for each of these achievements, by id (the goal stays as written): ${JSON.stringify(Object.fromEntries((Object.values(CF.achievements.achievements) as Json[]).map((a) => [a.id, a.description])))}
 Minigame and station words replace these examples (keep anything in {braces}): ${JSON.stringify({ ...Object.fromEntries(Object.entries(GAMES).map(([g, v]) => [g, v.words])), forge: STYLES.forge!.words, simple: STYLES.simple!.words })}
@@ -122,6 +126,8 @@ Reply with only a JSON object, no other text, shaped like this (lists shortened)
 "quests":[{"name":"","description":"","enemy":"","count":5}],
 "activities":[{"name":"","emoji":"","skillName":"","game":"grid","colours":{"rock":"","hard":"","loose":"","back":"","light":""},"words":{},"tools":[{"name":"","emoji":"","description":""}],"locations":[{"name":"","emoji":"","finds":[{"key":"","name":"","emoji":"","description":""}]}],"collection":{"name":"","emoji":"","description":""}}],
 "stations":[{"name":"","emoji":"","skillName":"","style":"forge","words":{},"recipes":[{"makes":"","uses":[""]}]}],
+"pets":[{"name":"","emoji":"","stages":[{"name":"","emoji":""}],"moves":[""],"egg":{"name":"","emoji":"","description":""}}],
+"nursery":{"name":"","emoji":"","skillName":""},
 "crafted":{"name":"","emoji":"","description":""},
 "achievements":{"first-blood":""}}`;
 
@@ -146,6 +152,8 @@ export function parseSkeleton(reply: string): Skeleton | null {
         achievements: Object.fromEntries(Object.entries(obj(r.achievements)).map(([k, v]) => [k, String(v)])),
         activities: arr(r.activities).map((a) => ({ ...a, words: obj(a.words), tools: arr(a.tools), locations: arr(a.locations).map((l) => ({ ...l, finds: arr(l.finds) })) })),
         stations: arr(r.stations).map((st) => ({ ...st, words: obj(st.words), recipes: arr(st.recipes).map((x) => ({ ...x, uses: strs(x.uses) })) })),
+        pets: arr(r.pets).map((p) => ({ ...p, stages: arr(p.stages), moves: strs(p.moves), egg: obj(p.egg) })),
+        ...(r.nursery && typeof r.nursery === "object" && { nursery: obj(r.nursery) }),
     } as Skeleton;
 }
 
@@ -332,6 +340,35 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
         stations[sid] = { ...structuredClone(STYLES[style]!.fields), id: sid, name, emoji: emoji(st.emoji, "🛠️"), skillName: text(st.skillName, 30) || name, style, words: wordsOver(STYLES[style]!.words, st.words), recipes };
     }
 
+    // Pets: each hatches from its egg in the nursery, with Classic Fantasy's Forest Wolf numbers and stages at 1, 10 and 20.
+    const CF_WOLF = CF.pets.species["forest-wolf"] as Json;
+    const CF_NURSERY = CF.crafting.stations.nursery as Json;
+    const species: Record<string, Json> = {};
+    const nurseryRecipes: Record<string, Json> = {};
+    for (const [n, p] of s.pets.slice(0, 2).entries()) {
+        const name = text(p.name, 40);
+        if (!name) continue;
+        const pid = id(name, "pet");
+        const petMoves = [...new Set(p.moves.map((k) => moveIds.get(k)).filter((x): x is string => !!x))].slice(0, 3);
+        const look = emoji(p.emoji, "🐾");
+        species[pid] = {
+            id: pid, name, emoji: look, enabled: true, base: { ...CF_WOLF.base }, growth: { ...CF_WOLF.growth }, maxLevel: 30,
+            moves: petMoves.length ? petMoves.map((moveId, i) => ({ moveId, weight: i === 0 ? 3 : 1 })) : [{ moveId: "attack", weight: 1 }],
+            stages: p.stages.slice(0, 3).map((st, i) => ({ atLevel: [1, 10, 20][i]!, ...(text(st.name, 30) && { name: text(st.name, 30) }), emoji: emoji(st.emoji, look) })),
+        };
+        const eggName = text(p.egg?.name, 40) || `${name} Egg`;
+        const eid = id(eggName, "egg");
+        items[eid] = { id: eid, name: eggName, emoji: emoji(p.egg?.emoji, "🥚"), rarity: "uncommon", description: text(p.egg?.description, 200), categoryId: cats.materials.id, price: 250 + n * 250, sellPrice: 60, tradeable: true };
+        nurseryRecipes[eid] = { id: eid, inputs: [{ itemId: eid, quantity: 1 }], output: { itemId: "", quantity: 1, petId: pid }, minSkill: 1, skillXp: 20 + n * 20, minutes: 60 + n * 120 };
+    }
+    if (Object.keys(species).length) {
+        const name = text(s.nursery?.name, 40) || "Nursery";
+        const nid = id(name, "station");
+        stations[nid] = { ...structuredClone(numbers(CF_NURSERY)), id: nid, name, emoji: emoji(s.nursery?.emoji, "🪺"), skillName: text(s.nursery?.skillName, 30) || "Beastcraft", words: { ...CF_NURSERY.words }, recipes: nurseryRecipes };
+    }
+    // Pets eat the first couple of materials enemies drop.
+    const foods = Object.fromEntries([...materialIds.values()].slice(0, 2).map((iid, i) => [iid, 15 + i * 10]));
+
     const characters = {
         shopkeeper: { id: id(s.shopkeeper.name, "shopkeeper"), name: text(s.shopkeeper.name, 60), avatar: emoji(s.shopkeeper.emoji, "🧙") },
         announcer: { id: id(s.announcer.name, "announcer"), name: text(s.announcer.name, 60), avatar: emoji(s.announcer.emoji, "📯") },
@@ -425,7 +462,8 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
     const achievements: Record<string, Json> = {};
     for (const a of Object.values(CF.achievements.achievements) as Json[]) {
         const stat = a.conditions.statKey;
-        if ((stat === "gatherRuns" && !Object.keys(activities).length) || (stat === "craftsMade" && !Object.keys(stations).length)) continue;
+        if ((stat === "gatherRuns" && !Object.keys(activities).length) || (stat === "craftsMade" && !Object.keys(stations).length)
+            || ((stat === "petsAdopted" || stat === "petBestLevel") && !Object.keys(species).length)) continue;
         if (stat === "collectionsCompleted" && (a.conditions.value > 1 ? setCount < 2 : !setCount)) continue;
         const name = text(s.achievements?.[a.id], 60) || a.name;
         const aid = id(name, a.id);
@@ -449,6 +487,7 @@ export function buildPack(s: Skeleton, packId: string): StarterPack {
             ...(setCount && { collections: { sets: sets as never } }),
             ...(Object.keys(activities).length && { gathering: { activities: activities as never } }),
             ...(Object.keys(stations).length && { crafting: { stations: stations as never } }),
+            ...(Object.keys(species).length && { pets: { enabled: true, maxOwned: 10, xpShare: 50, canBeHit: false, species: species as never, foods } }),
             characters: { list: { [characters.shopkeeper.id]: characters.shopkeeper, [characters.announcer.id]: characters.announcer }, shopkeeperId: characters.shopkeeper.id, announcerId: characters.announcer.id },
         },
     };

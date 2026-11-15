@@ -52,6 +52,8 @@ assert("refused" in feedPet(p, config, first.uid, "fish"), "none left");
 giveActivePetXp(p, config, 1e9);
 assert.equal(petLevel(activePet(p, config)!.pet, wolf, config), 5, "capped at the species' max level");
 
+assert.equal(p.user_stats!.petsAdopted, 2, "every pet given counts, for achievements");
+assert.equal(p.user_stats!.petBestLevel, 5, "the best level reached counts, for achievements");
 // Naming strips markdown and mentions; switching and releasing keep one active.
 assert.equal(renamePet(p, first.uid, "  **Fang** <@1> "), null);
 assert.equal(activePet(p, config)!.pet.name, "Fang 1");

@@ -249,6 +249,8 @@
         "strength-in-numbers": {"id":"strength-in-numbers","name":"Strength in Numbers","description":"Win a fight with a party.","category":"misc","conditions":{"type":"stat","statKey":"partyWins","operator":">=","value":1},"reward":{"gold":75}},
         "seasoned-gatherer": {"id":"seasoned-gatherer","name":"Seasoned Gatherer","description":"Go gathering 50 times.","category":"misc","conditions":{"type":"stat","statKey":"gatherRuns","operator":">=","value":50},"reward":{"gold":250}},
         "master-craftsman": {"id":"master-craftsman","name":"Master Craftsman","description":"Craft 50 things.","category":"misc","conditions":{"type":"stat","statKey":"craftsMade","operator":">=","value":50},"reward":{"gold":300}},
+        "beast-friend": {"id":"beast-friend","name":"Beast Friend","description":"Hatch or adopt your first pet.","category":"misc","conditions":{"type":"stat","statKey":"petsAdopted","operator":">=","value":1},"reward":{"gold":100}},
+        "loyal-companion": {"id":"loyal-companion","name":"Loyal Companion","description":"Raise a pet to level 20.","category":"misc","conditions":{"type":"stat","statKey":"petBestLevel","operator":">=","value":20},"reward":{"gold":400}},
         "collector": {"id":"collector","name":"Collector","description":"Complete a collection.","category":"misc","conditions":{"type":"stat","statKey":"collectionsCompleted","operator":">=","value":1},"reward":{"gold":250}},
         "archivist": {"id":"archivist","name":"Archivist","description":"Complete every collection.","category":"misc","conditions":{"type":"stat","statKey":"collectionsCompleted","operator":">=","value":7},"reward":{"gold":1500}}
       }

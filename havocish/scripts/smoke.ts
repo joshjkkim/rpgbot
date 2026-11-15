@@ -3200,9 +3200,22 @@ async function main() {
                 ...w("Workbench"), skillName: "Tinkering", style: "forge", words: { craft: "Tinker", forging: "" },
                 recipes: [{ makes: "h2", uses: ["brass", "bp", "pearl", "nope"] }, { makes: "h2", uses: ["shell"] }, { makes: "ghost", uses: ["shell"] }, { makes: "tonic", uses: [] }],
             }],
+            pets: [
+                { ...w("Lantern Eel", "🐍"), stages: [w("Elver", "🪱"), w("Eel", "🐍"), w("Lantern Eel", "🐉")], moves: ["snap", "nope"], egg: { ...w("Eel Egg", "🥚"), description: "Glows." } },
+                { ...w(""), stages: [], moves: [], egg: w("") },
+            ],
+            nursery: { ...w("Tide Pool", "🌊"), skillName: "Eelkeeping" },
         };
         const pack = buildPack(skeleton, "ai-test");
         const c = pack.content as any;
+        const eel = Object.values(c.pets?.species ?? {})[0] as any;
+        check("a world's pet becomes a species with its stages", [Object.keys(c.pets?.species ?? {}).length, eel?.stages.map((st: any) => `${st.atLevel}${st.emoji}`).join(" ")], [1, "1🪱 10🐍 20🐉"]);
+        check("its moves are the world's own, unknown ones dropped", eel?.moves.map((m: any) => m.moveId), [c.combat.moves && Object.keys(c.combat.moves).find((id: string) => c.combat.moves[id].name === "Snap")]);
+        const pool = Object.values(c.crafting.stations).find((st: any) => st.style === "timed") as any;
+        const eggRecipe = Object.values(pool?.recipes ?? {})[0] as any;
+        check("its egg hatches in the world's nursery", [pool?.name, pool?.skillName, c.shop.items[eggRecipe?.inputs[0].itemId]?.name, eggRecipe?.output.petId === eel?.id], ["Tide Pool", "Eelkeeping", "Eel Egg", true]);
+        check("pets eat the world's materials", Object.keys(c.pets.foods).every((id: string) => c.shop.items[id]), true);
+        check("no pets, no pet achievements", Object.values((buildPack({ ...skeleton, pets: [] }, "x").content as any).achievements.achievements).some((a: any) => a.conditions.statKey?.startsWith("pet")), false);
         const broken: string[] = [];
         for (const kind of Object.keys(KINDS) as Kind[]) {
             const [section, map] = KINDS[kind];
@@ -3267,7 +3280,7 @@ async function main() {
         check("achievements take the world's names, Classic Fantasy's goals", [ach["first-catch"]?.conditions.value, ach["old-salt"]?.conditions.value], [1, 25]);
         check("an item reward becomes the world's gear", ach["old-salt"].reward, { itemId: "rusty-harpoon-2", quantity: 1 });
         check("'every collection' counts this world's", ach.archivist.conditions.value, 2);
-        const bare = buildPack({ ...skeleton, activities: [], stations: [], places: [] }, "x").content as any;
+        const bare = buildPack({ ...skeleton, activities: [], stations: [], pets: [], places: [] }, "x").content as any;
         check("no gathering, crafting or collections, no achievements for them", ["seasoned-gatherer", "master-craftsman", "collector", "archivist"].filter((k) => bare.achievements.achievements[k]), []);
         check("and no empty collections section", bare.collections, undefined);
     });
