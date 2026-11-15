@@ -1,4 +1,5 @@
 import { recordActivity } from "../db/events.js";
+import { activePet, giveActivePetXp, petLevel, petLook, petMoves, petRules, petStats } from "./pets.js";
 import type { GuildConfig } from "../types/guild.js";
 import type { DbGuild } from "../types/guild.js";
 import type { DbUserGuildProfile, item } from "../types/userprofile.js";
@@ -135,9 +136,28 @@ function defaultPick(m: FightMember, config: GuildConfig): string {
 // ─── Start and join ────────────────────────────────────────────────────────────
 
 /** A player as they enter a fight: their stats and HP right now, and the moves they bring. */
+/** A member's active pet as it comes into a fight: stats for its level, moves for its stage, full HP. */
+export function fightPet(profile: DbUserGuildProfile, config: GuildConfig): FightMember["pet"] | undefined {
+    if (!petRules(config).enabled) return undefined;
+    const active = activePet(profile, config);
+    if (!active) return undefined;
+    const level = petLevel(active.pet, active.species, config);
+    const s = petStats(active.species, level);
+    const look = petLook(active.species, level);
+    const moves = petMoves(active.species, level);
+    if (!moves.length) return undefined;
+    return {
+        uid: active.pet.uid, name: active.pet.name, emoji: look.emoji, ...(look.image && { image: look.image }),
+        stats: { maxHp: s.hp, atk: s.atk, def: s.def, spd: s.spd, critChance: 5, critMultiplier: 1.5 },
+        hp: s.hp, state: newFighterState(), moves,
+    };
+}
+
 export function newMember(opts: { discordUserId: string; name: string; avatarUrl?: string; profile: DbUserGuildProfile; config: GuildConfig; loadout: string[] }): FightMember {
     const stats = calculateStats(opts.profile, opts.config, opts.config.shop?.items ?? {});
+    const pet = fightPet(opts.profile, opts.config);
     return {
+        ...(pet && { pet }),
         userId: opts.discordUserId,
         dbUserId: opts.profile.user_id,
         name: opts.name,
@@ -190,6 +210,7 @@ export function startFight(opts: StartFightOptions): ActiveFight {
         ...(opts.placeId && { placeId: opts.placeId }),
         enemyIntent: "",
         enemyTarget: opts.discordUserId,
+        ...(petRules(opts.config).canBeHit && { petsCanBeHit: true }),
         round: 0,
         startedAt: now,
         expiresAt: now + FIGHT_TIMEOUT_MS,
@@ -419,7 +440,7 @@ export async function applyFightRewards(
     summary: FightEndSummary,
     fight: Pick<ActiveFight, "combatType" | "enemy"> & { members?: unknown[] },
     /** Their HP when it ended; knocked out, or on a loss, they respawn low instead. */
-    fighter: { hp: number; stats: CombatStats; out?: FightMember["out"] },
+    fighter: { hp: number; stats: CombatStats; out?: FightMember["out"]; pet?: FightMember["pet"] },
     profile: DbUserGuildProfile,
     config: GuildConfig,
 ): Promise<DbUserGuildProfile> {
@@ -518,7 +539,21 @@ export async function applyFightRewards(
     }
 
     p.user_stats = stats;
-    pendingChanges.user_stats = stats;
+    // ── Pet XP ── a share of what its owner earned, for the pet that fought.
+    if (summary.outcome === "win" && fighter.pet && finalXp > 0) {
+        const grown = giveActivePetXp(p, config, finalXp * petRules(config).xpShare / 100);
+        if (grown && grown.pet.uid === fighter.pet.uid) {
+            const words = grown.species.words ?? {};
+            const fill = (w: string, v: Record<string, string | number>) => w.replace(/\{(\w+)\}/g, (m, k: string) => String(v[k] ?? m));
+            const gained = Math.round(finalXp * petRules(config).xpShare / 100);
+            const lines = [`🐾 ${fighter.pet.emoji} ${grown.pet.name} **+${gained}** XP`];
+            if (grown.after > grown.before) lines.push(fill(words.levelUp || "{pet} reached level {level}!", { pet: grown.pet.name, level: grown.after }));
+            const before = petLook(grown.species, grown.before), after = petLook(grown.species, grown.after);
+            if (after.stage && after.stage !== before.stage) lines.push(`${after.emoji} ${fill(words.grew || "{pet} grew: {stage}!", { pet: grown.pet.name, stage: after.stage })}`);
+            summary.petLines = lines;
+        }
+    }
+    pendingChanges.user_stats = p.user_stats;
     recordActivity(p.guild_id, p.user_id, "combat", "fight", {
         enemy: fight.enemy?.name ?? null, type: fight.enemy?.boss ? "boss" : fight.combatType, outcome: summary.outcome, party: fight.members?.length ?? 1,
         xp: summary.xpGained, gold: summary.goldGained, drops: summary.itemsDropped.length,

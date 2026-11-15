@@ -2,7 +2,8 @@ import type { Requirements } from "./requirements.js";
 import type { MoveStat, MoveCondition, MoveEffect, MoveConfig, StatusConfig, EnemyMove, FighterState, FightOutcome } from "../content/fight.js";
 
 // The fight engine's own types live with it, so the website can run fights too.
-export type { MoveStat, MoveCondition, MoveEffect, MoveConfig, StatusConfig, EnemyMove, FighterState, FightOutcome } from "../content/fight.js";
+export type { MoveStat, MoveCondition, MoveEffect, MoveConfig, StatusConfig, EnemyMove, FighterState, FightOutcome, FightPet } from "../content/fight.js";
+import type { FightPet } from "../content/fight.js";
 import type { CombatStats } from "../player/combat.js";
 import type { DbUserGuildProfile } from "./userprofile.js";
 import type { GuildConfig } from "./guild.js";
@@ -83,6 +84,8 @@ export interface PlaceConfig {
 
 /** One player in a fight. A solo fight has one; a party up to the server's cap. */
 export interface FightMember {
+    /** Their active pet, as it came in: acts right after them. `uid` finds it again for XP. */
+    pet?: FightPet & { uid: string };
     userId: string;             // Discord user ID
     dbUserId: number;           // profile id, so a fight nobody finishes can still be saved
     name: string;
@@ -129,6 +132,10 @@ export interface ActiveFight {
     enemyIntent: string;
     /** Who that's aimed at: a member's userId. */
     enemyTarget: string;
+    /** It's going for enemyTarget's pet instead. */
+    enemyTargetPet?: boolean;
+    /** Whether enemies may target pets (config.pets.canBeHit, when the fight began). */
+    petsCanBeHit?: boolean;
     /** HP lost last turn, for the battle scene's damage numbers. */
     lastHits?: { enemy: number; members: Record<string, number> };
 
@@ -201,6 +208,8 @@ export interface FightEndSummary {
     totalDamageTaken: number;
     questsCompleted?: string[]; // quest names this fight finished, set in applyFightRewards
     combatLevelUp?: number;     // the new Combat level, when this fight raised it
+    /** The pet's share of XP, and its level-up or new stage, set in applyFightRewards. */
+    petLines?: string[];
     /** Knocked out in a party that won: half rewards. */
     knockedOut?: boolean;
     /** Share of XP paid because the enemy was below their level (1 = full). */

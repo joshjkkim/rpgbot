@@ -6,6 +6,7 @@ import type { DbUserGuildProfile } from "../src/types/userprofile.js";
 import type { PetSpecies } from "../src/types/pets.js";
 import { activePet, addPet, feedPet, giveActivePetXp, petLevel, petLook, petMoves, petRules, petStats, petsOf, releasePet, renamePet, setActivePet } from "../src/player/pets.js";
 import { harvestTimed, plantTimed, recipeState } from "../src/player/crafting.js";
+import { newFighterState, pickIntent, playTurn, type Fight, type FightConfig, type FightPet } from "../src/content/fight.js";
 
 const wolf: PetSpecies = {
     id: "wolf", name: "Wolf", emoji: "🐺", base: { hp: 40, atk: 5, def: 2, spd: 7 }, growth: { hp: 6, atk: 0.8, def: 0.5, spd: 0.4 }, maxLevel: 5,
@@ -83,4 +84,53 @@ assert(waiting.petsFull && waiting.pets.length === 0, "full: it says so");
 assert.equal(full.user_stats!.crafting!.nursery!.slots!.length, 1, "full: the egg keeps waiting, ready");
 assert.equal(recipeState({ ...nursery.recipes.egg!, output: { itemId: "", quantity: 1, petId: "gone" } }, h, config, 1, []).locked, "broken");
 
-console.log("Pet checks passed: stats, stages, moves, owning, the cap, feeding, naming, releasing and hatching.");
+// ─── In fights ───────────────────────────────────────────────────────────────
+const fightConfig: FightConfig = { combat: { moves: {
+    attack: { id: "attack", name: "Attack", emoji: "⚔️", effects: [{ type: "hit", power: 1 }], players: {} },
+    lick: { id: "lick", name: "Lick", emoji: "👅", effects: [{ type: "heal", percent: 30 }] },
+    nip: { id: "nip", name: "Nip", emoji: "🦷", effects: [{ type: "hit", power: 1 }] },
+} } };
+const stats = (atk: number, maxHp = 100) => ({ maxHp, atk, def: 0, spd: 10, critChance: 0, critMultiplier: 1.5 });
+const pet = (moves: FightPet["moves"]): FightPet => ({ name: "Fang", emoji: "🐺", stats: stats(10, 40), hp: 40, state: newFighterState(), moves });
+const fight = (p?: FightPet, canBeHit = false, ownerHp = 100): Fight => ({
+    members: [{ userId: "u1", name: "Ann", stats: stats(10), hp: ownerHp, state: newFighterState(), dealt: 0, taken: 0, ...(p && { pet: p }) }],
+    enemy: { name: "Rat", emoji: "🐀", atk: 10, def: 0, spd: 1, critChance: 0, critMultiplier: 1.5, moves: [{ moveId: "attack" }] },
+    enemyMaxHp: 500, enemyCurrentHp: 500, foe: newFighterState(), enemyIntent: "attack", enemyTarget: "u1", round: 0,
+    ...(canBeHit && { petsCanBeHit: true }), seed: 7,
+});
+
+// A pet acts right after its owner, and its damage counts as theirs.
+const withPet = fight(pet([{ moveId: "nip" }]));
+const turn1 = playTurn(withPet, { u1: { kind: "move", moveId: "attack" } }, fightConfig);
+const annAt = turn1.log.findIndex((l) => l.includes("**You** used **Attack**"));
+assert(annAt >= 0 && turn1.log[annAt + 1]?.includes("**🐺 Fang** used **Nip**"), "the pet acts straight after its owner");
+assert.equal(500 - withPet.enemyCurrentHp, withPet.members[0]!.dealt, "the pet's damage counts as its owner's");
+assert.equal(500 - fight().enemyCurrentHp, 0);
+const alone = fight(); playTurn(alone, { u1: { kind: "move", moveId: "attack" } }, fightConfig);
+assert(withPet.members[0]!.dealt > alone.members[0]!.dealt, "a pet adds damage");
+
+// "Self" means its owner: a heal only when the owner is low, landing on the owner.
+const healer = fight(pet([{ moveId: "lick", when: { type: "selfHpBelow", percent: 50 } }, { moveId: "nip", weight: 0 }]), false, 30);
+playTurn(healer, { u1: { kind: "pass" } }, fightConfig);
+assert(healer.members[0]!.hp > 30 - 10, "its heal lands on its owner when they're low");
+const healthy = fight(pet([{ moveId: "lick", when: { type: "selfHpBelow", percent: 50 } }]), false, 100);
+const quiet = playTurn(healthy, { u1: { kind: "pass" } }, fightConfig);
+assert(!quiet.log.some((l) => l.includes("Lick")), "the condition is about its owner: no heal at full HP");
+
+// Can't be hit (the default): never aimed at, and never worn down.
+const safe = fight(pet([{ moveId: "nip" }]));
+for (let i = 0; i < 300; i++) { pickIntent(safe, fightConfig); assert(!safe.enemyTargetPet); }
+// Can be hit: sometimes aimed at; it takes the blow instead of its owner, and sits out at 0 HP.
+const exposed = fight(pet([{ moveId: "nip" }]), true);
+let aimed = 0;
+for (let i = 0; i < 300; i++) { pickIntent(exposed, fightConfig); if (exposed.enemyTargetPet) aimed++; }
+assert(aimed > 40 && aimed < 200, `pets are aimed at some of the time (${aimed}/300)`);
+const tank = fight({ ...pet([{ moveId: "nip" }]), hp: 5 }, true);
+tank.enemyTargetPet = true;
+playTurn(tank, { u1: { kind: "pass" } }, fightConfig);
+assert.equal(tank.members[0]!.hp, 100, "the owner takes nothing when their pet is hit");
+assert(tank.members[0]!.pet!.out, "a pet at 0 HP sits out");
+const after = playTurn(tank, { u1: { kind: "pass" } }, fightConfig);
+assert(!after.log.some((l) => l.includes("Fang")), "and doesn't act again that fight");
+
+console.log("Pet checks passed: stats, stages, moves, owning, the cap, feeding, naming, releasing, hatching, and fights: acting after the owner, owner-aimed effects, and being hit only when allowed.");
