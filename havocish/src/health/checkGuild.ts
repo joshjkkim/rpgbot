@@ -1,5 +1,8 @@
 import { movesOf, statusesOf } from "../player/moves.js";
 import { RULES } from "../player/twists.js";
+import { gridImagePath } from "../content/gridLooks.js";
+import { sceneArtSlots } from "../content/gatheringScenes.js";
+import { normalizeGathering } from "../content/normalizeGathering.js";
 import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -47,6 +50,7 @@ const POST: Perm[] = ["view", "send"];
 const POST_EMBED: Perm[] = ["view", "send", "embed"];
 
 export function checkGuild(config: GuildConfig, access: Access): Issue[] {
+    if (config.gathering?.activities) config = { ...config, gathering: normalizeGathering(config.gathering) };
     const issues: Issue[] = [];
     const seenChannels = new Set<string>();
 
@@ -228,6 +232,11 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
         for (const id of config.gathering.channelIds ?? []) channel(id, "gathering", "gathering", POST);
         for (const a of activities) {
+            if (["grid", "timing", "find", "puzzle"].includes(a.game)) {
+                for (const [slot, path] of Object.entries(a.art ?? {})) {
+                    if (!(slot in sceneArtSlots(a.game)) || !gridImagePath(path)) issues.push({ severity: "warning", message: `${a.name} has invalid ${slot} artwork. Upload a picture in Scene artwork; the default is used until then.`, page: "gathering" });
+                }
+            }
             const locations = Object.values(a.locations ?? {});
             if (!locations.some((l) => (l.minSkill ?? 1) <= 1)) {
                 issues.push({ severity: "warning", message: `Nobody can start ${a.name}: it has no location open at skill 1.`, page: "gathering" });

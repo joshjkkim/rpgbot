@@ -86,8 +86,8 @@ export default function FeaturesPage() {
 
           <Feature title="Gathering, worded your way" visual={<div className="w-full max-w-[460px]"><GatherDemo /></div>}>
             <p>
-              Three minigames, played with buttons: push your luck on a grid, react to a signal in time, or spot the
-              target among look-alikes.
+              Four minigames, played with buttons: uncover finds on a drawn grid of obstacles, react to a signal in time, spot the
+              target among look-alikes, or rotate puzzle tiles to complete a connection.
             </p>
             <Points items={[
               <><b>Make any activity you like.</b> Pick a minigame and write every word players see. Mining for a fantasy server, salvage for a sci-fi one, baking for a cozy one.</>,

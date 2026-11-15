@@ -29,6 +29,8 @@ export type Run = {
     found: Record<string, number>;
     /** What just happened, shown under the header. */
     status: string | null;
+    /** Set before drawing the final results. */
+    ended?: EndReason;
     message: Message | null;
     /** The game's own timer (a bite, a round's deadline). One at a time. */
     timer: NodeJS.Timeout | null;
@@ -40,7 +42,7 @@ export type Run = {
     state: any;
 };
 
-export type EndReason = "leave" | "out" | "hazard" | "timeout";
+export type EndReason = "leave" | "out" | "timeout";
 
 export type Words = Record<string, string>;
 
@@ -76,6 +78,9 @@ export const itemLabel = (config: GuildConfig, id: string, n?: number) => {
 export const addFind = (run: Run, drop: { itemId: string; quantity: number }) => {
     run.found[drop.itemId] = (run.found[drop.itemId] ?? 0) + drop.quantity + run.mods.yield;
 };
+
+/** Puzzle rewards require a completed connection, including when leaving or timing out. */
+export const runXpMultiplier = (run: Run) => run.activity.game === "puzzle" && run.state?.solved !== true ? 0 : run.mods.xp;
 
 /** One roll of this run's loot, with today's rare-loot boost. */
 export const rollRunLoot = (run: Run, config: GuildConfig) => rollLoot(run.location.loot ?? [], config, Math.random, run.mods.rareLoot);

@@ -15,11 +15,11 @@ import {
 import type { GameType, GatheringActivity } from "../../types/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
 import { checkRequirements, memberFacts } from "../../player/requirements.js";
-import { itemLabel, type Ctx, type EndReason, type Game, type Run, type Words } from "../../ui/gathering/run.js";
+import { itemLabel, runXpMultiplier, type Ctx, type EndReason, type Game, type Run, type Words } from "../../ui/gathering/run.js";
 import { grid } from "../../ui/gathering/grid.js";
 import { timing } from "../../ui/gathering/timing.js";
 import { find } from "../../ui/gathering/find.js";
-import { dig } from "../../ui/gathering/dig.js";
+import { puzzle } from "../../ui/gathering/puzzle.js";
 import { conditionNow, runMods } from "../../player/twists.js";
 import { checkProgress } from "../../player/collections.js";
 import { nextGatherLine } from "../../player/nextSteps.js";
@@ -31,7 +31,7 @@ export const data = new SlashCommandBuilder()
     .addStringOption((o) => o.setName("activity").setDescription("What to do").setRequired(true).setAutocomplete(true))
     .addStringOption((o) => o.setName("location").setDescription("Where to go (defaults to your best one)").setAutocomplete(true));
 
-const GAMES: Record<GameType, Game> = { grid, timing, find, dig };
+const GAMES: Record<GameType, Game> = { grid, timing, find, puzzle };
 
 /** A run left alone this long ends itself, keeping what was found. */
 const RUN_TIMEOUT_MS = 2 * 60 * 1000;
@@ -65,8 +65,9 @@ async function sceneOf(run: Run, config: GuildConfig) {
 
 async function render(run: Run, config: GuildConfig) {
     const w = wordsOf(run.activity);
-    const { text, rows } = gameOf(run.activity).body(run, run.state, w, config);
     const picture = await sceneOf(run, config);
+    // Timed covers may change while the scene's images load. Build controls afterwards too.
+    const { text, rows } = gameOf(run.activity).body(run, run.state, w, config);
     const container = new ContainerBuilder()
         .setAccentColor(accentColor(config.style.mainThemeColor))
         .addTextDisplayComponents((t) => t.setContent([
@@ -202,19 +203,17 @@ async function endRun(run: Run, why: EndReason, interaction?: ButtonInteraction)
     const key = runKey(run.ownerId, run.discordGuildId);
     if (runs.get(key) !== run) return;
     runs.delete(key);
+    run.ended = why;
     if (run.timer) clearTimeout(run.timer);
     if (run.deadline) clearTimeout(run.deadline);
 
     const { config } = await getOrCreateGuildConfig({ discordGuildId: run.discordGuildId });
     const w = wordsOf(run.activity);
-    // Rounded up: rounding down wiped out small hauls, which read as a bug. "Unstable" loses it all.
-    const unstable = why === "hazard" && run.mods.rules.has("grid.unstable");
-    if (unstable) run.found = {};
-    else if (why === "hazard") for (const id of Object.keys(run.found)) run.found[id] = Math.ceil(run.found[id]! / 2);
-    const result = await finishRun({ userId: run.userId, guildId: run.guildId, config, activity: run.activity, location: run.location, found: run.found, xpMult: run.mods.xp });
+    const result = await finishRun({ userId: run.userId, guildId: run.guildId, config, activity: run.activity, location: run.location, found: run.found, xpMult: runXpMultiplier(run) });
 
     const lines = [
-        ...(why === "hazard" ? [`${w.hazard} ${unstable ? w.collapseLine ?? "It all comes down: everything you found is lost." : w.hazardLine}`] : []),
+        ...(run.status ? [`-# ${run.status}`] : []),
+        ...(why === "timeout" ? [`-# ${w.timeout ?? "This run ended after inactivity. Your haul was kept."}`] : []),
         `<@${run.ownerId}> ${w.verb} ${foundLine(result.kept, config) || "nothing"} at ${run.location.emoji} ${run.location.name}.`,
         `-# +${result.skillXp} ${run.activity.skillName} XP · ${run.energyLabel} left`,
         ...(result.questsCompleted.length ? [questCompleteLines(result.questsCompleted)] : []),

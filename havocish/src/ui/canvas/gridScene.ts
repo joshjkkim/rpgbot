@@ -2,11 +2,12 @@ import { createCanvas } from "@napi-rs/canvas";
 import { registerCardFonts } from "./fonts.js";
 import { emojiImageUrl, loadCachedImage } from "./drawEmojis.js";
 import { GOLD, PARCHMENT, RED, drawPanelFrame, roundRectPath } from "./theme.js";
-import type { DigColours, DigLook } from "../../content/digLooks.js";
-import { CELL, H, ORE_FALLBACK, PAD, PX, W, averageColour, cellXY, drawFace, drawPlayer, hex, lookOf, rng, shade, type FaceCell, type RGB } from "../../content/digDraw.js";
+import { GRID_ART_SLOTS, gridImagePath, type GridArt, type GridColours, type GridImages, type GridLook } from "../../content/gridLooks.js";
+import { DASHBOARD_URL } from "../dashboardLinks.js";
+import { CELL, H, ORE_FALLBACK, PAD, PX, W, averageColour, cellXY, drawFace, drawPlayer, hex, lookOf, rng, shade, type FaceCell, type RGB } from "../../content/gridDraw.js";
 
 /**
- * The dig game's picture for Discord: the rock face (content/digDraw.ts, the
+ * The Grid game's picture for Discord: the rock face (content/gridDraw.ts, the
  * same drawing the dashboard previews) plus what needs the server: ore colours
  * read from each item's emoji, your avatar, your tool and what the last swing did.
  */
@@ -15,7 +16,7 @@ const SCALE = 2;
 
 export type SceneCell = Omit<FaceCell, "ore"> & { emoji?: string | undefined };
 
-export type DigSceneArgs = {
+export type GridSceneArgs = {
     cells: SceneCell[];
     /** The block you stand in, or -1 at the mouth. */
     pos: number;
@@ -24,9 +25,10 @@ export type DigSceneArgs = {
     /** The tool's emoji, drawn in your hand. */
     tool?: string;
     /** The setting it's drawn in; a mine when unset. */
-    look?: DigLook | undefined;
+    look?: GridLook | undefined;
     /** Colours set over the look's. */
-    colours?: Partial<DigColours> | undefined;
+    colours?: Partial<GridColours> | undefined;
+    art?: GridArt | undefined;
 };
 
 const oreColours = new Map<string, RGB>();
@@ -65,13 +67,19 @@ function label(ctx: any, text: string, x: number, y: number, colour: string, siz
     ctx.fillText(text, x, y);
 }
 
-export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
+export async function renderGridScene(args: GridSceneArgs): Promise<Buffer> {
     registerCardFonts();
     // Everything fetched first, so the drawing itself runs straight through.
     const cells: FaceCell[] = await Promise.all(args.cells.map(async ({ emoji, ...cell }) => ({
         ...cell, ...(cell.kind === "ore" && cell.seen && { ore: await oreColour(emoji) }),
     })));
     const face = args.avatarUrl ? await loadCachedImage(args.avatarUrl).catch(() => null) : null;
+    const images: GridImages = Object.fromEntries(await Promise.all(
+        (Object.keys(GRID_ART_SLOTS) as (keyof GridArt)[]).map(async (slot) => {
+            const path = gridImagePath(args.art?.[slot]);
+            return [slot, path ? await loadCachedImage(new URL(path, DASHBOARD_URL).href).catch(() => null) : null];
+        }),
+    ));
 
     const canvas = createCanvas(W * SCALE, H * SCALE);
     const ctx = canvas.getContext("2d") as any;
@@ -81,7 +89,7 @@ export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
     roundRectPath(ctx, PAD, PAD, W - PAD * 2, H - PAD * 2, 3);
     ctx.clip();
     const L = lookOf(args.look, args.colours);
-    const { at, px, py } = drawFace(ctx, L, cells, args.pos);
+    const { at, px, py } = drawFace(ctx, L, cells, args.pos, images);
     drawPlayer(ctx, at, px, py, face);
 
     // The tool, raised toward the block you just swung at.
@@ -113,7 +121,7 @@ export async function renderDigScene(args: DigSceneArgs): Promise<Buffer> {
             for (let k = 0; k < 6; k++) ctx.fillRect(cx + (r() - 0.5) * 50, cy + (r() - 0.5) * 50, PX, PX);
             label(ctx, `−${last.damage}${last.clean ? "!" : ""}`, cx, c.y + 22, last.clean ? GOLD : PARCHMENT);
         }
-        if (last.fell) label(ctx, `−${last.fell}`, px, at.y + 16, RED, 20);
+        if (last.fell !== undefined) label(ctx, `−${last.fell}`, px, at.y + 16, RED, 20);
     }
     ctx.restore();
     return canvas.toBuffer("image/png");

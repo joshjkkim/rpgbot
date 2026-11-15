@@ -3,6 +3,7 @@ import { guildConfigCache } from "../cache/caches.js";
 import type { EventCategory } from "../types/logging.js";
 import type { GuildConfig, DbGuild } from "../types/guild.js";
 import { DEFAULT_GUILD_CONFIG } from "../types/guild.js";
+import { normalizeGathering } from "../content/normalizeGathering.js";
 
 type UpsertGuildArgs = {
     discordGuildId: string;
@@ -141,7 +142,7 @@ export function mergeConfig(raw: GuildConfig | null): GuildConfig {
                 ...DEFAULT_GUILD_CONFIG.gathering.skill,
                 ...(raw?.gathering?.skill ?? {}),
             },
-            activities: raw?.gathering?.activities ?? {},
+            ...normalizeGathering({ activities: raw?.gathering?.activities ?? {}, ...(raw?.gathering?.conditions && { conditions: raw.gathering.conditions }) }),
         },
         crafting: {
             ...DEFAULT_GUILD_CONFIG.crafting,

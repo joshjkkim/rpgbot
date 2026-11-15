@@ -1,7 +1,8 @@
-import { digPalette } from "./digLooks.ts";
+import { gridPalette } from "./gridLooks.ts";
+import type { GridImages } from "./gridLooks.ts";
 
 /**
- * Dig's rock face, drawn in chunky pixels onto any 2D canvas: the bot's (for
+ * Grid's rock face, drawn in chunky pixels onto any 2D canvas: the bot's (for
  * the picture in Discord) and the browser's (the dashboard's live preview), so
  * both show the same thing. The tunnel mouth on the left, a 5×4 face, ore
  * showing where the light reaches, and the lantern's light around the player.
@@ -66,14 +67,14 @@ export function averageColour(data: ArrayLike<number>): RGB {
 /** A palette as the drawing uses it: RGB, except the sky's gradient stops. */
 export type Look = { rock: RGB; hard: RGB; vein: RGB; loose: RGB; back: RGB; dark: RGB; sky: [string, string, string]; prop: RGB; light: RGB };
 export function lookOf(look: string | undefined, colours: unknown): Look {
-    const p = digPalette(look, colours);
+    const p = gridPalette(look, colours);
     return { rock: rgb(p.rock), hard: rgb(p.hard), vein: rgb(p.vein), loose: rgb(p.loose), back: rgb(p.back), dark: rgb(p.dark), sky: p.sky, prop: rgb(p.prop), light: rgb(p.light) };
 }
 
 export const cellXY = (i: number) => ({ x: PAD + MOUTH_W + (i % COLS) * CELL, y: PAD + Math.floor(i / COLS) * CELL });
 
 /** A block's surface: square pixels around a base colour, a lit top-left edge and a dark bottom-right one. */
-function texture(ctx: any, x: number, y: number, base: RGB, seed: number, spread = 0.16) {
+export function texture(ctx: any, x: number, y: number, base: RGB, seed: number, spread = 0.16) {
     const r = rng(seed);
     const n = CELL / PX;
     for (let py = 0; py < n; py++) {
@@ -221,9 +222,11 @@ function drawMouth(ctx: any, L: Look) {
  * The mouth, the face and the light, inside the frame (PAD in from the edges).
  * Returns where the player stands, for whatever's drawn on top.
  */
-export function drawFace(ctx: any, L: Look, cells: FaceCell[], pos: number) {
+export function drawFace(ctx: any, L: Look, cells: FaceCell[], pos: number, images: GridImages = {}) {
     ctx.imageSmoothingEnabled = false;
-    drawMouth(ctx, L);
+    if (images.background) ctx.drawImage(images.background, PAD, PAD, W - PAD * 2, H - PAD * 2);
+    if (images.entrance) ctx.drawImage(images.entrance, PAD, PAD, MOUTH_W, ROWS * CELL);
+    else if (!images.background) drawMouth(ctx, L);
     for (const [i, cell] of cells.entries()) {
         const { x, y } = cellXY(i);
         const seed = i * 101 + 17;
@@ -232,7 +235,20 @@ export function drawFace(ctx: any, L: Look, cells: FaceCell[], pos: number) {
             continue;
         }
         const below = cells[i + COLS];
-        if (cell.kind === "open") drawOpen(ctx, L, x, y, seed, !below || below.kind !== "open");
+        // A find at the edge of sight must still look like a normal obstacle.
+        const kind = cell.kind === "ore" && !cell.seen ? "rock" : cell.kind;
+        const image = images[kind] ?? (kind === "ore" ? images.rock : undefined);
+        if (image) {
+            ctx.drawImage(image, x, y, CELL, CELL);
+            if (kind === "ore") {
+                ctx.fillStyle = hex(cell.ore ?? ORE_FALLBACK);
+                ctx.fillRect(x + CELL / 2 - PX * 2, y + CELL / 2 - PX * 2, PX * 4, PX * 4);
+                ctx.fillStyle = hex(shade(cell.ore ?? ORE_FALLBACK, 1.5));
+                ctx.fillRect(x + CELL / 2 - PX * 2, y + CELL / 2 - PX * 2, PX, PX);
+            }
+        }
+        else if (cell.kind === "open" && images.background) { /* Cleared spaces reveal the background. */ }
+        else if (cell.kind === "open") drawOpen(ctx, L, x, y, seed, !below || below.kind !== "open");
         else if (cell.kind === "hard") drawHard(ctx, L, x, y, seed);
         else if (cell.kind === "loose") drawLoose(ctx, L, x, y, seed);
         // Ore at the light's edge looks like any other rock.

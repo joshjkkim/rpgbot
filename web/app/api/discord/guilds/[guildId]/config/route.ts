@@ -3,6 +3,7 @@ import { requireGuildManager } from "@/app/lib/discord";
 import { dbQuery } from "@/app/lib/db";
 import { validateGuildConfig } from "@/app/lib/validateConfig";
 import type { DashboardConfig } from "@/app/lib/dashboardConfig";
+import { normalizeGathering } from "@content/normalizeGathering";
 
 // 401 = sign in again, 403 = signed in but not this server's owner,
 // 503 = Discord did not answer. All three used to be reported as "forbidden".
@@ -33,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ guil
     // name/icon come from the bot's own guilds row, so the dashboard can label
     // itself without a second round-trip to Discord.
     return NextResponse.json({
-        config: row.config,
+        config: { ...row.config, ...(row.config.gathering && { gathering: normalizeGathering(row.config.gathering) }) },
         id: row.id,
         name: row.name,
         iconUrl: row.icon_url,

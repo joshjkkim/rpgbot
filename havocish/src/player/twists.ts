@@ -1,5 +1,6 @@
 import type { GameType, GatheringActivity, GatheringCondition, GatheringLocation, TwistEffects, TwistRule } from "../types/gathering.js";
 import type { GuildConfig } from "../types/guild.js";
+import { gridRule } from "../content/normalizeGathering.js";
 
 /**
  * What makes a gathering spot play differently, not just harder: a location's
@@ -12,17 +13,15 @@ import type { GuildConfig } from "../types/guild.js";
 /** Each rule, the game it belongs to, and how it reads when a run starts. */
 export const RULES: Record<TwistRule, { game: GameType; name: string; line: string }> = {
     "grid.adjacent": { game: "grid", name: "Only next to opened", line: "You can only open tiles next to ones you've uncovered." },
-    "grid.clustered": { game: "grid", name: "Clustered finds", line: "Finds come in clusters: one find means more nearby." },
-    "grid.unstable": { game: "grid", name: "Unstable", line: "Hit a hazard and you lose everything, not half." },
     "timing.falseAlarm": { game: "timing", name: "False alarms", line: "Some signals are false: don't jump at the first one." },
     "timing.twice": { game: "timing", name: "Twice", line: "It takes two good reactions in a row to land one." },
     "timing.fragile": { game: "timing", name: "Fragile", line: "One miss and the run is over." },
     "find.glimpse": { game: "find", name: "Glimpse", line: "You only see it for a moment: remember where it was." },
     "find.reshuffle": { game: "find", name: "Reshuffle", line: "A wrong pick scrambles everything." },
     "find.twin": { game: "find", name: "Twin", line: "There are two to find each round." },
-    "dig.dark": { game: "dig", name: "Dark", line: "Your light only reaches the next block." },
-    "dig.seams": { game: "dig", name: "Seams", line: "Ore runs in seams: where there's one block, there's more beside it." },
-    "dig.loose": { game: "dig", name: "Loose", line: "More loose rock, waiting to come down." },
+    "grid.dark": { game: "grid", name: "Dark", line: "Your light only reaches the next block." },
+    "grid.seams": { game: "grid", name: "Seams", line: "Ore runs in seams: where there's one block, there's more beside it." },
+    "grid.loose": { game: "grid", name: "Loose", line: "More loose rock, waiting to come down." },
 };
 
 /** Everything acting on a run, combined. */
@@ -89,10 +88,13 @@ export function runMods(config: GuildConfig, activity: GatheringActivity, locati
         mods.yield += e.yield ?? 0;
         mods.xp *= (e.xp ?? 100) / 100;
         mods.energy += e.energy ?? 0;
-        for (const r of e.rules ?? []) if (RULES[r]?.game === activity.game) mods.rules.add(r);
+        for (const old of e.rules ?? []) {
+            const r = gridRule(old) as TwistRule;
+            if (RULES[r]?.game === activity.game) mods.rules.add(r);
+        }
     };
     // What a rule does, when the owner didn't write a line of their own.
-    const ruleLines = (e: TwistEffects | undefined) => (e?.rules ?? []).filter((r) => RULES[r]?.game === activity.game).map((r) => RULES[r].line).join(" ");
+    const ruleLines = (e: TwistEffects | undefined) => [...new Set((e?.rules ?? []).map((r) => gridRule(r) as TwistRule))].filter((r) => RULES[r]?.game === activity.game).map((r) => RULES[r].line).join(" ");
     for (const t of location.traits ?? []) {
         apply(t.effects);
         mods.lines.push(`${t.emoji || "✦"} **${t.name}:** ${t.line || ruleLines(t.effects) || "—"}`);

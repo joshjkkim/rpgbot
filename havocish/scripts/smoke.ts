@@ -53,7 +53,11 @@ import { checkUnlocks, earned } from "../src/player/unlocks.js";
 import { enemyPreset, gearPreset } from "../src/content/balance.js";
 import { addEntries, entryOf, KINDS, plan, refsOf, type Kind, type Ref } from "../src/content/library.js";
 import { buildPack, parseSkeleton, type Skeleton } from "../src/content/aiPack.js";
-import { digPalette } from "../src/content/digLooks.js";
+import { createCanvas } from "@napi-rs/canvas";
+import { CELL, PAD, W, H, cellXY, drawFace, lookOf, type FaceCell } from "../src/content/gridDraw.js";
+import { gridSettings } from "../src/content/gridSettings.js";
+import { gridImagePath } from "../src/content/gridLooks.js";
+import { gridPalette } from "../src/content/gridLooks.js";
 import { applyChanges, cleanChanges, outline, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
@@ -85,11 +89,11 @@ import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
 import { craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn } from "../src/player/crafting.js";
-import { energyNow, gridRules, makeClusteredGrid, makeGrid, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
+import { energyNow, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
 import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
 import { pullRounds, timingWindowMs } from "../src/ui/gathering/timing.js";
 import { findRules } from "../src/ui/gathering/find.js";
-import { COLS, digRules, done as digDone, FALL_COST, lit, makeWall, reachable as digReachable, swing as digSwing, type Cell, type DigState } from "../src/ui/gathering/dig.js";
+import { COLS, gridRules, done as gridDone, FALL_COST, lit, makeWall, reachable as gridReachable, swing as gridSwing, type Cell, type GridState } from "../src/ui/gathering/grid.js";
 import { act, bless, distance, GRID, gridCounts, hintsAt, itemsLeft, reelZone, shaftHint, SNAP, WALK_HOURS, kitOf, LEVELS, levelOf, gather, HOURS, mapScore, neighbours, prepare, START_NODE, startFight as startDailyFight, startState, validLoadout } from "../src/content/daily.js";
 import { dailyFor, gameFor, replayMap, WORLDS } from "../src/content/dailyWorlds.js";
 import type { MapAction } from "../src/content/daily.js";
@@ -1964,83 +1968,123 @@ async function main() {
         check("a calm stretch has no condition", conditionNow(cfg, activity, location, day), null);
 
         // Difficulty is read by each game its own way.
-        check("grid: a hazard more, a try fewer", [gridRules(location, 1, 0, 1).hazards, gridRules(location, 1, 0, 1).tries], [3, 4]);
         check("timing: a shorter window", timingWindowMs(location, 1, 0, 1), 2600);
         check("find: less time, more look-alikes", [findRules(location, 1, 0, 1).seconds, findRules(location, 1, 0, 1).decoyKinds], [6.5, 4]);
 
-        // Clustered: every find but the first sits next to another, almost always.
-        let touching = 0;
-        for (let n = 0; n < 50; n++) {
-            const cells = makeClusteredGrid({ size: 16, finds: 5, hazards: 2 });
-            const finds = cells.map((c, i) => (c === "find" ? i : -1)).filter((i) => i >= 0);
-            const near = (a: number, b: number) => Math.abs(a - b) === 4 || (Math.abs(a - b) === 1 && Math.floor(a / 4) === Math.floor(b / 4));
-            if (finds.every((a) => finds.some((b) => a !== b && near(a, b)))) touching++;
-            check(`clustered grid ${n} keeps its counts`, [finds.length, cells.filter((c) => c === "hazard").length], [5, 2]);
-        }
-        check("clustered finds touch each other", touching >= 35, true);
     });
 
-    await test("dig: tunnel through a rock face, ore in the light, loose rock that falls", async () => {
+    await test("grid: tunnel through a rock face, ore in the light, loose rock that falls", async () => {
         const location = { difficulty: { swings: 12, ores: 4, hard: 2, loose: 2 } } as any;
-        const rules = digRules(location, 1, 0, 0);
-        check("dig: bare hands do one a swing", [rules.swings, rules.power, rules.light], [12, 1, 2]);
-        check("dig: a tool's bonus hits harder", digRules(location, 1, 2).power, 3);
-        check("dig: harder takes two swings a step", digRules(location, 1, 0, 1).swings, 10);
-        check("dig: dark shortens the light", digRules(location, 1, 0, 0, new Set(["dig.dark"])).light, 1);
-        check("dig: more swings with skill", digRules(location, 17).swings, 14);
+        const rules = gridRules(location, 1, 0, 0);
+        check("grid: bare hands do one a swing", [rules.swings, rules.power, rules.light], [12, 1, 2]);
+        check("grid: a tool's bonus hits harder", gridRules(location, 1, 2).power, 3);
+        check("grid: harder takes two swings a step", gridRules(location, 1, 0, 1).swings, 10);
+        check("grid: dark shortens the light", gridRules(location, 1, 0, 0, new Set(["grid.dark"])).light, 1);
+        check("grid: more swings with skill", gridRules(location, 17).swings, 14);
+
+        const custom = gridRules({ ...location, difficulty: { swings: 2, light: 9, power: 3, toolPower: 0, skillSwingsEvery: 0, cleanChance: 0, skillCleanBonus: 0, rockHp: 4, hardHp: 5, looseHp: 6, oreHp: 7, rarityHp: 0 } }, 50, 10);
+        check("grid: custom actions, visibility and power; bonuses can be disabled", [custom.swings, custom.light, custom.power, custom.clean], [2, 9, 3, 0]);
+        const customWall = makeWall(custom, () => ({ itemId: "salvage", quantity: 1, rarity: "legendary" }));
+        check("grid: each obstacle uses its configured durability", ["rock", "hard", "loose", "ore"].map((kind) => customWall.find((c) => c.kind === kind)!.hp), [4, 5, 6, 7]);
+        const invalid = gridSettings({ swings: Infinity, light: 1000, ores: -1, power: NaN, falling: -5 });
+        check("grid: malformed rules use bounded defaults", [invalid.swings, invalid.light, invalid.ores, invalid.power, invalid.falling], [12, 9, 0, 1, 0]);
+        check("grid: no hidden finds means none are rolled", makeWall(gridRules({ ...location, difficulty: { ores: 0 } }, 1), () => { throw new Error("No finds should roll"); }).some((c) => c.kind === "ore"), false);
+        check("grid: only managed image paths are allowed", [gridImagePath("/api/images/12345678-1234-1234-1234-123456789abc"), gridImagePath("https://example.com/picture.png"), gridImagePath("/api/images/../../secret"), gridImagePath("/api/images/12345678-1234-1234-1234-123456789abc?x=1")], ["/api/images/12345678-1234-1234-1234-123456789abc", undefined, undefined, undefined]);
 
         const rarities = ["common", "common", "uncommon", "rare"];
         for (let n = 0; n < 30; n++) {
             let k = 0;
             const cells = makeWall(rules, () => ({ itemId: `ore${k}`, quantity: 1, rarity: rarities[k++ % 4] }));
             const count = (kind: string) => cells.filter((c) => c.kind === kind).length;
-            check(`dig wall ${n} keeps its counts`, [count("ore"), count("hard"), count("loose")], [4, 2, 2]);
-            check(`dig wall ${n}: the mouth is plain rock`, [cells[10]!.kind, cells[15]!.kind], ["rock", "rock"]);
+            check(`grid wall ${n} keeps its counts`, [count("ore"), count("hard"), count("loose")], [4, 2, 2]);
+            check(`grid wall ${n}: the mouth is plain rock`, [cells[10]!.kind, cells[15]!.kind], ["rock", "rock"]);
             const col = (rarity: string) => cells.findIndex((c) => c.rarity === rarity) % COLS;
-            check(`dig wall ${n}: the rare find is no nearer than the common ones`, col("rare") >= Math.max(...cells.map((c, i) => (c.rarity === "common" ? i % COLS : -1))), true);
-            check(`dig wall ${n}: rarer takes more swings`, [cells.find((c) => c.rarity === "common")!.hp, cells.find((c) => c.rarity === "rare")!.hp], [2, 4]);
+            check(`grid wall ${n}: the rare find is no nearer than the common ones`, col("rare") >= Math.max(...cells.map((c, i) => (c.rarity === "common" ? i % COLS : -1))), true);
+            check(`grid wall ${n}: rarer takes more swings`, [cells.find((c) => c.rarity === "common")!.hp, cells.find((c) => c.rarity === "rare")!.hp], [2, 4]);
         }
 
         const rock = (): Cell => ({ kind: "rock", hp: 1, max: 1 });
-        const state = (cells: Cell[], swings = 10): DigState => ({ cells, swings, rules: { ...rules }, pos: -1, last: null });
+        const state = (cells: Cell[], swings = 10): GridState => ({ cells, swings, rules: { ...rules }, pos: -1, last: null });
+        const anywhere = state(Array.from({ length: 20 }, rock));
+        anywhere.rules = { ...rules, adjacent: 0, light: 9 };
+        check("grid: disabling adjacency opens all visible obstacles", anywhere.cells.every((_, i) => gridReachable(anywhere, i)), true);
+        anywhere.rules.light = 1;
+        check("grid: disabling adjacency still respects visibility", gridReachable(anywhere, 19), false);
+        check("grid: fractional indices are rejected", gridSwing(anywhere, 1.5, false), false);
+        const noGravity = state(Array.from({ length: 20 }, rock));
+        noGravity.rules.falling = 0;
+        noGravity.cells[5] = { kind: "loose", hp: 1, max: 1 };
+        gridSwing(noGravity, 10, false);
+        check("grid: no gravity keeps unstable obstacles in place", [noGravity.cells[5]!.kind, noGravity.pos, noGravity.swings, noGravity.last?.fell], ["loose", 10, 9, undefined]);
+        const penalty = state(Array.from({ length: 20 }, rock));
+        penalty.rules.fallCost = 4;
+        penalty.cells[5] = { kind: "loose", hp: 1, max: 1 };
+        gridSwing(penalty, 10, false);
+        check("grid: custom fall penalties apply", [penalty.swings, penalty.last?.fell], [5, 4]);
         const s = state(Array.from({ length: 20 }, rock));
-        check("dig: at first only the mouth can be swung at", s.cells.map((_, i) => i).filter((i) => digReachable(s, i)), [10, 15]);
-        check("dig: rock past the mouth can't be swung at", digSwing(s, 12, false), false);
-        check("dig: the light reaches two blocks in", [lit(s, 11), lit(s, 12)], [true, false]);
-        digSwing(s, 15, false);
-        check("dig: you step into what you dig out", [s.pos, s.swings, s.cells[15]!.kind], [15, 9, "open"]);
-        check("dig: and can swing at what's next to it", digReachable(s, 16), true);
+        check("grid: at first only the mouth can be swung at", s.cells.map((_, i) => i).filter((i) => gridReachable(s, i)), [10, 15]);
+        check("grid: rock past the mouth can't be swung at", gridSwing(s, 12, false), false);
+        check("grid: the light reaches two blocks in", [lit(s, 11), lit(s, 12)], [true, false]);
+        gridSwing(s, 15, false);
+        check("grid: you step into what you dig out", [s.pos, s.swings, s.cells[15]!.kind], [15, 9, "open"]);
+        check("grid: and can swing at what's next to it", gridReachable(s, 16), true);
 
         // Ore takes its swings, then comes out as a find.
         s.cells[16] = { kind: "ore", hp: 2, max: 2, itemId: "copper", quantity: 2, rarity: "common" };
-        digSwing(s, 16, false);
-        check("dig: ore cracks first", [s.cells[16]!.hp, !!s.last?.got], [1, false]);
-        digSwing(s, 16, false);
-        check("dig: then breaks into a find", [s.cells[16]!.kind, s.last?.got?.itemId, s.last?.got?.quantity], ["open", "copper", 2]);
+        gridSwing(s, 16, false);
+        check("grid: ore cracks first", [s.cells[16]!.hp, !!s.last?.got], [1, false]);
+        gridSwing(s, 16, false);
+        check("grid: then breaks into a find", [s.cells[16]!.kind, s.last?.got?.itemId, s.last?.got?.quantity], ["open", "copper", 2]);
 
         // Loose rock over the block you dig out lands on you.
         const t = state(Array.from({ length: 20 }, rock));
         t.cells[15] = { kind: "open", hp: 0, max: 0 };
         t.pos = 15;
         t.cells[5] = { kind: "loose", hp: 1, max: 1 };
-        digSwing(t, 10, false);
-        check("dig: loose rock falls into the gap, on you, and packs into rock", [t.cells[5]!.kind, t.cells[10]!.kind, t.cells[15]!.kind], ["open", "rock", "open"]);
-        check("dig: and costs you swings, knocking you back", [t.swings, t.pos, t.last?.fell], [10 - 1 - FALL_COST, 15, FALL_COST]);
+        gridSwing(t, 10, false);
+        check("grid: loose rock falls into the gap, on you, and packs into rock", [t.cells[5]!.kind, t.cells[10]!.kind, t.cells[15]!.kind], ["open", "rock", "open"]);
+        check("grid: and costs you swings, knocking you back", [t.swings, t.pos, t.last?.fell], [10 - 1 - FALL_COST, 15, FALL_COST]);
         const u = state(Array.from({ length: 20 }, rock));
         u.cells[5] = { kind: "loose", hp: 1, max: 1 };
         u.cells[15] = { kind: "open", hp: 0, max: 0 };
         u.pos = 15;
-        digSwing(u, 16, false);
-        check("dig: loose rock on solid rock stays put", u.cells[5]!.kind, "loose");
+        gridSwing(u, 16, false);
+        check("grid: loose rock on solid rock stays put", u.cells[5]!.kind, "loose");
         const fall = state(Array.from({ length: 20 }, rock));
         fall.cells[0] = { kind: "loose", hp: 1, max: 1 };
         fall.cells[5] = { kind: "open", hp: 0, max: 0 };
         fall.cells[10] = { kind: "open", hp: 0, max: 0 };
         fall.pos = 10;
-        digSwing(fall, 11, false);
-        check("dig: and falls as far as it can when it isn't on you", [fall.cells[0]!.kind, fall.cells[5]!.kind], ["open", "open"]);
-        check("dig: a clean strike does one more", (() => { const v = state([{ kind: "hard", hp: 3, max: 3 }, ...Array.from({ length: 19 }, rock)]); v.cells[1] = { kind: "open", hp: 0, max: 0 }; digSwing(v, 0, true); return v.cells[0]!.hp; })(), 1);
-        check("dig: the run is over without swings", digDone(state(Array.from({ length: 20 }, rock), 0)), true);
+        gridSwing(fall, 11, false);
+        check("grid: and falls as far as it can when it isn't on you", [fall.cells[0]!.kind, fall.cells[5]!.kind], ["open", "open"]);
+        check("grid: a clean strike does one more", (() => { const v = state([{ kind: "hard", hp: 3, max: 3 }, ...Array.from({ length: 19 }, rock)]); v.cells[1] = { kind: "open", hp: 0, max: 0 }; gridSwing(v, 0, true); return v.cells[0]!.hp; })(), 1);
+        check("grid: the run is over without swings", gridDone(state(Array.from({ length: 20 }, rock), 0)), true);
+    });
+
+    await test("grid artwork replaces the mine without revealing hidden finds", async () => {
+        const canvas = createCanvas(W, H);
+        const ctx = canvas.getContext("2d");
+        const tile = (colour: string) => {
+            const c = createCanvas(CELL, CELL);
+            const x = c.getContext("2d");
+            x.fillStyle = colour; x.fillRect(0, 0, CELL, CELL);
+            return c;
+        };
+        const cells: FaceCell[] = Array.from({ length: 20 }, () => ({ kind: "open", hp: 0, max: 0, seen: true, dim: false }));
+        cells[0] = { kind: "rock", hp: 2, max: 2, seen: true, dim: false };
+        cells[1] = { kind: "ore", hp: 2, max: 2, seen: false, dim: true };
+        cells[2] = { kind: "hard", hp: 2, max: 2, seen: true, dim: false };
+        cells[4] = { kind: "rock", hp: 2, max: 2, seen: false, dim: true };
+        const draw = () => { ctx.clearRect(0, 0, W, H); drawFace(ctx, lookOf("mine", undefined), cells, 19, { background: tile("#0000ff"), rock: tile("#ff0000"), hard: tile("#00ff00"), ore: tile("#ffffff") }); };
+        draw();
+        const pixel = (x: number, y: number) => Array.from(ctx.getImageData(x, y, 1, 1).data).slice(0, 3);
+        const at = (i: number) => { const p = cellXY(i); return pixel(p.x + 8, p.y + 8); };
+        check("grid: the background replaces the mine entrance", pixel(PAD + 8, PAD + 8), [0, 0, 255]);
+        check("grid: cleared spaces reveal the background", at(3), [0, 0, 255]);
+        check("grid: custom normal and tough obstacles replace the stone drawing", [at(0), at(2)], [[255, 0, 0], [0, 255, 0]]);
+        check("grid: a dim find uses the normal obstacle image", at(1), at(4));
+        cells[1]!.seen = true; cells[1]!.dim = false; draw();
+        check("grid: a visible find uses its own image", at(1), [255, 255, 255]);
     });
 
     await test("quests can ask for gathering and crafting", async () => {
@@ -2427,13 +2471,6 @@ async function main() {
         const loot = [{ itemId: "ore", chance: 90, min: 1, max: 1 }, { itemId: "gone", chance: 1000, min: 1, max: 1 }];
         check("a deleted item never drops", rollLoot(loot, cfg)?.itemId, "ore");
         check("an empty table gives nothing", rollLoot([], cfg), null);
-
-        const grid = makeGrid({ size: 16, finds: 5, hazards: 2 });
-        check("grid has 5 finds", grid.filter(c => c === "find").length, 5);
-        check("grid has 2 hazards", grid.filter(c => c === "hazard").length, 2);
-        const loc = { difficulty: { finds: 5, hazards: 3, tries: 5 } } as any;
-        check("skill 50 adds tries", gridRules(loc, 50).tries, 9);
-        check("skill eases hazards to a floor of 1", gridRules(loc, 50).hazards, 1);
 
         // Timing: the window grows with skill but never drops under 2.5 s; rarer finds fight back.
         check("timing window at skill 1", timingWindowMs({ difficulty: {} } as any, 1), 3000);
@@ -3113,8 +3150,23 @@ async function main() {
         const find = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "find", words: { prompt: "Look for it!" } }] }, "x").content.gathering!.activities.diving as any;
         check("words that drop a {placeholder} keep the default", find.words.prompt, "Search the undergrowth for the {target}!");
         const dug = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "dig", colours: { rock: "#46405A", light: "nope", back: 5 } }] }, "x").content.gathering!.activities.diving as any;
-        check("a dig world keeps only well-formed colours", [dug.game, dug.colours], ["dig", { rock: "#46405a" }]);
-        check("colours set over a look work out the rest", [digPalette("ice", { rock: "#46405a" }).rock, digPalette("ice", { rock: "#46405a" }).light, digPalette("ice").vein], ["#46405a", "#aadcff", "#c4e2f0"]);
+        check("a legacy dig world becomes Grid and keeps well-formed colours", [dug.game, dug.colours], ["grid", { rock: "#46405a" }]);
+        for (const game of ["timing", "find"]) {
+            const coloured = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game, colours: { rock: "#46405A", light: "nope" } }] }, "x").content.gathering!.activities.diving as any;
+            check(`${game} worlds keep valid scene colours`, coloured.colours, { rock: "#46405a" });
+        }
+        const signalScene = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "timing", timingScene: "signal" }] }, "x").content.gathering!.activities.diving as any;
+        check("AI timing activities can select a non-fishing setting", signalScene.timingScene, "signal");
+        const defaultScene = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "timing" }] }, "x").content.gathering!.activities.diving as any;
+        check("AI timing defaults do not inherit the fishing starter pack scene", defaultScene.timingScene, "workshop");
+        const cargoScene = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "find", findScene: "cargo" }] }, "x").content.gathering!.activities.diving as any;
+        check("AI Find activities can choose a setting beyond the forest", cargoScene.findScene, "cargo");
+        const defaultFind = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "find" }] }, "x").content.gathering!.activities.diving as any;
+        check("AI Find keeps its default setting when unspecified", defaultFind.findScene, "clearing");
+        const puzzleWorld = buildPack({ ...skeleton, activities: [{ ...skeleton.activities[0]!, game: "puzzle", puzzleScene: "circuit", words: { solved: "Systems restored!" } }] }, "x").content.gathering!.activities.diving as any;
+        check("AI worlds can create Puzzle activities", [puzzleWorld.game, puzzleWorld.puzzleScene, puzzleWorld.words.solved], ["puzzle", "circuit", "Systems restored!"]);
+        check("Puzzle location rules come from the balanced template", puzzleWorld.locations.pier.difficulty, { extraMoves: 6, rewards: 3 });
+        check("colours set over a look work out the rest", [gridPalette("ice", { rock: "#46405a" }).rock, gridPalette("ice", { rock: "#46405a" }).light, gridPalette("ice").vein], ["#46405a", "#aadcff", "#c4e2f0"]);
         check("apostrophes don't split ids", Object.keys(buildPack({ ...skeleton, materials: [{ ...w("Keeper's Relic"), key: "r", description: "" }] }, "x").content.shop.items).includes("keepers-relic"), true);
         // Replies aren't schema-checked: wrapped in prose, or missing whole parts, they still build.
         const loose = parseSkeleton('Here you go:\n```json\n{"name":"Tiny","enemies":[{"key":"a","name":"Ant","level":"3","moves":"no"}]}\n```');

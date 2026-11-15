@@ -1,6 +1,8 @@
 import type { Requirements } from "./requirements.js";
-import type { DigColours, DigLook } from "../content/digLooks.js";
-export type { DigColours, DigLook };
+import type { GridColours, GridLook } from "../content/gridLooks.js";
+import type { TimingScene, FindScene } from "../content/gatheringScenes.js";
+import type { PuzzleScene } from "../content/puzzleDraw.js";
+export type { GridColours, GridLook };
 
 /**
  * Gathering: owner-made activities, each played as one of a set of button
@@ -8,8 +10,7 @@ export type { DigColours, DigLook };
  * a starter pack names and words its activities.
  */
 
-/** Wave 2 and 3 add more (codebreaker, trail, forge, memory, sequence). */
-export type GameType = "grid" | "timing" | "find" | "dig";
+export type GameType = "grid" | "timing" | "find" | "puzzle";
 
 export interface GatheringLoot {
     itemId: string;
@@ -21,10 +22,10 @@ export interface GatheringLoot {
 
 /** Rules that change how one game plays (player/twists.ts RULES says what each does). */
 export type TwistRule =
-    | "grid.adjacent" | "grid.clustered" | "grid.unstable"
+    | "grid.adjacent"
     | "timing.falseAlarm" | "timing.twice" | "timing.fragile"
     | "find.glimpse" | "find.reshuffle" | "find.twin"
-    | "dig.dark" | "dig.seams" | "dig.loose";
+    | "grid.dark" | "grid.seams" | "grid.loose";
 
 /** What a trait or condition does. General effects work in any game; rules only in theirs. */
 export interface TwistEffects {
@@ -71,7 +72,7 @@ export interface GatheringLocation {
     /** Skill XP for finishing a run here. */
     skillXp: number;
     loot: GatheringLoot[];
-    /** Per game. Grid: finds, hazards, tries. Dig: swings, ores, hard, loose. */
+    /** Per game. Grid: swings, ores, hard, loose. */
     difficulty?: Record<string, number>;
     /** Its fixed character. */
     traits?: LocationTrait[];
@@ -92,11 +93,18 @@ export interface GatheringActivity {
     /** Seconds for one point to refill (default 360, so a full bar in an hour). */
     energyRefillSeconds?: number;
     game: GameType;
-    /** Dig only: the setting it's drawn in. A mine when unset. */
-    look?: DigLook;
-    /** Dig only: colours over the look's (content/digLooks.ts), so it can be drawn for any world. */
-    colours?: Partial<DigColours>;
-    /** Per game, every player-visible word. Grid: tile, empty, hazard, hazardLine, leave, tries, verb. */
+    /** Timing's built-in setting. Defaults to the general workshop scene. */
+    timingScene?: TimingScene;
+    /** Find's built-in setting. Defaults to the forest clearing. */
+    findScene?: FindScene;
+    puzzleScene?: PuzzleScene;
+    /** A palette preset for the game's scene. */
+    look?: GridLook;
+    /** Colours over the scene's palette, so it can be drawn for any world. */
+    colours?: Partial<GridColours>;
+    /** Managed image paths for the visual slots supported by this game. */
+    art?: Record<string, string>;
+    /** Per game, every player-visible word. Grid: rock, hard, loose, dark, empty, you, tries, leave, verb. */
     words?: Record<string, string>;
     locations: Record<string, GatheringLocation>;
 }
