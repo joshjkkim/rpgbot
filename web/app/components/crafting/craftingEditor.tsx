@@ -2,6 +2,8 @@
 
 import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { ColorField, Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
 import UploadButton from "@/app/components/ui/uploadButton";
@@ -13,7 +15,7 @@ import { ItemField } from "@/app/components/ui/pickers";
 
 // ─── Types (mirrored from havocish/src/types/crafting.ts) ───────────────────────
 
-export interface RecipeItem { itemId: string; quantity: number }
+export interface RecipeItem { itemId: string; quantity: number; petId?: string }
 
 export interface Recipe {
   id: string;
@@ -90,6 +92,7 @@ const WORDS: Array<{ key: string; label: string; fallback: string; styles: Style
   { key: "full", label: "Every slot in use", fallback: "Every slot is in use. Collect something first.", styles: ["timed"] },
   { key: "nothing", label: "Nothing ready yet", fallback: "Nothing is ready yet.", styles: ["timed"] },
   { key: "refunded", label: "A removed recipe refunded", fallback: "A removed recipe gave back what it took.", styles: ["timed"] },
+  { key: "hatched", label: "After a pet hatches", fallback: "Meet them with `/pet`.", styles: ["timed"] },
 ];
 
 export interface CraftingConfig {
@@ -104,7 +107,11 @@ type ShopItems = Record<string, { name?: string; emoji?: string; actions?: Recor
 const smallButton = "inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]";
 const removeButton = "text-[var(--muted)] transition-colors hover:text-red-400";
 
-function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }: {
+type PetOptions = Record<string, { name?: string; emoji?: string }>;
+
+function RecipeEditor({ guildId, recipe, station, shopItems, skills, pets, onChange, onRemove }: {
+  guildId: string;
+  pets: PetOptions;
   recipe: Recipe;
   station: CraftingStation;
   shopItems: ShopItems;
@@ -115,7 +122,8 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
   const inputs = recipe.inputs ?? [];
   const masterwork = recipe.masterwork ?? [];
   const total = masterwork.reduce((s, m) => s + (m.chance > 0 && shopItems[m.itemId] ? m.chance : 0), 0);
-  const out = shopItems[recipe.output?.itemId ?? ""];
+  const pet = recipe.output?.petId ? pets[recipe.output.petId] : undefined;
+  const out = pet ?? shopItems[recipe.output?.itemId ?? ""];
   // The recipe scrolls that teach this one.
   const taughtBy = Object.values(shopItems).filter((it) => Object.values(it.actions ?? {})
     .some((a) => a?.type === "learnRecipe" && a.stationId === station.id && a.recipeId === recipe.id));
@@ -127,9 +135,21 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
         <button type="button" aria-label="Remove recipe" onClick={onRemove} className={removeButton}><Trash2 size={14} /></button>
       </div>
 
+      {station.style === "timed" && (
+        <Toggle label="Makes a pet" checked={recipe.output?.petId !== undefined} onChange={(v) => onChange({ ...recipe, output: v ? { itemId: "", quantity: 1, petId: Object.keys(pets)[0] ?? "" } : { itemId: "", quantity: 1 } })}
+          hint={recipe.output?.petId !== undefined ? "Collecting hatches a pet of this species. A member with as many pets as allowed is told, and it waits for them." : "For a nursery: an egg goes in, a pet comes out."} />
+      )}
       <FieldGrid>
-        <ItemField items={shopItems} label="Makes" value={recipe.output?.itemId ?? ""} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, itemId: v } })} emptyLabel="Choose an item" />
-        <NumberField label="How many" value={recipe.output?.quantity ?? 1} min={1} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, quantity: v } })} />
+        {recipe.output?.petId !== undefined ? (
+          <SelectField label="Hatches" value={recipe.output.petId} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, petId: v } })}
+            options={[{ value: "", label: "Choose a species" }, ...Object.entries(pets).map(([id, p]) => ({ value: id, label: `${p.emoji ?? ""} ${p.name ?? id}`.trim() }))]}
+            hint={<>{pet ? <Link href={`/dashboard/${guildId}/pets?open=${recipe.output.petId}`} className="text-[var(--accent)] underline">Edit {pet.name} on the Pets page</Link> : <Link href={`/dashboard/${guildId}/pets`} className="text-[var(--accent)] underline">Make species on the Pets page</Link>}.</>} />
+        ) : (
+          <>
+            <ItemField items={shopItems} label="Makes" value={recipe.output?.itemId ?? ""} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, itemId: v } })} emptyLabel="Choose an item" />
+            <NumberField label="How many" value={recipe.output?.quantity ?? 1} min={1} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, quantity: v } })} />
+          </>
+        )}
         <NumberField label={`${station.skillName || "Skill"} needed`} value={recipe.minSkill ?? 1} min={1} onChange={(v) => onChange({ ...recipe, minSkill: v })} />
         <NumberField label="Skill XP per craft" value={recipe.skillXp ?? 20} min={0} onChange={(v) => onChange({ ...recipe, skillXp: v })} />
         <NumberField label="Gold it also costs" value={recipe.gold ?? 0} min={0} onChange={(v) => onChange({ ...recipe, gold: v > 0 ? v : undefined })} />
@@ -198,8 +218,10 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
   );
 }
 
-export default function CraftingEditor({ guildId, value, onChange, shopItems, skills }: {
+export default function CraftingEditor({ guildId, value, onChange, shopItems, skills, pets = {} }: {
   guildId: string;
+  /** Pet species, for nursery recipes. */
+  pets?: PetOptions;
   value: CraftingConfig | null | undefined;
   onChange: (next: CraftingConfig) => void;
   shopItems: ShopItems;
@@ -207,6 +229,8 @@ export default function CraftingEditor({ guildId, value, onChange, shopItems, sk
   skills: SkillOption[];
 }) {
   const [local, setLocal] = useState<CraftingConfig>(value ?? DEFAULT_CRAFTING);
+  // ?open=<station id> opens that station, for links from other pages.
+  const [open, setOpen] = useState<string | null>(useSearchParams().get("open"));
   useEffect(() => {
     setLocal(value ?? DEFAULT_CRAFTING);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -341,7 +365,9 @@ export default function CraftingEditor({ guildId, value, onChange, shopItems, sk
               <RecipeEditor
                 key={r.id}
                 recipe={r}
+                guildId={guildId}
                 station={st}
+                pets={pets}
                 shopItems={shopItems}
                 skills={skills}
                 onChange={setRecipe}
@@ -393,6 +419,8 @@ export default function CraftingEditor({ guildId, value, onChange, shopItems, sk
             commit({ ...local, stations: next });
           }}
           renderItem={renderStation}
+          selected={open && local.stations?.[open] ? open : null}
+          onSelect={setOpen}
         />
       </Section>
 

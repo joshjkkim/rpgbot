@@ -209,6 +209,12 @@
     "options": []
   },
   {
+    "name": "pet",
+    "description": "See your pet: feed it, rename it, or switch to another",
+    "managersOnly": false,
+    "options": []
+  },
+  {
     "name": "profile",
     "description": "View your profile",
     "managersOnly": false,

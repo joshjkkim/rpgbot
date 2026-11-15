@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Section } from "@/app/components/ui/form";
@@ -66,7 +67,8 @@ export default function ItemsEditor({
   const shop = useMemo(() => dropRetiredActions(config.shop ?? {}), [config.shop]);
   const items = shop.items ?? {};
   const [filter, setFilter] = useState<Filter>("all");
-  const [picked, setSelected] = useState<string | null>(null);
+  // ?open=<item id> opens that item, for links from other pages.
+  const [picked, setSelected] = useState<string | null>(useSearchParams().get("open"));
   // An item deleted while open simply stops being selected.
   const selected = picked && items[picked] ? picked : null;
 
@@ -150,7 +152,7 @@ export default function ItemsEditor({
                   {warnings.map((w) => <li key={w}>{w}</li>)}
                 </ul>
               )}
-              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} skills={skillOptions(config)} stations={(config.crafting?.stations ?? {}) as StationOptions} moves={config.combat?.moves ?? DEFAULT_MOVES} />
+              <ItemForm item={item} onChange={upsert} allItems={items} categoryOptions={categoryOptions} activities={activities} skills={skillOptions(config)} stations={(config.crafting?.stations ?? {}) as StationOptions} moves={config.combat?.moves ?? DEFAULT_MOVES} pets={config.pets?.species ?? {}} />
             </div>
           );
         }}

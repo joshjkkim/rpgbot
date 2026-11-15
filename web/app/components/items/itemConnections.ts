@@ -15,7 +15,7 @@ type Item = {
   equipable?: boolean; equipSlot?: string; sellPrice?: number | null; tradeable?: boolean;
   tool?: { activityId: string; tier?: number };
   effects?: { stats?: Record<string, number | undefined> };
-  actions?: Record<number, { type: string; itemId?: string; quantity?: number; statId?: string; amount?: number; stationId?: string; recipeId?: string; moveId?: string }>;
+  actions?: Record<number, { type: string; itemId?: string; quantity?: number; statId?: string; amount?: number; stationId?: string; recipeId?: string; moveId?: string; petId?: string }>;
 };
 type Loot = { itemId: string; chance: number };
 
@@ -95,6 +95,10 @@ export function itemConnections(config: DashboardConfig, id: string) {
       const m = config.combat?.moves?.[act.moveId ?? ""] ?? DEFAULT_MOVES[act.moveId ?? ""];
       if (m) to.push({ label: `Teaches: ${m.emoji} ${m.name}`, detail: "fight move", page: "combat" });
       else warnings.push("It teaches a move that no longer exists.");
+    } else if (act.type === "givePet") {
+      const pet = config.pets?.species?.[act.petId ?? ""];
+      if (pet) to.push({ label: `Gives a pet: ${pet.emoji} ${pet.name}`, detail: "when used", page: "pets" });
+      else warnings.push("It gives a pet that no longer exists.");
     } else if (act.type === "giveStat") {
       to.push({ label: `Use: gives ${act.amount ?? 0} ${act.statId || "of a stat"}` });
     } else {

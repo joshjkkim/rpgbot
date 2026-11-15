@@ -22,6 +22,7 @@ import { handleHelpButton } from "../commands/user/help.js";
 import { handleConfigButton } from "../commands/admin/configGeneral.js";
 import { handleGatherButton } from "../commands/user/gather.js";
 import { handleCraftButton } from "../commands/user/craft.js";
+import { handlePetInteraction } from "../commands/user/pet.js";
 import { handleMovesSelect } from "../commands/user/moves.js";
 import { handleCollectionSelect } from "../commands/user/collection.js";
 import { busyFighting } from "../player/fight.js";
@@ -76,6 +77,11 @@ export function registerInteractionCreate(client: Client) {
                     await interaction.reply({ content: busy, flags: MessageFlags.Ephemeral });
                     return;
                 }
+            }
+
+            if ((interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) && interaction.customId.startsWith("pet:")) {
+                await handlePetInteraction(interaction);
+                return;
             }
 
             if ((interaction.isButton() || interaction.isStringSelectMenu()) && interaction.customId.startsWith("upgrade:")) {

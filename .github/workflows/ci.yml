@@ -41,6 +41,9 @@ jobs:
       - name: Timed station checks (no database)
         run: npm --workspace havocish run check:stations
 
+      - name: Pet checks (no database)
+        run: npm --workspace havocish run check:pets
+
       - name: Typecheck the dashboard
         working-directory: web
         run: npx tsc --noEmit
