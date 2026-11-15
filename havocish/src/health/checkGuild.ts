@@ -298,8 +298,12 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                 issues.push({ severity: "warning", message: `Nobody can start ${st.name}: it has no recipe open at skill 1.`, page: "crafting" });
             }
             for (const r of recipes) {
-                const name = items[r.output?.itemId]?.name ?? "a recipe";
-                item(r.output?.itemId, `${st.name}'s recipe for ${name}`, "crafting");
+                const pet = r.output?.petId ? config.pets?.species?.[r.output.petId] : undefined;
+                const name = pet?.name ?? items[r.output?.itemId]?.name ?? "a recipe";
+                if (r.output?.petId) {
+                    if (!pet) issues.push({ severity: "warning", message: `${st.name} has a recipe that hatches a pet that no longer exists, so nobody can start it.`, page: "crafting" });
+                    else if (st.style !== "timed") issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} makes a pet, which only works at a timed station.`, page: "crafting" });
+                } else item(r.output?.itemId, `${st.name}'s recipe for ${name}`, "crafting");
                 if ((r.inputs ?? []).some((i) => !items[i.itemId])) {
                     issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} needs an item that no longer exists, so nobody can make it.`, page: "crafting" });
                 }
@@ -307,6 +311,20 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                     issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} is hidden, but no item teaches it. Make a recipe scroll on the Items page, or unhide it.`, page: "crafting" });
                 }
             }
+        }
+    }
+
+    if (config.pets?.enabled) {
+        const species = Object.values(config.pets.species ?? {});
+        if (!species.length) issues.push({ severity: "warning", message: "Pets are on but there are no species.", page: "pets" });
+        for (const sp of species) if (!(sp.moves ?? []).length && !(sp.stages ?? []).some((st) => st.moves?.length)) {
+            issues.push({ severity: "warning", message: `${sp.name} has no moves, so it does nothing in fights.`, page: "pets" });
+        }
+        for (const id of Object.keys(config.pets.foods ?? {})) if (!items[id]) issues.push({ severity: "warning", message: "A pet food is an item that no longer exists.", page: "pets" });
+    }
+    for (const it of Object.values(items)) {
+        for (const a of Object.values(it.actions ?? {})) {
+            if (a?.type === "givePet" && !config.pets?.species?.[a.petId ?? ""]) issues.push({ severity: "warning", message: `${it.name} gives a pet that no longer exists.`, page: "items" });
         }
     }
 

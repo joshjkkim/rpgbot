@@ -23,6 +23,7 @@ import type { DbUserGuildProfile } from "../../types/userprofile.js";
 import { bar } from "./me.js";
 import { memberFacts, type MemberFacts } from "../../player/requirements.js";
 import { renderStationScene } from "../../ui/canvas/stationScene.js";
+import { speciesOf } from "../../player/pets.js";
 
 export const data = new SlashCommandBuilder()
     .setName("craft")
@@ -49,7 +50,14 @@ const WORDS = {
     collected: "Collected",
     refunded: "A removed recipe gave back what it took.",
     nothing: "Nothing is ready yet.",
+    hatched: "Meet them with `/pet`.",
 };
+
+/** What a recipe makes, for labels: an item, or a pet in a nursery. */
+function outputLabel(config: GuildConfig, recipe: Recipe) {
+    const pet = recipe.output.petId ? speciesOf(config, recipe.output.petId) : undefined;
+    return pet ? `${pet.emoji} ${pet.name}` : itemLabel(config, recipe.output.itemId);
+}
 
 /** "1h 30m", "2d 4h", "45m". */
 export function durationText(minutes: number) {
@@ -168,7 +176,7 @@ function render(ownerId: string, station: CraftingStation, profile: DbUserGuildP
             const slot = slots[n];
             if (!slot) return `${n + 1}. ${w.empty}`;
             const recipe = station.recipes?.[slot.recipeId];
-            const name = recipe ? itemLabel(config, recipe.output.itemId) : "?";
+            const name = recipe ? outputLabel(config, recipe) : "?";
             return `${n + 1}. ${name} · ${slotReady(slot, now) ? `**${w.ready}**` : fillWord(w.waiting, { time: `<t:${Math.ceil(Date.parse(slot.doneAt) / 1000)}:R>` })}`;
         });
         const anyReady = slots.some((slot) => slotReady(slot, now));
@@ -188,7 +196,7 @@ function render(ownerId: string, station: CraftingStation, profile: DbUserGuildP
         const hiddenNow = state.locked === "hidden";
         const title = hiddenNow
             ? `**???** · ${station.skillName} ${recipe.minSkill ?? 1}`
-            : `**${itemLabel(config, recipe.output.itemId)}**${(recipe.output.quantity ?? 1) > 1 ? ` ×${recipe.output.quantity}` : ""}` +
+            : `**${outputLabel(config, recipe)}**${(recipe.output.quantity ?? 1) > 1 ? ` ×${recipe.output.quantity}` : ""}` +
               (state.locked === "skill" ? ` · 🔒 ${station.skillName} ${recipe.minSkill}` : "");
         const needs = hiddenNow ? "-# An undiscovered recipe." : `-# ${[
             ...state.inputs.map((i) => `${i.have >= i.need ? "" : "❌ "}${itemLabel(config, i.itemId)} ${Math.min(i.have, i.need)}/${i.need}`),
@@ -221,7 +229,7 @@ async function view(ownerId: string, station: CraftingStation, profile: DbUserGu
             if (!slot) return { stage: "empty" as const, progress: 0 };
             const recipe = station.recipes?.[slot.recipeId];
             const total = (recipe ? recipeMinutes(recipe) : 1) * 60_000;
-            const symbol = recipe ? config.shop?.items?.[recipe.output.itemId]?.emoji : undefined;
+            const symbol = recipe ? (recipe.output.petId ? speciesOf(config, recipe.output.petId)?.emoji : config.shop?.items?.[recipe.output.itemId]?.emoji) : undefined;
             return slotReady(slot, now)
                 ? { stage: "ready" as const, progress: 1, ...(symbol && { symbol }) }
                 : { stage: "growing" as const, progress: 1 - (Date.parse(slot.doneAt) - now) / total, ...(symbol && { symbol }) };
@@ -232,9 +240,12 @@ async function view(ownerId: string, station: CraftingStation, profile: DbUserGu
 
 function harvestLine(h: Harvest, station: CraftingStation, config: GuildConfig) {
     const w = { ...WORDS, ...(station.words ?? {}) };
-    if (!h.gave.length && !h.refunded) return w.nothing;
+    if (!h.gave.length && !h.refunded && !h.pets.length) return h.petsFull ?? w.nothing;
+    const got = [...h.gave.map((g) => `${g.masterwork ? "✨ " : ""}${itemLabel(config, g.itemId, g.quantity)}`), ...h.pets.map((name) => `🐾 **${name}**`)];
     return [
-        ...(h.gave.length ? [`${w.collected} ${h.gave.map((g) => `${g.masterwork ? "✨ " : ""}${itemLabel(config, g.itemId, g.quantity)}`).join(", ")}${h.xp ? ` · +${h.xp} ${station.skillName} XP` : ""}`] : []),
+        ...(got.length ? [`${w.collected} ${got.join(", ")}${h.xp ? ` · +${h.xp} ${station.skillName} XP` : ""}`] : []),
+        ...(h.pets.length ? [w.hatched] : []),
+        ...(h.petsFull ? [h.petsFull] : []),
         ...(h.refunded ? [w.refunded] : []),
     ].join(" ");
 }
@@ -295,7 +306,7 @@ export async function handleCraftButton(interaction: ButtonInteraction) {
         let harvest: Awaited<ReturnType<typeof collectTimed>> | null = null;
         if (action === "start") {
             status = !recipe || station.style !== "timed" ? "That recipe was removed."
-                : await startTimed({ ...ids, config, station, recipe, ...(facts && { facts }), full: w.full }) ?? fillWord(w.started, { item: itemLabel(config, recipe.output.itemId) });
+                : await startTimed({ ...ids, config, station, recipe, ...(facts && { facts }), full: w.full }) ?? fillWord(w.started, { item: outputLabel(config, recipe) });
         } else {
             harvest = await collectTimed({ ...ids, config, station });
             status = harvestLine(harvest, station, config);

@@ -2,6 +2,7 @@ import type { AchievementsConfig } from "@/app/components/achievements/achieveme
 import type { CombatConfig } from "@/app/components/combat/combatEditor";
 import type { GatheringConfig } from "@/app/components/gathering/gatheringEditor";
 import type { CraftingConfig } from "@/app/components/crafting/craftingEditor";
+import type { PetsConfig } from "@/app/components/pets/petsEditor";
 import type { LevelsConfig } from "@/app/components/levels/levelsEditor";
 import type { RoleRewardsConfig } from "@/app/components/levels/roleRewardsEditor";
 import type { CollectionsConfig } from "@/app/components/collections/collectionsEditor";
@@ -31,6 +32,7 @@ export type DashboardConfig = {
   combat?: CombatConfig;
   gathering?: GatheringConfig;
   crafting?: CraftingConfig;
+  pets?: PetsConfig;
   quests?: QuestsConfig;
   achievements?: AchievementsConfig;
   style?: StyleConfig;

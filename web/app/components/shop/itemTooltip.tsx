@@ -40,6 +40,8 @@ function describeAction(a: shopItemAction) {
       return "Teaches a crafting recipe.";
     case "learnMove":
       return "Teaches a fight move.";
+    case "givePet":
+      return "Gives a pet.";
   }
 }
 

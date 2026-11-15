@@ -1,5 +1,6 @@
 import type { GatheringProgress } from "./gathering.js";
 import type { CraftingProgress } from "./crafting.js";
+import type { PetsProgress } from "./pets.js";
 import type { QueryResultRow } from "pg";
 import type { UserQuestState } from "./quest.js";
 
@@ -41,6 +42,8 @@ export interface UserStats {
     gathering?: GatheringProgress;
     /** Skill XP, craft count and learned hidden recipes per crafting station. */
     crafting?: CraftingProgress;
+    /** Pets owned and the active one (player/pets.ts). */
+    pets?: PetsProgress;
     /** Combat XP. Missing means "not split off yet": combatLevel.ts starts it from chat XP. */
     combat?: { xp: number };
     /** Role ids whose role reward this member has had, so re-adding a role pays nothing. */

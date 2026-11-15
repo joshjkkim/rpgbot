@@ -22,6 +22,7 @@ const FEATURE_NAMES: Record<(typeof PACK_FEATURES)[number], string> = {
   achievements: "Achievements",
   gathering: "Gathering",
   crafting: "Crafting",
+  pets: "Pets",
 };
 
 type Row = { id: string; label: string; detail?: string; colour?: string; group?: string };

@@ -5,6 +5,7 @@ import type { QuestConfig } from "./quest.js";
 import type { EnemyConfig, MoveConfig, PlaceConfig, StatusConfig } from "./combat.js";
 import type { GatheringConfig } from "./gathering.js";
 import type { CraftingConfig } from "./crafting.js";
+import type { PetsConfig } from "./pets.js";
 import type { Requirements } from "./requirements.js";
 export interface DbGuild {
     id: number;
@@ -311,6 +312,8 @@ export interface GuildConfig {
     },
     gathering: GatheringConfig;
     crafting: CraftingConfig;
+    /** Owner-made pets (player/pets.ts). Unset: pets are off. */
+    pets?: PetsConfig;
     /** Announces rare items as they're found or made (ui/rareFinds.ts). Off without a channel. */
     rareFinds?: { channelId?: string | null; minRarity?: ItemRarity };
     /**

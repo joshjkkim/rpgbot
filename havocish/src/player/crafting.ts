@@ -7,6 +7,7 @@ import { getOrCreateProfile, commitProfileChanges } from "../cache/profileServic
 import { addToBag, rollLoot, skillLevel } from "./gathering.js";
 import { checkRequirements, type MemberFacts } from "./requirements.js";
 import { runQuestPipeline } from "./quests.js";
+import { addPet, speciesOf } from "./pets.js";
 
 /**
  * Crafting's rules: which recipes a member can see and make, and making one.
@@ -64,7 +65,8 @@ export function recipeState(recipe: Recipe, profile: DbUserGuildProfile, config:
     const inv = profile.inventory ?? {};
     const inputs = (recipe.inputs ?? []).map((i) => ({ itemId: i.itemId, need: Math.max(1, i.quantity ?? 1), have: inv[i.itemId]?.quantity ?? 0 }));
     const gold = { need: Math.max(0, recipe.gold ?? 0), have: Number(profile.gold ?? 0) };
-    const broken = !items[recipe.output?.itemId] || inputs.some((i) => !items[i.itemId]);
+    const output = recipe.output?.petId ? !!speciesOf(config, recipe.output.petId) : !!items[recipe.output?.itemId];
+    const broken = !output || inputs.some((i) => !items[i.itemId]);
     // Without facts (no Discord member to hand), requirements aren't checked; every craft path passes them.
     const gate = facts ? checkRequirements(recipe.requirements, { profile, config, facts }) : { ok: true, message: "" };
     const locked = broken ? "broken"
@@ -250,6 +252,10 @@ export function plantTimed(p: DbUserGuildProfile, config: GuildConfig, station: 
 
 export type Harvest = {
     gave: { itemId: string; quantity: number; masterwork: boolean }[];
+    /** Pets hatched, by name. */
+    pets: string[];
+    /** Ready pets left waiting because the member has as many as allowed. */
+    petsFull: string | null;
     /** Slots whose recipe was removed: their inputs went back. */
     refunded: number;
     xp: number;
@@ -264,10 +270,20 @@ export function harvestTimed(p: DbUserGuildProfile, config: GuildConfig, station
     const inv: Record<string, item> = { ...(p.inventory ?? {}) };
     let gold = BigInt(p.gold ?? 0), xp = 0, refunded = 0;
     const gave: Harvest["gave"] = [];
+    const pets: string[] = [];
+    let petsFull: string | null = null;
     const waiting: TimedSlot[] = [];
     for (const slot of mine.slots ?? []) {
         if (!slotReady(slot, now)) { waiting.push(slot); continue; }
         const recipe = station.recipes?.[slot.recipeId];
+        if (recipe?.output?.petId && speciesOf(config, recipe.output.petId)) {
+            // Hatches into the member's pets; when they have the most allowed, it waits, ready.
+            const pet = addPet(p, config, recipe.output.petId);
+            if ("refused" in pet) { petsFull = pet.refused; waiting.push(slot); continue; }
+            pets.push(pet.name);
+            xp += Math.max(0, recipe.skillXp ?? 0);
+            continue;
+        }
         if (!recipe || !items[recipe.output?.itemId]) {
             for (const i of slot.inputs ?? []) addToBag(inv, config, i.itemId, i.quantity);
             gold += BigInt(slot.gold ?? 0);
@@ -281,15 +297,17 @@ export function harvestTimed(p: DbUserGuildProfile, config: GuildConfig, station
         xp += Math.max(0, recipe.skillXp ?? 0);
     }
     const skillBefore = skillLevel(mine.xp, config);
-    if (gave.length || refunded) {
+    if (gave.length || refunded || pets.length) {
+        const made = gave.length + pets.length;
+        // addPet above may have replaced user_stats; build on what's there now.
         const stats = { ...(p.user_stats ?? {}) } as NonNullable<typeof p.user_stats>;
-        stats.crafting = { ...(stats.crafting ?? {}), [station.id]: { ...mine, slots: waiting, xp: mine.xp + xp, crafts: mine.crafts + gave.length } };
-        stats.craftsMade = (stats.craftsMade ?? 0) + gave.length;
+        stats.crafting = { ...(stats.crafting ?? {}), [station.id]: { ...mine, slots: waiting, xp: mine.xp + xp, crafts: mine.crafts + made } };
+        stats.craftsMade = (stats.craftsMade ?? 0) + made;
         p.inventory = inv;
         p.gold = gold.toString();
         p.user_stats = stats;
     }
-    return { gave, refunded, xp, skillBefore, skillAfter: skillLevel(mine.xp + xp, config) };
+    return { gave, pets, petsFull, refunded, xp, skillBefore, skillAfter: skillLevel(mine.xp + xp, config) };
 }
 
 export async function startTimed(opts: { userId: number; guildId: number; config: GuildConfig; station: CraftingStation; recipe: Recipe; facts?: MemberFacts; full?: string }): Promise<string | null> {
@@ -313,7 +331,7 @@ export async function collectTimed(opts: { userId: number; guildId: number; conf
     let p = cached.profile;
     const baseline = { xp: p.xp, gold: p.gold };
     const harvest = harvestTimed(p, config, station);
-    if (!harvest.gave.length && !harvest.refunded) return { ...harvest, questsCompleted: [] };
+    if (!harvest.gave.length && !harvest.refunded && !harvest.pets.length) return { ...harvest, questsCompleted: [] };
     let pending = { ...(cached.pendingChanges ?? {}), inventory: p.inventory, user_stats: p.user_stats, ...(p.gold !== baseline.gold && { gold: p.gold }) } as PendingProfileChanges;
     const questsCompleted: string[] = [];
     for (const g of harvest.gave) {

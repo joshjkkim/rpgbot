@@ -22,6 +22,7 @@ export const ITEM_ACTION_TYPES = [
   { value: "giveItem" as const, label: "Give item" },
   { value: "learnRecipe" as const, label: "Teach a recipe" },
   { value: "learnMove" as const, label: "Teach a fight move" },
+  { value: "givePet" as const, label: "Give a pet" },
 ];
 
 /** Crafting stations, as the "teach a recipe" action needs them. */
@@ -134,6 +135,7 @@ export default function ItemForm({
   skills,
   stations,
   moves,
+  pets = {},
 }: {
   item: shopItemConfig;
   onChange: (next: shopItemConfig) => void;
@@ -148,6 +150,8 @@ export default function ItemForm({
   stations: StationOptions;
   /** Fight moves, so gear can give one and scrolls can teach one. */
   moves: Record<string, { name?: string; emoji?: string; players?: { learned?: boolean } }>;
+  /** Pet species, for the "give a pet" action. */
+  pets?: Record<string, { name?: string; emoji?: string }>;
 }) {
   const [tab, setTab] = useState<Tab>("basics");
   const upsertItem = onChange;
@@ -534,6 +538,16 @@ export default function ItemForm({
                             label: `${m.emoji ?? ""} ${m.name ?? id}${m.players?.learned ? "" : " (doesn't need learning)"}`.trim(),
                           }))]}
                           hint="Turn on “Must be learned” for the move on the Combat page, so members only get it from this."
+                        />
+                      )}
+
+                      {action.type === "givePet" && (
+                        <SelectField
+                          label="Pet"
+                          value={action.petId ?? ""}
+                          onChange={(v) => patch({ petId: v })}
+                          options={[{ value: "", label: "Choose a species" }, ...Object.entries(pets).map(([id, p]) => ({ value: id, label: `${p.emoji ?? ""} ${p.name ?? id}`.trim() }))]}
+                          hint="Using the item gives the member this pet, if they have room. Make species on the Pets page."
                         />
                       )}
 

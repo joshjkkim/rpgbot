@@ -89,6 +89,7 @@ import { imgCache } from "../src/cache/caches.js";
 import { tipOnce } from "../src/player/tips.js";
 import { grantLevelRewards, grantRoleRewards, resetRoleRewards } from "../src/player/levelRewards.js";
 import { rpgLevelUpCard } from "../src/ui/rpgLevelUpCard.js";
+import { feedPet } from "../src/player/pets.js";
 import { collectTimed, craftOnce, forgeRules, judgeForge, learnRecipe, placeForge, recipeState, recipeToLearn, startTimed } from "../src/player/crafting.js";
 import { energyNow, rollLoot, skillLevel, skillXpForLevel, spentEnergy } from "../src/player/gathering.js";
 import { conditionNow, conditionSlot, runMods } from "../src/player/twists.js";
@@ -2468,6 +2469,36 @@ async function main() {
         check("a ready slot collects its output", `${got.gave.map((g) => g.itemId).join(",")}|${(harvested.inventory.sword?.quantity ?? 0) - swordsBefore}`, "sword|1");
         check("collecting empties the slot and gives XP", `${harvested.user_stats.crafting?.farm?.slots?.length}|${harvested.user_stats.crafting?.farm?.xp}`, `0|${recipe.skillXp}`);
         check("collecting twice gives nothing", (await collectTimed({ userId: ids.userId, guildId: ids.guildId, config, station: timed })).gave.length, 0);
+    });
+
+    await test("pets: a nursery hatches one, feeding levels it, all through the profile cache", async () => {
+        const ids = await reset();
+        const config = ids.config;
+        config.shop = { ...config.shop, items: {
+            egg: { id: "egg", name: "Egg", categoryId: "", price: 0 },
+            fish: { id: "fish", name: "Fish", categoryId: "", price: 0 },
+        } } as any;
+        config.pets = { enabled: true, maxOwned: 1, foods: { fish: 500 }, species: {
+            wolf: { id: "wolf", name: "Wolf", emoji: "🐺", base: { hp: 40, atk: 5, def: 2, spd: 6 }, growth: { hp: 5, atk: 1, def: 0, spd: 0 }, moves: [{ moveId: "attack" }] },
+        } } as any;
+        const nursery = { id: "nursery", name: "Nursery", emoji: "🪺", skillName: "Beastcraft", enabled: true, style: "timed", timed: { slots: 2 },
+            recipes: { egg: { id: "egg", inputs: [{ itemId: "egg", quantity: 1 }], output: { itemId: "", quantity: 1, petId: "wolf" }, minSkill: 1, skillXp: 10, minutes: 60 } } } as any;
+        const at = { userId: ids.userId, guildId: ids.guildId };
+        const p = (await getOrCreateProfile(at)).profile;
+        p.inventory = { egg: { id: "egg", name: "Egg", quantity: 2 }, fish: { id: "fish", name: "Fish", quantity: 1 } } as any;
+
+        check("an egg goes in", await startTimed({ ...at, config, station: nursery, recipe: nursery.recipes.egg }), null);
+        check("a second egg goes in", await startTimed({ ...at, config, station: nursery, recipe: nursery.recipes.egg }), null);
+        for (const slot of (await getOrCreateProfile(at)).profile.user_stats.crafting!.nursery!.slots!) slot.doneAt = new Date(Date.now() - 1000).toISOString();
+        const hatched = await collectTimed({ ...at, config, station: nursery });
+        const after = (await getOrCreateProfile(at)).profile;
+        check("one hatches", `${hatched.pets.join(",")}|${after.user_stats.pets?.owned.length}`, "Wolf|1");
+        check("the other waits when the member is full", `${!!hatched.petsFull}|${after.user_stats.crafting?.nursery?.slots?.length}`, "true|1");
+        check("the first pet is active", after.user_stats.pets?.active, after.user_stats.pets?.owned[0]?.uid);
+
+        const fed = feedPet(after, config, after.user_stats.pets!.active!, "fish");
+        check("feeding levels it up", !("refused" in fed) && fed.after > fed.before, true);
+        check("feeding uses the food", after.inventory.fish, undefined);
     });
 
     await test("shop categories follow their sort order, hidden flag and roles", async () => {

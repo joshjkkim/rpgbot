@@ -11,6 +11,8 @@ import type { Requirements } from "./requirements.js";
 export interface RecipeItem {
     itemId: string;
     quantity: number;
+    /** Timed stations, as an output: a pet of this species instead of an item (a nursery). */
+    petId?: string;
 }
 
 export interface Recipe {

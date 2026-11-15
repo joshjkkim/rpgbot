@@ -20,6 +20,7 @@ export const KINDS = {
     activities: ["gathering", "activities"],
     conditions: ["gathering", "conditions"],
     stations: ["crafting", "stations"],
+    pets: ["pets", "species"],
     collections: ["collections", "sets"],
     characters: ["characters", "list"],
     unlocks: ["unlocks", "list"],
@@ -39,6 +40,7 @@ const REF_KEYS: Record<string, Kind> = {
     categoryId: "categories",
     characterId: "characters",
     placeId: "places",
+    petId: "pets",
 };
 
 /**
@@ -105,7 +107,7 @@ const FEATURE: Record<Kind, string> = {
     enemies: "combat", moves: "combat", statuses: "combat", places: "combat",
     quests: "quests", achievements: "achievements",
     activities: "gathering", conditions: "gathering",
-    stations: "crafting", collections: "collections", characters: "characters", unlocks: "unlocks",
+    stations: "crafting", pets: "pets", collections: "collections", characters: "characters", unlocks: "unlocks",
 };
 
 /** Adds the planned entries to a copy of `config`, and switches on what the picks are for. */
