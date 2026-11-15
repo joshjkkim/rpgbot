@@ -22,7 +22,7 @@ type EquipSlot =
   | "weapon" | "shield" | "accessory" | "aura";
 
 export interface shopItemAction {
-  type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe" | "learnMove";
+  type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe" | "learnMove" | "givePet";
   roleId?: string;
   message?: string;
   channelId?: string;
@@ -33,6 +33,8 @@ export interface shopItemAction {
   /** learnRecipe: the station and its hidden recipe the item teaches. */
   stationId?: string;
   recipeId?: string;
+  /** givePet: the species it gives. */
+  petId?: string;
   /** learnMove: the fight move the item teaches. */
   moveId?: string;
 }

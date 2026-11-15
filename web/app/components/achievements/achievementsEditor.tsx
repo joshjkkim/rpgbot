@@ -93,6 +93,8 @@ const STATS = [
   { value: "gatherRuns", label: "Gathering runs" },
   { value: "craftsMade", label: "Items crafted" },
   { value: "collectionsCompleted", label: "Collections completed" },
+  { value: "petsAdopted", label: "Pets hatched or adopted" },
+  { value: "petBestLevel", label: "Highest pet level" },
   { value: "goldEarned", label: "Gold earned" },
   { value: "goldSpent", label: "Gold spent" },
 ];

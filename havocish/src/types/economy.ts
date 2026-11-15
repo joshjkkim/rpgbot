@@ -11,7 +11,7 @@ export interface shopCategoryConfig {
 }
 
 export interface shopItemAction {
-    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe" | "learnMove";
+    type: "assignRole" | "removeRole" | "sendMessage" | "giveStat" | "giveItem" | "learnRecipe" | "learnMove" | "givePet";
     roleId?: string;
     message?: string;
     channelId?: string;
@@ -24,6 +24,8 @@ export interface shopItemAction {
     recipeId?: string;
     /** learnMove: the fight move the item teaches. */
     moveId?: string;
+    /** givePet: the species it gives. */
+    petId?: string;
 }
 
 export type EquipSlot = "head" | "body" | "legs" | "feet" | "hands" | "weapon" | "shield" | "accessory" | "aura";

@@ -45,6 +45,7 @@ function describeAction(a: shopItemAction) {
         case "giveItem": return `Gives ${a.quantity ?? 1} x ${a.itemId || "an item"}.`;
         case "learnRecipe": return "Teaches a crafting recipe.";
         case "learnMove": return "Teaches a fight move.";
+        case "givePet": return "Gives a pet.";
     }
 }
 

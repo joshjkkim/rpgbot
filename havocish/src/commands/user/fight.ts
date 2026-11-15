@@ -1,4 +1,6 @@
 import type { AutocompleteInteraction, ButtonInteraction, ChatInputCommandInteraction, Client, ColorResolvable, Message, User } from "discord.js";
+import { DASHBOARD_URL } from "../../ui/dashboardLinks.js";
+import { gridImagePath } from "../../content/gridLooks.js";
 import { needsSetup, setupPrompt } from "../admin/setup.js";
 import { announceRareFinds } from "../../ui/rareFinds.js";
 import { rpgLevelUpCard } from "../../ui/rpgLevelUpCard.js";
@@ -36,7 +38,7 @@ import { combatLevel } from "../../player/combatLevel.js";
 import { questCompleteLines } from "../../player/quests.js";
 import { tipOnce, type Tip } from "../../player/tips.js";
 import { checkProgress } from "../../player/collections.js";
-import { newMoveLines, nextFightLine, questLine } from "../../player/nextSteps.js";
+import { newMoveLines, nextFightLine, questLine, readyLine } from "../../player/nextSteps.js";
 
 // ─── Slash command definition ─────────────────────────────────────────────────
 
@@ -245,9 +247,16 @@ async function drawScene(fight: ActiveFight, config: GuildConfig): Promise<Attac
             name: m.name, hp: m.hp, maxHp: m.stats.maxHp,
             ...(m.avatarUrl && { avatarUrl: m.avatarUrl }),
             ...(m.out === "down" && { down: true }),
-            ...(fight.members.length > 1 && m.userId === fight.enemyTarget && { targeted: true }),
+            ...(fight.members.length > 1 && m.userId === fight.enemyTarget && !fight.enemyTargetPet && { targeted: true }),
             ...(hits?.members[m.userId] && { hit: hits.members[m.userId] }),
             effects: effects(m.state),
+            ...(m.pet && { pet: {
+                emoji: m.pet.emoji,
+                ...(gridImagePath(m.pet.image) && { imageUrl: new URL(gridImagePath(m.pet.image)!, DASHBOARD_URL).href }),
+                ...(fight.petsCanBeHit && { hp: m.pet.hp, maxHp: m.pet.stats.maxHp }),
+                ...(m.pet.out && { down: true }),
+                ...(fight.enemyTargetPet && m.userId === fight.enemyTarget && { targeted: true }),
+            } }),
         })),
     });
     const timeout = new Promise<null>((resolve) => setTimeout(resolve, SCENE_TIMEOUT_MS, null).unref());
@@ -314,6 +323,7 @@ function buildEndEmbed(
     if (summary.xpGained > 0)   rewardLines.push(`⚔️ **+${summary.xpGained}** Combat XP`);
     if (summary.easyShare)      rewardLines.push(`-# Too easy for you: ${Math.round(summary.easyShare * 100)}% XP. Tougher enemies pay in full.`);
     if (summary.combatLevelUp)  rewardLines.push(`**Combat ${summary.combatLevelUp}!**`);
+    if (summary.petLines)       rewardLines.push(...summary.petLines);
     if (summary.goldGained > 0) rewardLines.push(`${goldIcon} **+${summary.goldGained}** gold`);
     if (summary.goldLost > 0)   rewardLines.push(`${goldIcon} **−${summary.goldLost}** gold dropped`);
     const wound = outcome === "loss" ? woundRule(config) : null;
@@ -696,7 +706,7 @@ async function playRoundNow(fight: ActiveFight, client: Client): Promise<{ membe
         const after = await applyFightRewards(summary, fight, member, profile, config);
         results.push({ member, summary });
         const level = combatLevel(after, config);
-        const goal = summary.outcome === "flee" ? null : questLine(config, after.quests as Record<string, UserQuestState> | null) ?? nextFightLine(config, level, !!summary.easyShare);
+        const goal = summary.outcome === "flee" ? null : questLine(config, after.quests as Record<string, UserQuestState> | null) ?? readyLine(after, config) ?? nextFightLine(config, level, !!summary.easyShare);
         next.set(member.userId, [...newMoveLines(config, member.level ?? level, level), ...(goal ? [goal] : [])]);
     }
 
@@ -761,6 +771,7 @@ function buildPartyEndEmbed(
         const lines = [
             summary.xpGained > 0 ? `⚔️ +${summary.xpGained} Combat XP` : "",
             summary.combatLevelUp ? `**Combat ${summary.combatLevelUp}!**` : "",
+            ...(summary.petLines ?? []),
             summary.goldGained > 0 ? `${goldIcon} +${summary.goldGained}` : "",
             summary.goldLost > 0 ? `${goldIcon} −${summary.goldLost}` : "",
             ...summary.itemsDropped.map((d) => {

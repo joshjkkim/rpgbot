@@ -1,4 +1,6 @@
 import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { DASHBOARD_URL } from "../../ui/dashboardLinks.js";
+import { gridImagePath } from "../../content/gridLooks.js";
 import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -9,6 +11,7 @@ import { accentColor } from "../../ui/pager.js";
 import { SLOT_META } from "./inventory.js";
 import { bestTool, enabledActivities, energyNow, skillProgress } from "../../player/gathering.js";
 import { enabledStations } from "../../player/crafting.js";
+import { activePet, petLevel, petLook, petRules } from "../../player/pets.js";
 import { combatProgress } from "../../player/combatLevel.js";
 import type { GuildConfig } from "../../types/guild.js";
 import type { DbUserGuildProfile } from "../../types/userprofile.js";
@@ -98,6 +101,13 @@ async function paneFile(profile: DbUserGuildProfile, config: GuildConfig, name: 
             combatLevel: cp.level, xp: cp.span ? cp.into / cp.span : null,
             hp: resolveCurrentHp(profile, stats, config), maxHp: stats.maxHp,
             status: woundedUntil(profile, config)?.status.emoji ?? null,
+            pet: (() => {
+                const active = petRules(config).enabled ? activePet(profile, config) : null;
+                if (!active) return null;
+                const look = petLook(active.species, petLevel(active.pet, active.species, config));
+                const path = gridImagePath(look.image);
+                return { emoji: look.emoji, ...(path && { imageUrl: new URL(path, DASHBOARD_URL).href }) };
+            })(),
             left: (["head", "body", "hands", "legs", "feet"] as const).map(slotOf),
             right: (["weapon", "shield", "accessory", "aura"] as const).map(slotOf),
         });
@@ -167,6 +177,15 @@ export function renderSheet(profile: DbUserGuildProfile, config: GuildConfig, na
         const bonus = itemBonus(config, itemId, plus);
         return `${emoji} ${label} · **${itemName}**${bonus ? ` (${bonus})` : ""}`;
     });
+    // The active pet sits with the gear: it's what comes into fights alongside it.
+    if (petRules(config).enabled) {
+        const pet = activePet(profile, config);
+        const level = pet ? petLevel(pet.pet, pet.species, config) : 0;
+        const look = pet ? petLook(pet.species, level) : null;
+        gear.push(pet && look
+            ? `🐾 Pet · **${look.emoji} ${pet.pet.name}** (${pet.species.words?.level || "Level"} ${level}${look.stage ? ` ${look.stage}` : ""}${pet.pet.name !== pet.species.name ? `, ${pet.species.name}` : ""})`
+            : "🐾 Pet · _none yet_, see `/pet`");
+    }
     c.addSeparatorComponents(s => s).addTextDisplayComponents(t => t.setContent(`**Equipped**\n${gear.join("\n")}`));
 
     const activities = enabledActivities(config);

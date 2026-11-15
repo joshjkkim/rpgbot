@@ -134,7 +134,21 @@ export interface FightEnemy {
     enrage?: { at: number; statusId: string };
 }
 
+/** A member's pet in a fight: it acts right after them, and what it aims at itself lands on them. */
+export interface FightPet {
+    name: string;
+    emoji: string;
+    stats: FightStats;
+    hp: number;
+    state: FighterState;
+    moves: EnemyMove[];
+    /** Knocked out (only when pets can be hit): sits out the rest of the fight. */
+    out?: boolean;
+    image?: string;
+}
+
 export interface Fighter {
+    pet?: FightPet;
     userId: string;
     name: string;
     stats: FightStats;
@@ -153,6 +167,10 @@ export interface Fight {
     foe: FighterState;
     enemyIntent: string;
     enemyTarget: string;
+    /** The enemy is aiming at enemyTarget's pet instead of them. */
+    enemyTargetPet?: boolean;
+    /** Whether enemies may go for pets (the server's choice). */
+    petsCanBeHit?: boolean;
     lastHits?: { enemy: number; members: Record<string, number> };
     round: number;
     /** Set for a fight that must roll the same way each time it's played the same way (the website's Daily). */
@@ -313,8 +331,11 @@ function signed(n: number): string {
     return n >= 0 ? `+${n}` : `−${Math.abs(n)}`;
 }
 
-/** Plays a move's effects (guard and counter were set up before the turn). */
-function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<string, StatusConfig>): string {
+/**
+ * Plays a move's effects (guard and counter were set up before the turn).
+ * `owner` is set for a pet: what it aims at itself, and "self" conditions, are its owner's.
+ */
+function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<string, StatusConfig>, owner?: Side): string {
     if (move.cooldown) actor.st.cooldowns[move.id] = move.cooldown + 1; // the end of this turn takes one off
     // Only a fighter keeping energy (the Daily's player) spends or builds it.
     if (move.energy && actor.st.energy != null) actor.st.energy = Math.max(0, Math.min(ENERGY_MAX, actor.st.energy - move.energy));
@@ -324,8 +345,8 @@ function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<strin
     for (const e of move.effects ?? []) {
         if (e.type === "guard" || e.type === "counter") continue;
         if (actor.hp <= 0 && e.target !== "self") break;
-        if (!holds(e.when, actor, other) || !rolls(e)) continue;
-        const t = targetOf(e, actor, other);
+        if (!holds(e.when, owner ?? actor, other) || !rolls(e)) continue;
+        const t = targetOf(e, owner ?? actor, other);
         switch (e.type) {
             case "hit": {
                 for (let i = 0; i < Math.max(1, e.hits ?? 1); i++) {
@@ -406,7 +427,7 @@ function fire(actor: Side, other: Side, move: MoveConfig, statuses: Record<strin
 }
 
 /** Takes a side's turn: lost to a stun, spent winding up, or the move itself. */
-function act(actor: Side, other: Side, move: MoveConfig | null, config: FightConfig, log: string[]): void {
+function act(actor: Side, other: Side, move: MoveConfig | null, config: FightConfig, log: string[], owner?: Side): void {
     if (actor.st.stunned) {
         actor.st.stunned = false;
         log.push(`💫 **${actor.name}** is stunned and loses the turn.`);
@@ -421,7 +442,7 @@ function act(actor: Side, other: Side, move: MoveConfig | null, config: FightCon
             return;
         }
         delete actor.st.charging;
-        log.push(fire(actor, other, charged, statusesOf(config)));
+        log.push(fire(actor, other, charged, statusesOf(config), owner));
         return;
     }
     if (!move) return;
@@ -430,7 +451,19 @@ function act(actor: Side, other: Side, move: MoveConfig | null, config: FightCon
         log.push(`⏳ **${actor.name}** starts winding up **${move.name}**${move.telegraph ? `: *${move.telegraph}*` : "…"}`);
         return;
     }
-    log.push(fire(actor, other, move, statusesOf(config)));
+    log.push(fire(actor, other, move, statusesOf(config), owner));
+}
+
+/** Picks by weight among moves the fighter can use now whose condition holds. Null if none. */
+function pickWeighted(list: EnemyMove[], config: FightConfig, state: FighterState, self: Side, other: Side): MoveConfig | null {
+    const options = list.filter((m) => usable(state, moveById(config, m.moveId)) && holds(m.when, self, other));
+    const total = options.reduce((sum, m) => sum + Math.max(0, m.weight ?? 1), 0);
+    let roll = rand() * total;
+    for (const m of options) {
+        roll -= Math.max(0, m.weight ?? 1);
+        if (roll < 0) return moveById(config, m.moveId);
+    }
+    return null;
 }
 
 /** Statuses, boosts and cooldowns count down at the end of each turn. */
@@ -480,8 +513,14 @@ export function pickIntent(fight: Fight, config: FightConfig): string {
     return seeded(fight, () => intent(fight, config));
 }
 
+/** A standing pet of this member, if the enemy may hit pets. */
+const hittablePet = (fight: Fight, m: Fighter | undefined) => (fight.petsCanBeHit && m?.pet && !m.pet.out && m.pet.hp > 0 ? m.pet : null);
+
 function intent(fight: Fight, config: FightConfig): string {
+    const keep = fight.foe.charging && fight.enemyTargetPet && hittablePet(fight, fight.members.find((m) => m.userId === fight.enemyTarget));
     fight.enemyTarget = pickTarget(fight);
+    // About a third of the time it goes for a pet instead (when the server allows it), and keeps that aim through a wind-up.
+    fight.enemyTargetPet = !!(keep || (!fight.foe.charging && hittablePet(fight, fight.members.find((m) => m.userId === fight.enemyTarget)) && rand() < 0.35));
     if (fight.foe.charging) return fight.foe.charging.moveId;
     const foe = foeSide(fight);
     const target = memberSide(fight, fight.members.find((m) => m.userId === fight.enemyTarget)!);
@@ -494,15 +533,7 @@ function intent(fight: Fight, config: FightConfig): string {
             return next.move.id;
         }
     }
-    const options = enemyMoveList(fight.enemy).filter((m) =>
-        usable(fight.foe, moveById(config, m.moveId)) && holds(m.when, foe, target));
-    const total = options.reduce((sum, m) => sum + Math.max(0, m.weight ?? 1), 0);
-    let roll = rand() * total;
-    for (const m of options) {
-        roll -= Math.max(0, m.weight ?? 1);
-        if (roll < 0) return moveById(config, m.moveId).id;
-    }
-    return moveById(config, "attack").id;
+    return (pickWeighted(enemyMoveList(fight.enemy), config, fight.foe, foe, target) ?? moveById(config, "attack")).id;
 }
 
 /** The next move in a pattern from `at` that passes `ok`, skipping ones it can't use yet, and where it leaves off. */
@@ -559,8 +590,10 @@ export function intentLine(fight: Fight, config: FightConfig): string {
     const name = `${fight.enemy.emoji} ${fight.enemy.name}`;
     if (fight.foe.stunned) return `💫 **${name}** is stunned and will lose its turn.`;
     const move = moveById(config, fight.enemyIntent);
-    const target = fight.members.length > 1 ? fight.members.find((m) => m.userId === fight.enemyTarget) : undefined;
-    const at = target ? ` (at ${target.name})` : "";
+    const aimed = fight.members.find((m) => m.userId === fight.enemyTarget);
+    // Named when it matters: in a party, or when it's going for a pet rather than its owner.
+    const pet = fight.enemyTargetPet && aimed?.pet && !aimed.pet.out ? aimed.pet : null;
+    const at = pet ? ` (at ${pet.emoji} ${pet.name}${fight.members.length > 1 ? `, ${aimed!.name}'s pet` : ""})` : fight.members.length > 1 && aimed ? ` (at ${aimed.name})` : "";
     if (fight.foe.charging) {
         const left = fight.foe.charging.turnsLeft - 1;
         return left > 0
@@ -645,7 +678,12 @@ function turn(fight: Fight, choices: Record<string, PlayerChoice>, config: Fight
         const side = memberSide(fight, m);
         const chosen = choice.kind === "move" ? moveById(config, choice.moveId) : null;
         const firing = m.state.charging ? moveById(config, m.state.charging.moveId) : chosen;
-        return { m, side, choice, chosen, firing, hpBefore: m.hp };
+        // Its pet, when it has one still in: it picks its move now, like an enemy, with "self" meaning its owner.
+        const pet = m.pet && !m.pet.out ? m.pet : null;
+        const petSide: Side | null = pet ? { name: `${pet.emoji} ${pet.name}`, stats: pet.stats, st: pet.state, hp: pet.hp, maxHp: pet.stats.maxHp, guard: 0 } : null;
+        const petChosen = pet && petSide ? pickWeighted(pet.moves, config, pet.state, side, foe) : null;
+        const petFiring = pet?.state.charging ? moveById(config, pet.state.charging.moveId) : petChosen;
+        return { m, side, choice, chosen, firing, hpBefore: m.hp, pet, petSide, petChosen, petFiring };
     });
     const foeMove = moveById(config, fight.foe.charging?.moveId ?? fight.enemyIntent);
     const target = () => {
@@ -657,11 +695,13 @@ function turn(fight: Fight, choices: Record<string, PlayerChoice>, config: Fight
 
     // Guard and counter cover the whole turn, so they're up before anyone swings.
     const firstTarget = target();
-    for (const [side, other, move] of [
-        ...players.map((p) => [p.side, foe, p.firing] as const),
-        ...(firstTarget ? [[foe, firstTarget.side, foeMove] as const] : []),
+    for (const [side, other, move, mover] of [
+        ...players.map((p) => [p.side, foe, p.firing, p.side] as const),
+        // A pet's guard or counter covers its owner, if the pet itself can act.
+        ...players.filter((p) => p.petSide).map((p) => [p.side, foe, p.petFiring, p.petSide!] as const),
+        ...(firstTarget ? [[foe, firstTarget.side, foeMove, foe] as const] : []),
     ]) {
-        if (!goesOff(side, move)) continue;
+        if (!goesOff(mover, move)) continue;
         for (const e of move!.effects ?? []) {
             if ((e.type !== "guard" && e.type !== "counter") || !holds(e.when, side, other) || !rolls(e)) continue;
             if (e.type === "guard") side.guard = Math.min(100, side.guard + e.percent);
@@ -681,13 +721,17 @@ function turn(fight: Fight, choices: Record<string, PlayerChoice>, config: Fight
                 } else {
                     act(p.side, foe, p.chosen, config, log);
                 }
+                // The pet goes straight after its owner.
+                if (p.petSide && p.petSide.hp > 0 && foe.hp > 0) act(p.petSide, foe, p.petChosen, config, log, p.side);
             },
         })),
         {
             side: foe, move: foeMove, foe: true,
             run: () => {
                 const t = target();
-                if (t) act(foe, t.side, foeMove, config, log);
+                // Aimed at a pet that's still standing: it takes the hit instead of its owner.
+                const atPet = t && fight.enemyTargetPet && t.m.userId === fight.enemyTarget && t.petSide && t.petSide.hp > 0 ? t.petSide : null;
+                if (t) act(foe, atPet ?? t.side, foeMove, config, log);
             },
         },
     ];
@@ -711,7 +755,18 @@ function turn(fight: Fight, choices: Record<string, PlayerChoice>, config: Fight
 
     if (foe.hp > 0 && players.some((p) => p.side.hp > 0)) {
         for (const p of players) if (p.side.hp > 0) endOfTurn(p.side, statuses, log);
+        for (const p of players) if (p.petSide && p.petSide.hp > 0) endOfTurn(p.petSide, statuses, log);
         endOfTurn(foe, statuses, log);
+    }
+    for (const p of players) {
+        if (!p.pet || !p.petSide) continue;
+        // Pets that can't be hit never wear down; ones that can sit out at 0 HP, and are never lost.
+        p.pet.hp = fight.petsCanBeHit ? p.petSide.hp : p.pet.stats.maxHp;
+        if (p.pet.hp <= 0 && foe.hp > 0) {
+            p.pet.out = true;
+            log.push(`🐾 **${p.petSide.name}** is knocked out and sits out the rest of the fight.`);
+        }
+        p.m.dealt += p.petSide.dealt ?? 0;
     }
 
     const enemyHpDelta = foe.hp - fight.enemyCurrentHp;

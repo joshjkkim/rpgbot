@@ -2,14 +2,20 @@
 
 import RequirementsField, { type Requirements, type SkillOption } from "@/app/components/ui/requirementsField";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import { Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
+import { ColorField, Field, FieldGrid, NumberField, Section, SelectField, TextField, Toggle } from "@/app/components/ui/form";
+import UploadButton from "@/app/components/ui/uploadButton";
+import StationPreview from "@/app/components/crafting/stationPreview";
+import { GRID_COLOUR_KEYS, GRID_LOOKS, gridPalette, type GridColours, type GridLook } from "@content/gridLooks";
+import { STATION_ART_SLOTS, STATION_COLOUR_LABELS, STATION_SCENES, stationSceneOf, type StationScene } from "@content/stationScene";
 import { ContentBrowser, EntryTooltip, idFromName } from "@/app/components/ui/slots";
 import { ItemField } from "@/app/components/ui/pickers";
 
 // ─── Types (mirrored from havocish/src/types/crafting.ts) ───────────────────────
 
-export interface RecipeItem { itemId: string; quantity: number }
+export interface RecipeItem { itemId: string; quantity: number; petId?: string }
 
 export interface Recipe {
   id: string;
@@ -19,6 +25,8 @@ export interface Recipe {
   minSkill: number;
   skillXp: number;
   hidden?: boolean;
+  /** Timed style: minutes until ready (default 60). */
+  minutes?: number;
   masterwork?: { itemId: string; chance: number; quantity: number }[];
   requirements?: Requirements;
 }
@@ -29,8 +37,9 @@ export interface CraftingStation {
   emoji: string;
   skillName: string;
   enabled: boolean;
-  style: "simple" | "forge";
+  style: "simple" | "forge" | "timed";
   masterworkChance?: number;
+  timed?: { slots?: number; scene?: StationScene; look?: GridLook; colours?: Partial<GridColours>; art?: Record<string, string> };
   forge?: { zone?: [number, number]; centre?: [number, number]; ruinLoss?: number };
   words?: Record<string, string>;
   recipes: Record<string, Recipe>;
@@ -39,17 +48,51 @@ export interface CraftingStation {
 const STYLES = [
   { value: "forge" as const, label: "Forge meter: time the strike" },
   { value: "simple" as const, label: "Straightforward: a Craft button" },
+  { value: "timed" as const, label: "Timed: put in, wait, collect" },
 ];
+type Style = CraftingStation["style"];
+const STYLE_HINTS: Record<Style, string> = {
+  forge: "A bar sweeps across; members strike to stop it. The yellow zone makes the item, the green centre makes a masterwork, anywhere else ruins it. Higher skill widens both.",
+  simple: "Have the ingredients, click Craft, get the item. No timing and no ruin.",
+  timed: "Members put the ingredients in a slot and come back when it's ready: a garden, a nursery, a robot bay. Each recipe sets how long it takes. It keeps going while they're offline.",
+};
+const LOOK_OPTIONS = (Object.keys(GRID_LOOKS) as GridLook[]).map((l) => ({ value: l, label: GRID_LOOKS[l].label }));
+const SCENE_OPTIONS = (Object.keys(STATION_SCENES) as StationScene[]).map((scene) => ({ value: scene, label: STATION_SCENES[scene].label }));
+
+/** Minutes as a number and a unit, for the recipe's duration. */
+const UNITS = [{ value: "1", label: "minutes" }, { value: "60", label: "hours" }, { value: "1440", label: "days" }];
+function DurationField({ minutes, onChange }: { minutes: number; onChange: (minutes: number) => void }) {
+  const [unit, setUnit] = useState(minutes % 1440 === 0 ? "1440" : minutes % 60 === 0 ? "60" : "1");
+  return (
+    <Field label="Takes" hint="Real time, including while the member is offline. 1 minute to 7 days.">
+      <div className="flex items-end gap-2">
+        <div className="w-28"><NumberField value={Math.round((minutes / Number(unit)) * 100) / 100} min={0} step={unit === "1" ? 1 : 0.5} onChange={(v) => onChange(Math.max(1, Math.min(10080, Math.round(v * Number(unit)))))} /></div>
+        <div className="w-32"><SelectField value={unit} options={UNITS} onChange={setUnit} /></div>
+      </div>
+    </Field>
+  );
+}
 
 /** Every word members see, per style, with the bot's defaults (havocish/src/commands/user/craft.ts). */
-const WORDS: Array<{ key: string; label: string; fallback: string; forgeOnly?: boolean }> = [
-  { key: "craft", label: "Craft button", fallback: "Craft" },
-  { key: "made", label: "Result verb", fallback: "Crafted" },
-  { key: "masterwork", label: "Masterwork line", fallback: "✨ Masterwork!" },
-  { key: "strike", label: "Strike button", fallback: "🔨 Strike", forgeOnly: true },
-  { key: "forging", label: "While forging", fallback: "Forging", forgeOnly: true },
-  { key: "ruined", label: "Ruined line", fallback: "💥 Ruined!", forgeOnly: true },
-  { key: "hesitated", label: "Too slow line", fallback: "Too slow. The moment passed.", forgeOnly: true },
+const WORDS: Array<{ key: string; label: string; fallback: string; styles: Style[] }> = [
+  { key: "craft", label: "Craft button", fallback: "Craft", styles: ["simple", "forge"] },
+  { key: "made", label: "Result verb", fallback: "Crafted", styles: ["simple", "forge"] },
+  { key: "masterwork", label: "Masterwork line", fallback: "✨ Masterwork!", styles: ["simple", "forge"] },
+  { key: "strike", label: "Strike button", fallback: "🔨 Strike", styles: ["forge"] },
+  { key: "forging", label: "While forging", fallback: "Forging", styles: ["forge"] },
+  { key: "ruined", label: "Ruined line", fallback: "💥 Ruined!", styles: ["forge"] },
+  { key: "hesitated", label: "Too slow line", fallback: "Too slow. The moment passed.", styles: ["forge"] },
+  { key: "start", label: "Start button", fallback: "Start", styles: ["timed"] },
+  { key: "started", label: "After starting ({item})", fallback: "Started {item}.", styles: ["timed"] },
+  { key: "empty", label: "An empty slot", fallback: "Empty", styles: ["timed"] },
+  { key: "waiting", label: "While waiting ({time})", fallback: "ready {time}", styles: ["timed"] },
+  { key: "ready", label: "Ready to collect", fallback: "Ready!", styles: ["timed"] },
+  { key: "collect", label: "Collect button", fallback: "Collect", styles: ["timed"] },
+  { key: "collected", label: "Collected verb", fallback: "Collected", styles: ["timed"] },
+  { key: "full", label: "Every slot in use", fallback: "Every slot is in use. Collect something first.", styles: ["timed"] },
+  { key: "nothing", label: "Nothing ready yet", fallback: "Nothing is ready yet.", styles: ["timed"] },
+  { key: "refunded", label: "A removed recipe refunded", fallback: "A removed recipe gave back what it took.", styles: ["timed"] },
+  { key: "hatched", label: "After a pet hatches", fallback: "Meet them with `/pet`.", styles: ["timed"] },
 ];
 
 export interface CraftingConfig {
@@ -64,7 +107,11 @@ type ShopItems = Record<string, { name?: string; emoji?: string; actions?: Recor
 const smallButton = "inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm transition-colors hover:bg-[var(--surface)]";
 const removeButton = "text-[var(--muted)] transition-colors hover:text-red-400";
 
-function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }: {
+type PetOptions = Record<string, { name?: string; emoji?: string }>;
+
+function RecipeEditor({ guildId, recipe, station, shopItems, skills, pets, onChange, onRemove }: {
+  guildId: string;
+  pets: PetOptions;
   recipe: Recipe;
   station: CraftingStation;
   shopItems: ShopItems;
@@ -75,7 +122,8 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
   const inputs = recipe.inputs ?? [];
   const masterwork = recipe.masterwork ?? [];
   const total = masterwork.reduce((s, m) => s + (m.chance > 0 && shopItems[m.itemId] ? m.chance : 0), 0);
-  const out = shopItems[recipe.output?.itemId ?? ""];
+  const pet = recipe.output?.petId ? pets[recipe.output.petId] : undefined;
+  const out = pet ?? shopItems[recipe.output?.itemId ?? ""];
   // The recipe scrolls that teach this one.
   const taughtBy = Object.values(shopItems).filter((it) => Object.values(it.actions ?? {})
     .some((a) => a?.type === "learnRecipe" && a.stationId === station.id && a.recipeId === recipe.id));
@@ -87,12 +135,25 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
         <button type="button" aria-label="Remove recipe" onClick={onRemove} className={removeButton}><Trash2 size={14} /></button>
       </div>
 
+      {station.style === "timed" && (
+        <Toggle label="Makes a pet" checked={recipe.output?.petId !== undefined} onChange={(v) => onChange({ ...recipe, output: v ? { itemId: "", quantity: 1, petId: Object.keys(pets)[0] ?? "" } : { itemId: "", quantity: 1 } })}
+          hint={recipe.output?.petId !== undefined ? "Collecting hatches a pet of this species. A member with as many pets as allowed is told, and it waits for them." : "For a nursery: an egg goes in, a pet comes out."} />
+      )}
       <FieldGrid>
-        <ItemField items={shopItems} label="Makes" value={recipe.output?.itemId ?? ""} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, itemId: v } })} emptyLabel="Choose an item" />
-        <NumberField label="How many" value={recipe.output?.quantity ?? 1} min={1} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, quantity: v } })} />
+        {recipe.output?.petId !== undefined ? (
+          <SelectField label="Hatches" value={recipe.output.petId} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, petId: v } })}
+            options={[{ value: "", label: "Choose a species" }, ...Object.entries(pets).map(([id, p]) => ({ value: id, label: `${p.emoji ?? ""} ${p.name ?? id}`.trim() }))]}
+            hint={<>{pet ? <Link href={`/dashboard/${guildId}/pets?open=${recipe.output.petId}`} className="text-[var(--accent)] underline">Edit {pet.name} on the Pets page</Link> : <Link href={`/dashboard/${guildId}/pets`} className="text-[var(--accent)] underline">Make species on the Pets page</Link>}.</>} />
+        ) : (
+          <>
+            <ItemField items={shopItems} label="Makes" value={recipe.output?.itemId ?? ""} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, itemId: v } })} emptyLabel="Choose an item" />
+            <NumberField label="How many" value={recipe.output?.quantity ?? 1} min={1} onChange={(v) => onChange({ ...recipe, output: { ...recipe.output, quantity: v } })} />
+          </>
+        )}
         <NumberField label={`${station.skillName || "Skill"} needed`} value={recipe.minSkill ?? 1} min={1} onChange={(v) => onChange({ ...recipe, minSkill: v })} />
         <NumberField label="Skill XP per craft" value={recipe.skillXp ?? 20} min={0} onChange={(v) => onChange({ ...recipe, skillXp: v })} />
         <NumberField label="Gold it also costs" value={recipe.gold ?? 0} min={0} onChange={(v) => onChange({ ...recipe, gold: v > 0 ? v : undefined })} />
+        {station.style === "timed" && <DurationField minutes={recipe.minutes ?? 60} onChange={(minutes) => onChange({ ...recipe, minutes })} />}
       </FieldGrid>
 
       <Toggle
@@ -106,7 +167,7 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
             : "No item teaches it yet. On the Items page, give an item the \"Teach a recipe\" use action, then drop or sell it somewhere."}
       />
 
-      <Field label="Ingredients" hint="Used up by each craft.">
+      <Field label="Ingredients" hint={station.style === "timed" ? "Taken when it starts. Leave empty for something that makes itself, like a robot that gathers." : "Used up by each craft."}>
         <div className="space-y-2">
           {inputs.map((i, index) => (
             <div key={index} className="flex items-end gap-2">
@@ -157,7 +218,10 @@ function RecipeEditor({ recipe, station, shopItems, skills, onChange, onRemove }
   );
 }
 
-export default function CraftingEditor({ value, onChange, shopItems, skills }: {
+export default function CraftingEditor({ guildId, value, onChange, shopItems, skills, pets = {} }: {
+  guildId: string;
+  /** Pet species, for nursery recipes. */
+  pets?: PetOptions;
   value: CraftingConfig | null | undefined;
   onChange: (next: CraftingConfig) => void;
   shopItems: ShopItems;
@@ -165,6 +229,8 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
   skills: SkillOption[];
 }) {
   const [local, setLocal] = useState<CraftingConfig>(value ?? DEFAULT_CRAFTING);
+  // ?open=<station id> opens that station, for links from other pages.
+  const [open, setOpen] = useState<string | null>(useSearchParams().get("open"));
   useEffect(() => {
     setLocal(value ?? DEFAULT_CRAFTING);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,6 +250,7 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
   function renderStation(id: string, st: CraftingStation) {
     const recipes = Object.values(st.recipes ?? {}).sort((a, b) => (a.minSkill ?? 1) - (b.minSkill ?? 1));
     const setRecipe = (r: Recipe) => upsertStation({ ...st, recipes: { ...(st.recipes ?? {}), [r.id]: r } });
+    const setTimed = (p: Partial<NonNullable<CraftingStation["timed"]>>) => upsertStation({ ...st, timed: { ...(st.timed ?? {}), ...p } });
     return (
       <div className="space-y-5">
         <Toggle label="Active" checked={st.enabled !== false} onChange={(v) => upsertStation({ ...st, enabled: v })} />
@@ -196,9 +263,7 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
             value={st.style ?? "simple"}
             options={STYLES}
             onChange={(v) => upsertStation({ ...st, style: v })}
-            hint={st.style === "forge"
-              ? "A bar sweeps across; members strike to stop it. The yellow zone makes the item, the green centre makes a masterwork, anywhere else ruins it. Higher skill widens both."
-              : "Have the ingredients, click Craft, get the item. No timing and no ruin."}
+            hint={STYLE_HINTS[st.style ?? "simple"]}
           />
           {st.style !== "forge" && (
             <NumberField
@@ -208,10 +273,55 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
               max={100}
               step={0.5}
               onChange={(v) => upsertStation({ ...st, masterworkChance: v })}
-              hint="The chance a craft gives a masterwork result. 0 turns masterworks off."
+              hint={st.style === "timed" ? "The chance a collected slot gives a masterwork result: a rare harvest. 0 turns them off." : "The chance a craft gives a masterwork result. 0 turns masterworks off."}
             />
           )}
+          {st.style === "timed" && (
+            <NumberField label="Slots" value={st.timed?.slots ?? 3} min={1} max={12} onChange={(v) => setTimed({ slots: v })}
+              hint="How many can wait at once. A slot only fills again once it's collected, so this also caps what members earn while away." />
+          )}
         </FieldGrid>
+        {st.style === "timed" && (() => {
+          const t = st.timed ?? {};
+          const scene = stationSceneOf(t.scene);
+          const palette = gridPalette(t.look ?? "soil", { ...(!t.look && STATION_SCENES[scene].colours), ...(t.colours ?? {}) });
+          const firstOutput = recipes.map((r) => shopItems[r.output?.itemId ?? ""]?.emoji).find(Boolean);
+          return (
+            <>
+              <FieldGrid>
+                <SelectField label="Scene" value={scene} options={SCENE_OPTIONS} onChange={(v) => setTimed({ scene: v })} hint="The built-in setting. Upload a Background to replace it." />
+                <SelectField label="Palette" value={t.look ?? ""} options={[{ value: "" as const, label: `Default: ${STATION_SCENES[scene].label}` }, ...LOOK_OPTIONS]}
+                  onChange={(v) => setTimed({ look: v || undefined, colours: undefined })} hint="Choosing a palette resets color overrides. Uploaded images keep their colors." />
+              </FieldGrid>
+              <FieldGrid>
+                {GRID_COLOUR_KEYS.map((k) => (
+                  <ColorField key={k} label={STATION_COLOUR_LABELS[k]} value={palette[k]} onChange={(v) => setTimed({ colours: { ...t.colours, [k]: v } })} />
+                ))}
+              </FieldGrid>
+              <Field label="Preview" hint="What members see at the top of /craft, using your first recipe's item.">
+                <StationPreview scene={scene} look={t.look} colours={t.colours} art={t.art} slots={Math.max(1, Math.min(12, t.slots ?? 3))} {...(firstOutput && { symbol: firstOutput })} />
+              </Field>
+              <Section title="Scene artwork" description="Replace the background, each slot's base, what's shown while waiting and what's shown when ready. The item's own symbol is drawn on top." defaultOpen={false}>
+                <FieldGrid>
+                  {Object.entries(STATION_ART_SLOTS).map(([slot, info]) => (
+                    <Field key={slot} label={info.label} hint={`${info.hint} PNG, JPEG, GIF or WebP, up to 512 KB.`}>
+                      <UploadButton guildId={guildId} label={`Upload ${info.label.toLowerCase()}`} onUploaded={(url) => setTimed({ art: { ...t.art, [slot]: new URL(url).pathname } })} />
+                      {t.art?.[slot] && (
+                        <div className="flex items-center gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- managed uploaded artwork */}
+                          <img src={t.art[slot]} alt={`${info.label} artwork`} className="h-16 w-16 border border-[var(--border)] object-contain" />
+                          <button type="button" aria-label={`Use default ${info.label.toLowerCase()}`} className="text-sm text-[var(--muted)] underline" onClick={() => {
+                            const art = { ...t.art }; delete art[slot]; setTimed({ art });
+                          }}>Use default</button>
+                        </div>
+                      )}
+                    </Field>
+                  ))}
+                </FieldGrid>
+              </Section>
+            </>
+          );
+        })()}
         {st.style === "forge" && (() => {
           const f = st.forge ?? {};
           const zone = f.zone ?? [0.3, 0.5];
@@ -232,7 +342,7 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
         })()}
         <Field label="Wording" hint="Leave a box blank to use the default shown in it.">
           <FieldGrid>
-            {WORDS.filter((w) => !w.forgeOnly || st.style === "forge").map((w) => (
+            {WORDS.filter((w) => w.styles.includes(st.style ?? "simple")).map((w) => (
               <TextField
                 key={w.key}
                 label={w.label}
@@ -255,7 +365,9 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
               <RecipeEditor
                 key={r.id}
                 recipe={r}
+                guildId={guildId}
                 station={st}
+                pets={pets}
                 shopItems={shopItems}
                 skills={skills}
                 onChange={setRecipe}
@@ -293,7 +405,7 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
           tooltip={(id, st) => (
             <EntryTooltip
               title={`${st.emoji ?? ""} ${st.name || id}`}
-              lines={[`${st.skillName} · ${st.style === "forge" ? "forge meter" : "straightforward"}`, `${Object.keys(st.recipes ?? {}).length} recipes`, st.enabled === false && "Inactive"]}
+              lines={[`${st.skillName} · ${st.style === "forge" ? "forge meter" : st.style === "timed" ? `timed, ${st.timed?.slots ?? 3} slots` : "straightforward"}`, `${Object.keys(st.recipes ?? {}).length} recipes`, st.enabled === false && "Inactive"]}
             />
           )}
           onCreate={(name) => {
@@ -307,6 +419,8 @@ export default function CraftingEditor({ value, onChange, shopItems, skills }: {
             commit({ ...local, stations: next });
           }}
           renderItem={renderStation}
+          selected={open && local.stations?.[open] ? open : null}
+          onSelect={setOpen}
         />
       </Section>
 

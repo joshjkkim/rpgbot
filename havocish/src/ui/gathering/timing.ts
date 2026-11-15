@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import type { GatheringLocation } from "../../types/gathering.js";
 import type { GuildConfig } from "../../types/guild.js";
 import { addFind, fill, itemLabel, rollRunLoot, type Ctx, type Game, type Run } from "./run.js";
+import { renderGatheringPanel } from "../canvas/gatheringPanel.js";
 
 /**
  * Timing: start an attempt, wait for the signal, react inside the window. A
@@ -75,6 +76,7 @@ function arm(run: Run, s: State, w: Record<string, string>, ctx: Ctx, attempt: n
             return;
         }
         s.phase = "signal";
+        s.signalAt = Infinity;
         await ctx.refresh();
         s.signalAt = Date.now();
         // A second of grace past the window before calling it, for slow connections.
@@ -100,16 +102,18 @@ export const timing: Game<State> = {
         action: "Go",
         fake: "👀 Was that something…?",
         again: "Again!",
-        early: "Too early, it got away.",
-        late: "Too slow, it got away.",
-        pull: "It pulls {dir}!",
+        early: "Too early. Attempt missed.",
+        late: "Too slow. Attempt missed.",
+        pull: "Match {dir}!",
         left: "⬅️ Left",
         right: "Right ➡️",
-        lost: "Wrong way, it got away.",
+        lost: "Wrong direction. Attempt missed.",
         landed: "Got it:",
         attempts: "attempts",
         leave: "Leave",
         verb: "got",
+        hint: "Start an attempt, wait for the signal, then react. Match any direction shown to complete the attempt.",
+        finished: "Run complete",
     },
 
     start(run) {
@@ -132,15 +136,27 @@ export const timing: Game<State> = {
         if (s.phase === "pull") {
             text += `\n### ${fill(w.pull!, { dir: s.dir === "left" ? w.left! : w.right! })}`;
             row.addComponents(
-                new ButtonBuilder().setCustomId(`gather:pull:${run.ownerId}:left`).setLabel(w.left!).setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId(`gather:pull:${run.ownerId}:right`).setLabel(w.right!).setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(`gather:pull:${run.ownerId}:${s.attempt}.${s.roundsLeft}.left`).setLabel(w.left!).setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(`gather:pull:${run.ownerId}:${s.attempt}.${s.roundsLeft}.right`).setLabel(w.right!).setStyle(ButtonStyle.Primary),
             );
         }
-        return { text, rows: [row] };
+        return { text: `${text}\n-# ${w.hint}`, rows: [row] };
+    },
+
+    scene(run, s, w) {
+        const focus = s.phase === "ready" ? w.start! : s.phase === "signal" ? w.signal! : s.phase === "fake" ? w.fake!
+            : s.phase === "pull" ? fill(w.pull!, { dir: s.dir === "left" ? w.left! : w.right! }) : s.onceMore ? w.again! : w.waiting!;
+        const total = run.location.difficulty?.attempts ?? 3;
+        return renderGatheringPanel({
+            game: "timing", title: run.activity.name, subtitle: run.location.name, focus: run.ended ? w.finished! : focus, phase: run.ended ? "ready" : s.phase, direction: s.dir,
+            timingScene: run.activity.timingScene,
+            progress: `${s.attemptsLeft} / ${total} ${w.attempts}`, remaining: s.attemptsLeft, total,
+            look: run.activity.look, colours: run.activity.colours, art: run.activity.art, avatarUrl: run.avatarUrl, ended: !!run.ended,
+        });
     },
 
     click(run, s, w, action, arg, at, ctx) {
-        if (action === "start" && s.phase === "ready" && s.attemptsLeft > 0) {
+        if (action === "start" && Number(arg) === s.attempt && s.phase === "ready" && s.attemptsLeft > 0) {
             s.attemptsLeft--;
             s.attempt++;
             s.pending = rollRunLoot(run, ctx.config);
@@ -153,6 +169,7 @@ export const timing: Game<State> = {
         if (action === "act" && Number(arg) === s.attempt) {
             if (s.phase === "waiting" || s.phase === "fake") return settle(s, run, w.early!, true);
             if (s.phase !== "signal") return;
+            if (at < s.signalAt) return settle(s, run, w.early!, true);
             if (at - s.signalAt > timingWindowMs(run.location, run.skill, run.toolBonus, run.mods.difficulty) || !s.pending) return settle(s, run, w.late!, true);
             // "Twice": the first good reaction only sets up a second, sooner.
             if (run.mods.rules.has("timing.twice") && !s.onceMore) {
@@ -171,7 +188,9 @@ export const timing: Game<State> = {
         }
 
         if (action === "pull" && s.phase === "pull") {
-            if (arg !== s.dir) return settle(s, run, w.lost!, true);
+            const [attempt, rounds, dir] = arg.split(".");
+            if (Number(attempt) !== s.attempt || Number(rounds) !== s.roundsLeft || (dir !== "left" && dir !== "right")) return;
+            if (dir !== s.dir) return settle(s, run, w.lost!, true);
             s.roundsLeft--;
             if (s.roundsLeft <= 0) return landed(s, run, w, ctx.config);
             s.dir = Math.random() < 0.5 ? "left" : "right";

@@ -1,5 +1,9 @@
 import { movesOf, statusesOf } from "../player/moves.js";
 import { RULES } from "../player/twists.js";
+import { gridImagePath } from "../content/gridLooks.js";
+import { sceneArtSlots } from "../content/gatheringScenes.js";
+import { STATION_ART_SLOTS } from "../content/stationScene.js";
+import { normalizeGathering } from "../content/normalizeGathering.js";
 import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
 import type { GuildConfig } from "../types/guild.js";
@@ -47,6 +51,7 @@ const POST: Perm[] = ["view", "send"];
 const POST_EMBED: Perm[] = ["view", "send", "embed"];
 
 export function checkGuild(config: GuildConfig, access: Access): Issue[] {
+    if (config.gathering?.activities) config = { ...config, gathering: normalizeGathering(config.gathering) };
     const issues: Issue[] = [];
     const seenChannels = new Set<string>();
 
@@ -231,6 +236,11 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
         for (const id of config.gathering.channelIds ?? []) channel(id, "gathering", "gathering", POST);
         for (const a of activities) {
+            if (["grid", "timing", "find", "puzzle"].includes(a.game)) {
+                for (const [slot, path] of Object.entries(a.art ?? {})) {
+                    if (!(slot in sceneArtSlots(a.game)) || !gridImagePath(path)) issues.push({ severity: "warning", message: `${a.name} has invalid ${slot} artwork. Upload a picture in Scene artwork; the default is used until then.`, page: "gathering" });
+                }
+            }
             const locations = Object.values(a.locations ?? {});
             if (!locations.some((l) => (l.minSkill ?? 1) <= 1)) {
                 issues.push({ severity: "warning", message: `Nobody can start ${a.name}: it has no location open at skill 1.`, page: "gathering" });
@@ -276,12 +286,24 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
         for (const st of stations) {
             const recipes = Object.values(st.recipes ?? {});
+            if (st.style === "timed") {
+                for (const [slot, path] of Object.entries(st.timed?.art ?? {})) {
+                    if (!(slot in STATION_ART_SLOTS) || !gridImagePath(path)) issues.push({ severity: "warning", message: `${st.name} has invalid ${slot} artwork. Upload a picture again; the default is used until then.`, page: "crafting" });
+                }
+                for (const r of recipes) {
+                    if (r.minutes !== undefined && !(r.minutes >= 1 && r.minutes <= 10080)) issues.push({ severity: "warning", message: `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "a recipe"} takes ${r.minutes} minutes; it's clamped to between 1 minute and 7 days.`, page: "crafting" });
+                }
+            }
             if (!recipes.some((r) => (r.minSkill ?? 1) <= 1 && !r.hidden)) {
                 issues.push({ severity: "warning", message: `Nobody can start ${st.name}: it has no recipe open at skill 1.`, page: "crafting" });
             }
             for (const r of recipes) {
-                const name = items[r.output?.itemId]?.name ?? "a recipe";
-                item(r.output?.itemId, `${st.name}'s recipe for ${name}`, "crafting");
+                const pet = r.output?.petId ? config.pets?.species?.[r.output.petId] : undefined;
+                const name = pet?.name ?? items[r.output?.itemId]?.name ?? "a recipe";
+                if (r.output?.petId) {
+                    if (!pet) issues.push({ severity: "warning", message: `${st.name} has a recipe that hatches a pet that no longer exists, so nobody can start it.`, page: "crafting" });
+                    else if (st.style !== "timed") issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} makes a pet, which only works at a timed station.`, page: "crafting" });
+                } else item(r.output?.itemId, `${st.name}'s recipe for ${name}`, "crafting");
                 if ((r.inputs ?? []).some((i) => !items[i.itemId])) {
                     issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} needs an item that no longer exists, so nobody can make it.`, page: "crafting" });
                 }
@@ -289,6 +311,20 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
                     issues.push({ severity: "warning", message: `${st.name}'s recipe for ${name} is hidden, but no item teaches it. Make a recipe scroll on the Items page, or unhide it.`, page: "crafting" });
                 }
             }
+        }
+    }
+
+    if (config.pets?.enabled) {
+        const species = Object.values(config.pets.species ?? {});
+        if (!species.length) issues.push({ severity: "warning", message: "Pets are on but there are no species.", page: "pets" });
+        for (const sp of species) if (!(sp.moves ?? []).length && !(sp.stages ?? []).some((st) => st.moves?.length)) {
+            issues.push({ severity: "warning", message: `${sp.name} has no moves, so it does nothing in fights.`, page: "pets" });
+        }
+        for (const id of Object.keys(config.pets.foods ?? {})) if (!items[id]) issues.push({ severity: "warning", message: "A pet food is an item that no longer exists.", page: "pets" });
+    }
+    for (const it of Object.values(items)) {
+        for (const a of Object.values(it.actions ?? {})) {
+            if (a?.type === "givePet" && !config.pets?.species?.[a.petId ?? ""]) issues.push({ severity: "warning", message: `${it.name} gives a pet that no longer exists.`, page: "items" });
         }
     }
 

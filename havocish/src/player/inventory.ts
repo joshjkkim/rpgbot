@@ -1,6 +1,7 @@
 import { query } from "../db/index.js";
 import { learnRecipe, recipeToLearn } from "./crafting.js";
 import { learnMove, moveToLearn } from "./moves.js";
+import { addPet, petRules, petsOf, speciesOf } from "./pets.js";
 import { busyFighting } from "./fight.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
@@ -309,8 +310,17 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                 : `You already know this ${what}. Keep the scroll, or trade it.` };
         }
     }
+    // A pet item: refuse before anything is spent when it can't be given.
+    const petGifts = Object.values(items[itemId].actions).filter((a) => a?.type === "givePet");
+    if (petGifts.length) {
+        if (quantity > 1) return { success: false, message: "Pets come one at a time." };
+        if (petGifts.some((a) => !speciesOf(config, a.petId ?? ""))) return { success: false, message: "The pet this gives no longer exists." };
+        if (!petRules(config).enabled) return { success: false, message: "Pets are switched off on this server." };
+        if (petsOf(profile).owned.length + petGifts.length > petRules(config).maxOwned) return { success: false, message: `You already have as many pets as this server allows (${petRules(config).maxOwned}). Release one with /pet first.` };
+    }
     const learned: string[] = [];
     const learnedMoves: string[] = [];
+    const newPets: string[] = [];
 
     // The full member, for role actions below.
     const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
@@ -406,6 +416,22 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
                 // Learned now, usable once its requirements are met.
                 const gate = checkRequirements(lesson.move!.players?.requirements, { profile: p, config, facts: memberFacts(interaction.member) });
                 learnedMoves.push(`${lesson.move!.emoji} ${lesson.move!.name}${gate.ok ? "" : ` (${gate.message.replace(/\.$/, "")} to use it)`}`);
+                continue;
+            }
+
+            if (action.type === "givePet" && action.petId) {
+                const cached = await getOrCreateProfile({ userId: dbUser.id, guildId: dbGuild.id });
+                const p = cached.profile;
+                const pet = addPet(p, config, action.petId);
+                if ("refused" in pet) continue;
+                commitProfileChanges({
+                    userId: dbUser.id,
+                    guildId: dbGuild.id,
+                    profile: p,
+                    changes: { ...(cached.pendingChanges ?? {}), user_stats: p.user_stats } as PendingProfileChanges,
+                    baseline: { xp: p.xp, gold: p.gold },
+                });
+                newPets.push(`${speciesOf(config, action.petId)!.emoji} ${pet.name}`);
                 continue;
             }
 
@@ -584,6 +610,7 @@ export async function useItemFromInventory(interaction: ChatInputCommandInteract
             + `${change ? ` ${change}.` : ""}`
             + `${learned.length ? ` 📜 Learned ${learned.join(", ")}: find it in \`/craft\`.` : ""}`
             + `${learnedMoves.length ? ` 📜 Learned the move ${learnedMoves.join(", ")}: pick it in \`/moves\`.` : ""}`
+            + `${newPets.length ? ` 🐾 ${newPets.join(", ")} joined you: meet them with \`/pet\`.` : ""}`
             + ` ${left ? `${left} left.` : "That was your last one."}`,
     };
 }

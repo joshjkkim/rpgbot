@@ -49,6 +49,33 @@ export default function Crafting() {
         ruin. Set a <b>masterwork chance</b> to give each craft a little luck.
       </P>
 
+      <H2>Timed stations</H2>
+      <P>
+        <b>Timed.</b> Put something in, wait, come back and collect: a garden, a nursery, a robot bay, anything that takes
+        real time. Members start a recipe in a free slot, and the ingredients and gold are taken then. It keeps going
+        while they&apos;re offline. When it&apos;s ready, <b>Collect</b> in <C>/craft</C> gives the item and the skill XP.
+        A ready slot is also mentioned under fight and gathering results, so members remember to come back.
+      </P>
+      <P>
+        Each recipe sets how long it takes, and it can have no ingredients at all (a drone that brings back scrap). The
+        station&apos;s masterwork chance and each recipe&apos;s masterwork table make some harvests rare. A slot only fills
+        again once it&apos;s collected, so the slot count also limits what members earn while away. If you delete a
+        recipe while something is waiting on it, the member gets back what it took.
+      </P>
+      <P>
+        Every word is yours, like Plant and Harvest, or Deploy and Unload. Pick a Garden, Nursery or Workshop scene,
+        recolor it, or upload your own background, slot, in-progress and ready pictures. The item&apos;s own emoji shows
+        on top, so different crops look different without extra art.
+      </P>
+      <Table
+        head={["Timed setting", "Default"]}
+        rows={[
+          ["Slots", "3 (1 to 12)"],
+          ["How long a recipe takes", "60 minutes (1 minute to 7 days)"],
+          ["Masterwork chance", "0%, set per station"],
+        ]}
+      />
+
       <H2>Masterworks</H2>
       <P>
         Each recipe can have a <b>masterwork table</b>: a weighted list of what a masterwork craft gives instead of the plain

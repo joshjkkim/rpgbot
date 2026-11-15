@@ -67,6 +67,8 @@ const TARGETS = [
   ["gathering", "activities"],
   ["gathering", "conditions"],
   ["crafting", "stations"],
+  ["pets", "species"],
+  ["pets", "foods"],
   ["collections", "sets"],
   ["characters", "list"],
   ["unlocks", "list"],
@@ -152,10 +154,10 @@ function fillsFor(config: GuildConfigJson | null, pack: StarterPack) {
 }
 
 /** Features a pack switches on, so its content works straight away. */
-export const PACK_FEATURES = ["shop", "combat", "quests", "achievements", "gathering", "crafting"] as const;
+export const PACK_FEATURES = ["shop", "combat", "quests", "achievements", "gathering", "crafting", "pets"] as const;
 
 /** Features only some packs bring, and the map that holds their content. */
-const OPTIONAL: Partial<Record<(typeof PACK_FEATURES)[number], string>> = { gathering: "activities", crafting: "stations" };
+const OPTIONAL: Partial<Record<(typeof PACK_FEATURES)[number], string>> = { gathering: "activities", crafting: "stations", pets: "species" };
 
 function packMap(pack: StarterPack, section: string, map: string) {
   const content = pack.content as unknown as Record<string, Record<string, Record<string, unknown>>>;

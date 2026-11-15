@@ -26,6 +26,7 @@ export default function GatheringPageClient({ guildId }: { guildId: string }) {
     >
       {config && (
         <GatheringEditor
+          guildId={guildId}
           skills={skillOptions(config)}
           value={gathering}
           shopItems={config.shop?.items ?? {}}

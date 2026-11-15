@@ -6,12 +6,13 @@ import { idFromName } from "@/app/components/ui/slots";
 
 // ─── Types (mirrored from havocish/src/types/gathering.ts and player/twists.ts) ───
 
-export type GameType = "grid" | "timing" | "find";
+export type GameType = "grid" | "timing" | "find" | "puzzle";
 
 export type TwistRule =
-  | "grid.adjacent" | "grid.clustered" | "grid.unstable"
+  | "grid.adjacent"
   | "timing.falseAlarm" | "timing.twice" | "timing.fragile"
-  | "find.glimpse" | "find.reshuffle" | "find.twin";
+  | "find.glimpse" | "find.reshuffle" | "find.twin"
+  | "grid.dark" | "grid.seams" | "grid.loose";
 
 export interface TwistEffects {
   difficulty?: number;
@@ -40,17 +41,18 @@ export interface GatheringCondition {
 /** Mirrors the bot's RULES: the game each belongs to, and what it does. */
 export const RULES: Record<TwistRule, { game: GameType; name: string; line: string }> = {
   "grid.adjacent": { game: "grid", name: "Only next to opened", line: "You can only open tiles next to ones you've uncovered." },
-  "grid.clustered": { game: "grid", name: "Clustered finds", line: "Finds come in clusters: one find means more nearby." },
-  "grid.unstable": { game: "grid", name: "Unstable", line: "Hit a hazard and you lose everything, not half." },
   "timing.falseAlarm": { game: "timing", name: "False alarms", line: "Some signals are false: don't jump at the first one." },
   "timing.twice": { game: "timing", name: "Twice", line: "It takes two good reactions in a row to land one." },
   "timing.fragile": { game: "timing", name: "Fragile", line: "One miss and the run is over." },
   "find.glimpse": { game: "find", name: "Glimpse", line: "You only see it for a moment: remember where it was." },
   "find.reshuffle": { game: "find", name: "Reshuffle", line: "A wrong pick scrambles everything." },
   "find.twin": { game: "find", name: "Twin", line: "There are two to find each round." },
+  "grid.dark": { game: "grid", name: "Dark", line: "Your light only reaches the next block." },
+  "grid.seams": { game: "grid", name: "Seams", line: "Ore runs in seams: where there's one block, there's more beside it." },
+  "grid.loose": { game: "grid", name: "Loose", line: "More loose rock, waiting to come down." },
 };
 
-const GAME_NAMES: Record<GameType, string> = { grid: "Grid", timing: "Timing", find: "Find it" };
+const GAME_NAMES: Record<GameType, string> = { grid: "Grid", timing: "Timing", find: "Find it", puzzle: "Puzzle" };
 
 /** What a set of effects does, in a line, for previews and lists. */
 export function describeEffects(e: TwistEffects | undefined, game?: GameType): string {

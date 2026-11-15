@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import type { GatheringLocation } from "../../types/gathering.js";
 import { addFind, fill, itemLabel, rollRunLoot, type Ctx, type Game, type Run, type Words } from "./run.js";
+import { renderGatheringPanel } from "../canvas/gatheringPanel.js";
 
 /**
  * Find it: a 4×4 patch of look-alikes hides the item being searched for. Click
@@ -101,6 +102,8 @@ export const find: Game<State> = {
         prompt: "Find the {target}!",
         wrong: "Not that one!",
         slow: "Too slow, it's gone.",
+        hint: "Pick the target before time runs out. Each wrong choice costs 2 seconds.",
+        twinHint: "There are two targets to find this round.",
         decoys: "🌱 ☘️ 🍀 🌿 🍃 🌾",
         hidden: "❔",
         rounds: "rounds",
@@ -131,15 +134,35 @@ export const find: Game<State> = {
         })));
         const target = s.target ? itemLabel(config, s.target.itemId) : "";
         return {
-            text: `### ${fill(w.prompt!, { target })}\n-# Time runs out <t:${Math.ceil(s.endsAt / 1000)}:R> · ${s.roundsLeft} more ${w.rounds} after this`,
+            text: `### ${fill(w.prompt!, { target })}\n-# ${w.hint}${run.mods.rules.has("find.twin") ? ` ${w.twinHint}` : ""}\n-# Time runs out <t:${Math.ceil(s.endsAt / 1000)}:R> · ${s.roundsLeft} more ${w.rounds} after this`,
             rows,
         };
     },
 
-    click(run, s, w, action, arg, _at, ctx) {
+    scene(run, s, w, config) {
+        const total = findRules(run.location, run.skill, run.toolBonus, run.mods.difficulty).rounds;
+        return renderGatheringPanel({
+            game: "find", title: fill(w.prompt!, { target: s.target ? itemLabel(config, s.target.itemId) : "" }), subtitle: run.location.name,
+            findScene: run.activity.findScene,
+            progress: `${w.rounds} ${s.round} / ${total}`, remaining: s.round, total,
+            look: run.activity.look, colours: run.activity.colours, art: run.activity.art, avatarUrl: run.avatarUrl,
+            // Re-evaluate after image loading so a slow fetch cannot expose a covered Glimpse patch.
+            get cells() {
+                const covered = s.hiddenAt > 0 && Date.now() >= s.hiddenAt;
+                return s.cells.map((label, i) => ({ label, tone: s.got.includes(i) ? "found" as const : "hidden" as const, covered: covered && !s.got.includes(i) }));
+            },
+        });
+    },
+
+    click(run, s, w, action, arg, at, ctx) {
         if (action !== "pick" || !s.target) return;
+        if (!/^\d+\.\d+$/.test(arg)) return;
         const [round, index] = arg.split(".").map(Number);
-        if (round !== s.round) return;
+        if (round !== s.round || !Number.isInteger(index) || index! < 0 || index! >= s.cells.length || s.got.includes(index!)) return;
+        if (at >= s.endsAt) {
+            run.status = w.slow!;
+            return nextRound(run, s, w, ctx);
+        }
 
         if (s.targets.includes(index!)) {
             addFind(run, s.target);

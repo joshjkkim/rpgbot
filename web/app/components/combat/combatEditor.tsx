@@ -898,7 +898,9 @@ export default function CombatEditor({ value, onChange, shopItems, skills, part,
 }
 
 /** What an enemy does in a fight: moves picked by weight, some only when a condition holds. */
-function EnemyMovesField({ value, onChange, moves, statuses }: {
+export function EnemyMovesField({ value, onChange, moves, statuses, hint }: {
+  /** Overrides the enemy wording, for pets. */
+  hint?: string;
   value: EnemyMove[] | undefined;
   onChange: (next: EnemyMove[] | undefined) => void;
   moves: Record<string, MoveConfig>;
@@ -911,9 +913,9 @@ function EnemyMovesField({ value, onChange, moves, statuses }: {
   return (
     <Field
       label="Moves"
-      hint={list.length
+      hint={hint ?? (list.length
         ? "Each turn it picks one by weight, among those off cooldown whose condition holds, and players see it coming."
-        : `None picked, so it uses the defaults: ${DEFAULT_ENEMY_MOVES.map((m) => moves[m.moveId]?.name ?? DEFAULT_MOVES[m.moveId]?.name).join(", ")}.`}
+        : `None picked, so it uses the defaults: ${DEFAULT_ENEMY_MOVES.map((m) => moves[m.moveId]?.name ?? DEFAULT_MOVES[m.moveId]?.name).join(", ")}.`)}
     >
       <div className="space-y-3">
         {list.map((m, i) => {

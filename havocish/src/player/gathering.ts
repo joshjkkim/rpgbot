@@ -7,6 +7,7 @@ import type { PendingProfileChanges } from "../types/cache.js";
 import { calculateLevelFromXp, calculateTotalXpForLevel } from "../leveling/levels.js";
 import { getOrCreateProfile, commitProfileChanges } from "../cache/profileService.js";
 import { runQuestPipeline } from "./quests.js";
+import { normalizeGathering } from "../content/normalizeGathering.js";
 
 /**
  * The parts every gathering game shares: skill levels, which locations a player
@@ -41,7 +42,7 @@ export function skillProgress(xp: number, config: GuildConfig) {
 
 export function enabledActivities(config: GuildConfig): GatheringActivity[] {
     if (!config.gathering.enabled) return [];
-    return Object.values(config.gathering.activities).filter((a) => a.enabled !== false);
+    return Object.values(normalizeGathering(config.gathering).activities).filter((a) => a.enabled !== false);
 }
 
 /** Locations open at this skill, easiest first. */
@@ -128,64 +129,6 @@ export function spentEnergy(p: Progress, activity: GatheringActivity, now = Date
         ? now
         : Date.parse(p.energyAt) + Math.floor((now - Date.parse(p.energyAt)) / refillMs) * refillMs;
     return { energy: energy - 1, energyAt: new Date(at).toISOString() };
-}
-
-export type GridCell = "find" | "hazard" | "empty";
-
-/**
- * The grid game's difficulty after skill eases it: one extra try per 12 skill
- * levels, one fewer hazard per 15 (never below 1 while the location has any).
- */
-export function gridRules(location: GatheringLocation, skill: number, toolBonus = 0, difficulty = 0) {
-    const d = location.difficulty ?? {};
-    const hazards = d.hazards ?? 2;
-    // Each step of difficulty is one more hazard and one fewer try (and the reverse).
-    const eased = hazards > 0 ? Math.max(1, hazards - Math.floor(skill / 15)) : 0;
-    return {
-        size: 16,
-        finds: Math.min(d.finds ?? 5, 15),
-        hazards: Math.max(0, Math.min(10, eased + difficulty)),
-        tries: Math.max(1, (d.tries ?? 5) + Math.floor((skill - 1) / 12) + toolBonus - difficulty),
-    };
-}
-
-/**
- * Finds placed in clumps: each new find goes next to an earlier one where it
- * can, so uncovering one tells you where to dig next. Hazards fill in after.
- */
-export function makeClusteredGrid(rules: { size: number; finds: number; hazards: number }, roll = Math.random): GridCell[] {
-    const side = Math.round(Math.sqrt(rules.size));
-    const cells: GridCell[] = Array(rules.size).fill("empty");
-    const near = (i: number) => [i - side, i + side, ...(i % side ? [i - 1] : []), ...((i + 1) % side ? [i + 1] : [])].filter((j) => j >= 0 && j < rules.size);
-    const finds: number[] = [];
-    while (finds.length < Math.min(rules.finds, rules.size)) {
-        const open = finds.flatMap(near).filter((j) => cells[j] === "empty");
-        const pool = open.length && roll() < 0.85 ? open : cells.map((c, i) => (c === "empty" ? i : -1)).filter((i) => i >= 0);
-        const pick = pool[Math.floor(roll() * pool.length)]!;
-        cells[pick] = "find";
-        finds.push(pick);
-    }
-    const empty = cells.map((c, i) => (c === "empty" ? i : -1)).filter((i) => i >= 0);
-    for (let n = 0; n < Math.min(rules.hazards, empty.length); n++) {
-        const k = Math.floor(roll() * empty.length);
-        cells[empty.splice(k, 1)[0]!] = "hazard";
-    }
-    return cells;
-}
-
-/** A shuffled grid with the given number of finds and hazards. */
-export function makeGrid(rules: { size: number; finds: number; hazards: number }, roll = Math.random): GridCell[] {
-    const hazards = Math.min(rules.hazards, rules.size - rules.finds);
-    const cells: GridCell[] = [
-        ...Array<GridCell>(rules.finds).fill("find"),
-        ...Array<GridCell>(hazards).fill("hazard"),
-        ...Array<GridCell>(rules.size - rules.finds - hazards).fill("empty"),
-    ];
-    for (let i = cells.length - 1; i > 0; i--) {
-        const j = Math.floor(roll() * (i + 1));
-        [cells[i], cells[j]] = [cells[j]!, cells[i]!];
-    }
-    return cells;
 }
 
 /** Spends a point of energy. Called when a run begins, so quitting early still costs it. Returns energy left. */

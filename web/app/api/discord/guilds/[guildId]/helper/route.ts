@@ -6,6 +6,7 @@ import { fetchHealth } from "@/app/lib/health";
 import { helperCallsToday, limitsFor, logUsage, withinBudget } from "@/app/lib/aiUsage";
 import { cleanChanges, HELPER_PROMPT, outline, PROPOSE_TOOL, READ_TOOL, valueAt } from "@content/helper";
 import type { GuildConfigJson } from "@content/packs";
+import { normalizeGathering } from "@content/normalizeGathering";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,7 +53,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ gui
     fetchGuildMeta(guildId),
     fetchHealth(guildId),
   ]);
-  const config = row.rows[0]?.config ?? {};
+  const raw = row.rows[0]?.config ?? {};
+  // The Helper reads and edits the same upgraded gathering shape the dashboard shows.
+  const config = raw.gathering ? { ...raw, gathering: normalizeGathering(raw.gathering as Parameters<typeof normalizeGathering>[0]) } : raw;
   const context = [
     `Channels: ${meta ? meta.channels.filter((c) => CHANNEL_KINDS[c.type]).map((c) => `${CHANNEL_KINDS[c.type]}${c.name} (${c.id})`).join(", ") : "unknown (the bot can't list them)"}`,
     `Roles: ${meta ? meta.roles.filter((r) => r.id !== guildId).map((r) => `@${r.name} (${r.id})`).join(", ") : "unknown"}`,
