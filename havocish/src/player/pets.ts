@@ -70,8 +70,11 @@ export function activePet(profile: DbUserGuildProfile, config: GuildConfig) {
     return pet && species ? { pet, species } : null;
 }
 
-function save(profile: DbUserGuildProfile, pets: PetsProgress) {
-    profile.user_stats = { ...(profile.user_stats ?? {}), pets } as typeof profile.user_stats;
+function save(profile: DbUserGuildProfile, pets: PetsProgress, counters: { adopted?: boolean; level?: number } = {}) {
+    const stats = { ...(profile.user_stats ?? {}), pets } as NonNullable<typeof profile.user_stats>;
+    if (counters.adopted) stats.petsAdopted = (stats.petsAdopted ?? 0) + 1;
+    if (counters.level && counters.level > (stats.petBestLevel ?? 0)) stats.petBestLevel = counters.level;
+    profile.user_stats = stats;
 }
 
 /** Gives a pet. The first one becomes active. Returns the pet, or why not. */
@@ -81,7 +84,7 @@ export function addPet(profile: DbUserGuildProfile, config: GuildConfig, species
     const mine = petsOf(profile);
     if (mine.owned.length >= petRules(config).maxOwned) return { refused: `You already have ${mine.owned.length} pets, the most this server allows. Release one with /pet first.` };
     const pet: OwnedPet = { uid: randomUUID().slice(0, 8), speciesId, name: species.name, xp: 0 };
-    save(profile, { owned: [...mine.owned, pet], active: mine.active ?? pet.uid });
+    save(profile, { owned: [...mine.owned, pet], active: mine.active ?? pet.uid }, { adopted: true, level: 1 });
     return pet;
 }
 
@@ -101,8 +104,9 @@ export function feedPet(profile: DbUserGuildProfile, config: GuildConfig, uid: s
     else delete inv[itemId];
     profile.inventory = inv;
     const fed = { ...pet, xp: pet.xp + xp };
-    save(profile, { ...mine, owned: mine.owned.map((p) => (p.uid === uid ? fed : p)) });
-    return { before, after: petLevel(fed, species, config), xp };
+    const after = petLevel(fed, species, config);
+    save(profile, { ...mine, owned: mine.owned.map((p) => (p.uid === uid ? fed : p)) }, { level: after });
+    return { before, after, xp };
 }
 
 /** Adds XP to the active pet (a fight win). Returns the levels, or null without one. */
@@ -111,8 +115,9 @@ export function giveActivePetXp(profile: DbUserGuildProfile, config: GuildConfig
     if (!active || xp <= 0) return null;
     const mine = petsOf(profile);
     const pet = { ...active.pet, xp: active.pet.xp + Math.round(xp) };
-    save(profile, { ...mine, owned: mine.owned.map((p) => (p.uid === pet.uid ? pet : p)) });
-    return { pet, species: active.species, before: petLevel(active.pet, active.species, config), after: petLevel(pet, active.species, config) };
+    const after = petLevel(pet, active.species, config);
+    save(profile, { ...mine, owned: mine.owned.map((p) => (p.uid === pet.uid ? pet : p)) }, { level: after });
+    return { pet, species: active.species, before: petLevel(active.pet, active.species, config), after };
 }
 
 export function renamePet(profile: DbUserGuildProfile, uid: string, name: string): string | null {

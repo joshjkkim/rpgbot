@@ -51,7 +51,7 @@ export default function Quests() {
           [<C key="c">xp</C>, "Total XP."],
           [<C key="c">gold</C>, "Current gold."],
           [<C key="c">streak</C>, "Current daily streak."],
-          [<C key="c">stat</C>, <>A tracked stat, like <C>messagesSent</C>, <C>fightsWon</C>, <C>partyWins</C>, <C>gatherRuns</C>, <C>craftsMade</C>, <C>collectionsCompleted</C>, <C>duelsWon</C>, <C>dailiesClaimed</C> or <C>timeSpentInVC</C>.</>],
+          [<C key="c">stat</C>, <>A tracked stat, like <C>messagesSent</C>, <C>fightsWon</C>, <C>partyWins</C>, <C>gatherRuns</C>, <C>craftsMade</C>, <C>collectionsCompleted</C>, <C>petsAdopted</C>, <C>petBestLevel</C>, <C>duelsWon</C>, <C>dailiesClaimed</C> or <C>timeSpentInVC</C>.</>],
         ]}
       />
       <List>

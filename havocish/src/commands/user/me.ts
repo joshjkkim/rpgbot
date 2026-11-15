@@ -1,4 +1,6 @@
 import type { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { DASHBOARD_URL } from "../../ui/dashboardLinks.js";
+import { gridImagePath } from "../../content/gridLooks.js";
 import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { getOrCreateDbUser } from "../../cache/userService.js";
 import { getOrCreateGuildConfig } from "../../cache/guildService.js";
@@ -99,6 +101,13 @@ async function paneFile(profile: DbUserGuildProfile, config: GuildConfig, name: 
             combatLevel: cp.level, xp: cp.span ? cp.into / cp.span : null,
             hp: resolveCurrentHp(profile, stats, config), maxHp: stats.maxHp,
             status: woundedUntil(profile, config)?.status.emoji ?? null,
+            pet: (() => {
+                const active = petRules(config).enabled ? activePet(profile, config) : null;
+                if (!active) return null;
+                const look = petLook(active.species, petLevel(active.pet, active.species, config));
+                const path = gridImagePath(look.image);
+                return { emoji: look.emoji, ...(path && { imageUrl: new URL(path, DASHBOARD_URL).href }) };
+            })(),
             left: (["head", "body", "hands", "legs", "feet"] as const).map(slotOf),
             right: (["weapon", "shield", "accessory", "aura"] as const).map(slotOf),
         });

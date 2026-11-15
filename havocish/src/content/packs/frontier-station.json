@@ -246,6 +246,8 @@
         "fireteam": {"id":"fireteam","name":"Fireteam","description":"Win a fight with a party.","category":"misc","conditions":{"type":"stat","statKey":"partyWins","operator":">=","value":1},"reward":{"gold":75}},
         "field-operative": {"id":"field-operative","name":"Field Operative","description":"Go gathering 50 times.","category":"misc","conditions":{"type":"stat","statKey":"gatherRuns","operator":">=","value":50},"reward":{"gold":250}},
         "chief-engineer": {"id":"chief-engineer","name":"Chief Engineer","description":"Craft 50 things.","category":"misc","conditions":{"type":"stat","statKey":"craftsMade","operator":">=","value":50},"reward":{"gold":300}},
+        "companion-online": {"id":"companion-online","name":"Companion Online","description":"Hatch or build your first pet.","category":"misc","conditions":{"type":"stat","statKey":"petsAdopted","operator":">=","value":1},"reward":{"gold":100}},
+        "trusted-unit": {"id":"trusted-unit","name":"Trusted Unit","description":"Raise a pet to level 20.","category":"misc","conditions":{"type":"stat","statKey":"petBestLevel","operator":">=","value":20},"reward":{"gold":400}},
         "cataloguer": {"id":"cataloguer","name":"Cataloguer","description":"Complete a collection.","category":"misc","conditions":{"type":"stat","statKey":"collectionsCompleted","operator":">=","value":1},"reward":{"gold":250}},
         "archivist": {"id":"archivist","name":"Archivist","description":"Complete every collection.","category":"misc","conditions":{"type":"stat","statKey":"collectionsCompleted","operator":">=","value":7},"reward":{"gold":1500}}
       }

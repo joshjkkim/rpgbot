@@ -56,6 +56,9 @@ export interface UserStats {
     partyWins?: number;
     gatherRuns?: number;
     craftsMade?: number;
+    /** Pets ever hatched or given, and the highest level any reached, for achievements. */
+    petsAdopted?: number;
+    petBestLevel?: number;
     collectionsCompleted?: number;
     /** Every enemy this member has beaten at least once (player/fight.ts), for collections. */
     defeated?: string[];

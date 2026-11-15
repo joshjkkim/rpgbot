@@ -28,6 +28,8 @@ export type PaneArgs = {
     maxHp: number;
     /** A status shown on the portrait, like Wounded. */
     status?: string | null;
+    /** The active pet, sitting at the portrait's lower left: its stage's picture or emoji. */
+    pet?: { emoji: string; imageUrl?: string } | null;
     /** Down the left, then down the right. */
     left: PaneSlot[];
     right: PaneSlot[];
@@ -137,6 +139,15 @@ export async function renderCharacterPane(args: PaneArgs): Promise<Buffer> {
     ctx.stroke();
     const statusIcon = args.status ? await image(emojiImageUrl(args.status)) : null;
     if (statusIcon) ctx.drawImage(statusIcon, cx + r - 18, cy - r - 4, 26, 26);
+    const pet = args.pet ? await image(args.pet.imageUrl || emojiImageUrl(args.pet.emoji)) : null;
+    if (pet) {
+        const px = cx - r - 4, py = cy + r - 20, pr = 21;
+        ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fillStyle = "#2a2118"; ctx.fill();
+        ctx.strokeStyle = STONE_BORDER; ctx.lineWidth = 2; ctx.stroke();
+        const s = (pr * 1.5) / Math.max(pet.width, pet.height);
+        ctx.drawImage(pet, px - (pet.width * s) / 2, py - (pet.height * s) / 2, pet.width * s, pet.height * s);
+    }
 
     // Level and bars underneath.
     ctx.font = "14px InterBold";
