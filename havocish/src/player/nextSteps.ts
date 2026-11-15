@@ -3,8 +3,10 @@ import type { GatheringActivity } from "../types/gathering.js";
 import type { CraftingStation } from "../types/crafting.js";
 import type { MoveConfig } from "../types/combat.js";
 import type { UserQuestState } from "../types/quest.js";
+import type { DbUserGuildProfile } from "../types/userprofile.js";
 import { movesOf } from "./moves.js";
 import { placeEnemies } from "./places.js";
+import { enabledStations, slotReady } from "./crafting.js";
 
 /**
  * "What's next": one line under a result saying what the player is working
@@ -90,4 +92,14 @@ export function nextCraftLine(station: CraftingStation, skill: number, config: G
     if (!next) return null;
     const item = config.shop?.items?.[next.output?.itemId ?? ""];
     return `-# Next: ${item?.emoji ?? "🔨"} **${item?.name ?? next.id}** at ${station.skillName} ${next.minSkill} (${levels(next.minSkill - skill)}).`;
+}
+
+/** A timed station with something waiting to be collected, so offline progress gets noticed. */
+export function readyLine(profile: DbUserGuildProfile, config: GuildConfig, now = Date.now()): string | null {
+    for (const st of enabledStations(config)) {
+        if (st.style !== "timed") continue;
+        const ready = (profile.user_stats?.crafting?.[st.id]?.slots ?? []).filter((s) => slotReady(s, now)).length;
+        if (ready) return `-# ${st.emoji} **${st.name}** · ${ready}× ${st.words?.ready || "Ready!"} · \`/craft ${st.name}\``;
+    }
+    return null;
 }

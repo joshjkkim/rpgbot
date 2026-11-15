@@ -2,6 +2,7 @@ import { movesOf, statusesOf } from "../player/moves.js";
 import { RULES } from "../player/twists.js";
 import { gridImagePath } from "../content/gridLooks.js";
 import { sceneArtSlots } from "../content/gatheringScenes.js";
+import { STATION_ART_SLOTS } from "../content/stationScene.js";
 import { normalizeGathering } from "../content/normalizeGathering.js";
 import type { Guild } from "discord.js";
 import { PermissionFlagsBits } from "discord.js";
@@ -285,6 +286,14 @@ export function checkGuild(config: GuildConfig, access: Access): Issue[] {
         }
         for (const st of stations) {
             const recipes = Object.values(st.recipes ?? {});
+            if (st.style === "timed") {
+                for (const [slot, path] of Object.entries(st.timed?.art ?? {})) {
+                    if (!(slot in STATION_ART_SLOTS) || !gridImagePath(path)) issues.push({ severity: "warning", message: `${st.name} has invalid ${slot} artwork. Upload a picture again; the default is used until then.`, page: "crafting" });
+                }
+                for (const r of recipes) {
+                    if (r.minutes !== undefined && !(r.minutes >= 1 && r.minutes <= 10080)) issues.push({ severity: "warning", message: `${st.name}'s recipe for ${items[r.output?.itemId]?.name ?? "a recipe"} takes ${r.minutes} minutes; it's clamped to between 1 minute and 7 days.`, page: "crafting" });
+                }
+            }
             if (!recipes.some((r) => (r.minSkill ?? 1) <= 1 && !r.hidden)) {
                 issues.push({ severity: "warning", message: `Nobody can start ${st.name}: it has no recipe open at skill 1.`, page: "crafting" });
             }

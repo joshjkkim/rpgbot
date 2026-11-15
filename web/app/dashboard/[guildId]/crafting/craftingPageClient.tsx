@@ -25,6 +25,7 @@ export default function CraftingPageClient({ guildId }: { guildId: string }) {
     >
       {config && (
         <CraftingEditor
+          guildId={guildId}
           skills={skillOptions(config)}
           value={crafting}
           shopItems={config.shop?.items ?? {}}
