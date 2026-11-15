@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { parse } from "twemoji-parser";
 import { drawGatheringPanel, panelSymbols, PANEL_H, PANEL_W, type GatheringPanel } from "@content/gatheringPanel";
 import { SelectField } from "@/app/components/ui/form";
+import { twemojiUrl } from "@/app/daily/emoji";
 import type { GatheringActivity } from "./gatheringEditor";
 import { sceneArtSlots } from "@content/gatheringScenes";
 import { gridImagePath } from "@content/gridLooks";
@@ -87,7 +87,7 @@ export default function GamePreview({ activity: a, defaults, shopItems }: Props)
     const assets = [
       ...panelSymbols(sample).map((label) => {
         const custom = /^<a?:\w+:(\d+)>$/.exec(label);
-        return [label, custom ? `https://cdn.discordapp.com/emojis/${custom[1]}.png` : parse(label, { assetType: "png" })[0]?.url] as const;
+        return [label, custom ? `https://cdn.discordapp.com/emojis/${custom[1]}.png` : twemojiUrl(label)] as const;
       }),
       ...Object.keys(sceneArtSlots(sample.game)).map((slot) => [`art:${slot}`, gridImagePath(sample.art?.[slot])] as const),
     ];
