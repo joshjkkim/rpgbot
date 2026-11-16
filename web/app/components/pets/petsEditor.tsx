@@ -73,7 +73,7 @@ function Picture({ emoji, image, size = 48 }: { emoji: string; image?: string; s
 }
 
 /** The species at each stage, as members see it on /pet: picture, stage, stats and moves. */
-function StagePreview({ species, moves }: { species: PetSpecies; moves: Record<string, MoveConfig> }) {
+export function StagePreview({ species, moves }: { species: PetSpecies; moves: Record<string, MoveConfig> }) {
   const max = Math.max(1, species.maxLevel ?? 30);
   const stops = [...new Set([1, ...sortedStages(species).map((s) => s.atLevel).filter((l) => l >= 1 && l <= max), max])].sort((a, b) => a - b);
   return (
