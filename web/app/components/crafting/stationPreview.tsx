@@ -29,7 +29,7 @@ const symbolUrl = (emoji: string) => {
   return custom ? `https://cdn.discordapp.com/emojis/${custom[1]}.png` : twemojiUrl(emoji);
 };
 
-export default function StationPreview({ scene, look, colours, art, slots, symbol }: Omit<StationSceneArgs, "slots"> & { art?: Record<string, string>; slots: number; symbol?: string }) {
+export default function StationPreview({ scene, look, colours, art, slots, symbol, note = true }: Omit<StationSceneArgs, "slots"> & { art?: Record<string, string>; slots: number; symbol?: string; /** The owner-facing line under it; off on the public site. */ note?: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const artKey = JSON.stringify(art ?? {});
   const [loaded, setLoaded] = useState<{ key: string; art: Record<string, unknown>; symbols: Record<string, unknown>; failed: string[] }>({ key: "", art: {}, symbols: {}, failed: [] });
@@ -73,7 +73,7 @@ export default function StationPreview({ scene, look, colours, art, slots, symbo
     <div className="space-y-2">
       <canvas ref={canvas} width={W * SCALE} height={H * SCALE} className="w-full max-w-[496px] border border-[var(--border)]" style={{ imageRendering: "pixelated" }} />
       {loaded.key === key && loaded.failed.length > 0 && <p className="text-xs text-red-400">Couldn&apos;t load: {loaded.failed.join(", ")}. The default is drawn instead.</p>}
-      <p className="text-xs text-[var(--muted)]">A sample of your slots: the first empty, the last ready to collect, the rest partway. Members see their own in /craft.</p>
+      {note && <p className="text-xs text-[var(--muted)]">A sample of your slots: the first empty, the last ready to collect, the rest partway. Members see their own in /craft.</p>}
     </div>
   );
 }
