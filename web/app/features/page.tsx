@@ -4,16 +4,25 @@ import ItemTooltip from "@/app/components/shop/itemTooltip";
 import type { shopItemConfig } from "@/app/components/shop/shopBasicsEditor";
 import { SiteFooter, SiteHeader } from "@/app/components/siteChrome";
 import { inviteUrl } from "@/app/lib/invite";
-import { FightMock, GatherDemo, QuestMock } from "./demos";
+import { FightMock, QuestMock } from "./demos";
+import GridPreview from "@/app/components/gathering/gridPreview";
+import StationPreview from "@/app/components/crafting/stationPreview";
+import { StagePreview, type PetSpecies } from "@/app/components/pets/petsEditor";
+import type { MoveConfig } from "@/app/components/combat/moveText";
 import { AiWorldCard, EnemyGrid, type Enemy } from "./aiWorldCard";
 
 export const metadata: Metadata = {
   title: "Features",
-  description: "Levels, fights you read and unlock moves for, parties, worlds written by AI from your description, gathering minigames with changing conditions, crafting, a collection log, quests and a dashboard to design it all. Everything havocish adds to a Discord server.",
+  description: "Levels, fights you read and unlock moves for, parties, pets that grow up and fight beside you, worlds written by AI from your description, gathering minigames with changing conditions, crafting and gardens that grow while you're away, a collection log, quests and a dashboard to design it all. Everything havocish adds to a Discord server.",
 };
 
 const items = pack.content.shop.items as unknown as Record<string, shopItemConfig>;
 const enemies = pack.content.combat.enemies as Record<string, Enemy>;
+const species = (pack.content as unknown as { pets: { species: Record<string, PetSpecies> } }).pets.species;
+const moves = pack.content.combat.moves as unknown as Record<string, MoveConfig>;
+const garden = pack.content.crafting.stations.garden;
+// The ores Classic Fantasy's mine holds (stone is just rock), coloured into the drawn rock face as in Discord.
+const ores = [...new Set(Object.values(pack.content.gathering.activities.mining.locations).flatMap((l) => l.loot.map((x) => items[x.itemId]?.emoji)))].filter((e): e is string => !!e && e !== "🪨").slice(0, 4);
 
 function Feature({ title, children, visual, flip }: { title: string; children: React.ReactNode; visual: React.ReactNode; flip?: boolean }) {
   return (
@@ -84,16 +93,35 @@ export default function FeaturesPage() {
             ]} />
           </Feature>
 
-          <Feature title="Gathering, worded your way" visual={<div className="w-full max-w-[460px]"><GatherDemo /></div>}>
+          <Feature title="Pets that grow up with you" visual={<div className="w-full max-w-[460px]"><StagePreview species={species["ember-drake"]!} moves={moves} /></div>}>
+            <p>Hatch an egg, raise what comes out, and bring it into every fight. Above, Classic Fantasy&apos;s Ember Drake at each stage.</p>
+            <Points items={[
+              <><b>It fights beside you:</b> right after you each turn, with its own moves. Some hit, some heal or shield you when you&apos;re low.</>,
+              <><b>It grows:</b> feed it in <b>/pet</b> and win fights to level it up. New stages change how it looks and teach it new moves.</>,
+              <><b>Hatch it or find it:</b> eggs warm in a nursery while you&apos;re away, pups drop from wolves, kits sit in the shop.</>,
+              <><b>Any creature you like:</b> owners design every species, from stats and moves to pictures and words, and decide whether enemies can hit pets.</>,
+            ]} />
+          </Feature>
+
+          <Feature flip title="Gathering, worded your way" visual={<div className="w-full max-w-[460px]"><GridPreview oreEmojis={ores} /></div>}>
             <p>
-              Four minigames, played with buttons: uncover finds on a drawn grid of obstacles, react to a signal in time, spot the
-              target among look-alikes, or rotate puzzle tiles to complete a connection.
+              Four minigames, played with buttons: dig through a drawn rock face toward buried finds, react to a signal in time, spot
+              the target among look-alikes, or rotate puzzle tiles to complete a connection.
             </p>
             <Points items={[
-              <><b>Make any activity you like.</b> Pick a minigame and write every word players see. Mining for a fantasy server, salvage for a sci-fi one, baking for a cozy one.</>,
+              <><b>Make any activity you like.</b> Pick a minigame and write every word players see. Mining for a fantasy server, salvage for a sci-fi one, baking for a cozy one. Upload your own scenery and colours too.</>,
               <><b>Places with character:</b> one is pitch dark, so you plan a path; one has fast water, so it takes two good pulls. Each plays differently, not just harder.</>,
               <><b>Weather that changes through the day:</b> a storm makes it rough but turns up rarer finds; fog closes in; clear skies ease off. Everyone sees the same, and it changes every few hours.</>,
               <><b>Skills from 1 to 50</b> open better locations, and <b>tools</b> from your shop make the game easier.</>,
+            ]} />
+          </Feature>
+
+          <Feature title="Come back to a full garden" visual={<div className="w-full max-w-[460px]"><StationPreview scene={garden.timed.scene as "garden"} slots={garden.timed.slots} symbol={items[Object.values(garden.recipes)[0]!.output.itemId]?.emoji ?? "🌼"} note={false} /></div>}>
+            <p>Plant it, go do something else, and collect when it&apos;s ready. It keeps growing while you&apos;re offline.</p>
+            <Points items={[
+              <><b>Anything that takes time:</b> a garden, a nursery for eggs, a bay of drones that bring back scrap. Owners choose what goes in, what comes out and how long it takes.</>,
+              <><b>A reason to come back:</b> fight and gathering results remind you when something&apos;s ready, and a rare harvest is always possible.</>,
+              <><b>Drawn for your world:</b> garden, nursery or workshop scenes, recoloured or replaced with your own art.</>,
             ]} />
           </Feature>
 
@@ -136,7 +164,7 @@ export default function FeaturesPage() {
           >
             <p>Tell havocish what your server is about in a few sentences, and it writes the whole game for it. The world on the left came from the line at its top.</p>
             <Points items={[
-              <><b>Everything a world needs:</b> enemies with their own moves, places, a world boss, gear for every slot, potions, hunting quests, two gathering minigames, crafting stations, collections and achievements.</>,
+              <><b>Everything a world needs:</b> enemies with their own moves, places, a world boss, gear for every slot, potions, hunting quests, two gathering minigames, crafting stations, pets with a nursery, collections and achievements.</>,
               <><b>The AI writes the words; the numbers are ours.</b> Stats, prices, drop rates and rewards come from the same balance tables as the starter packs, so nothing is broken or overpowered.</>,
               <><b>Yours to change.</b> Add it whole or piece by piece, then edit anything on the dashboard like your own work.</>,
               <><b>Right in setup:</b> pick &ldquo;Describe my own world&rdquo; in <b>/setup</b> and your server starts with it.</>,
