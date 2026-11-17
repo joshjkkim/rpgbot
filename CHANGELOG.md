@@ -2,7 +2,7 @@
 
 What's new in havocish, newest first. Posted to the support server and shown at havocish.com/changelog.
 
-## Unreleased
+## v0.20.1 · November 16, 2026
 
 ### New
 - **Monthly achievements: reset one so members can earn it again.** `/admin reset-achievement` lets everyone who has an achievement (or one member) earn it again, for events that repeat, like a monthly quest where another bot's role marks who made it. It asks before resetting, keeps rewards already paid, and can take back the role the achievement gave. A reset achievement doesn't unlock again straight away for members who still qualify: it waits until they lose what earned it, such as the role, and get it back.
