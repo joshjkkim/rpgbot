@@ -378,7 +378,7 @@
   },
   {
     "name": "admin",
-    "description": "Change a member's XP, level, gold, streak, items or role rewards",
+    "description": "Change a member's XP, level, gold, streak, items, role rewards or achievements",
     "managersOnly": true,
     "options": [
       {
@@ -605,6 +605,31 @@
             "name": "role",
             "description": "Just this role's reward. Leave empty for all of them",
             "type": "role",
+            "required": false
+          }
+        ],
+        "kind": "subcommand"
+      },
+      {
+        "name": "reset-achievement",
+        "description": "Let members earn an achievement again, e.g. each month",
+        "options": [
+          {
+            "name": "achievement",
+            "description": "Which achievement",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "member",
+            "description": "Just this member. Leave empty for everyone who has it",
+            "type": "user",
+            "required": false
+          },
+          {
+            "name": "take_role",
+            "description": "Also take back the role it gave (default: yes)",
+            "type": "true/false",
             "required": false
           }
         ],

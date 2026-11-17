@@ -1,7 +1,7 @@
 import type { DbUser } from "./dbuser.js"
 import type { DbGuild, GuildConfig } from "./guild.js";
 import type { UserQuestState } from "./quest.js";
-import type { item, TempRoleState, UserStats, DbUserGuildProfile } from "./userprofile.js";
+import type { item, TempRoleState, UserStats, DbUserGuildProfile, AchievementEntry } from "./userprofile.js";
 
 export interface CachedUserId {
     user: DbUser;
@@ -24,7 +24,7 @@ export interface PendingProfileChanges {
     inventory?: Record<string, item>;
     temp_roles?: Record<string, TempRoleState>;
     user_stats?: UserStats;
-    achievements?: Record<string, { unlockedAt: string; progress?: number;}>;
+    achievements?: Record<string, AchievementEntry>;
     quests?: Record<string, UserQuestState>; 
     equips?: {
         head?: item;

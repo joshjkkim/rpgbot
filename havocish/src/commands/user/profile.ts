@@ -643,7 +643,7 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
     } else if (choice === "achievements") {
         const unlockedMap = profile.achievements ?? {};
         const achCfg = config.achievements?.achievements ?? {};
-        const unlockedIds = Object.keys(unlockedMap);
+        const unlockedIds = Object.keys(unlockedMap).filter((id) => unlockedMap[id]?.unlockedAt);
 
         type AchRow = { name: string; description: string; dateStr: string; unlocked: boolean };
         const rows: AchRow[] = [];
@@ -662,7 +662,7 @@ export async function handleProfileButton(interaction: ButtonInteraction) {
         }
 
         const allDefs = Object.values(achCfg);
-        const lockedVisible = allDefs.filter((d: any) => !d.secret && !unlockedMap[d.id]);
+        const lockedVisible = allDefs.filter((d: any) => !d.secret && !unlockedMap[d.id]?.unlockedAt);
         for (const d of lockedVisible as any[]) {
             rows.push({ name: d.name, description: d.description, dateStr: "", unlocked: false });
         }
