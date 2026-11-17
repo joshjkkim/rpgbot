@@ -58,7 +58,7 @@ import { CELL, PAD, W, H, cellXY, drawFace, lookOf, type FaceCell } from "../src
 import { gridSettings } from "../src/content/gridSettings.js";
 import { gridImagePath } from "../src/content/gridLooks.js";
 import { gridPalette } from "../src/content/gridLooks.js";
-import { runAchievementPipeline } from "../src/player/achievements.js";
+import { achievementHolders, resetAchievement, runAchievementPipeline } from "../src/player/achievements.js";
 import { applyChanges, cleanChanges, outline, valueAt } from "../src/content/helper.js";
 import { handleSetupInteraction } from "../src/commands/admin/setup.js";
 import { announcer, editSpoken, lineOf, shopkeeper, speak, speaker } from "../src/ui/characters.js";
@@ -3155,6 +3155,35 @@ async function main() {
         const first = await runAchievementPipeline({ profile: p, pending: {} as any, config, facts: facts(["bard-role"]) });
         check("the reward's gold and role are paid", [first.profile.gold, first.rewards?.grantedRoles], ["5", ["giveaway"]]);
         check("it only unlocks once", await run(first.profile, facts(["bard-role"])), []);
+    });
+
+    await test("a reset achievement unlocks again only after the member stops qualifying", async () => {
+        const { userId, guildId } = await reset();
+        const none = { type: "requirements", operator: ">=", value: 0 };
+        const config = { achievements: { enabled: true, achievements: {
+            bard: { id: "bard", name: "Bard", description: "", category: "misc", conditions: none, requirements: { roles: ["bard-role"] } },
+        } } } as any;
+        const facts = (roleIds: string[]) => ({ roleIds, joinedAt: null, boosting: false });
+
+        const cached = await getOrCreateProfile({ userId, guildId });
+        const p = cached.profile;
+        p.achievements = { bard: { unlockedAt: new Date().toISOString() } };
+        commitProfileChanges({ userId, guildId, profile: p, changes: { achievements: p.achievements }, baseline: { xp: p.xp, gold: p.gold } });
+        await flushProfileCacheToDb({ userId, guildId, force: true });
+        check("holders come from the DB", await achievementHolders(guildId, "bard"), [userId]);
+        check("reset counts it", await resetAchievement({ guildId, achievementId: "bard", userIds: [userId] }), 1);
+        check("a reset one isn't a holder", await achievementHolders(guildId, "bard"), []);
+
+        const step = async (roles: string[] | undefined) => {
+            const c = await getOrCreateProfile({ userId, guildId });
+            const res = await runAchievementPipeline({ profile: c.profile, pending: {} as any, config, facts: roles && facts(roles) });
+            return [res.unlocked.map((a) => a.id), res.profile.achievements.bard ?? null];
+        };
+        check("still holding the role: waits, no instant re-award", await step(["bard-role"]), [[], { waiting: true }]);
+        check("no member details: can't tell, keeps waiting", await step(undefined), [[], { waiting: true }]);
+        check("role taken away: re-armed", await step([]), [[], null]);
+        const again = await step(["bard-role"]);
+        check("role given back: unlocks again", again[0], ["bard"]);
     });
 
     await test("an AI-written world becomes a balanced, self-contained pack", async () => {
