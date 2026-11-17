@@ -4,6 +4,14 @@ import type { PetsProgress } from "./pets.js";
 import type { QueryResultRow } from "pg";
 import type { UserQuestState } from "./quest.js";
 
+/**
+ * One achievement on a profile. `unlockedAt` = unlocked. `waiting` = an admin
+ * reset it (/admin reset-achievement) while the member still qualified: it
+ * re-arms once they stop qualifying (the role is taken away, XP is wiped), so
+ * a reset never re-awards everyone at once.
+ */
+export type AchievementEntry = { unlockedAt?: string; progress?: number; waiting?: true };
+
 export interface UserStats {
     messagesSent: number;
     itemsPurchased: number;
@@ -97,7 +105,7 @@ export interface DbUserGuildProfile extends QueryResultRow {
     inventory: Record<string, item>;
     temp_roles: Record<string, TempRoleState>;
     user_stats: UserStats;
-    achievements: Record<string, { unlockedAt: string; progress?: number;}>;
+    achievements: Record<string, AchievementEntry>;
     quests: Record<string, UserQuestState>; // questId -> UserQuestState
     equips: {
         head?: string;

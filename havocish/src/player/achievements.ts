@@ -11,6 +11,8 @@ import { checkRequirements, memberFacts, type MemberFacts } from "./requirements
 import { getOrCreateGuildConfig } from "../cache/guildService.js";
 import { getOrCreateDbUser } from "../cache/userService.js";
 import { commitProfileChanges, getOrCreateProfile } from "../cache/profileService.js";
+import { userGuildProfileCache } from "../cache/caches.js";
+import { query } from "../db/index.js";
 
 function getConditionCurrentValue(condition: AchievementCondition, profile: DbUserGuildProfile): number {
     switch (condition.type) {
@@ -56,29 +58,41 @@ function evaluateAchievements(args: AchievementCheckArgs): AchievementCheckResul
 
     const unlockedMap = profile.achievements ?? {};
     const nowIso = new Date().toISOString();
+    let rearmed = false;
 
     for (const [achievementId, achievement] of Object.entries(achievementsConfig.achievements)) {
-        if (unlockedMap[achievementId]?.unlockedAt) {
+        const entry = unlockedMap[achievementId];
+        if (entry?.unlockedAt) {
             continue;
         }
 
         const condition: AchievementCondition = achievement.conditions;
         const req = achievement.requirements;
+        // null: can't tell (it has requirements, and this path has no member details).
+        let qualifies: boolean | null = true;
         if (condition.type === "requirements") {
             // Nothing set must not mean everyone gets it.
-            if (!req || !Object.keys(req).length) continue;
+            if (!req || !Object.keys(req).length) qualifies = false;
         } else if (!compare(condition.operator, getConditionCurrentValue(condition, profile), condition.value)) {
+            qualifies = false;
+        }
+        if (qualifies && req) qualifies = facts ? checkRequirements(req, { profile, config, facts }).ok : null;
+
+        // Reset while they still qualified: wait until they don't, then it can unlock again.
+        if (entry?.waiting) {
+            if (qualifies === false) {
+                delete unlockedMap[achievementId];
+                rearmed = true;
+            }
             continue;
         }
-        if (req && (!facts || !checkRequirements(req, { profile, config, facts }).ok)) {
-            continue;
-        }
+        if (!qualifies) continue;
 
         unlockedAchievements.push(achievement);
         unlockedMap[achievementId] = { unlockedAt: nowIso };
     }
 
-    if (unlockedAchievements.length > 0) {
+    if (unlockedAchievements.length > 0 || rearmed) {
         profile = {
             ...profile,
             achievements: unlockedMap,
@@ -256,13 +270,54 @@ export async function checkRoleAchievements(member: GuildMember) {
     const { user } = await getOrCreateDbUser({ discordUserId: member.id, username: member.user.username });
     const cached = await getOrCreateProfile({ userId: user.id, guildId: guild.id });
     const baseline = { xp: cached.profile.xp, gold: cached.profile.gold };
-    const res = await runAchievementPipeline({
-        profile: cached.profile, pending: cached.pendingChanges ?? {} as PendingProfileChanges, config, facts: memberFacts(member),
-    });
-    if (!res.unlocked.length) return;
+    const pendingIn = cached.pendingChanges ?? {} as PendingProfileChanges;
+    const res = await runAchievementPipeline({ profile: cached.profile, pending: pendingIn, config, facts: memberFacts(member) });
+    // A new pending object means an unlock, or a reset achievement re-arming (they lost the role).
+    if (res.pending === pendingIn) return;
     commitProfileChanges({ userId: user.id, guildId: guild.id, profile: res.profile, changes: res.pending, baseline });
+    if (!res.unlocked.length) return;
     await applyAchievementSideEffects({
         client: member.client, discordGuildId: member.guild.id, discordUserId: member.id, member, config, unlocked: res.unlocked,
         rewards: res.rewards ? { grantedRoles: res.rewards.grantedRoles, messages: res.rewards.messages } : null,
     });
+}
+
+/** Everyone who has the achievement unlocked: the DB, plus unlocks still only in the cache. */
+export async function achievementHolders(guildId: number, achievementId: string): Promise<number[]> {
+    const res = await query<{ user_id: number }>(
+        `SELECT user_id FROM user_guild_profiles WHERE guild_id = $1 AND achievements -> $2 ? 'unlockedAt'`, [guildId, achievementId],
+    );
+    const ids = new Set(res.rows.map((r) => Number(r.user_id)));
+    // A cached profile is newer than its row (writes flush later), so it wins.
+    for (const [key, c] of userGuildProfileCache) {
+        if (!key.startsWith(`${guildId}:`)) continue;
+        const userId = Number(c.profile.user_id);
+        if (c.profile.achievements?.[achievementId]?.unlockedAt) ids.add(userId);
+        else ids.delete(userId);
+    }
+    return [...ids];
+}
+
+/**
+ * Lets an achievement be earned again (/admin reset-achievement). Rewards
+ * already paid stay paid. Each one is left `waiting`: it unlocks again only
+ * after the member stops qualifying and qualifies again (loses the role and
+ * gets it back), never straight away. Returns how many were reset.
+ */
+export async function resetAchievement(opts: { guildId: number; achievementId: string; userIds: number[] }): Promise<number> {
+    const { guildId, achievementId, userIds } = opts;
+    let count = 0;
+    for (const userId of userIds) {
+        const cached = await getOrCreateProfile({ userId, guildId });
+        const p = cached.profile;
+        if (!p.achievements?.[achievementId]?.unlockedAt) continue;
+        p.achievements = { ...p.achievements, [achievementId]: { waiting: true } };
+        commitProfileChanges({
+            userId, guildId, profile: p,
+            changes: { ...(cached.pendingChanges ?? {}), achievements: p.achievements },
+            baseline: { xp: p.xp, gold: p.gold },
+        });
+        count++;
+    }
+    return count;
 }
